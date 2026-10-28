@@ -7,26 +7,11 @@ import type { SpawnWhat } from '../input/selection';
 import type { BattleScene } from '../scenes/BattleScene';
 import { canBuildShip, canUpgrade, cancelQueued, enqueueShip, enqueueUpgrade } from '../sim/structures';
 import { childrenOf, newAI, stationOf, type Entity, type Result } from '../sim/world';
+import { el, hex, pct, shortReason, toast } from './dom';
 
 const REFRESH_MS = 100;
 const SHIPYARD_CLASSES = SHIP_CLASSES.filter((c) => SHIPS[c].source === 'shipyard');
 const SPEEDS = [0.5, 1, 2, 4];
-
-function el<K extends keyof HTMLElementTagNameMap>(tag: K, attrs: Record<string, string> = {}, html = ''): HTMLElementTagNameMap[K] {
-  const e = document.createElement(tag);
-  for (const [k, v] of Object.entries(attrs)) e.setAttribute(k, v);
-  e.innerHTML = html;
-  return e;
-}
-
-const hex = (c: number) => `#${c.toString(16).padStart(6, '0')}`;
-const pct = (v: number) => `${Math.round(Math.max(0, Math.min(1, v)) * 100)}%`;
-
-/** Build buttons are narrow: "Station niveau 2 requise" becomes "Niveau 2". */
-function shortReason(reason: string): string {
-  if (reason === 'Crédits insuffisants') return 'Trop cher';
-  return reason.replace(/^Station niveau (\d) requise$/, 'Niveau $1');
-}
 
 export function entityName(e: Entity): string {
   if (e.kind === 'ship') return SHIPS[e.type as ShipClass].name;
@@ -39,23 +24,27 @@ export class Hud {
   private credits!: HTMLElement;
   private level!: HTMLElement;
   private selection!: HTMLElement;
-  private queue!: HTMLElement;
+  private queue: HTMLElement | null = null;
   private minimap!: HTMLCanvasElement;
   private toasts!: HTMLElement;
-  private sandboxPanel!: HTMLElement;
+  private sandboxPanel: HTMLElement | null = null;
   private shipButtons = new Map<ShipClass, HTMLButtonElement>();
   private structureButtons = new Map<BuildableType, HTMLButtonElement>();
-  private upgradeButton!: HTMLButtonElement;
+  private upgradeButton: HTMLButtonElement | null = null;
   private modal: HTMLElement | null = null;
   private timer = 0;
   private lastSelection = '';
   /** Signature of the rendered queue; null forces the first render. */
   private lastQueue: string | null = null;
 
-  constructor(private scene: BattleScene, sandbox: boolean) {
+  /**
+   * `campaign` is the planet fought over in a campaign battle: no building, no sandbox,
+   * and the attacker may retreat.
+   */
+  constructor(private scene: BattleScene, private mode: { sandbox: boolean; campaign: string | null }) {
     this.buildTopbar();
     this.buildBottombar();
-    this.buildSandbox(sandbox);
+    if (!mode.campaign) this.buildSandbox(mode.sandbox);
     this.toasts = this.root.appendChild(el('div', { class: 'toasts', role: 'status', 'aria-live': 'polite' }));
     document.body.appendChild(this.root);
     // A clicked button keeps focus, and Space or Enter would press it again: give focus back.
@@ -93,9 +82,17 @@ export class Hud {
       b.onclick = () => this.scene.setSpeed(s);
     }
     const group = bar.appendChild(el('div', { class: 'group' }));
+    if (this.mode.campaign) {
+      this.credits.textContent = `Bataille de ${this.mode.campaign}`;
+      group.appendChild(el('button', {}, 'Aide')).onclick = () => this.showHelp();
+      if (this.scene.opts.campaign?.attacker === this.player) {
+        group.appendChild(el('button', { title: 'Les survivants regagnent la planète d\'où ils venaient' }, 'Retraite')).onclick = () => this.scene.retreat();
+      }
+      return;
+    }
     const sb = group.appendChild(el('button', { 'data-act': 'sandbox' }, 'Bac à sable'));
     sb.onclick = () => {
-      this.sandboxPanel.hidden = !this.sandboxPanel.hidden;
+      this.sandboxPanel!.hidden = !this.sandboxPanel!.hidden;
       this.refreshModes();
     };
     group.appendChild(el('button', {}, 'Aide')).onclick = () => this.showHelp();
@@ -113,6 +110,26 @@ export class Hud {
       }
     });
 
+    if (!this.mode.campaign) this.buildProduction(bar);
+
+    const mini = bar.appendChild(el('section', { class: 'minimap panel', 'aria-label': 'Minicarte' }));
+    this.minimap = mini.appendChild(el('canvas', { width: '240', height: '160' }));
+    const jump = (ev: PointerEvent) => {
+      const r = this.minimap.getBoundingClientRect();
+      const x = ((ev.clientX - r.left) / r.width) * this.world.width;
+      const y = ((ev.clientY - r.top) / r.height) * this.world.height;
+      this.scene.cameras.main.centerOn(x, y);
+    };
+    this.minimap.addEventListener('pointerdown', (ev) => {
+      this.minimap.setPointerCapture(ev.pointerId);
+      jump(ev);
+    });
+    this.minimap.addEventListener('pointermove', (ev) => {
+      if (ev.buttons & 1) jump(ev);
+    });
+  }
+
+  private buildProduction(bar: HTMLElement): void {
     const build = bar.appendChild(el('section', { class: 'build panel', 'aria-label': 'Construction' }));
     const head = build.appendChild(el('div', { class: 'head' }));
     head.append(el('h3', {}, 'Chantier naval'));
@@ -134,22 +151,6 @@ export class Hud {
     this.queue.addEventListener('click', (ev) => {
       const i = (ev.target as HTMLElement).closest('button')?.dataset.index;
       if (i != null) cancelQueued(this.world, this.player, Number(i));
-    });
-
-    const mini = bar.appendChild(el('section', { class: 'minimap panel', 'aria-label': 'Minicarte' }));
-    this.minimap = mini.appendChild(el('canvas', { width: '240', height: '160' }));
-    const jump = (ev: PointerEvent) => {
-      const r = this.minimap.getBoundingClientRect();
-      const x = ((ev.clientX - r.left) / r.width) * this.world.width;
-      const y = ((ev.clientY - r.top) / r.height) * this.world.height;
-      this.scene.cameras.main.centerOn(x, y);
-    };
-    this.minimap.addEventListener('pointerdown', (ev) => {
-      this.minimap.setPointerCapture(ev.pointerId);
-      jump(ev);
-    });
-    this.minimap.addEventListener('pointermove', (ev) => {
-      if (ev.buttons & 1) jump(ev);
     });
   }
 
@@ -204,11 +205,7 @@ export class Hud {
   }
 
   toast(text: string): void {
-    const t = this.toasts.appendChild(el('div', { class: 'panel' }));
-    t.textContent = text;
-    while (this.toasts.children.length > 4) this.toasts.firstElementChild!.remove();
-    setTimeout(() => t.classList.add('out'), 2200);
-    setTimeout(() => t.remove(), 2600);
+    toast(this.toasts, text);
   }
 
   /** The player lost a structure or hardpoint. */
@@ -226,7 +223,7 @@ export class Hud {
       const s = Number(b.dataset.speed);
       b.setAttribute('aria-pressed', String(s === 0 ? this.scene.paused : !this.scene.paused && this.scene.speed === s));
     }
-    this.root.querySelector('[data-act=sandbox]')?.setAttribute('aria-pressed', String(!this.sandboxPanel.hidden));
+    this.root.querySelector('[data-act=sandbox]')?.setAttribute('aria-pressed', String(this.sandboxPanel?.hidden === false));
     const mode = this.scene.controls?.mode.kind ?? 'select';
     this.root.querySelector('[data-act=spawn]')?.setAttribute('aria-pressed', String(mode === 'spawn'));
     for (const [type, b] of this.structureButtons) {
@@ -246,6 +243,12 @@ export class Hud {
     const w = this.world;
     const f = w.factions.get(this.player)!;
     const station = stationOf(w, this.player);
+    if (this.mode.campaign) {
+      this.level.textContent = station ? `Station niveau ${station.level}` : '';
+      this.refreshSelection();
+      this.drawMinimap();
+      return;
+    }
     let income = station ? STATION.income : 0;
     for (const e of w.entities.values()) if (e.faction === this.player && e.build >= 1) income += e.income;
     this.credits.innerHTML = `Crédits <strong>${Math.floor(f.credits)}</strong> <span class="muted">+${income}/s</span>`;
@@ -266,8 +269,8 @@ export class Hud {
     }
     const next = station && STATION.levels[station.level];
     const up = canUpgrade(w, this.player);
-    this.upgradeButton.disabled = !up.ok;
-    this.upgradeButton.textContent = next
+    this.upgradeButton!.disabled = !up.ok;
+    this.upgradeButton!.textContent = next
       ? `Améliorer la station (${next.upgradeCost} cr)${up.ok ? '' : ` : ${up.reason}`}`
       : 'Station au niveau maximum';
 
@@ -283,6 +286,7 @@ export class Hud {
   }
 
   private refreshQueue(): void {
+    if (!this.queue) return;
     const q = this.world.factions.get(this.player)!.queue;
     const sig = q.map((i) => (i.kind === 'ship' ? i.cls : 'upgrade')).join(',');
     if (sig !== this.lastQueue) {
@@ -391,6 +395,16 @@ export class Hud {
     p.querySelector<HTMLButtonElement>('[data-act=again]')!.onclick = () => this.scene.restart();
     p.querySelector<HTMLButtonElement>('[data-act=menu]')!.onclick = () => this.scene.toMenu();
     p.querySelector<HTMLButtonElement>('[data-act=close]')!.onclick = () => this.closeModal();
+    this.openModal(p);
+  }
+
+  /** End of a campaign battle: the only way on is back to the galaxy map. */
+  showBattleEnd(won: boolean, onBack: () => void): void {
+    const p = el('div', { class: 'panel' },
+      `<h2>${won ? 'Victoire' : 'Défaite'}</h2>` +
+      `<p>${won ? 'La bataille est gagnée.' : 'La bataille est perdue.'} Les survivants regagnent la carte galactique.</p>` +
+      '<div class="actions"><button class="primary">Retour à la carte</button></div>');
+    p.querySelector('button')!.onclick = onBack;
     this.openModal(p);
   }
 

@@ -2,6 +2,7 @@ import Phaser from 'phaser';
 import { BackgroundScene } from './scenes/BackgroundScene';
 import { BattleScene } from './scenes/BattleScene';
 import { BootScene } from './scenes/BootScene';
+import { GalaxyScene } from './scenes/GalaxyScene';
 
 new Phaser.Game({
   type: Phaser.AUTO,
@@ -10,5 +11,5 @@ new Phaser.Game({
   pixelArt: true,
   scale: { mode: Phaser.Scale.RESIZE, width: window.innerWidth, height: window.innerHeight },
   // Scenes render in this order: the background goes under the battle.
-  scene: [BootScene, BackgroundScene, BattleScene],
+  scene: [BootScene, GalaxyScene, BackgroundScene, BattleScene],
 });

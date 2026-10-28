@@ -1,9 +1,15 @@
 # Sandbox Ship
 
-Jeu de stratégie spatiale 2D en temps réel, en bac à sable. Chaque camp a une station
-améliorable, des mines sur les astéroïdes, des hangars qui lancent des chasseurs et un
-chantier naval. On gagne en détruisant la station adverse, point d'attache par point
-d'attache.
+Jeu de stratégie spatiale 2D en temps réel, en bac à sable. Trois modes :
+
+- **Campagne galactique** : 14 planètes reliées par des routes. On y gagne des crédits,
+  on bâtit des stations, des mines et des plateformes, on produit des vaisseaux et on
+  déplace ses flottes. Quand deux camps se rencontrent sur une planète, la bataille se
+  commande dans la vue tactique ou se résout seule. On perd quand on n'a plus de planète.
+- **Escarmouche** : une seule bataille contre l'IA. Chaque camp a une station améliorable,
+  des mines sur les astéroïdes, des hangars qui lancent des chasseurs et un chantier naval.
+  On gagne en détruisant la station adverse, point d'attache par point d'attache.
+- **Bac à sable** : la même bataille, IA coupée, placement libre de n'importe quelle unité.
 
 ## Lancer
 
@@ -40,6 +46,8 @@ reste en forme provisoire.
 ## Organisation
 
 - `src/data/` : statistiques des vaisseaux, de la station et des structures.
-- `src/sim/` : simulation en TypeScript pur, à pas fixe, sans Phaser. Les tests et la
-  future carte galactique s'en servent directement.
+- `src/data/galaxy.ts` : planètes, routes et règles de la campagne.
+- `src/sim/` : simulation en TypeScript pur, à pas fixe, sans Phaser. `galaxy.ts` pour la
+  carte, `battle.ts` pour les batailles de planète, qui tournent dans la même simulation
+  que l'escarmouche, en accéléré quand elles se résolvent seules.
 - `src/scenes/`, `src/render/`, `src/input/`, `src/ui/` : rendu Phaser, entrées et HUD en HTML.

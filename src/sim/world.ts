@@ -199,16 +199,17 @@ export function spawnShip(world: World, faction: FactionId, cls: ShipClass, x: n
   return e;
 }
 
-export function spawnStation(world: World, faction: FactionId, x: number, y: number): Entity {
-  const lvl = STATION.levels[0];
+/** Spawns a station already upgraded to `level`, with the hardpoints of every level up to it. */
+export function spawnStation(world: World, faction: FactionId, x: number, y: number, level = 1): Entity {
+  const lvl = STATION.levels[level - 1];
   const e = baseEntity(world, 'structure', 'station', faction, x, y);
   Object.assign(e, {
-    radius: STATION.radius, level: 1,
+    radius: STATION.radius, level,
     hull: lvl.hull, maxHull: lvl.hull, shield: lvl.shield, maxShield: lvl.shield, shieldRegen: lvl.shieldRegen,
     weapons: armed(STATION.weapons), range: maxRange(STATION.weapons),
   });
   world.entities.set(e.id, e);
-  addHardpoints(world, e, lvl.hardpoints);
+  for (let i = 0; i < level; i++) addHardpoints(world, e, STATION.levels[i].hardpoints);
   const f = world.factions.get(faction);
   if (f) {
     f.stationId = e.id;

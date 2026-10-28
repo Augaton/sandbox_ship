@@ -1,11 +1,15 @@
 import './hud.css';
 import { FACTIONS, FACTION_IDS, type FactionId } from '../data/units';
-import type { BattleOptions } from '../scenes/BattleScene';
+import { hex } from './dom';
 
-const hex = (c: number) => `#${c.toString(16).padStart(6, '0')}`;
+export interface MenuChoice {
+  player: FactionId;
+  enemy: FactionId;
+  mode: 'campaign' | 'skirmish' | 'sandbox';
+}
 
 /** Start screen: pick a faction, an opponent and a mode. */
-export function showMenu(onStart: (opts: BattleOptions) => void, assetCount?: number): void {
+export function showMenu(onStart: (choice: MenuChoice) => void, assetCount?: number): void {
   let player: FactionId = 'klaed';
   let enemy: FactionId = 'nairan';
   const root = document.createElement('div');
@@ -20,14 +24,15 @@ export function showMenu(onStart: (opts: BattleOptions) => void, assetCount?: nu
   root.innerHTML = `
     <div class="modal"><div class="panel">
       <h1>Sandbox Ship</h1>
-      <p class="note">Chaque camp a une station. Construis des mines sur les astéroïdes, produis une flotte et détruis la station adverse. Ses points d'attache (chantier, hangars, bouclier, tourelles) tombent un par un.</p>
+      <p class="note">Conquiers la galaxie planète par planète. Chaque rencontre se joue en bataille spatiale, que tu commandes toi-même ou que tu laisses se résoudre seule.</p>
       <fieldset><legend>Ta faction</legend><div class="choices" role="group">${choices('player')}</div></fieldset>
       <fieldset><legend>Adversaire</legend><div class="choices" role="group">${choices('enemy')}</div></fieldset>
       <div class="actions">
-        <button class="primary" data-mode="skirmish">Escarmouche</button>
+        <button class="primary" data-mode="campaign">Campagne galactique</button>
+        <button data-mode="skirmish">Escarmouche</button>
         <button data-mode="sandbox">Bac à sable</button>
       </div>
-      <p class="note">Escarmouche : contre l'IA, 1 500 crédits. Bac à sable : IA coupée, 50 000 crédits, placement libre de n'importe quelle unité.</p>
+      <p class="note">Campagne : 14 planètes, une capitale chacun, l'IA en face. Escarmouche : une seule bataille contre l'IA, 1 500 crédits. Bac à sable : IA coupée, 50 000 crédits, placement libre.</p>
       ${assets}
     </div></div>`;
   document.body.appendChild(root);
@@ -47,11 +52,11 @@ export function showMenu(onStart: (opts: BattleOptions) => void, assetCount?: nu
     if (b.dataset.enemy) enemy = b.dataset.enemy as FactionId;
     if (b.dataset.mode) {
       root.remove();
-      onStart({ player, enemy, mode: b.dataset.mode as BattleOptions['mode'] });
+      onStart({ player, enemy, mode: b.dataset.mode as MenuChoice['mode'] });
       return;
     }
     sync();
   });
   sync();
-  root.querySelector<HTMLButtonElement>('[data-mode=skirmish]')!.focus();
+  root.querySelector<HTMLButtonElement>('[data-mode=campaign]')!.focus();
 }

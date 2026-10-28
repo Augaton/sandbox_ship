@@ -3,17 +3,29 @@ import { FACTIONS, type FactionId } from '../data/units';
 import { STATION } from '../data/structures';
 import { SelectionController } from '../input/selection';
 import { asteroidKeys, lookFor, projectileKey, type Look, type Manifest } from '../render/sprites';
+import { battleOutcome, updateBattleAI, type BattleResult } from '../sim/battle';
 import { createSkirmish } from '../sim/scenario';
 import { STEP, step } from '../sim/step';
 import { stationOf, type Entity, type World } from '../sim/world';
 import { Hud } from '../ui/hud';
-import { showMenu } from '../ui/menu';
 import type { BackgroundScene } from './BackgroundScene';
+import { showStartMenu } from './flow';
+import type { GalaxyScene } from './GalaxyScene';
+
+/** A battle of the galaxy campaign, fought in this view. */
+export interface CampaignBattle {
+  world: World;
+  battleId: number;
+  planet: string;
+  attacker: FactionId;
+  defender: FactionId;
+}
 
 export interface BattleOptions {
   player: FactionId;
   enemy: FactionId;
-  mode: 'skirmish' | 'sandbox';
+  mode: 'skirmish' | 'sandbox' | 'campaign';
+  campaign?: CampaignBattle;
 }
 
 interface View {
@@ -43,6 +55,8 @@ export class BattleScene extends Phaser.Scene {
   private shotPool: Phaser.GameObjects.Image[] = [];
   private sparks = 0;
   private overlay!: Phaser.GameObjects.Graphics;
+  /** Set once a campaign battle is decided. */
+  private result: BattleResult | null = null;
 
   constructor() {
     super('battle');
@@ -52,10 +66,11 @@ export class BattleScene extends Phaser.Scene {
     this.opts = opts;
     this.manifest = this.cache.json.get('manifest') ?? {};
     const sandbox = opts.mode === 'sandbox';
-    this.world = createSkirmish({
+    this.world = opts.campaign?.world ?? createSkirmish({
       player: opts.player, enemy: opts.enemy, enemyAI: !sandbox,
       credits: sandbox ? 50000 : undefined, seed: (Math.random() * 1e9) | 0,
     });
+    this.result = null;
     this.selected = new Set();
     this.views = new Map();
     this.shots = new Map();
@@ -69,12 +84,21 @@ export class BattleScene extends Phaser.Scene {
     this.overlay = this.add.graphics().setDepth(DEPTH.overlay);
     const cam = this.cameras.main;
     cam.setBounds(-600, -600, this.world.width + 1200, this.world.height + 1200);
-    const home = stationOf(this.world, opts.player)!;
-    cam.centerOn(home.x + 300, home.y);
+    const home = stationOf(this.world, opts.player) ?? this.fleetCenter(opts.player);
+    cam.centerOn(home.x, home.y);
 
     this.controls = new SelectionController(this);
-    this.hud = new Hud(this, sandbox);
+    this.hud = new Hud(this, { sandbox, campaign: opts.campaign?.planet ?? null });
     this.events.once('shutdown', () => this.hud.destroy());
+  }
+
+  private fleetCenter(faction: FactionId): { x: number; y: number } {
+    const ships = [...this.world.entities.values()].filter((e) => e.faction === faction);
+    if (ships.length === 0) return { x: this.world.width / 2, y: this.world.height / 2 };
+    return {
+      x: ships.reduce((s, e) => s + e.x, 0) / ships.length,
+      y: ships.reduce((s, e) => s + e.y, 0) / ships.length,
+    };
   }
 
   update(_time: number, delta: number): void {
@@ -83,12 +107,14 @@ export class BattleScene extends Phaser.Scene {
       let n = 0;
       while (this.acc >= STEP && n < MAX_STEPS_PER_FRAME) {
         step(this.world);
+        if (this.opts.campaign) updateBattleAI(this.world, [this.opts.enemy], STEP);
         this.acc -= STEP;
         n++;
       }
       // Too slow to keep up: drop the backlog rather than spiral.
       if (n === MAX_STEPS_PER_FRAME) this.acc = 0;
     }
+    this.checkCampaignEnd();
     this.controls.update(delta);
     this.consumeEvents();
     this.syncViews();
@@ -115,13 +141,33 @@ export class BattleScene extends Phaser.Scene {
   }
 
   toMenu(): void {
+    showStartMenu(this.game);
+  }
+
+  private checkCampaignEnd(): void {
+    const c = this.opts.campaign;
+    if (!c || this.result) return;
+    const result = battleOutcome(this.world, c.attacker, c.defender);
+    if (!result) return;
+    this.result = result;
+    const winner = result === 'attacker' ? c.attacker : c.defender;
+    this.hud.showBattleEnd(winner === this.opts.player, () => this.returnToGalaxy());
+  }
+
+  /** The attacker can fall back: its surviving ships return to the planet they came from. */
+  retreat(): void {
+    if (this.opts.campaign?.attacker !== this.opts.player || this.result) return;
+    this.result = 'retreat';
+    this.returnToGalaxy();
+  }
+
+  private returnToGalaxy(): void {
+    const c = this.opts.campaign!;
     const game = this.game;
     game.scene.stop('battle');
     game.scene.stop('background');
-    showMenu((opts) => {
-      game.scene.start('background');
-      game.scene.start('battle', opts);
-    }, Object.keys(this.manifest).length);
+    (game.scene.getScene('galaxy') as GalaxyScene).finishBattle(c.battleId, this.result!);
+    game.scene.wake('galaxy');
   }
 
   /** Brief ring where an order was given. */

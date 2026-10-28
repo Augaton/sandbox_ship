@@ -109,8 +109,51 @@
 .build .queue button { position: relative; min-height: 32px; padding: 0 8px; overflow: hidden; }
 .build .queue .progress { position: absolute; left: 0; bottom: 0; height: 3px; background: var(--accent); }
 
-.minimap { display: block; padding: 0; cursor: crosshair; }
+.minimap { display: block; padding: 0; cursor: crosshair; justify-self: end; grid-column: 3; }
 .minimap canvas { display: block; border-radius: var(--radius); }
+
+/* Galaxy planet panel */
+.galaxy-panel {
+  position: absolute;
+  top: 64px;
+  right: 8px;
+  bottom: 8px;
+  width: 320px;
+  padding: 12px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.galaxy-panel h2 { font-size: 20px; }
+.galaxy-panel h3 { margin-top: 6px; color: var(--muted); }
+.galaxy-panel .grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px; }
+.galaxy-panel .grid button {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: flex-start;
+  padding: 4px 8px;
+  text-align: left;
+  font-size: 14px;
+  line-height: 1.3;
+}
+.galaxy-panel .grid small { color: var(--muted); font-size: 12px; }
+.galaxy-panel .grid button:not(:disabled) small { color: var(--accent); }
+.galaxy-panel .queue { display: flex; flex-wrap: wrap; gap: 4px; align-items: center; }
+.galaxy-panel .queue button { position: relative; min-height: 32px; padding: 0 8px; overflow: hidden; }
+.galaxy-panel .queue .progress { position: absolute; left: 0; bottom: 0; height: 3px; background: var(--accent); }
+.fleet-row { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+.ui input[type='number'] {
+  width: 72px;
+  min-height: 36px;
+  padding: 0 6px;
+  font: inherit;
+  color: var(--text);
+  background: var(--raised);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+}
 
 /* Sandbox panel */
 .sandbox {

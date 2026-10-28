@@ -1,7 +1,7 @@
 import Phaser from 'phaser';
 import { createPlaceholders } from '../render/placeholders';
 import type { Manifest } from '../render/sprites';
-import { showMenu } from '../ui/menu';
+import { showStartMenu } from './flow';
 
 /** Loads the asset manifest, then every sprite it lists, then shows the start menu. */
 export class BootScene extends Phaser.Scene {
@@ -21,10 +21,7 @@ export class BootScene extends Phaser.Scene {
     }
     this.load.once('complete', () => {
       createPlaceholders(this);
-      showMenu((opts) => {
-        this.scene.launch('background');
-        this.scene.start('battle', opts);
-      }, Object.keys(manifest).length);
+      showStartMenu(this.game);
     });
     this.load.start();
   }
