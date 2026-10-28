@@ -6,9 +6,9 @@ import {
   MAX_TECH_LEVEL, TECHS, TECH_BONUS, noResearch, type ResearchJob, type ResearchLevels, type TechId,
 } from '../data/research';
 import { BUILDABLES, MAX_QUEUE, STATION } from '../data/structures';
-import { SHIPS, SHIP_CLASSES, orderName, shipCost, type FactionId, type ShipClass } from '../data/units';
+import { FACTIONS, SHIPS, SHIP_CLASSES, orderName, shipCost, type FactionId, type ShipClass } from '../data/units';
 import {
-  NO_DEFENSE, battleOutcome, countShips, createPlanetBattle, defenseLeft, fleetValue, heroSurvivors, survivors, updateBattleAI,
+  NO_DEFENSE, battleOutcome, countShips, createPlanetBattle, defenseLeft, fleetValue, heroSurvivors, survivorCondition, survivors, updateBattleAI,
   type BattleResult, type PlanetDefense, type ShipCounts,
 } from './battle';
 import { CLASSIC, type GalaxyLayout } from './galaxyGen';
@@ -66,6 +66,8 @@ export interface Fleet {
   came: number;
   arrivedAt: number;
   battleId: number | null;
+  /** Share of their hull the ships have left after their battles; missing (old saves) means whole. */
+  condition?: number;
 }
 
 /** `pending` waits for the player to choose; `tactical` is being played in the battle view. */
@@ -227,17 +229,30 @@ export function fleetsAt(g: Galaxy, planetId: number, faction?: FactionId): Flee
   return [...g.fleets.values()].filter((f) => f.at === planetId && f.battleId == null && (!faction || f.faction === faction));
 }
 
-export function addShipsAt(g: Galaxy, faction: FactionId, planetId: number, ships: ShipCounts, heroes: HeroId[] = []): Fleet | null {
+/** Strength of a fleet for estimates: its value, less the damage it carries. */
+export function fleetStrength(f: Fleet): number {
+  return fleetValue(f.ships, f.heroes) * (f.condition ?? 1);
+}
+
+/** Adds ships to a fleet; its condition becomes the average of both, weighted by value. */
+function mergeInto(into: Fleet, ships: ShipCounts, heroes: HeroId[], condition: number): void {
+  const a = fleetValue(into.ships);
+  const b = fleetValue(ships);
+  if (a + b > 0) into.condition = ((into.condition ?? 1) * a + condition * b) / (a + b);
+  for (const c of SHIP_CLASSES) if (ships[c]) into.ships[c] = (into.ships[c] ?? 0) + ships[c]!;
+  into.heroes.push(...heroes);
+}
+
+export function addShipsAt(g: Galaxy, faction: FactionId, planetId: number, ships: ShipCounts, heroes: HeroId[] = [], condition = 1): Fleet | null {
   if (countShips(ships) === 0 && heroes.length === 0) return null;
   const fleet = fleetsAt(g, planetId, faction)[0];
   if (fleet) {
-    for (const c of SHIP_CLASSES) if (ships[c]) fleet.ships[c] = (fleet.ships[c] ?? 0) + ships[c]!;
-    fleet.heroes.push(...heroes);
+    mergeInto(fleet, ships, heroes, condition);
     return fleet;
   }
   const f: Fleet = {
     id: g.nextId++, faction, ships: { ...ships }, heroes: [...heroes], at: planetId, from: planetId, to: null, path: [],
-    progress: 0, came: planetId, arrivedAt: g.time, battleId: null,
+    progress: 0, came: planetId, arrivedAt: g.time, battleId: null, condition,
   };
   g.fleets.set(f.id, f);
   return f;
@@ -307,6 +322,23 @@ function moveFleets(g: Galaxy, dt: number): void {
   }
 }
 
+/**
+ * Fleets mend while docked at their own planets, faster with a station and fastest with a
+ * repair dock; biomechanical hulls also mend on the way. Shares of the hull per second.
+ */
+export const FLEET_REPAIR = { planet: 1 / 240, station: 1 / 120, dock: 1 / 45, regen: 1 / 150 };
+
+function repairFleets(g: Galaxy, dt: number): void {
+  for (const f of g.fleets.values()) {
+    if ((f.condition ?? 1) >= 1 || f.battleId != null) continue;
+    const p = f.at == null ? null : g.planets[f.at];
+    const home = p?.owner === f.faction ? p : null;
+    const rate = (home ? (home.repairDock > 0 ? FLEET_REPAIR.dock : home.station > 0 ? FLEET_REPAIR.station : FLEET_REPAIR.planet) : 0)
+      + (FACTIONS[f.faction].trait.hullRegen > 0 ? FLEET_REPAIR.regen : 0);
+    f.condition = Math.min(1, (f.condition ?? 1) + rate * dt);
+  }
+}
+
 function mergeFleets(g: Galaxy): void {
   const seen = new Map<string, Fleet>();
   for (const f of [...g.fleets.values()].sort((a, b) => a.arrivedAt - b.arrivedAt)) {
@@ -317,8 +349,7 @@ function mergeFleets(g: Galaxy): void {
       seen.set(key, f);
       continue;
     }
-    for (const c of SHIP_CLASSES) if (f.ships[c]) into.ships[c] = (into.ships[c] ?? 0) + f.ships[c]!;
-    into.heroes.push(...f.heroes);
+    mergeInto(into, f.ships, f.heroes, f.condition ?? 1);
     g.fleets.delete(f.id);
   }
 }
@@ -349,7 +380,7 @@ export function defenseValue(g: Galaxy, planet: Planet): number {
   const fleets = owner ? fleetsAt(g, planet.id, owner) : [];
   const levels = STATION.levels.slice(0, planet.station).reduce((v, l) => v + l.hull + l.shield, 0);
   return levels / 2 + planet.platforms * BUILDABLES.platform.cost + planet.ionCannon * BUILDABLES.ionCannon.cost
-    + fleets.reduce((v, f) => v + fleetValue(f.ships, f.heroes), 0);
+    + fleets.reduce((v, f) => v + fleetStrength(f), 0);
 }
 
 function startBattle(g: Galaxy, planet: Planet, attacker: FactionId, defender: FactionId, from: number): void {
@@ -357,12 +388,17 @@ function startBattle(g: Galaxy, planet: Planet, attacker: FactionId, defender: F
   const side = (faction: FactionId) => {
     const ships: ShipCounts = {};
     const heroes: HeroId[] = [];
+    let value = 0;
+    let wear = 0;
     for (const f of fleetsAt(g, planet.id, faction)) {
       f.battleId = id;
       for (const c of SHIP_CLASSES) if (f.ships[c]) ships[c] = (ships[c] ?? 0) + f.ships[c]!;
       heroes.push(...f.heroes);
+      const v = fleetValue(f.ships);
+      value += v;
+      wear += v * (f.condition ?? 1);
     }
-    return { faction, ships, heroes, research: g.factions.get(faction)?.research };
+    return { faction, ships, heroes, research: g.factions.get(faction)?.research, condition: value > 0 ? wear / value : 1 };
   };
   const defense = planet.owner === defender ? defenseOf(planet) : NO_DEFENSE;
   const att = side(attacker);
@@ -423,6 +459,8 @@ export function concludeBattle(g: Galaxy, battleId: number, result: BattleResult
   if (planet.owner === b.defender) Object.assign(planet, defenseLeft(w, b.defender));
   const att = survivors(w, b.attacker);
   const def = survivors(w, b.defender);
+  const attCondition = survivorCondition(w, b.attacker);
+  const defCondition = survivorCondition(w, b.defender);
   const attHeroes = heroSurvivors(w, b.attacker);
   const defHeroes = heroSurvivors(w, b.defender);
   // Fallen heroes can be built again after a while.
@@ -432,11 +470,11 @@ export function concludeBattle(g: Galaxy, battleId: number, result: BattleResult
   }
   if (result === 'attacker') {
     capture(g, planet, b.attacker);
-    addShipsAt(g, b.attacker, planet.id, att, attHeroes);
+    addShipsAt(g, b.attacker, planet.id, att, attHeroes, attCondition);
   } else {
-    addShipsAt(g, b.defender, planet.id, def, defHeroes);
+    addShipsAt(g, b.defender, planet.id, def, defHeroes, defCondition);
     if (result === 'retreat') {
-      const back = addShipsAt(g, b.attacker, planet.id, att, attHeroes);
+      const back = addShipsAt(g, b.attacker, planet.id, att, attHeroes, attCondition);
       if (back) sendFleet(g, back.id, b.from);
     }
   }
@@ -507,8 +545,9 @@ function buildCost(planet: Planet, build: GalaxyBuild): { cost: number; time: nu
   }
   if (build.kind === 'station') {
     if (planet.station === 0) return { cost: GALAXY_RULES.stationCost, time: GALAXY_RULES.stationTime };
+    // At the top level there is no next one: nothing to pay (canBuild refuses it anyway).
     const next = STATION.levels[planet.station];
-    return { cost: next.upgradeCost, time: next.upgradeTime };
+    return next ? { cost: next.upgradeCost, time: next.upgradeTime } : { cost: 0, time: 0 };
   }
   if (build.kind === 'lab') return { cost: GALAXY_RULES.labCost, time: GALAXY_RULES.labTime };
   if (build.kind === 'platformTier') {
@@ -535,6 +574,13 @@ function heroInService(g: Galaxy, hero: HeroId): boolean {
   return [...g.fleets.values()].some((f) => f.heroes.includes(hero))
     || g.battles.some((b) => Object.values(b.heroes).some((list) => list?.includes(hero)))
     || g.planets.some((p) => p.units.some((q) => q.kind === 'hero' && q.hero === hero));
+}
+
+/** Whether the faction has a ship of this class anywhere: in a fleet, a battle or a queue. */
+function classInService(g: Galaxy, faction: FactionId, cls: ShipClass): boolean {
+  return [...g.fleets.values()].some((f) => f.faction === faction && (f.ships[cls] ?? 0) > 0)
+    || g.battles.some((b) => [...b.world.entities.values()].some((e) => e.faction === faction && e.kind === 'ship' && e.type === cls))
+    || g.planets.some((p) => p.owner === faction && p.units.some((q) => q.kind === 'ship' && q.cls === cls));
 }
 
 export function platformCap(planet: Planet): number {
@@ -594,6 +640,7 @@ export function canBuild(g: Galaxy, faction: FactionId, planetId: number, build:
       if (SHIPS[build.cls].source !== 'shipyard') return fail('Lancé par les hangars');
       if (planet.station === 0) return fail('Station requise');
       if (planet.station < need) return fail(`Station niveau ${need} requise`);
+      if (SHIPS[build.cls].unique && classInService(g, faction, build.cls)) return fail(`Un seul ${SHIPS[build.cls].name} à la fois`);
     }
   }
   if (f.credits < buildCost(planet, build).cost) return fail('Crédits insuffisants');
@@ -737,6 +784,7 @@ export function updateGalaxy(g: Galaxy, dt: number): void {
   updateProduction(g, dt);
   updateResearch(g, dt);
   moveFleets(g, dt);
+  repairFleets(g, dt);
   mergeFleets(g);
   detectConflicts(g);
   updateOccupations(g, dt);

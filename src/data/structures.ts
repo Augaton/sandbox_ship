@@ -98,7 +98,7 @@ export const STATION = {
   ] as StationLevel[],
 };
 
-export type StructureType = 'station' | 'platform' | 'mine' | 'hangar' | 'repairDock' | 'ionCannon';
+export type StructureType = 'station' | 'platform' | 'mine' | 'outpost' | 'repairDock' | 'ionCannon';
 export type BuildableType = Exclude<StructureType, 'station'>;
 
 export interface BuildableDef {
@@ -119,6 +119,8 @@ export interface BuildableDef {
   repair?: { range: number; rate: number };
   /** Can also be built next to one of the faction's mines, not only near its station. */
   nearMines?: boolean;
+  /** Construction radius around it, like the station's: an outpost opens a new build area. */
+  zone?: number;
   /** Levels 2 and 3, bought one after the other. */
   tiers?: TierDef[];
 }
@@ -131,14 +133,18 @@ export interface TierDef {
   shield: number;
   weapons?: WeaponDef[];
   hangar?: HangarDef;
+  zone?: number;
 }
 
 /** Radius around a built mine where platforms and repair docks may go. */
 export const MINE_ZONE = 350;
-/** Away from the station, a mine needs one of the faction's ships this close to the field... */
-export const MINE_ESCORT = 400;
+/**
+ * Outside every build area, a mine or an outpost needs one of the faction's ships this
+ * close to hold the spot...
+ */
+export const HOLD_RANGE = 400;
 /** ...and no enemy ship or gun this close. */
-export const MINE_DANGER = 600;
+export const DANGER_RANGE = 600;
 
 export const BUILDABLES: Record<BuildableType, BuildableDef> = {
   platform: {
@@ -158,15 +164,14 @@ export const BUILDABLES: Record<BuildableType, BuildableDef> = {
     cost: 500, buildTime: 20, minStationLevel: 1,
     weapons: [], income: 8,
   },
-  hangar: {
-    id: 'hangar', name: 'Hangar autonome',
-    hull: 1200, shield: 300, shieldRegen: 6, radius: 32,
-    cost: 900, buildTime: 25, minStationLevel: 2,
-    weapons: [],
-    hangar: { squadrons: [{ cls: 'fighter', size: 3 }], cap: 6, interval: 25 },
+  outpost: {
+    id: 'outpost', name: 'Avant-poste',
+    hull: 1000, shield: 300, shieldRegen: 5, radius: 30,
+    cost: 700, buildTime: 25, minStationLevel: 1,
+    weapons: [flak], zone: 450,
     tiers: [
-      { cost: 600, time: 25, hull: 1600, shield: 400, hangar: { squadrons: [{ cls: 'fighter', size: 3 }, { cls: 'bomber', size: 2 }], cap: 10, interval: 22 } },
-      { cost: 900, time: 30, hull: 2000, shield: 500, hangar: { squadrons: [{ cls: 'fighter', size: 3 }, { cls: 'bomber', size: 2 }, { cls: 'fighter', size: 3 }], cap: 14, interval: 16 } },
+      { cost: 500, time: 20, hull: 1500, shield: 450, zone: 600, weapons: [flak, { ...laser, range: 450, damage: 14 }] },
+      { cost: 800, time: 30, hull: 2200, shield: 650, zone: 750, weapons: [flak, { ...laser, range: 480, damage: 18 }, { ...laser, range: 480, damage: 18 }] },
     ],
   },
   repairDock: {

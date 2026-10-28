@@ -8,7 +8,7 @@ import { scatterFields } from './scenario';
 import { applyTier } from './structures';
 import { isVisible } from './vision';
 import {
-  addFaction, createWorld, dist, rand, spawnHero, spawnShip, spawnStation, spawnStructure, stationOf,
+  addFaction, childrenOf, createWorld, dist, rand, spawnHero, spawnShip, spawnStation, spawnStructure, stationOf,
   type Entity, type World,
 } from './world';
 
@@ -32,6 +32,8 @@ export interface BattleSide {
   ships: ShipCounts;
   heroes?: HeroId[];
   research?: ResearchLevels;
+  /** Share of their hull the ships come in with, after earlier battles; heroes come in whole. */
+  condition?: number;
 }
 
 /** The attacker took the planet, the defender held it, or the attacker fell back. */
@@ -61,8 +63,13 @@ function placeShips(world: World, side: BattleSide, x: number, y: number, angle:
   list.forEach((k, i) => {
     const px = x + offsets[i].x;
     const py = y + offsets[i].y;
-    if (k in HEROES) spawnHero(world, side.faction, k as HeroId, px, py, angle);
-    else spawnShip(world, side.faction, k as ShipClass, px, py, angle);
+    if (k in HEROES) {
+      spawnHero(world, side.faction, k as HeroId, px, py, angle);
+      return;
+    }
+    const s = spawnShip(world, side.faction, k as ShipClass, px, py, angle);
+    const c = Math.max(0.05, side.condition ?? 1);
+    for (const part of [s, ...childrenOf(world, s.id)]) part.hull = part.maxHull * c;
   });
 }
 
@@ -125,6 +132,18 @@ export function survivors(world: World, faction: FactionId): ShipCounts {
     if (SHIPS[cls].source === 'shipyard') out[cls] = (out[cls] ?? 0) + 1;
   }
   return out;
+}
+
+/** Share of their hull the surviving ships keep, 1 when none survive. */
+export function survivorCondition(world: World, faction: FactionId): number {
+  let hull = 0;
+  let max = 0;
+  for (const e of world.entities.values()) {
+    if (e.kind !== 'ship' || e.faction !== faction || e.hero || e.launched) continue;
+    hull += Math.max(0, e.hull);
+    max += e.maxHull;
+  }
+  return max > 0 ? hull / max : 1;
 }
 
 export function heroSurvivors(world: World, faction: FactionId): HeroId[] {

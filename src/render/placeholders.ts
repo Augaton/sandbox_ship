@@ -65,6 +65,7 @@ const HULLS: Record<string, number[]> = {
   frigate: [0, -1, 0.5, -0.4, 0.55, 0.9, 0.2, 1, -0.2, 1, -0.55, 0.9, -0.5, -0.4],
   battlecruiser: [0, -1, 0.7, 0.2, 0.75, 0.95, 0.3, 1, -0.3, 1, -0.75, 0.95, -0.7, 0.2],
   dreadnought: [0, -1, 0.3, -0.75, 0.85, 0.3, 0.85, 1, -0.85, 1, -0.85, 0.3, -0.3, -0.75],
+  titan: [0, -1, 0.25, -0.8, 0.35, -0.2, 0.95, 0.1, 0.95, 1, 0.3, 0.85, 0, 1, -0.3, 0.85, -0.95, 1, -0.95, 0.1, -0.35, -0.2, -0.25, -0.8],
 };
 
 const STRUCTURES: Record<string, Draw> = {
@@ -84,8 +85,9 @@ const STRUCTURES: Record<string, Draw> = {
     poly(ctx, r, [0, -1, 0.87, -0.5, 0.87, 0.5, 0, 1, -0.87, 0.5, -0.87, -0.5]);
     poly(ctx, r, [0, -0.45, 0.4, 0.3, -0.4, 0.3]);
   },
-  hangar: (ctx, r) => {
-    poly(ctx, r, [-0.9, -0.7, 0.9, -0.7, 0.9, 0.7, 0.35, 0.7, 0.35, 0.1, -0.35, 0.1, -0.35, 0.7, -0.9, 0.7]);
+  outpost: (ctx, r) => {
+    poly(ctx, r, [0, -1, 0.95, -0.3, 0.6, 0.85, -0.6, 0.85, -0.95, -0.3]);
+    circle(ctx, 0, 0, r * 0.3);
   },
   repairDock: (ctx, r) => {
     poly(ctx, r, [-0.7, -0.9, 0.7, -0.9, 0.7, 0.9, -0.7, 0.9]);
@@ -208,6 +210,21 @@ export function createPlaceholders(scene: Phaser.Scene): void {
     g.addColorStop(1, 'rgba(255,255,255,0)');
     ctx.fillStyle = g;
     ctx.fillRect(0, 0, 8, 8);
+  });
+  // Hull fragments thrown out by explosions, and the smoke of badly damaged hulls.
+  canvas(scene, 'ph-debris', 6, 4, (ctx) => {
+    ctx.fillStyle = '#b8b2a7';
+    ctx.fillRect(0, 0, 6, 4);
+    ctx.fillStyle = '#ffb35c';
+    ctx.fillRect(0, 0, 2, 2);
+  });
+  canvas(scene, 'ph-smoke', 32, 32, (ctx) => {
+    const g = ctx.createRadialGradient(16, 16, 0, 16, 16, 16);
+    g.addColorStop(0, 'rgba(70,70,76,0.95)');
+    g.addColorStop(0.5, 'rgba(90,90,96,0.6)');
+    g.addColorStop(1, 'rgba(90,90,96,0)');
+    ctx.fillStyle = g;
+    ctx.fillRect(0, 0, 32, 32);
   });
   canvas(scene, 'ph-boom', 64, 64, (ctx) => {
     const g = ctx.createRadialGradient(32, 32, 0, 32, 32, 32);

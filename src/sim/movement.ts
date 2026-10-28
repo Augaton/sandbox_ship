@@ -59,19 +59,21 @@ function engage(world: World, e: Entity, def: ShipDef, t: Entity, dt: number): v
 
 /**
  * Lost engines slow a ship down and make it turn slower; the faction trait, engine
- * research and the afterburner change its top speed.
+ * research, the afterburner and an admiral's command change its top speed. A paralysed
+ * ship only brakes.
  */
 function effectiveDef(world: World, e: Entity): ShipDef {
   const def = SHIPS[e.type as ShipClass];
   const engines = e.engines == null || e.maxEngines === 0 ? 1 : Math.max(0.15, e.engines / e.maxEngines);
   const boost = FACTIONS[e.faction].trait.speed * (1 + TECH_BONUS.engines * researchLevel(world, e.faction, 'engines'))
-    * (isActive(world, e, 'sprint') ? 2 : 1) * (e.hero ? HEROES[e.hero].speed : 1) * (inCommandAura(world, e) ? 1.2 : 1);
-  if (engines === 1 && boost === 1) return def;
+    * (isActive(world, e, 'sprint') ? 2 : 1) * (e.hero ? HEROES[e.hero].speed : 1) * (inCommandAura(world, e) ? 1.1 : 1);
+  const stunned = e.effects.stunned > 0;
+  if (engines === 1 && boost === 1 && !stunned) return def;
   return {
     ...def,
-    speed: def.speed * engines * boost,
+    speed: stunned ? 0 : def.speed * engines * boost,
     accel: def.accel * engines * boost,
-    turnRate: def.turnRate * (0.5 + 0.5 * engines),
+    turnRate: stunned ? 0 : def.turnRate * (0.5 + 0.5 * engines),
   };
 }
 

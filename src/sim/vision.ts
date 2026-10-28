@@ -4,10 +4,10 @@ import type { FactionId, ShipClass } from '../data/units';
 import type { Entity, World } from './world';
 
 const SHIP_VISION: Record<ShipClass, number> = {
-  scout: 1100, fighter: 550, bomber: 550, support: 700, torpedo: 700, frigate: 750, battlecruiser: 850, dreadnought: 900,
+  scout: 1100, fighter: 550, bomber: 550, support: 700, torpedo: 700, frigate: 750, battlecruiser: 850, dreadnought: 900, titan: 1000,
 };
 const STRUCTURE_VISION: Record<string, number> = {
-  station: 1100, platform: 850, mine: 500, hangar: 600, repairDock: 550, ionCannon: 1000,
+  station: 1100, platform: 850, mine: 500, outpost: 900, repairDock: 550, ionCannon: 1000,
 };
 /** Seconds between two vision updates. */
 const VISION_INTERVAL = 0.2;
@@ -23,7 +23,10 @@ export function visionOf(e: Entity): number {
 }
 
 export function isVisible(world: World, faction: FactionId, e: Entity): boolean {
-  return !world.fog || e.faction === faction || (world.visible.get(faction)?.has(e.id) ?? false);
+  if (e.faction === faction) return true;
+  // A cloaked ship hides from enemies, fog or not.
+  if (e.ability?.id === 'cloak' && e.ability.active > 0) return false;
+  return !world.fog || (world.visible.get(faction)?.has(e.id) ?? false);
 }
 
 /** An enemy structure seen once stays on the map, greyed out, even in the fog. */

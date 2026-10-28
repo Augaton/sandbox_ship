@@ -36,6 +36,43 @@ export interface AbilityState {
   active: number;
 }
 
+/** What abilities leave on their targets: seconds left of each. */
+export interface Effects {
+  /** Takes more damage. */
+  marked: number;
+  /** Cannot move, fire or recharge its shields. */
+  stunned: number;
+  /** Loses hull every second, shields or not. */
+  corroded: number;
+}
+
+/** Areas that help a faction's units inside them, rebuilt every step. */
+export interface Zone {
+  kind: 'command' | 'dome' | 'graft';
+  faction: FactionId;
+  x: number;
+  y: number;
+  r: number;
+}
+
+/** A blow that lands after a delay: an orbital strike, or a spinal beam charging up. */
+export interface Strike {
+  kind: 'orbital' | 'beam';
+  faction: FactionId;
+  /** Center of the blast, or start of the beam. */
+  x: number;
+  y: number;
+  /** End of the beam; the center again for a blast. */
+  x2: number;
+  y2: number;
+  /** Blast radius, or half the beam's width. */
+  radius: number;
+  damage: number;
+  /** Seconds before it lands, out of `total`. */
+  delay: number;
+  total: number;
+}
+
 /** Controls of a ship flown by hand. */
 export interface Pilot {
   /** -1 (reverse) to 1 (full ahead). */
@@ -96,6 +133,11 @@ export interface Entity {
   launched: boolean;
   /** An AI ship falling back to be repaired. */
   retreating: boolean;
+  effects: Effects;
+  /** Seconds left for what an ability summoned (swarm craft, field turrets); null if it stays. */
+  expires: number | null;
+  /** Faction that hit it last: the kill is theirs. */
+  lastHitBy: FactionId | null;
 }
 
 export interface Projectile {
@@ -131,7 +173,7 @@ export type QueueItem =
 
 /** What the AI is saving up for. */
 export type AIGoal =
-  | { kind: 'mine' } | { kind: 'upgrade' } | { kind: 'platform' }
+  | { kind: 'mine' } | { kind: 'outpost' } | { kind: 'upgrade' } | { kind: 'platform' }
   | { kind: 'structure'; type: 'repairDock' | 'ionCannon' }
   | { kind: 'research'; tech: TechId }
   | { kind: 'hero'; hero: HeroId }
@@ -165,6 +207,18 @@ export interface AIState {
   intel: Intel;
 }
 
+/** A faction's record over a battle, for the end screen. */
+export interface BattleStats {
+  /** Ships out of the shipyard, squadrons and heroes included. */
+  built: number;
+  /** Own ships destroyed, hangar craft aside. */
+  lost: number;
+  /** Enemy ships and structures it dealt the last blow to. */
+  kills: number;
+  damage: number;
+  earned: number;
+}
+
 export interface FactionState {
   id: FactionId;
   credits: number;
@@ -176,6 +230,9 @@ export interface FactionState {
   researching: ResearchJob | null;
   /** The AI uses this faction's ship abilities. */
   autoAbilities: boolean;
+  /** Classes kept in production: one goes back in the queue as soon as none is in it. */
+  repeat: ShipClass[];
+  stats: BattleStats;
   /** Seconds before each fallen hero can be built again. */
   heroCooldowns: Partial<Record<HeroId, number>>;
   stationId: number | null;
@@ -190,9 +247,13 @@ export type SimEvent =
       type: 'destroyed'; id: number; kind: EntityKind; entityType: string;
       faction: FactionId; x: number; y: number; radius: number;
     }
-  | { type: 'hit'; x: number; y: number; kind: WeaponDef['kind'] }
+  /** A shot landed on `targetId`; `shieldId` is whose shield took it, if one did. */
+  | { type: 'hit'; x: number; y: number; kind: WeaponDef['kind']; targetId: number; faction: FactionId; shieldId: number | null }
   | { type: 'built'; id: number }
   | { type: 'researched'; faction: FactionId; tech: TechId }
+  /** An ability was used, from (x, y), aimed at (tx, ty). */
+  | { type: 'ability'; id: AbilityId; faction: FactionId; entityId: number; x: number; y: number; tx: number; ty: number }
+  | { type: 'strike'; strike: Strike }
   | { type: 'victory'; faction: FactionId };
 
 export interface World {
@@ -207,8 +268,8 @@ export interface World {
   nextId: number;
   seed: number;
   winner: FactionId | null;
-  /** Where admirals' attack orders are running this step. */
-  auras: { faction: FactionId; x: number; y: number }[];
+  zones: Zone[];
+  strikes: Strike[];
   /** Fog of war: each faction only sees and targets what its own units see. */
   fog: boolean;
   /** Enemy entities each faction sees right now. */
@@ -226,7 +287,7 @@ export function createWorld(width: number, height: number, seed = 1): World {
   return {
     time: 0, width, height,
     entities: new Map(), projectiles: [], factions: new Map(), fields: [], events: [],
-    nextId: 1, seed, winner: null, auras: [],
+    nextId: 1, seed, winner: null, zones: [], strikes: [],
     fog: false, visible: new Map(), seen: new Map(), visionTimer: 0, grid: new SpatialGrid(),
   };
 }
@@ -245,7 +306,8 @@ export function newAI(difficulty: Difficulty = 'normal'): AIState {
 
 export function addFaction(world: World, id: FactionId, credits: number, ai = false, difficulty: Difficulty = 'normal'): FactionState {
   const f: FactionState = {
-    id, credits, queue: [], buildQueue: [], research: noResearch(), researching: null, autoAbilities: ai, heroCooldowns: {},
+    id, credits, queue: [], buildQueue: [], research: noResearch(), researching: null, autoAbilities: ai, repeat: [], heroCooldowns: {},
+    stats: { built: 0, lost: 0, kills: 0, damage: 0, earned: 0 },
     stationId: null, hadStation: false,
     rallyX: world.width / 2, rallyY: world.height / 2,
     ai: ai ? newAI(difficulty) : null,
@@ -267,7 +329,7 @@ function baseEntity(world: World, kind: EntityKind, type: string, faction: Facti
     targetId: null, retarget: 0, order: null, guardX: x, guardY: y,
     build: 1, buildTime: 0, level: 0, parentId: null, hangar: null, income: 0, fieldId: null,
     ox: 0, oy: 0, engines: null, maxEngines: 0, shieldGens: null, pilot: null, ability: null, hero: null,
-    launched: false, retreating: false,
+    launched: false, retreating: false, effects: { marked: 0, stunned: 0, corroded: 0 }, expires: null, lastHitBy: null,
   };
 }
 
@@ -479,6 +541,14 @@ export function removeDead(world: World): void {
   for (let i = 0; i < dead.length; i++) {
     const e = dead[i];
     if (!world.entities.delete(e.id)) continue;
+    if (e.kind !== 'hardpoint' && !e.launched) {
+      if (e.kind === 'ship') {
+        const own = world.factions.get(e.faction);
+        if (own) own.stats.lost++;
+      }
+      const killer = e.lastHitBy ? world.factions.get(e.lastHitBy) : undefined;
+      if (killer && e.lastHitBy !== e.faction) killer.stats.kills++;
+    }
     world.events.push({
       type: 'destroyed', id: e.id, kind: e.kind, entityType: e.type,
       faction: e.faction, x: e.x, y: e.y, radius: e.radius,

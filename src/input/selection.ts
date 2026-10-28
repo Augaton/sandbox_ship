@@ -2,7 +2,8 @@ import Phaser from 'phaser';
 import { ABILITIES, type AbilityId } from '../data/abilities';
 import type { HeroRole } from '../data/heroes';
 import { SHIPS, type FactionId, type ShipClass } from '../data/units';
-import { useAbility } from '../sim/abilities';
+import { useAbility, type Aim } from '../sim/abilities';
+import { aimedTarget } from '../sim/combat';
 import { isVisible } from '../sim/vision';
 import { BUILDABLES, type BuildableType } from '../data/structures';
 import { issueAttack, issueMove, issueStop } from '../sim/movement';
@@ -11,7 +12,7 @@ import {
   addFaction, dist, spawnHero, spawnShip, spawnStation, spawnStructure, stationOf, type Entity, type World,
 } from '../sim/world';
 import type { BattleScene } from '../scenes/BattleScene';
-import { settings } from '../ui/settings';
+import { saveSettings, settings } from '../ui/settings';
 import { onceEach } from './keys';
 
 /** In the sandbox, a hero spawns for whichever faction is picked. */
@@ -21,6 +22,8 @@ export type Mode =
   | { kind: 'select' }
   | { kind: 'place'; type: BuildableType }
   | { kind: 'attackMove' }
+  /** Picking where (or whom) an ability is aimed at. */
+  | { kind: 'ability'; id: AbilityId }
   | { kind: 'spawn'; faction: FactionId; what: SpawnWhat };
 
 export const ZOOMS = [0.25, 0.5, 0.75, 1, 1.5, 2, 3];
@@ -88,6 +91,8 @@ export class SelectionController {
   /** Physical keys held down (KeyboardEvent.code): WASD sits where ZQSD is on AZERTY. */
   private keys = new Set<string>();
   private lastClick = { id: -1, time: 0 };
+  /** Which idle ship I selects next. */
+  private idleTurn = 0;
 
   constructor(private scene: BattleScene) {
     const input = scene.input;
@@ -174,6 +179,10 @@ export class SelectionController {
     } else if (m.kind === 'attackMove') {
       this.attackMove(w.x, w.y);
       if (!shift) this.setMode({ kind: 'select' });
+    } else if (m.kind === 'ability') {
+      const t = pickAt(this.world, w.x, w.y, 6 / this.scene.cameras.main.zoom, this.player);
+      const used = this.aimAbility(m.id, { x: w.x, y: w.y, id: t && t.faction !== this.player ? t.id : undefined });
+      if (used && !shift) this.setMode({ kind: 'select' });
     } else if (m.kind === 'spawn') {
       spawnAt(this.world, m.faction, m.what, w.x, w.y);
     } else {
@@ -187,6 +196,52 @@ export class SelectionController {
     if (ids.length === 0) return;
     issueMove(this.world, ids, x, y, true);
     this.scene.marker(x, y, 0xe8a13a);
+  }
+
+  /** Sends the selected ships to a point, from the minimap: a plain move or an attack-move. */
+  moveSelection(x: number, y: number, attack: boolean): void {
+    if (attack) return this.attackMove(x, y);
+    const ids = this.ownShips().map((s) => s.id);
+    if (ids.length === 0) return;
+    issueMove(this.world, ids, x, y);
+    this.scene.marker(x, y, 0x6fd08c);
+  }
+
+  /** Warships with nothing to do: no order, no target, not flown. Hangar craft do not count. */
+  idleShips(): Entity[] {
+    const out: Entity[] = [];
+    for (const e of this.world.entities.values()) {
+      if (e.kind === 'ship' && e.faction === this.player && !e.launched && !e.order && e.targetId == null && !e.pilot) out.push(e);
+    }
+    return out;
+  }
+
+  /** Selects the next idle ship and centers on it; with `all`, selects every idle ship. */
+  selectIdle(all: boolean): void {
+    const idle = this.idleShips();
+    if (idle.length === 0) {
+      this.scene.hud.toast('Aucun vaisseau inactif');
+      return;
+    }
+    const sel = this.scene.selected;
+    sel.clear();
+    if (all) {
+      for (const e of idle) sel.add(e.id);
+      return;
+    }
+    const e = idle[this.idleTurn++ % idle.length];
+    sel.add(e.id);
+    this.scene.cameras.main.centerOn(e.x, e.y);
+  }
+
+  /** Control groups that still have ships: [number, ships alive]. */
+  groupSizes(): [number, number][] {
+    const out: [number, number][] = [];
+    for (const [n, ids] of [...this.groups].sort((a, b) => a[0] - b[0])) {
+      const alive = ids.filter((id) => this.world.entities.has(id)).length;
+      if (alive > 0) out.push([n, alive]);
+    }
+    return out;
   }
 
   private onMove(p: Phaser.Input.Pointer): void {
@@ -352,11 +407,23 @@ export class SelectionController {
     const cam = this.scene.cameras.main;
     if (key === ' ') this.scene.togglePause();
     else if (key === 'escape') {
+      // A dialog first, then the current mode, then the selection; with nothing left, the pause menu.
+      if (this.scene.hud.escape()) return;
       if (this.mode.kind !== 'select') this.setMode({ kind: 'select' });
-      else this.scene.selected.clear();
+      else if (this.scene.selected.size > 0) this.scene.selected.clear();
+      else this.scene.hud.pauseMenu();
     } else if (key === 'f' && this.ownShips().length > 0) this.setMode({ kind: 'attackMove' });
     else if (key === 'x') issueStop(this.world, this.ownShips().map((s) => s.id));
     else if (key === 'c') this.centerOnSelection();
+    else if (ev.code === 'Backspace') {
+      ev.preventDefault();
+      this.scene.jumpToAlert();
+    } else if (key === 'i') this.selectIdle(ev.shiftKey);
+    else if (key === 'm') {
+      settings.muted = !settings.muted;
+      saveSettings();
+      this.scene.hud.toast(settings.muted ? 'Son coupé' : 'Son rétabli');
+    }
     else if (key === '+' || key === '=' || ev.code === 'NumpadAdd') this.zoomStep(1, cam.width / 2, cam.height / 2);
     else if (key === '-' || ev.code === 'NumpadSubtract') this.zoomStep(-1, cam.width / 2, cam.height / 2);
     else if (key === 'h') {
@@ -365,7 +432,7 @@ export class SelectionController {
     }
   }
 
-  private recallGroup(n: number): void {
+  recallGroup(n: number): void {
     const ids = (this.groups.get(n) ?? []).filter((id) => this.world.entities.has(id));
     if (ids.length === 0) return;
     const sel = this.scene.selected;
@@ -381,7 +448,8 @@ export class SelectionController {
 
   /**
    * Fires the abilities of the selected ships (or of the piloted one), all of them or only
-   * those of one kind, when they are ready.
+   * those of one kind, when they are ready. Those that need a target wait for the next click;
+   * a pilot aims them with the crosshair.
    */
   useAbilities(id?: AbilityId): void {
     const piloted = this.pilotId == null ? undefined : this.world.entities.get(this.pilotId);
@@ -391,8 +459,32 @@ export class SelectionController {
       if (ships.some((s) => s.ability)) this.scene.hud.toast('Capacité en recharge');
       return;
     }
-    for (const s of ready) useAbility(this.world, s);
-    this.scene.hud.toast(ABILITIES[ready[0].ability!.id].name);
+    const aimed = ready.find((s) => ABILITIES[s.ability!.id].target !== 'self');
+    for (const s of ready) if (ABILITIES[s.ability!.id].target === 'self') useAbility(this.world, s);
+    if (!aimed) return;
+    const aid = aimed.ability!.id;
+    if (piloted?.pilot) {
+      const t = aimedTarget(this.world, piloted, piloted.pilot, ABILITIES[aid].range ?? 0);
+      this.aimAbility(aid, { x: piloted.pilot.aimX, y: piloted.pilot.aimY, id: t?.id });
+      return;
+    }
+    this.setMode({ kind: 'ability', id: aid });
+    this.scene.hud.toast(`${ABILITIES[aid].name} : ${ABILITIES[aid].target === 'enemy' ? 'clique sur un ennemi' : 'clique où viser'}`);
+  }
+
+  /** Uses this ability of every ready selected ship at the aim; false if none could. */
+  private aimAbility(id: AbilityId, aim: Aim): boolean {
+    const piloted = this.pilotId == null ? undefined : this.world.entities.get(this.pilotId);
+    const ships = (piloted ? [piloted] : this.ownShips()).filter((s) => s.ability?.id === id && s.ability.cooldown === 0);
+    let reason = 'Capacité en recharge';
+    let used = false;
+    for (const s of ships) {
+      const r = useAbility(this.world, s, aim);
+      if (r.ok) used = true;
+      else reason = r.reason;
+    }
+    if (!used) this.scene.hud.toast(reason);
+    return used;
   }
 
   /** Takes the controls of the one selected ship, or gives them back. */

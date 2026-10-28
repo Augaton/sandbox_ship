@@ -1,6 +1,6 @@
 import { HEROES, type HeroId } from '../data/heroes';
 import { MAX_TECH_LEVEL, TECHS, TECH_BONUS, type TechId } from '../data/research';
-import { BUILDABLES, MAX_QUEUE, MINE_DANGER, MINE_ESCORT, MINE_ZONE, STATION, type BuildableType } from '../data/structures';
+import { BUILDABLES, DANGER_RANGE, HOLD_RANGE, MAX_QUEUE, MINE_ZONE, STATION, type BuildableType } from '../data/structures';
 import { SHIPS, maxRange, shipCost, type FactionId, type ShipClass } from '../data/units';
 import {
   addHardpoints, armed, childrenOf, dist, hasHardpoint, hullMult, rand, rescaleForResearch, researchLevel,
@@ -67,13 +67,17 @@ function incomeMult(f: FactionState): number {
 }
 
 export function updateEconomy(world: World, dt: number): void {
+  const earn = (f: FactionState, amount: number) => {
+    f.credits += amount;
+    f.stats.earned += amount;
+  };
   for (const f of world.factions.values()) {
-    if (f.stationId != null) f.credits += STATION.income * incomeMult(f) * dt;
+    if (f.stationId != null) earn(f, STATION.income * incomeMult(f) * dt);
   }
   for (const e of world.entities.values()) {
     if (e.income > 0 && e.build >= 1) {
       const f = world.factions.get(e.faction);
-      if (f) f.credits += e.income * (1 + TECH_BONUS.mining * f.research.mining) * incomeMult(f) * dt;
+      if (f) earn(f, e.income * (1 + TECH_BONUS.mining * f.research.mining) * incomeMult(f) * dt);
     }
   }
 }
@@ -111,6 +115,10 @@ export function updateProduction(world: World, dt: number): void {
       }
     }
     for (const id of Object.keys(f.heroCooldowns) as HeroId[]) f.heroCooldowns[id] = Math.max(0, f.heroCooldowns[id]! - dt);
+    // Classes in a loop go back in the queue once none of them is waiting; short of credits, they wait.
+    for (const cls of f.repeat) {
+      if (!f.queue.some((q) => q.kind === 'ship' && q.cls === cls)) enqueueShip(world, f.id, cls);
+    }
     const item = f.queue[0];
     if (!item || (item.kind !== 'ship' && item.kind !== 'hero') || !hasHardpoint(world, station.id, 'shipyard')) continue;
     item.remaining -= dt;
@@ -120,6 +128,7 @@ export function updateProduction(world: World, dt: number): void {
     const angle = Math.atan2(f.rallyY - p.y, f.rallyX - p.x);
     // Squadrons come out together and fly to the rally point side by side.
     const count = item.kind === 'hero' ? 1 : SHIPS[item.cls].squad ?? 1;
+    f.stats.built += count;
     for (let i = 0; i < count; i++) {
       const s = item.kind === 'hero' ? spawnHero(world, f.id, item.hero, p.x, p.y, angle) : spawnShip(world, f.id, item.cls, p.x + i * 6, p.y, angle);
       s.order = { type: 'move', x: f.rallyX + (rand(world) - 0.5) * 160, y: f.rallyY + (rand(world) - 0.5) * 160 };
@@ -137,8 +146,15 @@ export function canBuildShip(world: World, faction: FactionId, cls: ShipClass): 
   if (!hasHardpoint(world, station.id, 'shipyard')) return fail('Chantier naval détruit');
   if (station.level < def.minStationLevel) return fail(`Station niveau ${def.minStationLevel} requise`);
   if (f.queue.length >= MAX_QUEUE) return fail("File d'attente pleine");
+  if (def.unique && inService(world, faction, cls)) return fail(`Un seul ${def.name} à la fois`);
   if (f.credits < shipCost(cls, faction)) return fail('Crédits insuffisants');
   return OK;
+}
+
+/** Whether the faction fields this class or has one in its queue. */
+function inService(world: World, faction: FactionId, cls: ShipClass): boolean {
+  for (const e of world.entities.values()) if (e.type === cls && e.kind === 'ship' && e.faction === faction) return true;
+  return world.factions.get(faction)?.queue.some((q) => q.kind === 'ship' && q.cls === cls) ?? false;
 }
 
 export function enqueueShip(world: World, faction: FactionId, cls: ShipClass): Result {
@@ -214,7 +230,7 @@ export function cancelQueued(world: World, faction: FactionId, index: number, wh
   f.credits += item.cost;
 }
 
-/** Next level of a platform or hangar: sturdier, better armed, more craft. */
+/** Next level of a platform or outpost: sturdier, better armed, a wider build area. */
 export function applyTier(world: World, e: Entity): void {
   const tier = BUILDABLES[e.type as BuildableType].tiers?.[e.level - 1];
   if (!tier) return;
@@ -313,15 +329,39 @@ export function updateResearch(world: World, dt: number): void {
 export type Placement = Result & { x: number; y: number };
 
 /** Centers and radii where a structure of this type may be built. */
+/** Construction radius of a built outpost at its level; 0 for anything else. */
+export function zoneOf(e: Entity): number {
+  const def = e.kind === 'structure' && e.build >= 1 ? BUILDABLES[e.type as BuildableType] : undefined;
+  if (!def?.zone) return 0;
+  return e.level > 1 ? def.tiers![e.level - 2].zone ?? def.zone : def.zone;
+}
+
+/** Where this structure may go: around the station and outposts, and around mines for some. */
 export function buildZones(world: World, faction: FactionId, type: BuildableType): { x: number; y: number; r: number }[] {
   const station = stationOf(world, faction);
   const zones = station ? [{ x: station.x, y: station.y, r: STATION.constructionRadius }] : [];
-  if (BUILDABLES[type].nearMines) {
-    for (const e of world.entities.values()) {
-      if (e.faction === faction && e.type === 'mine' && e.build >= 1) zones.push({ x: e.x, y: e.y, r: MINE_ZONE });
-    }
+  const nearMines = BUILDABLES[type].nearMines;
+  for (const e of world.entities.values()) {
+    if (e.faction !== faction || e.kind !== 'structure') continue;
+    const r = zoneOf(e);
+    if (r > 0) zones.push({ x: e.x, y: e.y, r });
+    else if (nearMines && e.type === 'mine' && e.build >= 1) zones.push({ x: e.x, y: e.y, r: MINE_ZONE });
   }
   return zones;
+}
+
+/** Outside the build areas: a faction ship must hold the spot, with no enemy fighting near. */
+function holdCheck(world: World, faction: FactionId, at: { x: number; y: number }, r: number): Result {
+  let held = false;
+  let fight = false;
+  for (const e of world.entities.values()) {
+    const d = dist(e, at) - r;
+    if (e.faction === faction && e.kind === 'ship' && d <= HOLD_RANGE) held = true;
+    if (e.faction !== faction && e.kind !== 'hardpoint' && (e.kind === 'ship' || e.weapons.length > 0) && d <= DANGER_RANGE) fight = true;
+  }
+  if (fight) return fail('Combat trop proche');
+  if (!held) return fail('Un vaisseau doit tenir la position');
+  return OK;
 }
 
 function inBuildZone(world: World, faction: FactionId, type: BuildableType, x: number, y: number): boolean {
@@ -337,30 +377,32 @@ export function checkPlacement(world: World, faction: FactionId, type: Buildable
   const f = world.factions.get(faction);
   const station = stationOf(world, faction);
   const at = (r: Result, px = x, py = y): Placement => ({ ...r, x: px, y: py });
-  if (!f || !station) return at(fail('Aucune station'));
-  if (station.level < def.minStationLevel) return at(fail(`Station niveau ${def.minStationLevel} requise`));
+  if (!f) return at(fail('Faction inconnue'));
+  // Without a station (an invasion force), only what a level 1 station would allow.
+  if ((station?.level ?? 1) < def.minStationLevel) return at(fail(`Station niveau ${def.minStationLevel} requise`));
   if (f.credits < def.cost) return at(fail('Crédits insuffisants'));
   if (type === 'mine') {
     const field = world.fields.find((fl) => dist(fl, { x, y }) <= fl.radius);
     if (!field) return at(fail("Placer sur un champ d'astéroïdes"));
     if (field.mineId != null) return at(fail('Champ déjà exploité'), field.x, field.y);
-    // Away from home, a ship must hold the field, and no fight may be going on there.
-    const home = dist(station, field) <= STATION.constructionRadius + field.radius;
-    let escort = false;
-    let fight = false;
-    for (const e of world.entities.values()) {
-      const d = dist(e, field) - field.radius;
-      if (e.faction === faction && e.kind === 'ship' && d <= MINE_ESCORT) escort = true;
-      if (e.faction !== faction && e.kind !== 'hardpoint' && (e.kind === 'ship' || e.weapons.length > 0) && d <= MINE_DANGER) fight = true;
+    // Within a build area the field is safe; away from them, a ship must hold it, with no fight there.
+    const home = buildZones(world, faction, 'mine').some((z) => dist(z, field) <= z.r + field.radius);
+    if (!home) {
+      const held = holdCheck(world, faction, field, field.radius);
+      if (!held.ok) return at(held, field.x, field.y);
     }
-    if (fight) return at(fail('Combat près du champ'), field.x, field.y);
-    if (!home && !escort) return at(fail('Un vaisseau doit tenir le champ'), field.x, field.y);
     return at(OK, field.x, field.y);
   }
-  if (!inBuildZone(world, faction, type, x, y)) {
-    return at(fail(def.nearMines ? "Trop loin de la station et des mines" : 'Trop loin de la station'));
-  }
   if (x < 0 || y < 0 || x > world.width || y > world.height) return at(fail('Hors de la carte'));
+  if (type === 'outpost') {
+    if (world.fields.some((fl) => dist(fl, { x, y }) < fl.radius + def.radius)) return at(fail("Pas sur un champ d'astéroïdes"));
+    if (!inBuildZone(world, faction, type, x, y)) {
+      const held = holdCheck(world, faction, { x, y }, def.radius);
+      if (!held.ok) return at(held);
+    }
+  } else if (!inBuildZone(world, faction, type, x, y)) {
+    return at(fail(def.nearMines ? 'Trop loin de la station, des avant-postes et des mines' : 'Trop loin de la station et des avant-postes'));
+  }
   for (const e of world.entities.values()) {
     if (e.kind !== 'ship' && dist(e, { x, y }) < e.radius + def.radius + 10) return at(fail('Emplacement occupé'));
   }

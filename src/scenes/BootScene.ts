@@ -1,6 +1,8 @@
 import Phaser from 'phaser';
 import { FACTION_IDS } from '../data/units';
+import { composeCapitals } from '../render/capitals';
 import { createPlaceholders } from '../render/placeholders';
+import { recolorParts } from '../render/recolor';
 import { emblemCanvas } from '../ui/logos';
 import type { Manifest } from '../render/sprites';
 import { showStartMenu } from './flow';
@@ -23,6 +25,9 @@ export class BootScene extends Phaser.Scene {
     }
     this.load.once('complete', () => {
       createPlaceholders(this);
+      // The manifest is shared through the cache: the titans' entries reach every scene.
+      composeCapitals(this, manifest);
+      recolorParts(this, manifest);
       for (const f of FACTION_IDS) this.textures.addCanvas(`emblem-${f}`, emblemCanvas(f, 2));
       showStartMenu(this.game);
     });

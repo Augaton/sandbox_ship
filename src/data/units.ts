@@ -29,18 +29,18 @@ const neutralTrait = { damage: 1, shield: 1, hull: 1, speed: 1, cost: 1, hullReg
 export const FACTIONS: Record<FactionId, FactionDef> = {
   klaed: {
     name: "Kla'ed", color: 0xe0563b,
-    trait: { ...neutralTrait, name: 'Assaut', description: 'Armes +15 %, boucliers −15 %', damage: 1.15, shield: 0.85 },
+    trait: { ...neutralTrait, name: 'Assaut', description: 'Armes +10 %, boucliers −15 %', damage: 1.1, shield: 0.85 },
   },
   nairan: {
     name: 'Nairan', color: 0x4fa3e0,
-    trait: { ...neutralTrait, name: 'Technologie', description: 'Boucliers +30 %, coques −10 %', shield: 1.3, hull: 0.9 },
+    trait: { ...neutralTrait, name: 'Technologie', description: 'Boucliers +40 %, coques −5 %', shield: 1.4, hull: 0.95 },
   },
   nautolan: {
     name: 'Nautolan', color: 0x7bd36a,
     trait: {
       ...neutralTrait, name: 'Biomécanique',
-      description: 'Les coques se régénèrent (1 % par seconde), vaisseaux 10 % moins chers, vitesse −10 %',
-      cost: 0.9, speed: 0.9, hullRegen: 0.01,
+      description: 'Les coques se régénèrent (1 % par seconde), vaisseaux 10 % moins chers',
+      cost: 0.9, hullRegen: 0.01,
     },
   },
 };
@@ -68,7 +68,8 @@ export type ShipClass =
   | 'torpedo'
   | 'frigate'
   | 'battlecruiser'
-  | 'dreadnought';
+  | 'dreadnought'
+  | 'titan';
 
 export interface ShipDef {
   id: ShipClass;
@@ -94,6 +95,8 @@ export interface ShipDef {
   ability?: AbilityId;
   /** Ships delivered per order; cost and build time are for the whole squadron. */
   squad?: number;
+  /** Only one at a time per faction, counting the one being built. */
+  unique?: boolean;
 }
 
 export const flak: WeaponDef = {
@@ -183,6 +186,27 @@ export const SHIPS: Record<ShipClass, ShipDef> = {
       { role: 'shield', x: -32, y: 0, hull: 350, radius: 9 },
       { role: 'engine', x: -58, y: -16 },
       { role: 'engine', x: -58, y: 16 },
+    ],
+  },
+  titan: {
+    id: 'titan', name: 'Titan', size: 'large',
+    hull: 6000, shield: 3500, shieldRegen: 12, speed: 32, accel: 25, turnRate: 0.3, radius: 84,
+    ability: 'spinal', source: 'shipyard', cost: 8000, buildTime: 90, minStationLevel: 3, unique: true,
+    // Flak in the hull: fewer parts on screen, the hull's drawing shows through.
+    weapons: [flak, flak],
+    hardpoints: [
+      { role: 'heavyTurret', x: 52, y: -16, hull: 500, radius: 12, weapons: [{ kind: 'ray', range: 600, damage: 70, cooldown: 2.5, projectileSpeed: 1100, mult: { small: 0.2 } }] },
+      { role: 'heavyTurret', x: 52, y: 16, hull: 500, radius: 12, weapons: [{ kind: 'ray', range: 600, damage: 70, cooldown: 2.5, projectileSpeed: 1100, mult: { small: 0.2 } }] },
+      { role: 'turret', x: 20, y: -46, hull: 300, radius: 9, weapons: [{ ...laser, range: 470, damage: 24 }] },
+      { role: 'turret', x: 20, y: 46, hull: 300, radius: 9, weapons: [{ ...laser, range: 470, damage: 24 }] },
+      { role: 'turret', x: -22, y: -52, hull: 300, radius: 9, weapons: [{ ...laser, range: 470, damage: 24 }] },
+      { role: 'turret', x: -22, y: 52, hull: 300, radius: 9, weapons: [{ ...laser, range: 470, damage: 24 }] },
+      { role: 'hangar', x: -14, y: 0, hull: 500, radius: 11, hangar: { squadrons: [{ cls: 'fighter', size: 3 }, { cls: 'bomber', size: 2 }], cap: 8, interval: 20 } },
+      { role: 'shield', x: -40, y: -14, hull: 400, radius: 9 },
+      { role: 'shield', x: -40, y: 14, hull: 400, radius: 9 },
+      { role: 'engine', x: -76, y: -38 },
+      { role: 'engine', x: -80, y: 0 },
+      { role: 'engine', x: -76, y: 38 },
     ],
   },
 };

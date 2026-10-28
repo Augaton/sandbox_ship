@@ -56,6 +56,8 @@ const CLASS_TOKENS: Record<ShipClass, string[][]> = {
   frigate: [['frigate']],
   battlecruiser: [['battlecruiser'], ['battleship']],
   dreadnought: [['dreadnought']],
+  // Composed at boot from the faction's dreadnought and battlecruisers (capitals.ts).
+  titan: [['capital']],
 };
 
 const placeholder = (key: string): Look => ({ layers: [{ key, size: 1 }], engine: null, destruction: null, tint: true });
@@ -85,7 +87,7 @@ const PARTS: Record<string, [string[], number][]> = {
   station: [[['stations', 'station'], 1.15]],
   platform: [[['towers'], 1], [['medium', 'laser', 'turret', 'mk2'], 0.6]],
   mine: [[['asteroid', '01', 'base'], 1.1], [['weapon', 'hardpoint', 'medium'], 0.55]],
-  hangar: [[['weapon', 'base', 'medium'], 1]],
+  outpost: [[['stations', 'station'], 1.2], [['small', 'laser', 'turret', 'mk1'], 0.45]],
   repairDock: [[['others', 'tanks', '01'], 1]],
   ionCannon: [[['towers'], 1], [['medium', 'plasma', 'turret', 'mk3'], 0.75]],
   'hp-turret': [[['small', 'laser', 'turret', 'mk1'], 1.1]],
@@ -95,6 +97,18 @@ const PARTS: Record<string, [string[], number][]> = {
   'hp-shipyard': [[['towers'], 1]],
   'hp-engine': [[['engines', 'pngs', 'base', 'engine'], 1.3]],
 };
+
+/** Every pack sprite the parts are made of. */
+export function partKeys(m: Manifest): string[] {
+  const keys = new Set<string>();
+  for (const spec of Object.values(PARTS)) {
+    for (const [tokens] of spec) {
+      const key = findAsset(m, tokens);
+      if (key) keys.add(key);
+    }
+  }
+  return [...keys];
+}
 
 function partsLook(m: Manifest, part: string, ph: string): Look {
   const spec = PARTS[part];

@@ -18,12 +18,47 @@ import { BATTLE_CONTROLS, controlsList } from './controls';
 import { el, hex, pct, shortReason, toast } from './dom';
 import { emblemUrl } from './logos';
 import { optionsPanel } from './options';
+import { saveSettings, settings } from './settings';
 
 type Tab = 'ships' | 'buildings' | 'research';
 
 const REFRESH_MS = 100;
+/** How long an alert pings on the minimap. */
+const PING_MS = 4000;
+
+/**
+ * Queue buttons cancel on a right click, or on Enter or Space: a stray left click does not
+ * throw away an order.
+ */
+function onCancel(list: HTMLElement, cancel: (b: HTMLElement) => void): void {
+  list.addEventListener('contextmenu', (ev) => {
+    const b = (ev.target as HTMLElement).closest('button');
+    if (!b) return;
+    ev.preventDefault();
+    cancel(b);
+  });
+  list.addEventListener('click', (ev) => {
+    const b = (ev.target as HTMLElement).closest('button');
+    if (b && ev.detail === 0) cancel(b);
+  });
+}
 const SHIPYARD_CLASSES = SHIP_CLASSES.filter((c) => SHIPS[c].source === 'shipyard');
 const SPEEDS = [0.5, 1, 2, 4];
+
+/** Name of a ship class, structure or part from its type. */
+export function typeName(type: string): string {
+  if (type === 'station') return STATION.name;
+  if (type in HARDPOINTS) return HARDPOINTS[type as keyof typeof HARDPOINTS].name;
+  if (type in SHIPS) return SHIPS[type as ShipClass].name;
+  return BUILDABLES[type as BuildableType]?.name ?? type;
+}
+
+/** "12 min 05 s" */
+function duration(seconds: number): string {
+  const m = Math.floor(seconds / 60);
+  const s = Math.floor(seconds % 60);
+  return m > 0 ? `${m} min ${String(s).padStart(2, '0')} s` : `${s} s`;
+}
 
 export function entityName(e: Entity): string {
   if (e.hero) return HEROES[e.hero].name;
@@ -52,7 +87,14 @@ export class Hud {
   private structureButtons = new Map<BuildableType, HTMLButtonElement>();
   private upgradeButton: HTMLButtonElement | null = null;
   private modal: HTMLElement | null = null;
+  /** Run when the open dialog closes: resume the game, or go back to the pause menu. */
+  private onModalClose: (() => void) | null = null;
+  /** The pause menu paused the game, and resumes it when it closes. */
+  private menuPaused = false;
   private pilotBanner!: HTMLElement;
+  /** Control groups, idle ships, last alert. */
+  private quickbar!: HTMLElement;
+  private tip!: HTMLElement;
   private timer = 0;
   private lastSelection = '';
 
@@ -67,6 +109,8 @@ export class Hud {
     this.toasts = this.root.appendChild(el('div', { class: 'toasts', role: 'status', 'aria-live': 'polite' }));
     this.pilotBanner = this.root.appendChild(el('div', { class: 'pilot-banner panel', role: 'status' }));
     this.pilotBanner.hidden = true;
+    this.tip = this.root.appendChild(el('div', { class: 'tooltip panel', role: 'tooltip' }));
+    this.tip.hidden = true;
     document.body.appendChild(this.root);
     // A clicked button keeps focus, and Space or Enter would press it again: give focus back.
     this.root.addEventListener('click', (ev) => {
@@ -126,11 +170,26 @@ export class Hud {
 
   private buildBottombar(): void {
     const bar = this.root.appendChild(el('div', { class: 'bottombar' }));
-    this.selection = bar.appendChild(el('section', { class: 'selection panel', 'aria-label': 'Sélection' }));
+    const left = bar.appendChild(el('div', { class: 'left' }));
+    this.quickbar = left.appendChild(el('div', { class: 'quickbar', role: 'group', 'aria-label': 'Groupes et raccourcis' }));
+    this.quickbar.addEventListener('click', (ev) => {
+      const b = (ev.target as HTMLElement).closest('button');
+      if (!b) return;
+      if (b.dataset.group) this.scene.controls.recallGroup(Number(b.dataset.group));
+      if (b.dataset.act === 'idle') this.scene.controls.selectIdle(ev.shiftKey);
+      if (b.dataset.act === 'alert') this.scene.jumpToAlert();
+    });
+    this.selection = left.appendChild(el('section', { class: 'selection panel', 'aria-label': 'Sélection' }));
     // Ability buttons react on press: the panel redraws every second with their cooldown.
     this.selection.addEventListener('pointerdown', (ev) => {
       const id = (ev.target as HTMLElement).closest('button')?.dataset.ability;
       if (id) this.scene.controls.useAbilities(id as AbilityId);
+    });
+    this.selection.addEventListener('change', (ev) => {
+      const input = ev.target as HTMLInputElement;
+      if (input.dataset.act !== 'auto-abilities') return;
+      settings.autoAbilities = input.checked;
+      saveSettings();
     });
     this.selection.addEventListener('click', (ev) => {
       const b = (ev.target as HTMLElement).closest('button');
@@ -155,9 +214,18 @@ export class Hud {
       this.scene.cameras.main.centerOn(x, y);
     };
     this.minimap.addEventListener('pointerdown', (ev) => {
+      // Right button: send the selection there (Ctrl: attack-move); left: look there.
+      if (ev.button === 2) {
+        const r = this.minimap.getBoundingClientRect();
+        const x = ((ev.clientX - r.left) / r.width) * this.world.width;
+        const y = ((ev.clientY - r.top) / r.height) * this.world.height;
+        this.scene.controls.moveSelection(x, y, ev.ctrlKey);
+        return;
+      }
       this.minimap.setPointerCapture(ev.pointerId);
       jump(ev);
     });
+    this.minimap.addEventListener('contextmenu', (ev) => ev.preventDefault());
     this.minimap.addEventListener('pointermove', (ev) => {
       if (ev.buttons & 1) jump(ev);
     });
@@ -178,19 +246,33 @@ export class Hud {
     const shipRow = ships.appendChild(el('div', { class: 'row' }));
     for (const cls of SHIPYARD_CLASSES) {
       const b = shipRow.appendChild(el('button', {}, `<span>${orderName(cls)}</span><small></small>`));
-      b.onclick = () => this.report(enqueueShip(this.world, this.player, cls));
+      // Shift: five at once, as many as the queue and the credits allow.
+      b.onclick = (ev) => {
+        const first = enqueueShip(this.world, this.player, cls);
+        this.report(first);
+        for (let i = 1; first.ok && ev.shiftKey && i < 5; i++) if (!enqueueShip(this.world, this.player, cls).ok) break;
+      };
+      // Right click: keep this class in production.
+      b.addEventListener('contextmenu', (ev) => {
+        ev.preventDefault();
+        const f = this.world.factions.get(this.player)!;
+        const on = f.repeat.includes(cls);
+        f.repeat = on ? f.repeat.filter((c) => c !== cls) : [...f.repeat, cls];
+        this.toast(`${SHIPS[cls].name} : production en boucle ${on ? 'arrêtée' : 'lancée'}`);
+        this.refresh();
+      });
       this.shipButtons.set(cls, b);
     }
     const heroRow = ships.appendChild(el('div', { class: 'row heroes', 'aria-label': 'Héros' }));
     for (const h of heroesOf(this.player)) {
-      const b = heroRow.appendChild(el('button', { title: h.description }, `<span>${h.name}, ${h.title.toLowerCase()}</span><small></small>`));
+      const power = ABILITIES[h.ability];
+      const b = heroRow.appendChild(el('button', { title: `${h.description} ${power.name} : ${power.description}` }, `<span>${h.name}, ${h.title.toLowerCase()}</span><small></small>`));
       b.onclick = () => this.report(enqueueHero(this.world, this.player, h.id));
       this.heroButtons.set(h.id, b);
     }
     this.unitsQueue = ships.appendChild(el('div', { class: 'queue', 'aria-label': 'File des vaisseaux' }));
-    this.unitsQueue.addEventListener('click', (ev) => {
-      const i = (ev.target as HTMLElement).closest('button')?.dataset.index;
-      if (i != null) cancelQueued(this.world, this.player, Number(i), 'units');
+    onCancel(this.unitsQueue, (b) => {
+      if (b.dataset.index != null) cancelQueued(this.world, this.player, Number(b.dataset.index), 'units');
     });
 
     const buildings = addTab('buildings', 'Bâtiments');
@@ -203,10 +285,9 @@ export class Hud {
       this.structureButtons.set(type, b);
     }
     this.buildingsQueue = buildings.appendChild(el('div', { class: 'queue', 'aria-label': 'File des bâtiments' }));
-    this.buildingsQueue.addEventListener('click', (ev) => {
-      const b = (ev.target as HTMLElement).closest('button');
-      if (b?.dataset.index != null) cancelQueued(this.world, this.player, Number(b.dataset.index), 'buildings');
-      if (b?.dataset.site != null) cancelConstruction(this.world, this.player, Number(b.dataset.site));
+    onCancel(this.buildingsQueue, (b) => {
+      if (b.dataset.index != null) cancelQueued(this.world, this.player, Number(b.dataset.index), 'buildings');
+      if (b.dataset.site != null) cancelConstruction(this.world, this.player, Number(b.dataset.site));
     });
 
     const research = addTab('research', 'Recherche');
@@ -237,7 +318,7 @@ export class Hud {
       this.lists.set(target, sig);
       target.innerHTML = items.length === 0
         ? `<span class="muted">${empty}</span>`
-        : '<span class="muted">File (clic : annuler)</span>' + items.map((i) =>
+        : '<span class="muted">File (clic droit : annuler)</span>' + items.map((i) =>
           `<button ${i.attr} aria-label="Annuler ${i.label}">${i.label}<span class="progress"></span></button>`).join('');
     }
     target.querySelectorAll<HTMLElement>('.progress').forEach((bar, k) => (bar.style.width = pct(items[k]?.progress ?? 0)));
@@ -248,13 +329,16 @@ export class Hud {
     const f = w.factions.get(this.player)!;
     const station = stationOf(w, this.player);
     for (const [cls, b] of this.shipButtons) {
-      this.setButton(b, canBuildShip(w, this.player, cls), `${shipCost(cls, this.player)} cr, ${SHIPS[cls].buildTime} s`);
+      const loop = f.repeat.includes(cls);
+      this.setButton(b, canBuildShip(w, this.player, cls), `${shipCost(cls, this.player)} cr, ${SHIPS[cls].buildTime} s${loop ? ', en boucle' : ''}`);
+      b.classList.toggle('loop', loop);
+      b.title += '. Maj + clic : 5 d\'un coup. Clic droit : production en boucle.';
     }
     for (const [type, b] of this.structureButtons) {
       const def = BUILDABLES[type];
+      // Without a station (an invasion force), what a level 1 station would allow.
       const r: Result =
-        !station ? { ok: false, reason: 'Aucune station' }
-        : station.level < def.minStationLevel ? { ok: false, reason: `Station niveau ${def.minStationLevel} requise` }
+        (station?.level ?? 1) < def.minStationLevel ? { ok: false, reason: `Station niveau ${def.minStationLevel} requise` }
         : f.credits < def.cost ? { ok: false, reason: 'Crédits insuffisants' }
         : { ok: true };
       this.setButton(b, r, `${def.cost} cr, ${def.buildTime} s`);
@@ -364,13 +448,9 @@ export class Hud {
     toast(this.toasts, text);
   }
 
-  /** The player lost a structure or hardpoint. */
-  lost(type: string): void {
-    const name =
-      type === 'station' ? STATION.name
-      : type in HARDPOINTS ? HARDPOINTS[type as keyof typeof HARDPOINTS].name
-      : BUILDABLES[type as BuildableType]?.name ?? type;
-    this.toast(`${name} détruit`);
+  /** An attack or a loss, with a button to go and see. */
+  alert(text: string, see: () => void): void {
+    toast(this.toasts, text, see);
   }
 
   /** Reflects speed, pause, sandbox and mode states in the buttons. */
@@ -395,16 +475,64 @@ export class Hud {
   }
 
   update(delta: number): void {
+    this.placeTip();
     this.timer -= delta;
     if (this.timer > 0) return;
     this.timer = REFRESH_MS;
     this.refresh();
   }
 
+  /** The tooltip follows the pointer every frame; its text changes with the refresh. */
+  private placeTip(): void {
+    if (this.tip.hidden) return;
+    const p = this.scene.input.activePointer;
+    const r = this.tip.getBoundingClientRect();
+    this.tip.style.left = `${Math.min(p.x + 16, window.innerWidth - r.width - 8)}px`;
+    this.tip.style.top = `${Math.max(8, p.y - r.height - 12)}px`;
+  }
+
+  /** What is under the pointer on the battlefield: name, hull, shields, what it is doing. */
+  private refreshTip(): void {
+    const c = this.scene.controls;
+    const e = c && c.pointerOver && !c.box && c.pilotId == null ? c.hovered() : null;
+    if (!e || !this.scene.canSee(e)) {
+      this.tip.hidden = true;
+      return;
+    }
+    const own = e.faction === this.player;
+    const lines = [`<strong>${entityName(e)}</strong> <span class="muted">${FACTIONS[e.faction].name}${own ? '' : ', ennemi'}</span>`];
+    lines.push(`Coque ${Math.ceil(e.hull)} / ${Math.round(e.maxHull)}${e.maxShield > 0 ? `, bouclier ${Math.ceil(e.shield)} / ${Math.round(e.maxShield)}` : ''}`);
+    if (e.build < 1) lines.push(`En construction : ${pct(e.build)}`);
+    const a = e.ability;
+    if (a) lines.push(`${ABILITIES[a.id].name} : ${a.active > 0 ? 'active' : a.cooldown > 0 ? `recharge ${Math.ceil(a.cooldown)} s` : 'prête'}`);
+    if (own && e.kind === 'ship') lines.push(`<span class="muted">${e.order ? { move: 'En route', attackMove: 'Attaque-mouvement', attack: 'Attaque' }[e.order.type] : e.targetId != null ? 'Au combat' : 'Inactif'}</span>`);
+    const html = lines.join('<br>');
+    if (this.tip.innerHTML !== html) this.tip.innerHTML = html;
+    this.tip.hidden = false;
+  }
+
+  /** Control groups, idle ships and the last alert, one click away. */
+  private refreshQuickbar(): void {
+    const c = this.scene.controls;
+    if (!c) return;
+    const groups = c.groupSizes().map(([n, count]) =>
+      `<button data-group="${n}" title="Groupe ${n} (touche ${n}, deux fois : centrer)">${n}<small>${count}</small></button>`).join('');
+    const idle = c.idleShips().length;
+    const alerts = this.scene.alerts.length;
+    const html = groups +
+      `<button data-act="idle" title="Vaisseaux inactifs (I : le suivant, Maj + I : tous)"${idle === 0 ? ' disabled' : ''}>Inactifs<small>${idle}</small></button>` +
+      `<button data-act="alert" title="Aller à la dernière alerte (Retour arrière)"${alerts === 0 ? ' disabled' : ''}>Alerte</button>`;
+    if (this.quickbar.innerHTML !== html) this.quickbar.innerHTML = html;
+  }
+
   private refresh(): void {
     const w = this.world;
     const f = w.factions.get(this.player)!;
+    // The setting may change here or in the options dialog.
+    f.autoAbilities = settings.autoAbilities;
     const station = stationOf(w, this.player);
+    this.refreshTip();
+    this.refreshQuickbar();
     if (this.mode.campaign) {
       this.level.textContent = station ? `Station niveau ${station.level}` : '';
       this.refreshSelection();
@@ -453,22 +581,34 @@ export class Hud {
     }
   }
 
-  /** One button per ability among the selected own ships, with its cooldown. */
+  /**
+   * One button per ability among the selected own ships: what it does, and whether it is
+   * running, ready or recharging. With "automatic" on, the ships use it by themselves.
+   */
   private abilityButtons(ents: Entity[]): string {
-    const byId = new Map<AbilityId, { ready: number; wait: number }>();
+    const byId = new Map<AbilityId, { ready: number; active: number; wait: number }>();
     for (const e of ents) {
       if (e.faction !== this.player || !e.ability) continue;
-      const a = byId.get(e.ability.id) ?? { ready: 0, wait: Infinity };
+      const a = byId.get(e.ability.id) ?? { ready: 0, active: 0, wait: Infinity };
       if (e.ability.cooldown === 0) a.ready++;
       else a.wait = Math.min(a.wait, e.ability.cooldown);
+      a.active = Math.max(a.active, e.ability.active);
       byId.set(e.ability.id, a);
     }
     if (byId.size === 0) return '';
+    const mode = this.scene.controls?.mode;
+    const auto = this.world.factions.get(this.player)!.autoAbilities;
     return '<div class="abilities">' + [...byId].map(([id, a]) => {
       const def = ABILITIES[id];
-      const state = a.ready > 0 ? 'prête' : `${Math.ceil(a.wait)} s`;
-      return `<button data-ability="${id}" title="${def.description}"><span>${def.name} (E)</span><small>${state}</small></button>`;
-    }).join('') + '</div>';
+      const aim = def.target === 'point' ? ', puis clic où viser' : def.target === 'enemy' ? ', puis clic sur un ennemi' : '';
+      const state = a.active > 0 ? `active encore ${Math.ceil(a.active)} s`
+        : a.ready > 0 ? `prête : E${aim}`
+        : `recharge ${Math.ceil(a.wait)} s`;
+      const aiming = mode?.kind === 'ability' && mode.id === id;
+      return `<button data-ability="${id}" aria-pressed="${aiming}"${a.active > 0 ? ' class="running"' : ''}>` +
+        `<span>${def.name}</span><small>${aiming ? 'clique pour viser, Échap pour annuler' : state}</small><small class="desc">${def.description}</small></button>`;
+    }).join('') +
+      `<label class="check" title="Tes vaisseaux utilisent leurs capacités seuls quand c'est utile"><input type="checkbox" data-act="auto-abilities"${auto ? ' checked' : ''}> Automatique</label></div>`;
   }
 
   private describe(e: Entity): string {
@@ -511,6 +651,13 @@ export class Hud {
       lines.push(`<div>Pièces : ${status.join(', ')}</div>`);
       if (e.shieldGens === 0) lines.push('<div>Générateur de bouclier détruit</div>');
     }
+    const fx = e.effects;
+    const states = [
+      fx.marked > 0 && `marqué ${Math.ceil(fx.marked)} s`, fx.stunned > 0 && `paralysé ${Math.ceil(fx.stunned)} s`,
+      fx.corroded > 0 && `rongé ${Math.ceil(fx.corroded)} s`, e.expires != null && `disparaît dans ${Math.ceil(e.expires)} s`,
+    ].filter(Boolean);
+    if (states.length > 0) lines.push(`<div class="warn">${states.join(', ')}</div>`);
+    if (!own && e.ability) lines.push(`<div class="muted">Capacité : ${ABILITIES[e.ability.id].name}. ${ABILITIES[e.ability.id].description}</div>`);
     if (e.kind === 'ship' && own) {
       lines.push(`<span class="muted">${e.pilot ? 'Piloté' : e.order ? { move: 'En route', attackMove: 'Attaque-mouvement', attack: 'Attaque' }[e.order.type] : 'En position'}</span>`);
       lines.push('<div><button data-act="pilot">Piloter (P)</button></div>');
@@ -543,26 +690,99 @@ export class Hud {
     ctx.strokeStyle = '#d9dee7';
     ctx.lineWidth = 1;
     ctx.strokeRect(v.x * sx, v.y * sy, v.width * sx, v.height * sy);
+    // Recent alerts ping where they happened.
+    const now = this.scene.time.now;
+    ctx.strokeStyle = '#e8705f';
+    ctx.lineWidth = 2;
+    for (const a of this.scene.alerts) {
+      const age = (now - a.time) / PING_MS;
+      if (age >= 1) continue;
+      ctx.globalAlpha = 1 - age;
+      ctx.beginPath();
+      ctx.arc(a.x * sx, a.y * sy, 4 + age * 18, 0, Math.PI * 2);
+      ctx.stroke();
+    }
+    ctx.globalAlpha = 1;
   }
 
-  private openModal(content: HTMLElement): void {
+  /** Opens a dialog in place of the open one; `onClose` runs when it is closed. */
+  private openModal(content: HTMLElement, onClose: (() => void) | null = null): void {
     this.modal?.remove();
     this.modal = this.root.appendChild(el('div', { class: 'modal', role: 'dialog', 'aria-modal': 'true' }));
     this.modal.append(content);
+    this.onModalClose = onClose;
     content.querySelector<HTMLElement>('button')?.focus();
   }
 
   private closeModal(): void {
     this.modal?.remove();
     this.modal = null;
+    const then = this.onModalClose;
+    this.onModalClose = null;
+    then?.();
+  }
+
+  /** Escape closes the open dialog; false when there was none. */
+  escape(): boolean {
+    if (!this.modal) return false;
+    this.closeModal();
+    return true;
+  }
+
+  /** The game pauses behind a menu: resume, options, controls, restart or leave. */
+  pauseMenu(): void {
+    if (!this.scene.paused) {
+      this.scene.togglePause();
+      this.menuPaused = true;
+    }
+    const campaign = !!this.mode.campaign;
+    const retreat = campaign && this.scene.opts.campaign?.attacker === this.player;
+    const p = el('div', { class: 'panel pause' },
+      `<h2>Pause</h2><p class="muted">Bataille en cours depuis ${duration(this.world.time)}.</p>` +
+      '<div class="menu-list">' +
+      '<button class="primary" data-act="resume">Reprendre</button>' +
+      '<button data-act="options">Options</button><button data-act="help">Commandes</button>' +
+      (campaign ? '' : '<button data-act="restart">Recommencer</button><button data-act="menu">Menu principal</button>') +
+      (retreat ? '<button data-act="retreat">Retraite</button>' : '') +
+      '</div>');
+    const back = () => this.pauseMenu();
+    p.addEventListener('click', (ev) => {
+      const act = (ev.target as HTMLElement).closest('button')?.dataset.act;
+      if (act === 'resume') this.closeModal();
+      if (act === 'options') this.openModal(optionsPanel(() => this.closeModal()), back);
+      if (act === 'help') this.showHelp(back);
+      if (act === 'restart') this.confirm('Recommencer ?', 'La bataille repart du début, sur la même carte.', 'Recommencer', () => this.scene.restart(), back);
+      if (act === 'menu') this.confirm('Quitter la partie ?', 'La bataille en cours sera perdue.', 'Quitter', () => this.scene.toMenu(), back);
+      if (act === 'retreat') this.scene.retreat();
+    });
+    this.openModal(p, () => {
+      if (!this.menuPaused) return;
+      this.menuPaused = false;
+      if (this.scene.paused) this.scene.togglePause();
+    });
+  }
+
+  /** Each faction's record: built, lost, destroyed, damage dealt, credits earned. */
+  private statsTable(): string {
+    const rows = [...this.world.factions.values()].map((f) => {
+      const s = f.stats;
+      const own = f.id === this.player;
+      return `<tr${own ? ' class="own"' : ''}><th scope="row"><span class="who"><img class="emblem" src="${emblemUrl(f.id, 2)}" alt="">${FACTIONS[f.id].name}</span></th>` +
+        `<td>${s.built}</td><td>${s.lost}</td><td>${s.kills}</td><td>${Math.round(s.damage)}</td><td>${Math.round(s.earned)}</td></tr>`;
+    }).join('');
+    return `<p class="muted">Durée : ${duration(this.world.time)}</p>` +
+      '<table class="stats"><thead><tr><th scope="col">Faction</th><th scope="col">Construits</th><th scope="col">Perdus</th>' +
+      `<th scope="col">Détruits</th><th scope="col">Dégâts</th><th scope="col">Crédits gagnés</th></tr></thead><tbody>${rows}</tbody></table>`;
   }
 
   showEnd(won: boolean): void {
     const p = el('div', { class: 'panel' },
       `<h2>${won ? 'Victoire' : 'Défaite'}</h2>` +
-      `<p>${won ? 'La station ennemie est détruite.' : 'Ta station est détruite.'}</p>` +
-      '<div class="actions"><button class="primary" data-act="again">Rejouer</button><button data-act="menu">Menu</button><button data-act="close">Continuer</button></div>');
+      `<p>${won ? 'La station ennemie est détruite.' : 'Ta station est détruite.'}</p>` + this.statsTable() +
+      '<div class="actions"><button class="primary" data-act="again">Rejouer la même carte</button><button data-act="reroll">Nouvelle carte</button>' +
+      '<button data-act="menu">Menu</button><button data-act="close">Continuer à regarder</button></div>');
     p.querySelector<HTMLButtonElement>('[data-act=again]')!.onclick = () => this.scene.restart();
+    p.querySelector<HTMLButtonElement>('[data-act=reroll]')!.onclick = () => this.scene.restart(true);
     p.querySelector<HTMLButtonElement>('[data-act=menu]')!.onclick = () => this.scene.toMenu();
     p.querySelector<HTMLButtonElement>('[data-act=close]')!.onclick = () => this.closeModal();
     this.openModal(p);
@@ -572,38 +792,42 @@ export class Hud {
   showBattleEnd(won: boolean, onBack: () => void): void {
     const p = el('div', { class: 'panel' },
       `<h2>${won ? 'Victoire' : 'Défaite'}</h2>` +
-      `<p>${won ? 'La bataille est gagnée.' : 'La bataille est perdue.'} Les survivants regagnent la carte galactique.</p>` +
+      `<p>${won ? 'La bataille est gagnée.' : 'La bataille est perdue.'} Les survivants regagnent la carte galactique.</p>` + this.statsTable() +
       '<div class="actions"><button class="primary">Retour à la carte</button></div>');
     p.querySelector('button')!.onclick = onBack;
     this.openModal(p);
   }
 
   /** Asks before an action that loses progress. */
-  private confirm(title: string, text: string, action: string, onYes: () => void): void {
+  /** Asks before an action that loses progress; `back` runs if the player changes their mind. */
+  private confirm(title: string, text: string, action: string, onYes: () => void, back: (() => void) | null = null): void {
     const p = el('div', { class: 'panel' },
       `<h2>${title}</h2><p>${text}</p>` +
       `<div class="actions"><button data-act="no">Annuler</button><button class="primary" data-act="yes">${action}</button></div>`);
     p.querySelector<HTMLButtonElement>('[data-act=no]')!.onclick = () => this.closeModal();
     p.querySelector<HTMLButtonElement>('[data-act=yes]')!.onclick = () => {
+      this.onModalClose = null;
       this.closeModal();
       onYes();
     };
-    this.openModal(p);
+    this.openModal(p, back);
   }
 
   private showOptions(): void {
     this.openModal(optionsPanel(() => this.closeModal()));
   }
 
-  private showHelp(): void {
+  private showHelp(back: (() => void) | null = null): void {
     const p = el('div', { class: 'panel' },
       '<h2>Commandes</h2>' + controlsList(BATTLE_CONTROLS) +
-      '<p class="muted">Les chasseurs et bombardiers sortent seuls des hangars. Détruire les points d\'attache d\'une station la désarme : chantier naval, hangar, générateur de bouclier, tourelles. ' +
-      'Le brouillard de guerre cache ce que tes unités ne voient pas, et l\'IA y est soumise aussi. ' +
-      'Plateformes et docks de réparation se construisent aussi près de tes mines. Sélectionne une plateforme ou un hangar pour l\'améliorer. ' +
-      'Les héros sont uniques ; un héros détruit se reconstruit après un délai.</p>' +
+      '<p class="muted"><strong>Capacités.</strong> Chaque classe de vaisseau et chaque héros en a une. Le panneau de sélection dit ce qu\'elle fait et si elle est prête, active ou en recharge. ' +
+      'E (ou son bouton) la déclenche ; certaines se visent d\'un clic. Case « Automatique » : tes vaisseaux s\'en servent seuls quand c\'est utile. Sur le champ de bataille, un anneau coloré montre une capacité active, et son nom s\'affiche quand elle part.</p>' +
+      '<p class="muted"><strong>Construction.</strong> Autour de la station et des avant-postes. Un avant-poste se pose loin de la base, là où un de tes vaisseaux tient la position, hors combat ; il ouvre une nouvelle zone de construction. ' +
+      'Plateformes et docks se construisent aussi près de tes mines. Sélectionne une plateforme ou un avant-poste pour l\'améliorer.</p>' +
+      '<p class="muted">Détruire les points d\'attache d\'une station la désarme : chantier naval, hangar, générateur de bouclier, tourelles. Le brouillard de guerre cache ce que tes unités ne voient pas, l\'IA comprise. ' +
+      'Les héros et le Titan sont uniques ; un héros détruit se reconstruit après un délai.</p>' +
       '<div class="actions"><button class="primary">Fermer</button></div>');
     p.querySelector('button')!.onclick = () => this.closeModal();
-    this.openModal(p);
+    this.openModal(p, back);
   }
 }

@@ -1,6 +1,8 @@
 // HTML overlay of the galaxy map. Like the battle HUD, it reads the simulation and calls
 // its commands.
 import './hud.css';
+import { play } from '../audio/sfx';
+import { ABILITIES } from '../data/abilities';
 import { GALAXY_RULES, SPECIALS } from '../data/galaxy';
 import { HEROES, heroesOf, type HeroId } from '../data/heroes';
 import { MAX_TECH_LEVEL, TECHS, TECH_IDS, type TechId } from '../data/research';
@@ -10,7 +12,7 @@ import { defenseLeft, heroSurvivors, sideStrength, survivors, type ShipCounts } 
 import {
   buildName, buildPrice, buildTime, cancelBuild, cancelTech, canBuild, canResearchTech, enqueueBuild, fleetsAt,
   incomeOf, platformCap, researchSpeed, startTech, visiblePlanets,
-  type BuildingKind, type GalaxyBattle, type GalaxyBuild, type GalaxyEvent, type Planet,
+  type BuildingKind, type Fleet, type GalaxyBattle, type GalaxyBuild, type GalaxyEvent, type Planet,
 } from '../sim/galaxy';
 import { GALAXY_CONTROLS, controlsList } from './controls';
 import { el, pct, shortReason, toast } from './dom';
@@ -33,6 +35,12 @@ function describeShips(ships: ShipCounts, heroes: HeroId[] = []): string {
 }
 
 const emblem = (faction: keyof typeof FACTIONS, cls = 'emblem') => `<img class="${cls}" src="${emblemUrl(faction, 2)}" alt="">`;
+
+/** ", état 64 %" for a damaged fleet; nothing for a whole one. */
+function condition(f: Fleet): string {
+  const c = f.condition ?? 1;
+  return c < 1 ? `, état ${pct(c)}` : '';
+}
 
 export class GalaxyHud {
   private root = el('div', { class: 'ui' });
@@ -68,6 +76,12 @@ export class GalaxyHud {
 
     this.panel = this.root.appendChild(el('aside', { class: 'galaxy-panel panel', 'aria-label': 'Planète' }));
     this.panel.addEventListener('click', (ev) => this.onPanelClick(ev));
+    this.panel.addEventListener('contextmenu', (ev) => {
+      const b = (ev.target as HTMLElement).closest<HTMLElement>('[data-cancel]');
+      if (!b) return;
+      ev.preventDefault();
+      this.cancel(b);
+    });
     this.toasts = this.root.appendChild(el('div', { class: 'toasts', role: 'status', 'aria-live': 'polite' }));
     this.tip = this.root.appendChild(el('div', { class: 'tooltip panel', 'aria-hidden': 'true' }));
     this.tip.hidden = true;
@@ -105,6 +119,14 @@ export class GalaxyHud {
     this.refresh();
   }
 
+  private cancel(b: HTMLElement): void {
+    const planet = this.scene.selected;
+    if (!b.dataset.cancel || planet == null) return;
+    const [which, i] = b.dataset.cancel.split(':');
+    cancelBuild(this.scene.galaxy, planet, Number(i), which as 'units' | 'buildings');
+    this.refresh();
+  }
+
   private onPanelClick(ev: MouseEvent): void {
     const b = (ev.target as HTMLElement).closest('button');
     const g = this.scene.galaxy;
@@ -112,10 +134,8 @@ export class GalaxyHud {
     const planet = this.scene.selected;
     if (!b) return;
     if (b.dataset.tab) this.tab = b.dataset.tab as Tab;
-    if (b.dataset.cancel && planet != null) {
-      const [which, i] = b.dataset.cancel.split(':');
-      cancelBuild(g, planet, Number(i), which as 'units' | 'buildings');
-    }
+    // Queue items cancel on a right click (below), or on Enter or Space; a stray left click keeps them.
+    if (b.dataset.cancel && ev.detail === 0) this.cancel(b);
     if (b.dataset.act === 'cancel-research') cancelTech(g, player);
     const item = this.buttons.find((x) => x.b === b);
     if (item && planet != null) {
@@ -230,7 +250,7 @@ export class GalaxyHud {
     }
     this.lastFleet = fleetSig;
     if (own) {
-      lines.push('<h3>Ta flotte</h3>');
+      lines.push('<h3>Ta flotte <small data-condition></small></h3>');
       for (const c of SHIPYARD_CLASSES) {
         const n = own.ships[c];
         if (!n) continue;
@@ -244,7 +264,7 @@ export class GalaxyHud {
       lines.push('<p class="muted">Clic droit sur une planète : envoyer ces vaisseaux.</p>');
     }
     for (const f of fleetsAt(g, p.id).filter((x) => x.faction !== player)) {
-      lines.push(`<h3>Flotte ${FACTIONS[f.faction].name}</h3><div>${describeShips(f.ships, f.heroes)}</div>`);
+      lines.push(`<h3>Flotte ${FACTIONS[f.faction].name}</h3><div>${describeShips(f.ships, f.heroes)}${condition(f)}</div>`);
     }
     body.innerHTML = lines.join('');
   }
@@ -253,13 +273,16 @@ export class GalaxyHud {
     const which = builds[0]?.kind === 'ship' ? 'units' : 'buildings';
     const grid = body.appendChild(el('div', { class: 'grid' }));
     for (const build of builds) {
-      const b = grid.appendChild(el('button', {}, `<span>${buildName(p, build)}</span><small></small>`));
+      const hero = build.kind === 'hero' ? HEROES[build.hero] : null;
+      const power = hero ? ABILITIES[hero.ability] : null;
+      const title = hero && power ? `${hero.description} ${power.name} : ${power.description}` : '';
+      const b = grid.appendChild(el('button', title ? { title } : {}, `<span>${buildName(p, build)}</span><small></small>`));
       this.buttons.push({ b, build });
     }
     const queue = p[which];
     body.appendChild(el('div', { class: 'queue' }, queue.length === 0
       ? '<span class="muted">File vide</span>'
-      : '<span class="muted">File (clic : annuler)</span>' + queue.map((q, i) => {
+      : '<span class="muted">File (clic droit : annuler)</span>' + queue.map((q, i) => {
         const name = q.kind === 'ship' ? orderName(q.cls) : buildName({ ...p, station: 0 }, q);
         return `<button data-cancel="${which}:${i}" aria-label="Annuler ${name}">${name}<span class="progress"></span></button>`;
       }).join('')));
@@ -298,6 +321,14 @@ export class GalaxyHud {
       const which = this.tab === 'ships' ? p.units : p.buildings;
       const bar = this.panel.querySelector<HTMLElement>('[data-cancel] .progress');
       if (bar && which[0]) bar.style.width = pct(1 - which[0].remaining / which[0].total);
+      const own = fleetsAt(g, p.id, player)[0];
+      const cond = this.panel.querySelector('[data-condition]');
+      if (cond && own) {
+        const c = own.condition ?? 1;
+        const home = p.owner === player;
+        cond.textContent = c >= 1 ? 'intacte' : `état ${pct(c)}${home ? ', en réparation' : ''}`;
+        cond.className = c < 0.5 ? 'warn' : 'muted';
+      }
       const occ = this.panel.querySelector('[data-occupation]');
       if (occ && p.occupation) occ.textContent = `Prise par ${FACTIONS[p.occupation.faction].name} dans ${Math.ceil(p.occupation.remaining)} s`;
     }
@@ -336,7 +367,7 @@ export class GalaxyHud {
     if (p.platforms > 0) lines.push(`${p.platforms} plateforme${p.platforms > 1 ? 's' : ''}`);
     if (p.ionCannon > 0) lines.push('Canon ionique');
     lines.push(`Revenu +${p.income + p.mines * GALAXY_RULES.mineIncome * (p.special === 'rich' ? 2 : 1)}/s`);
-    for (const f of fleetsAt(g, p.id)) lines.push(`${FACTIONS[f.faction].name} : ${describeShips(f.ships, f.heroes)}`);
+    for (const f of fleetsAt(g, p.id)) lines.push(`${FACTIONS[f.faction].name} : ${describeShips(f.ships, f.heroes)}${condition(f)}`);
     if (g.battles.some((b) => b.planetId === p.id)) lines.push('Combat en cours');
     else if (p.occupation) lines.push(`Prise par ${FACTIONS[p.occupation.faction].name} dans ${Math.ceil(p.occupation.remaining)} s`);
     this.tip.innerHTML = lines.join('<br>');
@@ -361,18 +392,26 @@ export class GalaxyHud {
     const player = this.scene.opts.player;
     if (ev.type === 'captured') {
       const p = g.planets[ev.planetId];
-      if (ev.faction === player) this.toast(`${p.name} est à toi`);
-      else if (ev.from === player) this.toast(`${p.name} perdue`);
+      if (ev.faction === player) {
+        this.toast(`${p.name} est à toi`);
+        play('built');
+      } else if (ev.from === player) {
+        this.toast(`${p.name} perdue`);
+        play('alert');
+      }
     } else if (ev.type === 'built' && ev.faction === player) {
       this.toast(`${g.planets[ev.planetId].name} : ${ev.what} terminé`);
+      play('built');
     } else if (ev.type === 'researched' && ev.faction === player) {
       this.toast(`Recherche terminée : ${TECHS[ev.tech].name} niveau ${g.factions.get(player)!.research[ev.tech]}`);
+      play('built');
     } else if (ev.type === 'battleEnd' && (ev.attacker === player || ev.defender === player)) {
       const winner = ev.result === 'attacker' ? ev.attacker : ev.defender;
       const what = ev.result === 'retreat'
         ? (ev.attacker === player ? 'retraite' : "l'ennemi se replie")
         : winner === player ? 'victoire' : 'défaite';
       this.toast(`Bataille de ${g.planets[ev.planetId].name} : ${what}`);
+      play(winner === player && ev.result !== 'retreat' ? 'built' : 'alert');
     }
   }
 
@@ -390,6 +429,7 @@ export class GalaxyHud {
 
   /** The galaxy is on hold until the player picks how to fight. */
   promptBattle(b: GalaxyBattle): void {
+    play('alert');
     const g = this.scene.galaxy;
     const player = this.scene.opts.player;
     const enemy = b.attacker === player ? b.defender : b.attacker;

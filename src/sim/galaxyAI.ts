@@ -1,20 +1,20 @@
 import { GALAXY_RULES } from '../data/galaxy';
 import { STATION } from '../data/structures';
 import { SHIPS, SHIP_CLASSES, type FactionId, type ShipClass } from '../data/units';
-import { countShips, fleetValue } from './battle';
+import { countShips } from './battle';
 import { heroesOf } from '../data/heroes';
 import { DIFFICULTIES } from './world';
 import type { TechId } from '../data/research';
 import {
   canBuild, canResearchTech, defenseValue, enqueueBuild, fleetsAt, galaxyRand, neighbours, sendFleet, startTech,
-  fleetVisible, visiblePlanets,
+  fleetStrength, fleetVisible, visiblePlanets,
   type Fleet, type Galaxy, type GalaxyBuild, type Planet,
 } from './galaxy';
 
 const THINK_INTERVAL = 2;
 /** Relative odds of each ship class once unlocked. */
 const SHIP_WEIGHTS: Partial<Record<ShipClass, number>> = {
-  scout: 1, bomber: 1, support: 1, frigate: 4, torpedo: 2, battlecruiser: 3, dreadnought: 2,
+  scout: 1, bomber: 1, support: 1, frigate: 4, torpedo: 2, battlecruiser: 3, dreadnought: 2, titan: 1,
 };
 
 /** Hops from each planet to the nearest planet held by another faction or with an enemy fleet on it. */
@@ -44,7 +44,7 @@ function threat(g: Galaxy, planet: Planet, faction: FactionId): number {
   if (!visiblePlanets(g, faction).has(planet.id)) return 0;
   const owned = planet.owner && planet.owner !== faction ? defenseValue(g, planet) : 0;
   const fleets = fleetsAt(g, planet.id).filter((f) => f.faction !== faction && f.faction !== planet.owner);
-  return owned + fleets.reduce((v, f) => v + fleetValue(f.ships, f.heroes), 0);
+  return owned + fleets.reduce((v, f) => v + fleetStrength(f), 0);
 }
 
 /** Ship weights tilted towards what counters the enemy fleets the faction can see. */
@@ -123,7 +123,7 @@ function wishes(g: Galaxy, faction: FactionId, hops: Map<number, number>): Wish[
   const danger: Wish[] = [];
   for (const p of own) {
     const near = neighbours(g, p.id).flatMap((n) => fleetsAt(g, n)).filter((f) => f.faction !== faction && fleetVisible(g, faction, f, seen));
-    const menace = near.reduce((v, f) => v + fleetValue(f.ships, f.heroes), 0);
+    const menace = near.reduce((v, f) => v + fleetStrength(f), 0);
     if (menace > 0 && menace > defenseValue(g, p)) {
       danger.push(at(p, p.station === 0 ? { kind: 'station' } : { kind: 'platform' }), at(p, { kind: 'ionCannon' }));
     }
@@ -164,7 +164,9 @@ function command(g: Galaxy, faction: FactionId, hops: Map<number, number>): void
   for (const fleet of [...g.fleets.values()]) {
     if (fleet.faction !== faction || fleet.at == null || fleet.battleId != null) continue;
     const near = neighbours(g, fleet.at).map((id) => g.planets[id]);
-    const value = fleetValue(fleet.ships, fleet.heroes);
+    const value = fleetStrength(fleet);
+    // A worn fleet stays home to mend, unless its own planet needs it.
+    const worn = (fleet.condition ?? 1) < 0.5;
 
     // Defend first: an own planet with enemies on it.
     const rescue = near.find((p) => p.owner === faction && threat(g, p, faction) > 0 && value >= threat(g, p, faction) * 1.2);
@@ -177,7 +179,7 @@ function command(g: Galaxy, faction: FactionId, hops: Map<number, number>): void
     const target = near
       .filter((p) => ((p.owner && p.owner !== faction) || threat(g, p, faction) > 0) && value >= threat(g, p, faction) * 1.4 + 300)
       .sort((a, b) => worth(b) - worth(a))[0];
-    if (target) {
+    if (target && !worn) {
       sendFleet(g, fleet.id, target.id);
       continue;
     }

@@ -3,11 +3,13 @@ import './hud.css';
 import { version } from '../../package.json';
 import { FACTIONS, FACTION_IDS, type FactionId } from '../data/units';
 import { backdrop, shipSprite, type Manifest } from '../render/sprites';
+import { GALAXY_H, GALAXY_W } from '../data/galaxy';
+import { CLASSIC, generateLayout } from '../sim/galaxyGen';
 import { campaignInfo } from '../sim/galaxySave';
-import { MAP_SIZES, type MapSize } from '../sim/scenario';
+import { MAP_SIZES, createSkirmish, type MapSize } from '../sim/scenario';
 import { DIFFICULTIES, type Difficulty } from '../sim/world';
 import { BATTLE_CONTROLS, GALAXY_CONTROLS, controlsList } from './controls';
-import { el } from './dom';
+import { el, hex } from './dom';
 import { emblemUrl, logoUrl } from './logos';
 import { optionsPanel } from './options';
 
@@ -35,6 +37,53 @@ const MODES: [MenuChoice['mode'], string, string][] = [
 ];
 
 const newSeed = () => 1 + Math.floor(Math.random() * 999999);
+
+/**
+ * The map the choices give, before launching: the galaxy (planets, lanes, capitals in their
+ * faction's color) or the battlefield (stations and asteroid fields).
+ */
+function drawPreview(canvas: HTMLCanvasElement, c: MenuChoice): void {
+  const ctx = canvas.getContext('2d')!;
+  const { width: w, height: h } = canvas;
+  ctx.fillStyle = '#0b0d12';
+  ctx.fillRect(0, 0, w, h);
+  const factions = [c.player, ...c.enemies];
+  if (c.mode === 'campaign') {
+    const layout = c.map === 'classic' && c.enemies.length === 1 ? CLASSIC : generateLayout(c.seed, factions.length);
+    const sx = w / GALAXY_W;
+    const sy = h / GALAXY_H;
+    ctx.strokeStyle = '#2a3446';
+    ctx.lineWidth = 1;
+    for (const [a, b] of layout.lanes) {
+      ctx.beginPath();
+      ctx.moveTo(layout.planets[a].x * sx, layout.planets[a].y * sy);
+      ctx.lineTo(layout.planets[b].x * sx, layout.planets[b].y * sy);
+      ctx.stroke();
+    }
+    layout.planets.forEach((p, i) => {
+      const owner = layout.capitals.indexOf(i);
+      ctx.fillStyle = owner >= 0 ? hex(FACTIONS[factions[owner]].color) : '#949eb0';
+      ctx.beginPath();
+      ctx.arc(p.x * sx, p.y * sy, owner >= 0 ? 6 : 3.5, 0, Math.PI * 2);
+      ctx.fill();
+    });
+    return;
+  }
+  const world = createSkirmish({ player: c.player, enemies: c.enemies, enemyAI: false, seed: c.seed, map: c.map, size: c.size });
+  const sx = w / world.width;
+  const sy = h / world.height;
+  ctx.fillStyle = '#2a3446';
+  for (const f of world.fields) {
+    ctx.beginPath();
+    ctx.arc(f.x * sx, f.y * sy, Math.max(2, f.radius * sx), 0, Math.PI * 2);
+    ctx.fill();
+  }
+  for (const e of world.entities.values()) {
+    if (e.type !== 'station') continue;
+    ctx.fillStyle = hex(FACTIONS[e.faction].color);
+    ctx.fillRect(e.x * sx - 5, e.y * sy - 5, 10, 10);
+  }
+}
 
 export function showMenu(onStart: (choice: MenuChoice) => void, manifest: Manifest): void {
   const choice: MenuChoice = {
@@ -122,13 +171,17 @@ export function showMenu(onStart: (choice: MenuChoice) => void, manifest: Manife
           <label>Graine<input type="number" name="seed" min="1" max="999999" value="${c.seed}"${c.map === 'classic' ? ' disabled' : ''}></label>
           <button data-act="reroll">Nouvelle graine</button>
         </div>
+        <canvas class="preview" width="320" height="${battle ? Math.round(320 * MAP_SIZES[c.size].h / MAP_SIZES[c.size].w) : 200}" role="img" aria-label="Aperçu de la carte : les carrés et les gros points sont les bases de départ"></canvas>
         <p class="note">La même graine redonne la même carte.${c.enemies.length > 1 ? ' La carte classique est faite pour deux.' : ''}</p>
       </section>
       ${c.mode === 'sandbox' ? '' : `<section><h3>Difficulté</h3>${group('difficulty', Object.entries(DIFFICULTIES).map(([v, d]) => [v, d.name]), c.difficulty)}
         <p class="note">Plus difficile : l'IA gagne plus de crédits et réagit plus vite.</p></section>`}
       <div class="actions"><button data-go="home">Retour</button><button class="primary" data-act="start">Lancer la partie</button></div>`;
-    panel.querySelector<HTMLInputElement>('[name=seed]')!.onchange = (ev) => {
+    const preview = panel.querySelector<HTMLCanvasElement>('.preview')!;
+    drawPreview(preview, c);
+    panel.querySelector<HTMLInputElement>('[name=seed]')!.oninput = (ev) => {
       c.seed = Math.max(1, Math.floor(Number((ev.target as HTMLInputElement).value)) || 1);
+      drawPreview(preview, c);
     };
   }
 

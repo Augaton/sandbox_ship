@@ -1,9 +1,9 @@
 import { heroesOf } from '../data/heroes';
 import { MAX_TECH_LEVEL, type TechId } from '../data/research';
 import { STATION, type BuildableType } from '../data/structures';
-import { FACTIONS, SHIPS, SHIP_CLASSES, unitValue, type ShipClass } from '../data/units';
+import { FACTIONS, SHIPS, SHIP_CLASSES, shipCost, unitValue, type ShipClass } from '../data/units';
 import { issueMove } from './movement';
-import { canBuildHero, enqueueHero, enqueueShip, enqueueUpgrade, placeStructure, startResearch } from './structures';
+import { buildZones, canBuildHero, enqueueHero, enqueueShip, enqueueUpgrade, placeStructure, startResearch } from './structures';
 import { isVisible } from './vision';
 import {
   DIFFICULTIES, dist, hasHardpoint, rand, stationOf,
@@ -11,9 +11,16 @@ import {
 } from './world';
 
 const MAX_MINES = 4;
+const MAX_OUTPOSTS = 2;
+/** Biggest wave the AI waits for, in ship value. */
+const MAX_WAVE = 9000;
+/** Seconds after which the AI attacks with what it has. */
+const PRESSURE_TIME = 1200;
+/** Refused for want of a ship on the spot: the AI sends one. */
+const UNHELD = 'Un vaisseau doit tenir la position';
 /** Relative odds of each ship class once unlocked, before adapting to the enemy. */
 const SHIP_WEIGHTS: Partial<Record<ShipClass, number>> = {
-  scout: 1, bomber: 1, support: 1, frigate: 4, torpedo: 2, battlecruiser: 3, dreadnought: 2,
+  scout: 1, bomber: 1, support: 1, frigate: 4, torpedo: 2, battlecruiser: 3, dreadnought: 2, titan: 1,
 };
 /** Goal failures worth waiting through: the AI keeps the goal instead of picking another. */
 const WAIT = new Set(['Crédits insuffisants', 'Escorte en route']);
@@ -78,7 +85,12 @@ export function pickShip(world: World, f: FactionState, station: Entity): ShipCl
     weights.bomber! += 3;
   }
   if (intel.structures >= 3) weights.bomber! += 3;
-  const options = SHIP_CLASSES.filter((c) => weights[c] && station.level >= SHIPS[c].minStationLevel);
+  // A unique capital ship only with a fleet around it and a quarter of it paid: saving up
+  // for it from nothing would leave the AI without ships for minutes.
+  const fleet = warships(world, f).length;
+  const fielded = (c: ShipClass) => count(world, f, c) > 0 || f.queue.some((q) => q.kind === 'ship' && q.cls === c);
+  const options = SHIP_CLASSES.filter((c) => weights[c] && station.level >= SHIPS[c].minStationLevel
+    && (!SHIPS[c].unique || (fleet >= 8 && f.credits >= shipCost(c, f.id) / 4 && !fielded(c))));
   const total = options.reduce((t, c) => t + weights[c]!, 0);
   let r = rand(world) * total;
   for (const c of options) {
@@ -89,15 +101,35 @@ export function pickShip(world: World, f: FactionState, station: Entity): ShipCl
 }
 
 /** Fields the AI could mine now: near its station, or with an idle ship to send there. */
-function mineableField(world: World, f: FactionState, station: Entity): boolean {
+function mineableField(world: World, f: FactionState): boolean {
   const free = world.fields.filter((fl) => fl.mineId == null);
-  if (free.some((fl) => dist(fl, station) <= STATION.constructionRadius + fl.radius)) return true;
+  if (free.some((fl) => inZones(world, f, fl))) return true;
   return free.length > 0 && warships(world, f).some((e) => !e.order);
+}
+
+function inZones(world: World, f: FactionState, fl: { x: number; y: number; radius: number }): boolean {
+  return buildZones(world, f.id, 'mine').some((z) => dist(z, fl) <= z.r + fl.radius);
+}
+
+/** Free fields beyond the build areas: where an outpost would open new ground. */
+function farFields(world: World, f: FactionState, station: Entity) {
+  return world.fields.filter((fl) => fl.mineId == null && !inZones(world, f, fl)).sort((a, b) => dist(a, station) - dist(b, station));
+}
+
+/** Sends the nearest idle warship to hold a spot, unless one is on its way already. */
+function escortTo(world: World, f: FactionState, at: { x: number; y: number }, near: number): Result {
+  const ships = warships(world, f);
+  const heading = ships.some((e) => e.order && e.order.type !== 'attack' && Math.hypot(e.order.x - at.x, e.order.y - at.y) < near);
+  if (heading) return fail('Escorte en route');
+  const escort = ships.filter((e) => !e.order).sort((a, b) => dist(a, at) - dist(b, at))[0];
+  if (!escort) return fail('Aucune escorte');
+  issueMove(world, [escort.id], at.x, at.y);
+  return fail('Escorte en route');
 }
 
 function chooseGoal(world: World, f: FactionState, station: Entity, defensive: boolean): AIGoal | null {
   const mines = count(world, f, 'mine');
-  if (mines < Math.min(MAX_MINES, station.level + 1) && mineableField(world, f, station)) return { kind: 'mine' };
+  if (mines < Math.min(MAX_MINES, station.level + 1) && mineableField(world, f)) return { kind: 'mine' };
   // A first squadron early: it escorts the miners and scouts the map.
   const fleet = warships(world, f).length;
   if (fleet === 0 && hasHardpoint(world, station.id, 'shipyard')) return { kind: 'ship', cls: 'scout' };
@@ -107,6 +139,10 @@ function chooseGoal(world: World, f: FactionState, station: Entity, defensive: b
     return { kind: 'upgrade' };
   }
   if (count(world, f, 'platform') < station.level && rand(world) < 0.25) return { kind: 'platform' };
+  // Mid game, expand: an outpost by a free field beyond reach, once the mines nearby are taken.
+  if (station.level >= 2 && mines >= 3 && count(world, f, 'outpost') < MAX_OUTPOSTS && fleet >= 2 && rand(world) < 0.15 && farFields(world, f, station).length > 0) {
+    return { kind: 'outpost' };
+  }
   if (fleet >= 3 && count(world, f, 'repairDock') === 0 && rand(world) < 0.1) return { kind: 'structure', type: 'repairDock' };
   if (station.level >= 3 && count(world, f, 'ionCannon') === 0 && rand(world) < 0.15) return { kind: 'structure', type: 'ionCannon' };
   const tech = !f.researching && rand(world) < 0.2 ? pickTech(f, station) : null;
@@ -127,17 +163,28 @@ function placeMine(world: World, f: FactionState, station: Entity): Result {
   for (const field of free.slice(0, 3)) {
     const r = placeStructure(world, f.id, 'mine', field.x, field.y);
     if (r.ok || r.reason === 'Crédits insuffisants') return r;
-    if (r.reason !== 'Un vaisseau doit tenir le champ') continue;
-    const ships = warships(world, f);
-    const heading = ships.some((e) => e.order && e.order.type !== 'attack' && Math.hypot(e.order.x - field.x, e.order.y - field.y) < field.radius);
-    if (heading) return fail('Escorte en route');
-    const escort = ships.filter((e) => !e.order).sort((a, b) => dist(a, field) - dist(b, field))[0];
-    if (escort) {
-      issueMove(world, [escort.id], field.x, field.y);
-      return fail('Escorte en route');
-    }
+    if (r.reason !== UNHELD) continue;
+    const sent = escortTo(world, f, field, field.radius);
+    if (sent.ok || sent.reason === 'Escorte en route') return sent;
   }
   return fail('Aucun champ accessible');
+}
+
+/** An outpost on the station's side of the nearest far field, which then lies in its zone. */
+function placeOutpost(world: World, f: FactionState, station: Entity): Result {
+  const field = farFields(world, f, station)[0];
+  if (!field) return fail('Aucun champ accessible');
+  const d = dist(field, station) || 1;
+  const back = field.radius + 90;
+  for (const turn of [0, 0.5, -0.5]) {
+    const a = Math.atan2(station.y - field.y, station.x - field.x) + turn;
+    const at = { x: field.x + Math.cos(a) * back, y: field.y + Math.sin(a) * back };
+    if (d < back) break;
+    const r = placeStructure(world, f.id, 'outpost', at.x, at.y);
+    if (r.ok || r.reason === 'Crédits insuffisants') return r;
+    if (r.reason === UNHELD) return escortTo(world, f, at, 150);
+  }
+  return fail('Aucun emplacement');
 }
 
 /** Least researched tech the station allows, combat techs first. */
@@ -165,6 +212,7 @@ function pursue(world: World, f: FactionState, station: Entity, goal: AIGoal, en
   if ((goal.kind === 'ship' || goal.kind === 'hero') && f.queue.length >= 2) return false;
   const r =
     goal.kind === 'mine' ? placeMine(world, f, station)
+    : goal.kind === 'outpost' ? placeOutpost(world, f, station)
     : goal.kind === 'upgrade' ? enqueueUpgrade(world, f.id)
     : goal.kind === 'platform' ? placeDefense(world, f, station, enemy, 'platform')
     : goal.kind === 'structure' ? placeDefense(world, f, station, enemy, goal.type)
@@ -178,12 +226,16 @@ function pursue(world: World, f: FactionState, station: Entity, goal: AIGoal, en
 function retreatDamaged(world: World, f: FactionState): void {
   const docks = [...world.entities.values()].filter((e) => e.faction === f.id && e.type === 'repairDock' && e.build >= 1);
   const mends = docks.length > 0 || FACTIONS[f.id].trait.hullRegen > 0;
+  // Ships on a wave hold on longer, and late in the game not at all: a wave that keeps
+  // breaking off never takes a station.
+  const waveLimit = world.time > PRESSURE_TIME / 2 ? 0 : 0.15;
   for (const e of world.entities.values()) {
     if (e.faction !== f.id || e.kind !== 'ship' || e.launched || e.size === 'small' || e.pilot) continue;
+    const limit = e.order?.type === 'attackMove' ? waveLimit : 0.3;
     if (e.retreating && e.hull >= e.maxHull * 0.85) {
       e.retreating = false;
       e.order = null;
-    } else if (!e.retreating && mends && e.hull < e.maxHull * 0.3) {
+    } else if (!e.retreating && mends && e.hull < e.maxHull * limit) {
       e.retreating = true;
       const to = docks.sort((a, b) => dist(a, e) - dist(b, e))[0] ?? stationOf(world, f.id);
       if (to) issueMove(world, [e.id], to.x, to.y);
@@ -215,10 +267,12 @@ function command(world: World, f: FactionState, station: Entity, enemy: Entity |
     return outmatched;
   }
   const value = idle.reduce((v, e) => v + shipValue(e), 0);
-  const stronger = intel.army > 0 && army > intel.army * 1.4 && value >= 1500;
-  if (enemy && !outmatched && (value >= f.ai!.waveValue || stronger)) {
+  // As the game drags on, the AI settles for smaller waves and a thinner edge: no endless standoff.
+  const pressure = Math.min(1, world.time / PRESSURE_TIME);
+  const stronger = intel.army > 0 && army > intel.army * (1.4 - 0.3 * pressure) && value >= 1500;
+  if (enemy && !outmatched && (value >= f.ai!.waveValue * (1 - 0.4 * pressure) || stronger)) {
     issueMove(world, idle.map((e) => e.id), enemy.x, enemy.y, true);
-    f.ai!.waveValue = Math.min(f.ai!.waveValue * 1.25, 15000);
+    f.ai!.waveValue = Math.min(f.ai!.waveValue * 1.2, MAX_WAVE);
   }
   return outmatched;
 }

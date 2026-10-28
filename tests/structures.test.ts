@@ -126,11 +126,11 @@ describe('economy and placement', () => {
     const field = addField(w, 3000, 1000, 150);
     expect(checkPlacement(w, 'klaed', 'mine', 2000, 2000).ok).toBe(false);
     // Far from the station, a ship has to hold the field first.
-    expect(checkPlacement(w, 'klaed', 'mine', 3000, 1000)).toMatchObject({ ok: false, reason: 'Un vaisseau doit tenir le champ' });
+    expect(checkPlacement(w, 'klaed', 'mine', 3000, 1000)).toMatchObject({ ok: false, reason: 'Un vaisseau doit tenir la position' });
     spawnShip(w, 'klaed', 'scout', 3100, 1100);
     // And no fight may be going on there.
     const raider = spawnShip(w, 'nairan', 'scout', 3300, 1000);
-    expect(checkPlacement(w, 'klaed', 'mine', 3000, 1000)).toMatchObject({ ok: false, reason: 'Combat près du champ' });
+    expect(checkPlacement(w, 'klaed', 'mine', 3000, 1000)).toMatchObject({ ok: false, reason: 'Combat trop proche' });
     w.entities.delete(raider.id);
     const p = checkPlacement(w, 'klaed', 'mine', 3050, 1020);
     expect(p).toMatchObject({ ok: true, x: field.x, y: field.y });
@@ -144,7 +144,7 @@ describe('economy and placement', () => {
     expect(checkPlacement(w, 'klaed', 'platform', 700 + STATION.constructionRadius + 50, 2000).ok).toBe(false);
     expect(checkPlacement(w, 'klaed', 'platform', 700, 2000).ok).toBe(false);
     expect(checkPlacement(w, 'klaed', 'platform', 1000, 2300).ok).toBe(true);
-    expect(checkPlacement(w, 'klaed', 'hangar', 1000, 2300)).toMatchObject({ ok: false, reason: 'Station niveau 2 requise' });
+    expect(checkPlacement(w, 'klaed', 'ionCannon', 1000, 2300)).toMatchObject({ ok: false, reason: 'Station niveau 3 requise' });
   });
 
   it('a structure only works once built', () => {

@@ -1,6 +1,6 @@
 {
   "name": "sandbox-ship",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "private": true,
   "type": "module",
   "scripts": {
@@ -10,6 +10,7 @@
     "release": "node scripts/release.mjs",
     "play": "vite preview --outDir release",
     "test": "vitest run",
+    "balance": "vitest run --config vitest.balance.config.ts",
     "import-assets": "node scripts/import-assets.mjs"
   },
   "dependencies": {

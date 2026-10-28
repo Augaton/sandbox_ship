@@ -5,10 +5,11 @@ import { SHIPS } from '../src/data/units';
 import { HEROES } from '../src/data/heroes';
 import { TECHS } from '../src/data/research';
 import {
-  addShipsAt, buildTime, cancelBuild, canBuild, canResearchTech, chooseBattle, concludeBattle, createGalaxy,
+  FLEET_REPAIR, addShipsAt, buildTime, cancelBuild, canBuild, canResearchTech, chooseBattle, concludeBattle, createGalaxy,
   enqueueBuild, findPath, fleetVisible, fleetsAt, incomeOf, neighbours, platformCap, researchSpeed, sendFleet, startTech,
   visiblePlanets, waitingForPlayer, type Galaxy,
 } from '../src/sim/galaxy';
+import { NO_DEFENSE, createPlanetBattle, survivorCondition } from '../src/sim/battle';
 import { runGalaxy, stepGalaxy } from '../src/sim/galaxyStep';
 import { crosses, generateLayout } from '../src/sim/galaxyGen';
 import { deserializeGalaxy, serializeGalaxy } from '../src/sim/galaxySave';
@@ -112,6 +113,14 @@ describe('production', () => {
     expect(enqueueBuild(g, 'klaed', orin, { kind: 'ship', cls: 'frigate' }).ok).toBe(true);
     runGalaxy(g, SHIPS.frigate.buildTime + 1);
     expect(fleetsAt(g, orin, 'klaed')[0].ships).toEqual({ frigate: 1 });
+  });
+
+  it('a station at the top level shows no upgrade price and refuses one', () => {
+    const g = spectated();
+    const capital = g.planets.find((p) => p.owner === 'klaed')!;
+    capital.station = STATION.levels.length;
+    expect(() => buildTime(capital, { kind: 'station' })).not.toThrow();
+    expect(canBuild(g, 'klaed', capital.id, { kind: 'station' })).toEqual({ ok: false, reason: 'Niveau maximum' });
   });
 
   it('owned planets and mines bring income', () => {
@@ -391,4 +400,34 @@ describe('galaxies for three', () => {
     runGalaxy(g, 300);
     expect(g.planets.filter((p) => p.owner === 'nautolan').length).toBeGreaterThan(1);
   }, 30000);
+});
+
+describe('fleet condition', () => {
+  it('ships enter a battle as worn as their fleet, and come out with what they kept', () => {
+    const w = createPlanetBattle({ faction: 'klaed', ships: { frigate: 2 }, condition: 0.5 }, { faction: 'nairan', ships: {} }, NO_DEFENSE);
+    const frigates = [...w.entities.values()].filter((e) => e.type === 'frigate');
+    for (const f of frigates) expect(f.hull).toBeCloseTo(f.maxHull * 0.5, 5);
+    frigates[0].hull = frigates[0].maxHull * 0.2;
+    expect(survivorCondition(w, 'klaed')).toBeCloseTo(0.35, 5);
+  });
+
+  it('mend at their own planets, faster with a repair dock, and average out when merged', () => {
+    const g = spectated();
+    const capital = g.planets.find((p) => p.owner === 'klaed')!;
+    const fleet = fleetsAt(g, capital.id, 'klaed')[0];
+    fleet.condition = 0.5;
+    runGalaxy(g, 10);
+    const slow = fleet.condition! - 0.5;
+    expect(slow).toBeCloseTo(10 * FLEET_REPAIR.station, 2);
+    capital.repairDock = 1;
+    fleet.condition = 0.5;
+    runGalaxy(g, 10);
+    expect(fleet.condition! - 0.5).toBeGreaterThan(slow * 2);
+    // Fresh ships of the same value bring the average halfway up.
+    fleet.condition = 0.4;
+    capital.repairDock = 0;
+    const ships = { ...fleet.ships };
+    addShipsAt(g, 'klaed', capital.id, ships);
+    expect(fleet.condition).toBeCloseTo(0.7, 1);
+  });
 });

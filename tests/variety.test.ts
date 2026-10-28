@@ -3,9 +3,8 @@ import { ABILITIES } from '../src/data/abilities';
 import { HEROES } from '../src/data/heroes';
 import { TECHS } from '../src/data/research';
 import { BUILDABLES, STATION } from '../src/data/structures';
-import { SHIPS, shipCost } from '../src/data/units';
+import { FACTIONS, SHIPS, shipCost } from '../src/data/units';
 import { useAbility } from '../src/sim/abilities';
-import { damageMult } from '../src/sim/combat';
 import { MAP_SIZES, createSkirmish } from '../src/sim/scenario';
 import { survivors } from '../src/sim/battle';
 import {
@@ -14,7 +13,7 @@ import {
 } from '../src/sim/structures';
 import { run, step } from '../src/sim/step';
 import { isVisible, wasSeen } from '../src/sim/vision';
-import { addFaction, createWorld, newAI, spawnHero, spawnShip, spawnStation, spawnStructure, stationOf, type World } from '../src/sim/world';
+import { addFaction, addField, createWorld, newAI, spawnShip, spawnStation, spawnStructure, stationOf, type World } from '../src/sim/world';
 
 function world(credits = 100000): World {
   const w = createWorld(6000, 4000);
@@ -86,7 +85,7 @@ describe('research', () => {
     run(w, 0.4);
     const shot = w.projectiles.find((p) => p.faction === 'klaed')!;
     // Base damage (flak 4, laser 16) x Kla'ed trait x two levels of weapons research.
-    expect(shot.damage).toBeCloseTo((shot.kind === 'laser' ? 16 : 4) * 1.15 * 1.2, 5);
+    expect(shot.damage).toBeCloseTo((shot.kind === 'laser' ? 16 : 4) * FACTIONS.klaed.trait.damage * 1.2, 5);
   });
 });
 
@@ -178,9 +177,9 @@ describe('build zones and structure levels', () => {
     const mine = spawnStructure(w, 'klaed', 'mine', 3000, 1000);
     expect(checkPlacement(w, 'klaed', 'platform', 3200, 1000).ok).toBe(true);
     expect(checkPlacement(w, 'klaed', 'repairDock', 3200, 1100).ok).toBe(true);
-    expect(checkPlacement(w, 'klaed', 'hangar', 3200, 1000).ok).toBe(false);
+    expect(checkPlacement(w, 'klaed', 'ionCannon', 3200, 1000).ok).toBe(false);
     mine.build = 0.5;
-    expect(checkPlacement(w, 'klaed', 'platform', 3200, 1000)).toMatchObject({ ok: false, reason: 'Trop loin de la station et des mines' });
+    expect(checkPlacement(w, 'klaed', 'platform', 3200, 1000)).toMatchObject({ ok: false, reason: 'Trop loin de la station, des avant-postes et des mines' });
   });
 
   it('a platform goes up two levels through the buildings queue', () => {
@@ -197,13 +196,32 @@ describe('build zones and structure levels', () => {
     expect(p.weapons).toHaveLength(3);
   });
 
-  it('a hangar at level 2 launches bombers too', () => {
+  it('an outpost goes where a ship holds the spot, away from any fight, and opens a build area', () => {
     const w = world();
     spawnStation(w, 'klaed', 700, 2000);
-    const h = spawnStructure(w, 'klaed', 'hangar', 1000, 2300);
-    applyTier(w, h);
-    run(w, 60);
-    expect(ships(w, 'bomber').length).toBeGreaterThan(0);
+    expect(checkPlacement(w, 'klaed', 'outpost', 3500, 2000)).toMatchObject({ ok: false, reason: 'Un vaisseau doit tenir la position' });
+    spawnShip(w, 'klaed', 'scout', 3600, 2000);
+    const raider = spawnShip(w, 'nairan', 'scout', 3900, 2200);
+    expect(checkPlacement(w, 'klaed', 'outpost', 3500, 2000)).toMatchObject({ ok: false, reason: 'Combat trop proche' });
+    w.entities.delete(raider.id);
+    expect(placeStructure(w, 'klaed', 'outpost', 3500, 2000).ok).toBe(true);
+    const outpost = [...w.entities.values()].find((e) => e.type === 'outpost')!;
+    // Only once built does it open its area.
+    expect(checkPlacement(w, 'klaed', 'platform', 3800, 2000).ok).toBe(false);
+    run(w, BUILDABLES.outpost.buildTime + 0.5);
+    expect(checkPlacement(w, 'klaed', 'platform', 3800, 2000).ok).toBe(true);
+    expect(checkPlacement(w, 'klaed', 'platform', 4100, 2000).ok).toBe(false);
+    // Its next level widens the area.
+    applyTier(w, outpost);
+    expect(checkPlacement(w, 'klaed', 'platform', 4050, 2000).ok).toBe(true);
+  });
+
+  it('a field inside an outpost area needs no escort', () => {
+    const w = world();
+    spawnStation(w, 'klaed', 700, 2000);
+    spawnStructure(w, 'klaed', 'outpost', 3500, 2000);
+    const field = addField(w, 3800, 2000, 120);
+    expect(checkPlacement(w, 'klaed', 'mine', field.x, field.y).ok).toBe(true);
   });
 });
 
@@ -241,27 +259,6 @@ describe('heroes', () => {
     run(w, HEROES['klaed-ace'].respawn + 1);
     expect(canBuildHero(w, 'klaed', 'klaed-ace').ok).toBe(true);
     expect(station.level).toBe(1);
-  });
-
-  it("the admiral's order makes nearby allies hit harder", () => {
-    const w = world();
-    const admiral = spawnHero(w, 'klaed', 'klaed-admiral', 1000, 1000);
-    const frigate = spawnShip(w, 'klaed', 'frigate', 1100, 1000);
-    const before = damageMult(w, frigate);
-    useAbility(w, admiral);
-    step(w);
-    expect(damageMult(w, frigate)).toBeCloseTo(before * 1.3, 5);
-  });
-
-  it("the engineer's fleet repair mends and recharges allies", () => {
-    const w = world();
-    const om = spawnHero(w, 'nautolan', 'nautolan-engineer', 1000, 1000);
-    const s = spawnShip(w, 'nautolan', 'frigate', 1200, 1000);
-    s.hull = s.maxHull * 0.2;
-    s.shield = 0;
-    useAbility(w, om);
-    expect(s.hull).toBeCloseTo(s.maxHull * 0.6, 5);
-    expect(s.shield).toBe(s.maxShield);
   });
 });
 

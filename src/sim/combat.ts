@@ -2,9 +2,9 @@ import { TECH_BONUS } from '../data/research';
 import { BUILDABLES, type BuildableType } from '../data/structures';
 import { FACTIONS, SHIPS, type ShipClass, type WeaponDef } from '../data/units';
 import { HEROES } from '../data/heroes';
-import { inCommandAura, isActive } from './abilities';
+import { hurt, inCommandAura, isActive, isStunned, ownerOf } from './abilities';
 import { isVisible } from './vision';
-import { applyDamage, dist, rand, researchLevel, type Entity, type Pilot, type Projectile, type World } from './world';
+import { dist, rand, researchLevel, type Entity, type Pilot, type Projectile, type World } from './world';
 
 const RETARGET_INTERVAL = 0.5;
 
@@ -53,10 +53,11 @@ export function damageMult(world: World, e: Entity): number {
   let m = FACTIONS[e.faction].trait.damage * (1 + TECH_BONUS.weapons * researchLevel(world, e.faction, 'weapons'));
   if (isActive(world, e, 'barrage')) m *= 1.5;
   if (isActive(world, e, 'broadside')) m *= 2;
-  if (isActive(world, e, 'precision')) m *= 3;
+  // Out of hiding, the first blows hit hard.
+  if (isActive(world, e, 'cloak')) m *= 2;
   const owner = e.kind === 'hardpoint' && e.parentId != null ? world.entities.get(e.parentId) ?? e : e;
   if (owner.hero) m *= HEROES[owner.hero].damage;
-  if (inCommandAura(world, owner)) m *= 1.3;
+  if (inCommandAura(world, owner)) m *= 1.15;
   return m;
 }
 
@@ -105,7 +106,7 @@ function pilotOf(world: World, e: Entity): Pilot | null {
 
 export function updateWeapons(world: World, dt: number): void {
   for (const e of world.entities.values()) {
-    if (e.weapons.length === 0 || !operational(e)) continue;
+    if (e.weapons.length === 0 || !operational(e) || isStunned(world, e)) continue;
     const pilot = pilotOf(world, e);
     if (pilot) {
       for (const w of e.weapons) {
@@ -150,9 +151,11 @@ export function updateProjectiles(world: World, dt: number): void {
     p.y += p.vy * dt;
     p.ttl -= dt;
     if (t && dist(p, t) <= t.radius) {
-      const parent = t.kind === 'hardpoint' && t.parentId != null ? world.entities.get(t.parentId) : undefined;
-      applyDamage(t, p.damage * (p.mult?.[t.size] ?? 1), parent?.kind === 'ship' ? parent : t);
-      world.events.push({ type: 'hit', x: p.x, y: p.y, kind: p.kind });
+      const owner = ownerOf(world, t);
+      const shieldOf = owner.kind === 'ship' ? owner : t;
+      const shieldId = shieldOf.shield > 0 ? shieldOf.id : null;
+      hurt(world, t, p.damage * (p.mult?.[t.size] ?? 1), p.faction);
+      world.events.push({ type: 'hit', x: p.x, y: p.y, kind: p.kind, targetId: t.id, faction: t.faction, shieldId });
       continue;
     }
     if (p.ttl > 0) kept.push(p);
@@ -163,10 +166,10 @@ export function updateProjectiles(world: World, dt: number): void {
 /** Stations and ships with shield generators lose their shields with the last generator. */
 export function updateShields(world: World, dt: number): void {
   for (const e of world.entities.values()) {
-    // Biomechanical hulls mend themselves.
+    // Biomechanical hulls mend themselves, but a ship already lost stays lost.
     const regen = FACTIONS[e.faction].trait.hullRegen;
-    if (regen > 0 && e.kind === 'ship') e.hull = Math.min(e.maxHull, e.hull + e.maxHull * regen * dt);
-    if (e.maxShield <= 0 || !operational(e)) continue;
+    if (regen > 0 && e.kind === 'ship' && e.hull > 0) e.hull = Math.min(e.maxHull, e.hull + e.maxHull * regen * dt);
+    if (e.maxShield <= 0 || !operational(e) || e.effects.stunned > 0) continue;
     if (e.shieldGens === 0) {
       e.shield = 0;
       continue;
@@ -183,7 +186,7 @@ export function updateRepair(world: World, dt: number): void {
     const dock = e.kind === 'structure' && operational(e) ? BUILDABLES[e.type as BuildableType]?.repair : undefined;
     if (dock) {
       world.grid.near(e.x, e.y, dock.range, (t) => {
-        if (t.kind === 'ship' && t.faction === e.faction && dist(e, t) <= dock.range) {
+        if (t.kind === 'ship' && t.faction === e.faction && t.hull > 0 && dist(e, t) <= dock.range) {
           t.hull = Math.min(t.maxHull, t.hull + dock.rate * dt);
         }
       });
@@ -195,7 +198,8 @@ export function updateRepair(world: World, dt: number): void {
     let best: Entity | null = null;
     let bestRatio = 1;
     world.grid.near(e.x, e.y, repair.range, (t) => {
-      if (t === e || t.faction !== e.faction || !operational(t)) return;
+      // What is already lost this step is not brought back.
+      if (t === e || t.faction !== e.faction || !operational(t) || t.hull <= 0) return;
       const ratio = t.hull / t.maxHull;
       if (ratio < bestRatio && dist(e, t) - t.radius <= repair.range) {
         bestRatio = ratio;

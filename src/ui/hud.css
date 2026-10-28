@@ -66,6 +66,11 @@ body.dragging .ui, body.dragging .ui * { pointer-events: none !important; }
 .abilities { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 8px; }
 .abilities button { display: flex; flex-direction: column; align-items: flex-start; padding: 2px 8px; }
 .abilities small { color: var(--accent); font-size: 12px; }
+.abilities button { width: 100%; text-align: left; }
+.abilities button.running { border-color: var(--ok); }
+.abilities .desc { color: var(--muted); white-space: normal; line-height: 1.3; }
+.abilities .check { font-size: 13px; color: var(--muted); }
+.ui .warn { color: var(--danger); }
 .special { border-left: 3px solid var(--accent); padding-left: 8px; }
 .galaxy-panel h2, .modal h2 { display: flex; align-items: center; gap: 8px; }
 
@@ -98,7 +103,12 @@ body.dragging .ui, body.dragging .ui * { pointer-events: none !important; }
   gap: 8px;
   align-items: end;
 }
-.bottombar > section { padding: 10px; }
+.bottombar > section, .bottombar > .left > section { padding: 10px; }
+.bottombar > .left { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.quickbar { display: flex; flex-wrap: wrap; gap: 4px; }
+.quickbar:empty { display: none; }
+.quickbar button { pointer-events: auto; display: inline-flex; align-items: baseline; gap: 6px; min-height: 32px; padding: 0 10px; }
+.quickbar small { color: var(--muted); font-size: 12px; }
 .selection { min-height: 160px; }
 .selection .title { font-weight: 700; margin-bottom: 6px; }
 .selection .chips { display: flex; flex-wrap: wrap; gap: 4px; }
@@ -121,6 +131,8 @@ body.dragging .ui, body.dragging .ui * { pointer-events: none !important; }
 .build .row button { font-size: 14px; line-height: 1.3; }
 .build .row small { color: var(--muted); font-size: 12px; }
 .build .row button:not(:disabled) small { color: var(--accent); }
+.build .row button.loop { border-color: var(--ok); }
+.build .row button.loop small { color: var(--ok); }
 .build .queue { display: flex; align-items: center; gap: 4px; min-height: 40px; flex-wrap: wrap; }
 .build .queue button { position: relative; min-height: 32px; padding: 0 8px; overflow: hidden; }
 .build .queue .progress { position: absolute; left: 0; bottom: 0; height: 3px; background: var(--accent); }
@@ -200,6 +212,8 @@ body.dragging .ui, body.dragging .ui * { pointer-events: none !important; }
 }
 
 .modal label.check { display: flex; align-items: center; gap: 10px; min-height: 40px; }
+.modal label.range { display: flex; flex-direction: column; gap: 6px; }
+.modal input[type='range'] { width: 100%; min-height: 32px; accent-color: var(--accent); }
 .modal input[type='checkbox'] { width: 20px; height: 20px; accent-color: var(--accent); }
 
 /* Galaxy tooltip */
@@ -223,6 +237,8 @@ body.dragging .ui, body.dragging .ui * { pointer-events: none !important; }
   gap: 4px;
 }
 .toasts div { padding: 6px 12px; transition: opacity 0.3s; }
+.toasts .alert { display: flex; align-items: center; gap: 12px; border-color: var(--danger); }
+.toasts .alert button { min-height: 32px; padding: 0 10px; }
 .toasts div.out { opacity: 0; }
 
 /* Modal (help, end of game, menu) */
@@ -240,6 +256,16 @@ body.dragging .ui, body.dragging .ui * { pointer-events: none !important; }
 .modal dl { display: grid; grid-template-columns: auto 1fr; gap: 4px 16px; margin: 0; }
 .modal dt { color: var(--accent); }
 .modal dd { margin: 0; }
+.modal .menu-list { display: flex; flex-direction: column; gap: 8px; min-width: 240px; }
+.modal .menu-list button { min-height: 44px; }
+.modal table.stats { border-collapse: collapse; width: 100%; font-size: 14px; }
+.modal .stats th, .modal .stats td { padding: 4px 10px; text-align: right; border-bottom: 1px solid var(--line); }
+.modal .stats th[scope='row'], .modal .stats thead th:first-child { text-align: left; }
+.modal .stats th[scope='row'] { font-weight: 400; }
+.modal .stats .who { display: inline-flex; align-items: center; gap: 8px; }
+.modal .panel:has(table.stats) { max-width: 720px; }
+.modal .stats thead th { color: var(--muted); font-weight: 400; }
+.modal .stats tr.own th, .modal .stats tr.own td { color: var(--accent); }
 
 /* Start menu */
 .menu { font-size: 16px; }
@@ -262,6 +288,7 @@ body.dragging .ui, body.dragging .ui * { pointer-events: none !important; }
 .menu .seed { display: flex; align-items: flex-end; gap: 8px; flex-wrap: wrap; }
 .menu .seed label { display: flex; flex-direction: column; gap: 4px; color: var(--muted); }
 .menu .seed input { width: 140px; }
+.menu .preview { display: block; max-width: 100%; border: 1px solid var(--line); border-radius: var(--radius); image-rendering: auto; }
 .menu .note { color: var(--muted); font-size: 14px; max-width: 65ch; }
 
 @media (prefers-reduced-motion: reduce) {

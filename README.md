@@ -14,17 +14,36 @@ trois factions (à trois, chacun se bat contre tous) :
 - **Bac à sable** : la même bataille, IA coupée, placement libre de n'importe quelle unité.
 
 Les frégates, croiseurs et cuirassés ont des pièces destructibles, comme les stations :
-tourelles, réacteurs (le vaisseau ralentit), générateur de bouclier, hangar. N'importe quel
-vaisseau se pilote à la main (touche P), et chaque classe a une capacité active (touche E).
-Éclaireurs et bombardiers sortent du chantier par escouades de trois. Une mine ne se pose
-que sur un champ près de la station, ou tenu par un de tes vaisseaux, et jamais en plein
+tourelles, réacteurs (le vaisseau ralentit), générateur de bouclier, hangar. Au sommet, le
+Titan (un seul à la fois par faction) porte un rayon spinal ; son sprite est composé au
+démarrage à partir du cuirassé et des croiseurs de sa faction (`src/render/capitals.ts`).
+N'importe quel vaisseau se pilote à la main (touche P). Chaque classe a une capacité, et
+chaque héros un pouvoir à lui (bombardement orbital, dôme de bouclier, camouflage,
+impulsion IEM, essaim...). Le panneau de sélection dit ce qu'elle fait et si elle est prête,
+active ou en recharge ; E la déclenche, puis un clic la vise si besoin. En mode
+« Automatique », les vaisseaux s'en servent seuls.
+Éclaireurs et bombardiers sortent du chantier par escouades de trois. On construit autour
+de la station et des avant-postes : un avant-poste se pose loin de la base, là où un de tes
+vaisseaux tient la position hors combat, et ouvre une nouvelle zone de construction. Une
+mine se pose sur un champ dans une zone, ou tenu par un de tes vaisseaux, jamais en plein
 combat. L'IA s'adapte : elle répond à ce qu'elle a vu (frégates anti-chasseurs contre les
 essaims, torpilleurs contre les gros vaisseaux), se replie quand elle est dépassée et
 attaque quand elle a l'avantage. Trois difficultés changent ses revenus et sa réactivité.
+Confort : une alerte signale les attaques et les pertes hors de vue (Retour arrière y
+mène), les groupes et les vaisseaux inactifs sont à un clic, Maj + clic commande cinq
+vaisseaux, un clic droit met une classe en production en boucle ou annule un élément de
+file. Les sons sont synthétisés par le jeu (`src/audio/sfx.ts`, touche M pour couper) ;
+explosions, impacts sur les boucliers, fumée et traînées rendent les combats lisibles.
+Échap met en pause (options, commandes, recommencer) ; la fin d'une bataille montre les
+statistiques de chaque faction et propose de rejouer la même carte ou une nouvelle. Le menu
+montre un aperçu de la carte avant de lancer. En campagne, une flotte garde ses dégâts
+d'une bataille à l'autre et se répare à quai sur une planète alliée, plus vite avec une
+station ou un dock de réparation.
 Les trois factions ont chacune leur trait et trois héros uniques. La production passe par
 deux files, bâtiments et vaisseaux, et la recherche améliore armes, boucliers, blindage,
-propulsion, mines et hangars. Plateformes et hangars montent jusqu'au niveau 3, et les
-plateformes et docks peuvent se construire près des mines. Un brouillard de guerre couvre
+propulsion, mines et hangars. Plateformes et avant-postes montent jusqu'au niveau 3, et les
+plateformes et docks peuvent se construire près des mines. En vue éloignée, les petits
+vaisseaux deviennent des chevrons et les tirs des traits. Un brouillard de guerre couvre
 les batailles et la carte, pour l'IA comme pour le joueur. Chaque carte, de campagne ou
 d'escarmouche, se génère à partir d'une graine (la carte classique reste disponible). Sur la
 carte, certaines planètes ont un bonus. La campagne se sauvegarde toute seule dans le
@@ -37,6 +56,7 @@ npm install
 npm run play       # la dernière version publiée : http://localhost:4173
 npm run dev        # la version en cours de développement : http://localhost:5173
 npm test           # tests de la simulation
+npm run balance    # l'IA contre elle-même, toutes les paires de factions (quelques minutes)
 npm run build      # vérification des types + build de production dans dist/
 ```
 
@@ -58,7 +78,7 @@ sur `dev` n'y touche donc pas. Pour publier une version :
 git switch main
 git merge dev
 npm run release    # tests, types, puis build dans release/ (refuse hors de main)
-git tag v0.2.0     # avec le numéro de package.json, monté sur dev avant la fusion
+git tag v0.3.0     # avec le numéro de package.json, monté sur dev avant la fusion
 git switch dev
 ```
 

@@ -5,10 +5,15 @@ export interface Settings {
   edgePan: boolean;
   /** Show hull and shield bars on everything, not only on damaged or selected units. */
   alwaysBars: boolean;
+  /** The player's ships use their abilities by themselves when it is worth it. */
+  autoAbilities: boolean;
+  /** Sound effects volume, 0 to 1. */
+  volume: number;
+  muted: boolean;
 }
 
 const KEY = 'sandbox-ship:settings';
-const DEFAULTS: Settings = { edgePan: true, alwaysBars: false };
+const DEFAULTS: Settings = { edgePan: true, alwaysBars: false, autoAbilities: true, volume: 0.5, muted: false };
 
 function load(): Settings {
   try {
