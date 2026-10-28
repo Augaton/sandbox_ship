@@ -1,11 +1,11 @@
 import { HEROES, type HeroId } from '../data/heroes';
 import { MAX_TECH_LEVEL, TECHS, TECH_BONUS, type TechId } from '../data/research';
-import { BUILDABLES, MAX_QUEUE, MINE_ZONE, STATION, type BuildableType } from '../data/structures';
+import { BUILDABLES, MAX_QUEUE, MINE_DANGER, MINE_ESCORT, MINE_ZONE, STATION, type BuildableType } from '../data/structures';
 import { SHIPS, maxRange, shipCost, type FactionId, type ShipClass } from '../data/units';
 import {
   addHardpoints, armed, childrenOf, dist, hasHardpoint, hullMult, rand, rescaleForResearch, researchLevel,
-  shieldMult, spawnHero, spawnShip, spawnStructure, stationOf,
-  type Entity, type Result, type World,
+  DIFFICULTIES, shieldMult, spawnHero, spawnShip, spawnStructure, stationOf,
+  type Entity, type FactionState, type Result, type World,
 } from './world';
 
 const fail = (reason: string): Result => ({ ok: false, reason });
@@ -32,6 +32,7 @@ function launch(world: World, hangar: Entity, cls: ShipClass, count: number): vo
     const s = spawnShip(world, hangar.faction, cls, hangar.x, hangar.y, Math.atan2(hangar.y - from.y, hangar.x - from.x));
     s.guardX = gx + (i - (count - 1) / 2) * 24;
     s.guardY = gy;
+    s.launched = true;
     hangar.hangar!.launched.push(s.id);
   }
 }
@@ -60,14 +61,19 @@ export function updateHangars(world: World, dt: number): void {
   }
 }
 
+/** The AI's difficulty scales its income. */
+function incomeMult(f: FactionState): number {
+  return f.ai ? DIFFICULTIES[f.ai.difficulty].income : 1;
+}
+
 export function updateEconomy(world: World, dt: number): void {
   for (const f of world.factions.values()) {
-    if (f.stationId != null) f.credits += STATION.income * dt;
+    if (f.stationId != null) f.credits += STATION.income * incomeMult(f) * dt;
   }
   for (const e of world.entities.values()) {
     if (e.income > 0 && e.build >= 1) {
       const f = world.factions.get(e.faction);
-      if (f) f.credits += e.income * (1 + TECH_BONUS.mining * f.research.mining) * dt;
+      if (f) f.credits += e.income * (1 + TECH_BONUS.mining * f.research.mining) * incomeMult(f) * dt;
     }
   }
 }
@@ -112,8 +118,12 @@ export function updateProduction(world: World, dt: number): void {
     f.queue.shift();
     const p = shipyardPos(world, station);
     const angle = Math.atan2(f.rallyY - p.y, f.rallyX - p.x);
-    const s = item.kind === 'hero' ? spawnHero(world, f.id, item.hero, p.x, p.y, angle) : spawnShip(world, f.id, item.cls, p.x, p.y, angle);
-    s.order = { type: 'move', x: f.rallyX + (rand(world) - 0.5) * 120, y: f.rallyY + (rand(world) - 0.5) * 120 };
+    // Squadrons come out together and fly to the rally point side by side.
+    const count = item.kind === 'hero' ? 1 : SHIPS[item.cls].squad ?? 1;
+    for (let i = 0; i < count; i++) {
+      const s = item.kind === 'hero' ? spawnHero(world, f.id, item.hero, p.x, p.y, angle) : spawnShip(world, f.id, item.cls, p.x + i * 6, p.y, angle);
+      s.order = { type: 'move', x: f.rallyX + (rand(world) - 0.5) * 160, y: f.rallyY + (rand(world) - 0.5) * 160 };
+    }
   }
 }
 
@@ -334,6 +344,17 @@ export function checkPlacement(world: World, faction: FactionId, type: Buildable
     const field = world.fields.find((fl) => dist(fl, { x, y }) <= fl.radius);
     if (!field) return at(fail("Placer sur un champ d'astéroïdes"));
     if (field.mineId != null) return at(fail('Champ déjà exploité'), field.x, field.y);
+    // Away from home, a ship must hold the field, and no fight may be going on there.
+    const home = dist(station, field) <= STATION.constructionRadius + field.radius;
+    let escort = false;
+    let fight = false;
+    for (const e of world.entities.values()) {
+      const d = dist(e, field) - field.radius;
+      if (e.faction === faction && e.kind === 'ship' && d <= MINE_ESCORT) escort = true;
+      if (e.faction !== faction && e.kind !== 'hardpoint' && (e.kind === 'ship' || e.weapons.length > 0) && d <= MINE_DANGER) fight = true;
+    }
+    if (fight) return at(fail('Combat près du champ'), field.x, field.y);
+    if (!home && !escort) return at(fail('Un vaisseau doit tenir le champ'), field.x, field.y);
     return at(OK, field.x, field.y);
   }
   if (!inBuildZone(world, faction, type, x, y)) {

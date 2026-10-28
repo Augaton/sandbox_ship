@@ -11,6 +11,7 @@ import {
 import { CLASSIC, generateLayout } from '../sim/galaxyGen';
 import { GALAXY_STEP, stepGalaxy } from '../sim/galaxyStep';
 import { clearCampaign, loadCampaign, saveCampaign } from '../sim/galaxySave';
+import { onceEach } from '../input/keys';
 import { hex } from '../ui/dom';
 import { GalaxyHud } from '../ui/galaxyHud';
 import type { MenuChoice } from '../ui/menu';
@@ -56,11 +57,10 @@ export class GalaxyScene extends Phaser.Scene {
 
   create(opts: MenuChoice): void {
     const saved = opts.resume ? loadCampaign() : null;
-    const layout = opts.map === 'classic' ? CLASSIC : generateLayout(opts.seed);
-    this.galaxy = saved ?? createGalaxy(opts.player, opts.enemy, true, opts.seed, layout);
+    const layout = opts.map === 'classic' && opts.enemies.length === 1 ? CLASSIC : generateLayout(opts.seed, 1 + opts.enemies.length);
+    this.galaxy = saved ?? createGalaxy(opts.player, opts.enemies, true, opts.seed, layout, opts.difficulty);
     const player = this.galaxy.player;
-    const enemy = [...this.galaxy.factions.keys()].find((f) => f !== player) ?? opts.enemy;
-    this.opts = { ...opts, player, enemy };
+    this.opts = { ...opts, player, enemies: [...this.galaxy.factions.keys()].filter((f) => f !== player) };
     this.saveTimer = 0;
     this.selected = this.galaxy.planets.findIndex((p) => p.owner === player);
     this.hover = null;
@@ -102,7 +102,7 @@ export class GalaxyScene extends Phaser.Scene {
       this.hud.tooltip(this.hover, p.x, p.y);
     });
     this.input.on('gameout', () => this.hud.tooltip(null, 0, 0));
-    this.input.keyboard!.on('keydown', this.onKey, this);
+    this.input.keyboard!.on('keydown', onceEach((ev: KeyboardEvent) => this.onKey(ev)));
     this.scale.on('resize', this.layout, this);
     this.hud = new GalaxyHud(this);
     this.events.on('sleep', () => this.hud.setVisible(false));
@@ -218,7 +218,7 @@ export class GalaxyScene extends Phaser.Scene {
     const player = this.opts.player;
     const opts: BattleOptions = {
       player,
-      enemy: b.attacker === player ? b.defender : b.attacker,
+      enemies: [b.attacker === player ? b.defender : b.attacker],
       mode: 'campaign',
       campaign: { world: b.world, battleId, planet: this.galaxy.planets[b.planetId].name, attacker: b.attacker, defender: b.defender },
     };

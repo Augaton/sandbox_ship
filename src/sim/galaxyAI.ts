@@ -3,17 +3,18 @@ import { STATION } from '../data/structures';
 import { SHIPS, SHIP_CLASSES, type FactionId, type ShipClass } from '../data/units';
 import { countShips, fleetValue } from './battle';
 import { heroesOf } from '../data/heroes';
+import { DIFFICULTIES } from './world';
 import type { TechId } from '../data/research';
 import {
   canBuild, canResearchTech, defenseValue, enqueueBuild, fleetsAt, galaxyRand, neighbours, sendFleet, startTech,
-  visiblePlanets,
+  fleetVisible, visiblePlanets,
   type Fleet, type Galaxy, type GalaxyBuild, type Planet,
 } from './galaxy';
 
 const THINK_INTERVAL = 2;
 /** Relative odds of each ship class once unlocked. */
 const SHIP_WEIGHTS: Partial<Record<ShipClass, number>> = {
-  scout: 1, support: 1, frigate: 4, torpedo: 2, battlecruiser: 3, dreadnought: 2,
+  scout: 1, bomber: 1, support: 1, frigate: 4, torpedo: 2, battlecruiser: 3, dreadnought: 2,
 };
 
 /** Hops from each planet to the nearest planet held by another faction or with an enemy fleet on it. */
@@ -46,12 +47,29 @@ function threat(g: Galaxy, planet: Planet, faction: FactionId): number {
   return owned + fleets.reduce((v, f) => v + fleetValue(f.ships, f.heroes), 0);
 }
 
-function pickShip(g: Galaxy, planet: Planet): ShipClass | null {
-  const options = SHIP_CLASSES.filter((c) => SHIP_WEIGHTS[c] && planet.station >= SHIPS[c].minStationLevel);
-  const total = options.reduce((t, c) => t + SHIP_WEIGHTS[c]!, 0);
+/** Ship weights tilted towards what counters the enemy fleets the faction can see. */
+function pickShip(g: Galaxy, faction: FactionId, planet: Planet): ShipClass | null {
+  const weights = { ...SHIP_WEIGHTS };
+  const seen = visiblePlanets(g, faction);
+  let small = 0;
+  let large = 0;
+  for (const f of g.fleets.values()) {
+    if (f.faction === faction || !fleetVisible(g, faction, f, seen)) continue;
+    for (const c of SHIP_CLASSES) {
+      if (SHIPS[c].size === 'small') small += f.ships[c] ?? 0;
+      if (SHIPS[c].size === 'large') large += f.ships[c] ?? 0;
+    }
+  }
+  if (small >= 6) weights.frigate! += 4;
+  if (large >= 2) {
+    weights.torpedo! += 4;
+    weights.bomber! += 3;
+  }
+  const options = SHIP_CLASSES.filter((c) => weights[c] && planet.station >= SHIPS[c].minStationLevel);
+  const total = options.reduce((t, c) => t + weights[c]!, 0);
   let r = galaxyRand(g) * total;
   for (const c of options) {
-    r -= SHIP_WEIGHTS[c]!;
+    r -= weights[c]!;
     if (r < 0) return c;
   }
   return options[0] ?? null;
@@ -91,7 +109,7 @@ function wishes(g: Galaxy, faction: FactionId, hops: Map<number, number>): Wish[
   const ships: Wish[] = [];
   const yard = byFront.find((p) => p.station > 0 && p.units.length < 2);
   const ai = g.factions.get(faction)!.ai!;
-  if (yard) ai.want ??= pickShip(g, yard);
+  if (yard) ai.want ??= pickShip(g, faction, yard);
   if (yard && ai.want) ships.push(at(yard, { kind: 'ship', cls: ai.want }));
   // Heroes now and then, at the front shipyard.
   const hero = yard && heroesOf(faction).find((h) => {
@@ -100,7 +118,18 @@ function wishes(g: Galaxy, faction: FactionId, hops: Map<number, number>): Wish[
   });
   if (yard && hero && galaxyRand(g) < 0.15) ships.unshift(at(yard, { kind: 'hero', hero: hero.id }));
 
-  // Alternate between growing the fleet and the infrastructure.
+  // A planet facing a stronger enemy fleet next door gets its defenses first.
+  const seen = visiblePlanets(g, faction);
+  const danger: Wish[] = [];
+  for (const p of own) {
+    const near = neighbours(g, p.id).flatMap((n) => fleetsAt(g, n)).filter((f) => f.faction !== faction && fleetVisible(g, faction, f, seen));
+    const menace = near.reduce((v, f) => v + fleetValue(f.ships, f.heroes), 0);
+    if (menace > 0 && menace > defenseValue(g, p)) {
+      danger.push(at(p, p.station === 0 ? { kind: 'station' } : { kind: 'platform' }), at(p, { kind: 'ionCannon' }));
+    }
+  }
+  if (danger.length > 0) return [...danger, ...out, ...ships, ...infra];
+  // Otherwise alternate between growing the fleet and the infrastructure.
   return Math.floor(g.time / 20) % 2 === 0 ? [...out, ...ships, ...infra] : [...out, ...infra, ...ships];
 }
 
@@ -173,7 +202,7 @@ export function updateGalaxyAI(g: Galaxy, dt: number): void {
     if (!f.ai || f.eliminated) continue;
     f.ai.timer -= dt;
     if (f.ai.timer > 0) continue;
-    f.ai.timer = THINK_INTERVAL;
+    f.ai.timer = THINK_INTERVAL * (DIFFICULTIES[f.ai.difficulty].think / DIFFICULTIES.normal.think);
     const hops = hopsToEnemy(g, f.id);
     spend(g, f.id, hops);
     command(g, f.id, hops);

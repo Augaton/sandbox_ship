@@ -1,21 +1,29 @@
 import type { FactionId } from '../data/units';
-import { addFaction, addField, createWorld, dist, rand, spawnStation, type World } from './world';
+import { addFaction, addField, createWorld, dist, rand, spawnStation, type Difficulty, type World } from './world';
 
-export const MAP_W = 6000;
-export const MAP_H = 4000;
+export const MAP_SIZES = {
+  small: { w: 4500, h: 3000, name: 'Petite' },
+  medium: { w: 6000, h: 4000, name: 'Moyenne' },
+  large: { w: 8000, h: 5400, name: 'Grande' },
+} as const;
+export type MapSize = keyof typeof MAP_SIZES;
+
 export const START_CREDITS = 1500;
 
 export interface SkirmishOptions {
   player: FactionId;
-  enemy: FactionId;
-  /** Off in sandbox mode: the enemy then only does what the player spawns. */
+  /** One or two opponents: every faction fights every other one. */
+  enemies: FactionId[];
+  /** Off in sandbox mode: the enemies then only do what the player spawns. */
   enemyAI: boolean;
   credits?: number;
   seed?: number;
-  /** `classic`: the hand-made, mirrored map. `random` (default): stations and fields drawn from the seed. */
+  /** `classic`: the hand-made, mirrored map for two. `random` (default): drawn from the seed. */
   map?: 'classic' | 'random';
+  size?: MapSize;
   /** Fog of war, on by default. */
   fog?: boolean;
+  difficulty?: Difficulty;
 }
 
 /**
@@ -33,7 +41,20 @@ export function scatterFields(world: World, count: number, keepClear: { x: numbe
   }
 }
 
+/** Two fields tucked behind a station, on the side away from the map center: every player gets them. */
+function backFields(world: World, s: { x: number; y: number }): void {
+  const out = Math.atan2(s.y - world.height / 2, s.x - world.width / 2);
+  for (const side of [-0.6, 0.6]) {
+    const a = out + side;
+    const x = Math.max(220, Math.min(world.width - 220, s.x + Math.cos(a) * 430));
+    const y = Math.max(220, Math.min(world.height - 220, s.y + Math.sin(a) * 430));
+    addField(world, x, y, 130);
+  }
+}
+
 function classicFields(world: World): void {
+  const sx = world.width / 6000;
+  const sy = world.height / 4000;
   const half: [number, number, number][] = [
     [1100, 1200, 140],
     [1200, 2900, 140],
@@ -41,30 +62,51 @@ function classicFields(world: World): void {
     [2400, 2300, 160],
   ];
   for (const [x, y, r] of half) {
-    addField(world, x, y, r);
-    addField(world, MAP_W - x, MAP_H - y, r);
+    addField(world, x * sx, y * sy, r);
+    addField(world, world.width - x * sx, world.height - y * sy, r);
   }
-  addField(world, MAP_W / 2, MAP_H / 2 - 900, 200);
-  addField(world, MAP_W / 2, MAP_H / 2 + 900, 200);
+  addField(world, world.width / 2, world.height / 2 - 900 * sy, 200);
+  addField(world, world.width / 2, world.height / 2 + 900 * sy, 200);
 }
 
-/** Two stations on opposite sides; fields mirrored (classic map) or scattered from the seed. */
+/** Where each station goes: left and right for two, a rough triangle for three. */
+function startPositions(world: World, count: number): { x: number; y: number }[] {
+  const { width: w, height: h } = world;
+  if (count === 2) {
+    return [
+      { x: 500 + rand(world) * 500, y: 600 + rand(world) * (h - 1200) },
+      { x: w - 500 - rand(world) * 500, y: 600 + rand(world) * (h - 1200) },
+    ];
+  }
+  const start = rand(world) * Math.PI * 2;
+  return Array.from({ length: count }, (_, i) => {
+    const a = start + (i * Math.PI * 2) / count;
+    return {
+      x: Math.max(600, Math.min(w - 600, w / 2 + Math.cos(a) * w * 0.38)),
+      y: Math.max(600, Math.min(h - 600, h / 2 + Math.sin(a) * h * 0.36)),
+    };
+  });
+}
+
+/** Every faction gets a station and two fields behind it; the rest of the fields are scattered. */
 export function createSkirmish(o: SkirmishOptions): World {
-  const world = createWorld(MAP_W, MAP_H, o.seed ?? 1);
+  const size = MAP_SIZES[o.size ?? 'medium'];
+  const world = createWorld(size.w, size.h, o.seed ?? 1);
   world.fog = o.fog ?? true;
   const credits = o.credits ?? START_CREDITS;
   addFaction(world, o.player, credits, false);
-  addFaction(world, o.enemy, credits, o.enemyAI);
-  if (o.map === 'classic') {
-    spawnStation(world, o.player, 700, MAP_H / 2);
-    spawnStation(world, o.enemy, MAP_W - 700, MAP_H / 2);
+  for (const e of o.enemies) addFaction(world, e, credits, o.enemyAI, o.difficulty);
+  const factions = [o.player, ...o.enemies];
+  if (o.map === 'classic' && factions.length === 2) {
+    spawnStation(world, o.player, 700 * (size.w / 6000), size.h / 2);
+    spawnStation(world, o.enemies[0], size.w - 700 * (size.w / 6000), size.h / 2);
     classicFields(world);
     return world;
   }
-  const home = { x: 500 + rand(world) * 500, y: 600 + rand(world) * (MAP_H - 1200) };
-  const away = { x: MAP_W - 500 - rand(world) * 500, y: 600 + rand(world) * (MAP_H - 1200) };
-  spawnStation(world, o.player, home.x, home.y);
-  spawnStation(world, o.enemy, away.x, away.y);
-  scatterFields(world, 8 + Math.floor(rand(world) * 6), [home, away], 450);
+  const spots = startPositions(world, factions.length);
+  factions.forEach((f, i) => spawnStation(world, f, spots[i].x, spots[i].y));
+  for (const s of spots) backFields(world, s);
+  const area = (size.w * size.h) / (6000 * 4000);
+  scatterFields(world, Math.round((6 + Math.floor(rand(world) * 5)) * area), spots, 550);
   return world;
 }

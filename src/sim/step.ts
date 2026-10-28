@@ -11,6 +11,7 @@ export const STEP = 1 / 60;
 
 export function step(world: World, dt = STEP): void {
   world.time += dt;
+  world.grid.rebuild(world.entities.values());
   updateAI(world, dt);
   updateEconomy(world, dt);
   updateProduction(world, dt);

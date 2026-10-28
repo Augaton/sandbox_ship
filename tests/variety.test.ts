@@ -6,14 +6,15 @@ import { BUILDABLES, STATION } from '../src/data/structures';
 import { SHIPS, shipCost } from '../src/data/units';
 import { useAbility } from '../src/sim/abilities';
 import { damageMult } from '../src/sim/combat';
-import { createSkirmish } from '../src/sim/scenario';
+import { MAP_SIZES, createSkirmish } from '../src/sim/scenario';
+import { survivors } from '../src/sim/battle';
 import {
   applyTier, canBuildHero, cancelConstruction, canResearch, checkPlacement, enqueueHero, enqueueShip, enqueueUpgrade,
   placeStructure, startResearch, upgradeStructure,
 } from '../src/sim/structures';
 import { run, step } from '../src/sim/step';
 import { isVisible, wasSeen } from '../src/sim/vision';
-import { addFaction, createWorld, spawnHero, spawnShip, spawnStation, spawnStructure, stationOf, type World } from '../src/sim/world';
+import { addFaction, createWorld, newAI, spawnHero, spawnShip, spawnStation, spawnStructure, stationOf, type World } from '../src/sim/world';
 
 function world(credits = 100000): World {
   const w = createWorld(6000, 4000);
@@ -32,7 +33,7 @@ describe('two production queues', () => {
     expect(enqueueUpgrade(w, 'klaed').ok).toBe(true);
     expect(enqueueShip(w, 'klaed', 'scout').ok).toBe(true);
     run(w, SHIPS.scout.buildTime + 0.5);
-    expect(ships(w, 'scout')).toHaveLength(1);
+    expect(ships(w, 'scout')).toHaveLength(SHIPS.scout.squad!);
     const f = w.factions.get('klaed')!;
     expect(f.buildQueue).toHaveLength(1);
     run(w, STATION.levels[1].upgradeTime);
@@ -208,13 +209,17 @@ describe('build zones and structure levels', () => {
 
 describe('random skirmish maps', () => {
   it('depend on the seed, and keep fields clear of the stations', () => {
-    const a = createSkirmish({ player: 'klaed', enemy: 'nairan', enemyAI: false, seed: 5 });
-    const b = createSkirmish({ player: 'klaed', enemy: 'nairan', enemyAI: false, seed: 5 });
-    const c = createSkirmish({ player: 'klaed', enemy: 'nairan', enemyAI: false, seed: 6 });
+    const a = createSkirmish({ player: 'klaed', enemies: ['nairan'], enemyAI: false, seed: 5 });
+    const b = createSkirmish({ player: 'klaed', enemies: ['nairan'], enemyAI: false, seed: 5 });
+    const c = createSkirmish({ player: 'klaed', enemies: ['nairan'], enemyAI: false, seed: 6 });
     expect(a.fields).toEqual(b.fields);
     expect(a.fields).not.toEqual(c.fields);
     for (const f of a.fields) {
-      for (const st of [stationOf(a, 'klaed')!, stationOf(a, 'nairan')!]) expect(Math.hypot(f.x - st.x, f.y - st.y)).toBeGreaterThan(450);
+      for (const st of [stationOf(a, 'klaed')!, stationOf(a, 'nairan')!]) expect(Math.hypot(f.x - st.x, f.y - st.y)).toBeGreaterThan(300);
+    }
+    // Every station has two fields right behind it.
+    for (const st of [stationOf(a, 'klaed')!, stationOf(a, 'nairan')!]) {
+      expect(a.fields.filter((f) => Math.hypot(f.x - st.x, f.y - st.y) < 450).length).toBeGreaterThanOrEqual(2);
     }
   });
 });
@@ -279,5 +284,54 @@ describe('fog of war', () => {
     run(w, 0.5);
     expect(isVisible(w, 'klaed', far)).toBe(false);
     expect(wasSeen(w, 'klaed', far)).toBe(true);
+  });
+});
+
+describe('free-for-all and map sizes', () => {
+  it('three factions each get a station and two fields behind it, on maps of three sizes', () => {
+    for (const size of ['small', 'medium', 'large'] as const) {
+      const w = createSkirmish({ player: 'klaed', enemies: ['nairan', 'nautolan'], enemyAI: true, seed: 9, size });
+      expect(w.width).toBe(MAP_SIZES[size].w);
+      for (const f of ['klaed', 'nairan', 'nautolan'] as const) {
+        const st = stationOf(w, f)!;
+        expect(st).toBeTruthy();
+        expect(w.fields.filter((fl) => Math.hypot(fl.x - st.x, fl.y - st.y) < 450).length).toBeGreaterThanOrEqual(2);
+      }
+    }
+  });
+
+  it('three AIs play on without breaking', () => {
+    const w = createSkirmish({ player: 'klaed', enemies: ['nairan', 'nautolan'], enemyAI: true, seed: 4, size: 'small' });
+    w.factions.get('klaed')!.ai = newAI();
+    run(w, 240, 1 / 30);
+    for (const e of w.entities.values()) expect(Number.isFinite(e.x) && Number.isFinite(e.hull)).toBe(true);
+  }, 30000);
+});
+
+describe('squadrons and retreats', () => {
+  it('a bomber order delivers a squadron; hangar craft never leave the battle', () => {
+    const w = world();
+    spawnStation(w, 'klaed', 700, 2000);
+    expect(enqueueShip(w, 'klaed', 'bomber').ok).toBe(true);
+    run(w, SHIPS.bomber.buildTime + 0.5);
+    const built = ships(w, 'bomber').filter((e) => !e.launched);
+    expect(built).toHaveLength(SHIPS.bomber.squad!);
+    run(w, 20);
+    expect(ships(w, 'fighter').every((e) => e.launched)).toBe(true);
+    expect(survivors(w, 'klaed')).toEqual({ bomber: SHIPS.bomber.squad! });
+  });
+
+  it('the AI pulls a badly damaged ship back to its repair dock', () => {
+    const w = world();
+    const f = w.factions.get('nairan')!;
+    f.ai = newAI();
+    spawnStation(w, 'nairan', 5000, 2000);
+    const dock = spawnStructure(w, 'nairan', 'repairDock', 4600, 2000);
+    const bc = spawnShip(w, 'nairan', 'battlecruiser', 2000, 2000);
+    bc.hull = bc.maxHull * 0.2;
+    run(w, 2);
+    expect(bc.retreating).toBe(true);
+    run(w, 60);
+    expect(Math.hypot(bc.x - dock.x, bc.y - dock.y)).toBeLessThan(400);
   });
 });

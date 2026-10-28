@@ -22,7 +22,8 @@ describe('ship hardpoints', () => {
     expect(bc.weapons).toHaveLength(0);
     expect(bc.range).toBe(450);
     expect(bc).toMatchObject({ engines: 2, maxEngines: 2, shieldGens: 1 });
-    expect(spawnShip(w, 'klaed', 'frigate', 0, 0)).toMatchObject({ engines: null, shieldGens: null });
+    expect(spawnShip(w, 'klaed', 'support', 0, 0)).toMatchObject({ engines: null, shieldGens: null });
+    expect(spawnShip(w, 'klaed', 'frigate', 200, 0)).toMatchObject({ engines: null, shieldGens: 1 });
   });
 
   it('parts follow their ship as it moves and turns', () => {

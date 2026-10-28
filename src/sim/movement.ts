@@ -136,23 +136,19 @@ export function updateShips(world: World, dt: number): void {
  * structures. Heavier ships move less.
  */
 export function separate(world: World): void {
-  const ships: Entity[] = [];
-  const statics: Entity[] = [];
-  for (const e of world.entities.values()) {
-    if (e.kind === 'ship') ships.push(e);
-    else if (e.kind === 'structure') statics.push(e);
-  }
-  for (let i = 0; i < ships.length; i++) {
-    const a = ships[i];
-    for (let j = i + 1; j < ships.length; j++) {
-      const b = ships[j];
-      if (a.size === 'small' && b.size === 'small') continue;
+  world.grid.rebuild(world.entities.values());
+  for (const a of world.entities.values()) {
+    if (a.kind !== 'ship') continue;
+    world.grid.near(a.x, a.y, a.radius, (b) => {
+      if (b.kind === 'structure') return pushOut(a, b);
+      // Each pair once; small craft may overlap each other.
+      if (b.kind !== 'ship' || b.id <= a.id || (a.size === 'small' && b.size === 'small')) return;
       const min = (a.radius + b.radius) * 0.9;
       let dx = b.x - a.x;
       let dy = b.y - a.y;
-      if (Math.abs(dx) >= min || Math.abs(dy) >= min) continue;
+      if (Math.abs(dx) >= min || Math.abs(dy) >= min) return;
       let d = Math.hypot(dx, dy);
-      if (d >= min) continue;
+      if (d >= min) return;
       if (d === 0) {
         dx = Math.cos(a.id);
         dy = Math.sin(a.id);
@@ -166,19 +162,20 @@ export function separate(world: World): void {
       a.y -= dy * push * wa;
       b.x += dx * push * (1 - wa);
       b.y += dy * push * (1 - wa);
-    }
-    for (const s of statics) {
-      const dx = a.x - s.x;
-      const dy = a.y - s.y;
-      const min = a.radius + s.radius;
-      const d = Math.hypot(dx, dy);
-      if (d >= min || d === 0) continue;
-      a.x = s.x + (dx / d) * min;
-      a.y = s.y + (dy / d) * min;
-    }
+    });
     a.x = Math.max(0, Math.min(world.width, a.x));
     a.y = Math.max(0, Math.min(world.height, a.y));
   }
+}
+
+function pushOut(a: Entity, s: Entity): void {
+  const dx = a.x - s.x;
+  const dy = a.y - s.y;
+  const min = a.radius + s.radius;
+  const d = Math.hypot(dx, dy);
+  if (d >= min || d === 0) return;
+  a.x = s.x + (dx / d) * min;
+  a.y = s.y + (dy / d) * min;
 }
 
 /** Grid of `n` offsets centered on (0, 0). */

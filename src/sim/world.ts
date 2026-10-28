@@ -1,4 +1,5 @@
 import type { AbilityId } from '../data/abilities';
+import { SpatialGrid } from './grid';
 import { HEROES, type HeroId } from '../data/heroes';
 import { TECH_BONUS, noResearch, type ResearchJob, type ResearchLevels, type TechId } from '../data/research';
 import { FACTIONS, SHIPS, maxRange, type FactionId, type ShipClass, type SizeClass, type WeaponDef } from '../data/units';
@@ -91,6 +92,10 @@ export interface Entity {
   pilot: Pilot | null;
   ability: AbilityState | null;
   hero: HeroId | null;
+  /** Launched by a hangar: free craft that never leave the battle. */
+  launched: boolean;
+  /** An AI ship falling back to be repaired. */
+  retreating: boolean;
 }
 
 export interface Projectile {
@@ -132,11 +137,32 @@ export type AIGoal =
   | { kind: 'hero'; hero: HeroId }
   | { kind: 'ship'; cls: ShipClass };
 
+export type Difficulty = 'easy' | 'normal' | 'hard';
+
+/** What the difficulty changes: AI income and how often it thinks. */
+export const DIFFICULTIES: Record<Difficulty, { name: string; income: number; think: number }> = {
+  easy: { name: 'Facile', income: 0.75, think: 2.5 },
+  normal: { name: 'Normale', income: 1, think: 1.5 },
+  hard: { name: 'Difficile', income: 1.35, think: 0.9 },
+};
+
+/** What an AI remembers of its enemies' forces, fading over time. */
+export interface Intel {
+  small: number;
+  medium: number;
+  large: number;
+  structures: number;
+  /** Total cost of the enemy warships last seen. */
+  army: number;
+}
+
 export interface AIState {
   timer: number;
   goal: AIGoal | null;
   /** Army value (sum of ship costs) needed before the next attack wave. */
   waveValue: number;
+  difficulty: Difficulty;
+  intel: Intel;
 }
 
 export interface FactionState {
@@ -190,6 +216,8 @@ export interface World {
   /** Enemy structures each faction has seen at least once. */
   seen: Map<FactionId, Set<number>>;
   visionTimer: number;
+  /** Neighbour index, rebuilt every step. */
+  grid: SpatialGrid;
 }
 
 export type Result = { ok: true } | { ok: false; reason: string };
@@ -199,7 +227,7 @@ export function createWorld(width: number, height: number, seed = 1): World {
     time: 0, width, height,
     entities: new Map(), projectiles: [], factions: new Map(), fields: [], events: [],
     nextId: 1, seed, winner: null, auras: [],
-    fog: false, visible: new Map(), seen: new Map(), visionTimer: 0,
+    fog: false, visible: new Map(), seen: new Map(), visionTimer: 0, grid: new SpatialGrid(),
   };
 }
 
@@ -211,16 +239,16 @@ export function rand(world: World): number {
   return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
 }
 
-export function newAI(): AIState {
-  return { timer: 0, goal: null, waveValue: 3000 };
+export function newAI(difficulty: Difficulty = 'normal'): AIState {
+  return { timer: 0, goal: null, waveValue: 3000, difficulty, intel: { small: 0, medium: 0, large: 0, structures: 0, army: 0 } };
 }
 
-export function addFaction(world: World, id: FactionId, credits: number, ai = false): FactionState {
+export function addFaction(world: World, id: FactionId, credits: number, ai = false, difficulty: Difficulty = 'normal'): FactionState {
   const f: FactionState = {
     id, credits, queue: [], buildQueue: [], research: noResearch(), researching: null, autoAbilities: ai, heroCooldowns: {},
     stationId: null, hadStation: false,
     rallyX: world.width / 2, rallyY: world.height / 2,
-    ai: ai ? newAI() : null,
+    ai: ai ? newAI(difficulty) : null,
   };
   world.factions.set(id, f);
   return f;
@@ -239,6 +267,7 @@ function baseEntity(world: World, kind: EntityKind, type: string, faction: Facti
     targetId: null, retarget: 0, order: null, guardX: x, guardY: y,
     build: 1, buildTime: 0, level: 0, parentId: null, hangar: null, income: 0, fieldId: null,
     ox: 0, oy: 0, engines: null, maxEngines: 0, shieldGens: null, pilot: null, ability: null, hero: null,
+    launched: false, retreating: false,
   };
 }
 

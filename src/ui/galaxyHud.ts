@@ -4,7 +4,7 @@ import './hud.css';
 import { GALAXY_RULES, SPECIALS } from '../data/galaxy';
 import { HEROES, heroesOf, type HeroId } from '../data/heroes';
 import { MAX_TECH_LEVEL, TECHS, TECH_IDS, type TechId } from '../data/research';
-import { FACTIONS, SHIPS, SHIP_CLASSES, type ShipClass } from '../data/units';
+import { FACTIONS, SHIPS, SHIP_CLASSES, orderName, type ShipClass } from '../data/units';
 import type { GalaxyScene } from '../scenes/GalaxyScene';
 import { defenseLeft, heroSurvivors, sideStrength, survivors, type ShipCounts } from '../sim/battle';
 import {
@@ -12,6 +12,7 @@ import {
   incomeOf, platformCap, researchSpeed, startTech, visiblePlanets,
   type BuildingKind, type GalaxyBattle, type GalaxyBuild, type GalaxyEvent, type Planet,
 } from '../sim/galaxy';
+import { GALAXY_CONTROLS, controlsList } from './controls';
 import { el, pct, shortReason, toast } from './dom';
 import { emblemUrl } from './logos';
 
@@ -259,7 +260,7 @@ export class GalaxyHud {
     body.appendChild(el('div', { class: 'queue' }, queue.length === 0
       ? '<span class="muted">File vide</span>'
       : '<span class="muted">File (clic : annuler)</span>' + queue.map((q, i) => {
-        const name = q.kind === 'ship' ? SHIPS[q.cls].name : buildName({ ...p, station: 0 }, q);
+        const name = q.kind === 'ship' ? orderName(q.cls) : buildName({ ...p, station: 0 }, q);
         return `<button data-cancel="${which}:${i}" aria-label="Annuler ${name}">${name}<span class="progress"></span></button>`;
       }).join('')));
   }
@@ -428,14 +429,8 @@ export class GalaxyHud {
   }
 
   private showHelp(): void {
-    const rows: [string, string][] = [
-      ['Clic', 'Sélectionner une planète'],
-      ['Clic droit', 'Envoyer la flotte de la planète sélectionnée (les vaisseaux choisis dans l\'onglet Planète)'],
-      ['Espace', 'Pause'],
-      ['Échap', 'Désélectionner'],
-    ];
     const p = el('div', { class: 'panel' },
-      '<h2>Carte galactique</h2><dl>' + rows.map(([k, v]) => `<dt>${k}</dt><dd>${v}</dd>`).join('') + '</dl>' +
+      '<h2>Carte galactique</h2>' + controlsList(GALAXY_CONTROLS) +
       `<p class="muted">Une flotte seule prend une planète sans défense en ${GALAXY_RULES.captureTime} s (${GALAXY_RULES.neutralCaptureTime} s si elle est neutre). ` +
       'Quand deux camps se rencontrent, la bataille se commande dans la vue tactique ou se résout seule. ' +
       "Les flottes traversent les planètes neutres ou alliées et s'arrêtent aux planètes ennemies. Tu perds quand tu n'as plus de planète. " +

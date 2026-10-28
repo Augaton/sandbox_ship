@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { BUILDABLES, STATION } from '../src/data/structures';
 import { SHIPS } from '../src/data/units';
 import {
-  addFaction, addField, childrenOf, createWorld, spawnStation, spawnStructure, type World,
+  addFaction, addField, childrenOf, createWorld, spawnShip, spawnStation, spawnStructure, type World,
 } from '../src/sim/world';
 import {
   cancelQueued, checkPlacement, enqueueShip, enqueueUpgrade, placeStructure,
@@ -114,8 +114,8 @@ describe('economy and placement', () => {
   it('a mine under construction earns nothing', () => {
     const w = world(BUILDABLES.mine.cost);
     spawnStation(w, 'klaed', 700, 2000);
-    addField(w, 1500, 1500, 150);
-    expect(placeStructure(w, 'klaed', 'mine', 1520, 1490).ok).toBe(true);
+    addField(w, 1000, 1700, 150);
+    expect(placeStructure(w, 'klaed', 'mine', 1020, 1690).ok).toBe(true);
     run(w, 5);
     expect(w.factions.get('klaed')!.credits).toBeCloseTo(STATION.income * 5, 0);
   });
@@ -125,6 +125,13 @@ describe('economy and placement', () => {
     spawnStation(w, 'klaed', 700, 2000);
     const field = addField(w, 3000, 1000, 150);
     expect(checkPlacement(w, 'klaed', 'mine', 2000, 2000).ok).toBe(false);
+    // Far from the station, a ship has to hold the field first.
+    expect(checkPlacement(w, 'klaed', 'mine', 3000, 1000)).toMatchObject({ ok: false, reason: 'Un vaisseau doit tenir le champ' });
+    spawnShip(w, 'klaed', 'scout', 3100, 1100);
+    // And no fight may be going on there.
+    const raider = spawnShip(w, 'nairan', 'scout', 3300, 1000);
+    expect(checkPlacement(w, 'klaed', 'mine', 3000, 1000)).toMatchObject({ ok: false, reason: 'Combat près du champ' });
+    w.entities.delete(raider.id);
     const p = checkPlacement(w, 'klaed', 'mine', 3050, 1020);
     expect(p).toMatchObject({ ok: true, x: field.x, y: field.y });
     placeStructure(w, 'klaed', 'mine', 3050, 1020);

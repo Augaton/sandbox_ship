@@ -1,5 +1,6 @@
 node_modules/
 dist/
+release/
 assets/raw/*
 !assets/raw/.gitkeep
 assets/extracted/

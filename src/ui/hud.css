@@ -23,6 +23,9 @@
   user-select: none;
 }
 
+/* A drag on the battlefield (selection box, middle-button pan) goes straight through the HUD. */
+body.dragging .ui, body.dragging .ui * { pointer-events: none !important; }
+
 .ui .panel {
   pointer-events: auto;
   background: var(--panel);
@@ -250,13 +253,12 @@
 .menu .cards .emblem { width: 40px; height: 40px; }
 .menu .cards small { color: var(--muted); font-size: 13px; line-height: 1.4; }
 .menu .cards strong { color: var(--accent); font-weight: 400; font-size: 14px; }
-.menu h1 { margin: 0; font-size: 28px; letter-spacing: 0.02em; }
-.menu fieldset { border: 0; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 8px; }
-.menu legend { color: var(--muted); margin-bottom: 8px; }
+.menu .home-actions { display: flex; flex-direction: column; gap: 8px; width: min(100%, 320px); }
+.menu .home-actions button { min-height: 48px; text-align: left; padding: 0 16px; }
+.menu .home-actions .muted { font-size: 13px; margin: -4px 0 4px 16px; }
 .menu .choices { display: flex; gap: 8px; flex-wrap: wrap; }
 .menu .choices button { display: inline-flex; align-items: center; gap: 8px; min-height: 52px; }
 .menu .thumb { width: 40px; height: 40px; object-fit: contain; image-rendering: pixelated; }
-.menu .resume { align-items: center; }
 .menu .seed { display: flex; align-items: flex-end; gap: 8px; flex-wrap: wrap; }
 .menu .seed label { display: flex; flex-direction: column; gap: 4px; color: var(--muted); }
 .menu .seed input { width: 140px; }

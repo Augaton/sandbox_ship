@@ -12,6 +12,7 @@ import {
 } from '../sim/world';
 import type { BattleScene } from '../scenes/BattleScene';
 import { settings } from '../ui/settings';
+import { onceEach } from './keys';
 
 /** In the sandbox, a hero spawns for whichever faction is picked. */
 export type SpawnWhat = ShipClass | BuildableType | 'station' | HeroRole;
@@ -25,7 +26,11 @@ export type Mode =
 export const ZOOMS = [0.25, 0.5, 0.75, 1, 1.5, 2, 3];
 const EDGE = 10;
 const PAN_SPEED = 900;
+/** Shift held: the view pans this much faster. */
+const PAN_FAST = 2.5;
 const DOUBLE_TAP_MS = 350;
+/** Time constant of the eased zoom, in milliseconds. */
+const ZOOM_EASE_MS = 70;
 
 /**
  * The entity under a point; small entities win over the big ones they overlap. With
@@ -75,7 +80,8 @@ export class SelectionController {
   private groups = new Map<number, number[]>();
   private lastTap = { group: -1, time: 0 };
   private panFrom: { x: number; y: number } | null = null;
-  private arrows: Phaser.Types.Input.Keyboard.CursorKeys;
+  /** Zoom level the camera eases towards, and the screen point that stays put meanwhile. */
+  private zoomGoal: { zoom: number; x: number; y: number };
   /** Ship flown by hand, if any. */
   pilotId: number | null = null;
   private firing = false;
@@ -89,21 +95,30 @@ export class SelectionController {
     input.on('pointerdown', this.onDown, this);
     input.on('pointermove', this.onMove, this);
     input.on('pointerup', this.onUp, this);
+    // A button released over the HUD comes as an "up outside": without it, a drag would never end.
+    input.on('pointerupoutside', this.onUp, this);
     input.on('wheel', this.onWheel, this);
     input.on('gameover', () => (this.pointerInside = true));
     input.on('gameout', () => (this.pointerInside = false));
+    const cam = scene.cameras.main;
+    this.zoomGoal = { zoom: cam.zoom, x: cam.width / 2, y: cam.height / 2 };
     const kb = input.keyboard!;
-    this.arrows = kb.createCursorKeys();
-    kb.on('keydown', this.onKey, this);
-    kb.on('keyup', (ev: KeyboardEvent) => this.keys.delete(ev.code));
-    // Keep Space from scrolling or pressing a focused HUD button.
-    kb.addCapture('SPACE');
+    kb.on('keydown', onceEach((ev: KeyboardEvent) => this.onKey(ev)));
+    kb.on('keyup', onceEach((ev: KeyboardEvent) => this.keys.delete(ev.code)));
+    // Keep Space and the arrows from scrolling or pressing a focused HUD button.
+    kb.addCapture('SPACE,UP,DOWN,LEFT,RIGHT');
     const release = () => {
       this.keys.clear();
       this.firing = false;
+      this.box = null;
+      this.panFrom = null;
+      dragging(false);
     };
     window.addEventListener('blur', release);
-    scene.events.once('shutdown', () => window.removeEventListener('blur', release));
+    scene.events.once('shutdown', () => {
+      window.removeEventListener('blur', release);
+      dragging(false);
+    });
   }
 
   private get world(): World {
@@ -141,10 +156,12 @@ export class SelectionController {
     }
     if (p.middleButtonDown()) {
       this.panFrom = { x: p.x, y: p.y };
+      dragging(true);
       return;
     }
     if (p.rightButtonDown()) {
       if (this.mode.kind !== 'select') this.setMode({ kind: 'select' });
+      else if (p.event.ctrlKey) this.attackMove(w.x, w.y);
       else this.command(w.x, w.y);
       return;
     }
@@ -155,14 +172,21 @@ export class SelectionController {
       if (!r.ok) this.scene.hud.toast(r.reason);
       else if (!shift) this.setMode({ kind: 'select' });
     } else if (m.kind === 'attackMove') {
-      issueMove(this.world, this.ownShips().map((s) => s.id), w.x, w.y, true);
-      this.scene.marker(w.x, w.y, 0xe8a13a);
+      this.attackMove(w.x, w.y);
       if (!shift) this.setMode({ kind: 'select' });
     } else if (m.kind === 'spawn') {
       spawnAt(this.world, m.faction, m.what, w.x, w.y);
     } else {
       this.box = { x0: w.x, y0: w.y, x1: w.x, y1: w.y };
+      dragging(true);
     }
+  }
+
+  private attackMove(x: number, y: number): void {
+    const ids = this.ownShips().map((s) => s.id);
+    if (ids.length === 0) return;
+    issueMove(this.world, ids, x, y, true);
+    this.scene.marker(x, y, 0xe8a13a);
   }
 
   private onMove(p: Phaser.Input.Pointer): void {
@@ -183,25 +207,27 @@ export class SelectionController {
   private onUp(p: Phaser.Input.Pointer): void {
     if (p.button === 1) this.panFrom = null;
     if (p.button === 0) this.firing = false;
-    if (!this.box || p.button !== 0) return;
+    if (!this.box || p.button !== 0) {
+      if (!this.box && !this.panFrom) dragging(false);
+      return;
+    }
     const b = this.box;
     this.box = null;
+    dragging(this.panFrom != null);
     const shift = p.event.shiftKey;
     const sel = this.scene.selected;
     const zoom = this.scene.cameras.main.zoom;
     if (Math.abs(b.x1 - b.x0) * zoom < 6 && Math.abs(b.y1 - b.y0) * zoom < 6) {
-      let e = pickAt(this.world, b.x1, b.y1, 6 / zoom, this.player);
-      // A click on one of your ship's parts selects the ship.
-      const parent = e?.parentId == null ? undefined : this.world.entities.get(e.parentId);
-      if (e && parent?.kind === 'ship' && e.faction === this.player) e = parent;
+      const e = this.hovered(b.x1, b.y1);
       const now = performance.now();
       const double = e != null && e.id === this.lastClick.id && now - this.lastClick.time < DOUBLE_TAP_MS;
       this.lastClick = { id: e?.id ?? -1, time: now };
-      if (double && e!.kind === 'ship' && e!.faction === this.player) {
-        // Double click: every ship of that class on screen.
+      if ((double || p.event.ctrlKey) && e?.kind === 'ship' && e.faction === this.player) {
+        // Double click or Ctrl + click: every ship of that class on screen.
+        if (!shift && !double) sel.clear();
         const view = this.scene.cameras.main.worldView;
         for (const s of this.world.entities.values()) {
-          if (s.kind === 'ship' && s.faction === this.player && s.type === e!.type && view.contains(s.x, s.y)) sel.add(s.id);
+          if (s.kind === 'ship' && s.faction === this.player && s.type === e.type && view.contains(s.x, s.y)) sel.add(s.id);
         }
         return;
       }
@@ -213,9 +239,23 @@ export class SelectionController {
     const [x0, x1] = [Math.min(b.x0, b.x1), Math.max(b.x0, b.x1)];
     const [y0, y1] = [Math.min(b.y0, b.y1), Math.max(b.y0, b.y1)];
     if (!shift) sel.clear();
+    // A ship counts as soon as its hull overlaps the rectangle: big ships are easy to catch.
     for (const e of this.world.entities.values()) {
-      if (e.kind === 'ship' && e.faction === this.player && e.x >= x0 && e.x <= x1 && e.y >= y0 && e.y <= y1) sel.add(e.id);
+      if (e.kind !== 'ship' || e.faction !== this.player) continue;
+      if (e.x + e.radius >= x0 && e.x - e.radius <= x1 && e.y + e.radius >= y0 && e.y - e.radius <= y1) sel.add(e.id);
     }
+  }
+
+  /** What a click at this point would pick: a part of one of your ships stands for the ship. */
+  hovered(x = this.hover.x, y = this.hover.y): Entity | null {
+    const e = pickAt(this.world, x, y, 6 / this.scene.cameras.main.zoom, this.player);
+    const parent = e?.parentId == null ? undefined : this.world.entities.get(e.parentId);
+    return e && parent?.kind === 'ship' && e.faction === this.player ? parent : e;
+  }
+
+  /** Whether the pointer is over the battlefield, not over the HUD or outside the window. */
+  get pointerOver(): boolean {
+    return this.pointerInside;
   }
 
   /** Right click: attack what is under the cursor, or move there. With the station selected, sets the rally point. */
@@ -243,16 +283,46 @@ export class SelectionController {
   }
 
   private onWheel(p: Phaser.Input.Pointer, _over: unknown, _dx: number, dy: number): void {
+    this.zoomStep(dy > 0 ? -1 : 1, p.x, p.y);
+  }
+
+  /** Aims for the next zoom level in or out; the world point under (sx, sy) stays put. */
+  private zoomStep(dir: number, sx: number, sy: number): void {
+    const i = ZOOMS.indexOf(this.zoomGoal.zoom);
+    const zoom = ZOOMS[Math.max(0, Math.min(ZOOMS.length - 1, (i < 0 ? 3 : i) + dir))];
+    this.zoomGoal = { zoom, x: sx, y: sy };
+  }
+
+  /** Eases the camera zoom towards its goal. */
+  private easeZoom(delta: number): void {
     const cam = this.scene.cameras.main;
-    const i = ZOOMS.indexOf(cam.zoom);
-    const next = ZOOMS[Math.max(0, Math.min(ZOOMS.length - 1, (i < 0 ? 3 : i) + (dy > 0 ? -1 : 1)))];
-    if (next === cam.zoom) return;
-    // Keep the world point under the cursor fixed (the camera zooms around its center).
-    const wx = cam.scrollX + cam.width / 2 + (p.x - cam.width / 2) / cam.zoom;
-    const wy = cam.scrollY + cam.height / 2 + (p.y - cam.height / 2) / cam.zoom;
+    const goal = this.zoomGoal;
+    if (cam.zoom === goal.zoom) return;
+    // Interpolated in log space, so that zooming in and out feel alike.
+    const t = 1 - Math.exp(-delta / ZOOM_EASE_MS);
+    const ratio = Math.log(goal.zoom / cam.zoom);
+    const next = Math.abs(ratio) < 0.01 ? goal.zoom : cam.zoom * Math.exp(ratio * t);
+    // The camera zooms around its center: shift the scroll to keep the anchor point fixed.
+    const wx = cam.scrollX + cam.width / 2 + (goal.x - cam.width / 2) / cam.zoom;
+    const wy = cam.scrollY + cam.height / 2 + (goal.y - cam.height / 2) / cam.zoom;
     cam.setZoom(next);
-    cam.scrollX = wx - cam.width / 2 - (p.x - cam.width / 2) / next;
-    cam.scrollY = wy - cam.height / 2 - (p.y - cam.height / 2) / next;
+    cam.scrollX = wx - cam.width / 2 - (goal.x - cam.width / 2) / next;
+    cam.scrollY = wy - cam.height / 2 - (goal.y - cam.height / 2) / next;
+  }
+
+  /** Centers the view on the selected units. */
+  private centerOnSelection(): void {
+    let x = 0;
+    let y = 0;
+    let n = 0;
+    for (const id of this.scene.selected) {
+      const e = this.world.entities.get(id);
+      if (!e) continue;
+      x += e.x;
+      y += e.y;
+      n++;
+    }
+    if (n > 0) this.scene.cameras.main.centerOn(x / n, y / n);
   }
 
   private onKey(ev: KeyboardEvent): void {
@@ -279,12 +349,16 @@ export class SelectionController {
       else this.recallGroup(n);
       return;
     }
+    const cam = this.scene.cameras.main;
     if (key === ' ') this.scene.togglePause();
     else if (key === 'escape') {
       if (this.mode.kind !== 'select') this.setMode({ kind: 'select' });
       else this.scene.selected.clear();
-    } else if (key === 'a' && this.ownShips().length > 0) this.setMode({ kind: 'attackMove' });
-    else if (key === 's') issueStop(this.world, this.ownShips().map((s) => s.id));
+    } else if (key === 'f' && this.ownShips().length > 0) this.setMode({ kind: 'attackMove' });
+    else if (key === 'x') issueStop(this.world, this.ownShips().map((s) => s.id));
+    else if (key === 'c') this.centerOnSelection();
+    else if (key === '+' || key === '=' || ev.code === 'NumpadAdd') this.zoomStep(1, cam.width / 2, cam.height / 2);
+    else if (key === '-' || ev.code === 'NumpadSubtract') this.zoomStep(-1, cam.width / 2, cam.height / 2);
     else if (key === 'h') {
       const st = stationOf(this.world, this.player);
       if (st) this.scene.cameras.main.centerOn(st.x, st.y);
@@ -370,17 +444,25 @@ export class SelectionController {
     cam.scrollY += (s.y - cam.height / 2 - cam.scrollY) * 0.15;
   }
 
-  /** Arrow keys and screen edges pan the camera; while piloting, the camera follows the ship. */
+  /**
+   * ZQSD (physical WASD keys), arrows and screen edges pan the camera; while piloting, the
+   * camera follows the ship.
+   */
   update(delta: number): void {
+    this.easeZoom(delta);
     if (this.pilotId != null) return this.updatePilot();
     const cam = this.scene.cameras.main;
     const p = this.scene.input.activePointer;
-    const step = (PAN_SPEED * delta) / 1000 / cam.zoom;
+    const held = (...codes: string[]) => codes.some((c) => this.keys.has(c));
+    const fast = held('ShiftLeft', 'ShiftRight') ? PAN_FAST : 1;
+    const step = (PAN_SPEED * fast * delta) / 1000 / cam.zoom;
     const edge = settings.edgePan && this.pointerInside && !this.panFrom;
-    if (this.arrows.left!.isDown || (edge && p.x < EDGE)) cam.scrollX -= step;
-    if (this.arrows.right!.isDown || (edge && p.x > cam.width - EDGE)) cam.scrollX += step;
-    if (this.arrows.up!.isDown || (edge && p.y < EDGE)) cam.scrollY -= step;
-    if (this.arrows.down!.isDown || (edge && p.y > cam.height - EDGE)) cam.scrollY += step;
+    // Ctrl + A selects everything: do not pan while Ctrl is down.
+    const letters = !held('ControlLeft', 'ControlRight');
+    if (held('ArrowLeft') || (letters && held('KeyA')) || (edge && p.x < EDGE)) cam.scrollX -= step;
+    if (held('ArrowRight') || (letters && held('KeyD')) || (edge && p.x > cam.width - EDGE)) cam.scrollX += step;
+    if (held('ArrowUp') || (letters && held('KeyW')) || (edge && p.y < EDGE)) cam.scrollY -= step;
+    if (held('ArrowDown') || (letters && held('KeyS')) || (edge && p.y > cam.height - EDGE)) cam.scrollY += step;
   }
 
   /** Ghost of the structure being placed: where it would go and whether it can. */
@@ -389,4 +471,9 @@ export class SelectionController {
     const p = checkPlacement(this.world, this.player, this.mode.type, this.hover.x, this.hover.y);
     return { x: p.x, y: p.y, radius: BUILDABLES[this.mode.type].radius, ok: p.ok };
   }
+}
+
+/** While a drag is on, the HUD lets the pointer through, so that the drag can cross it. */
+function dragging(on: boolean): void {
+  document.body.classList.toggle('dragging', on);
 }

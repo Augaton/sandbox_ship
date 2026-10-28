@@ -2,7 +2,7 @@
 // defenses, run by the tactical simulation, and read back as survivors.
 import { HEROES, type HeroId } from '../data/heroes';
 import type { ResearchLevels } from '../data/research';
-import { SHIPS, SHIP_CLASSES, type FactionId, type ShipClass } from '../data/units';
+import { SHIPS, SHIP_CLASSES, unitValue, type FactionId, type ShipClass } from '../data/units';
 import { formationOffsets, issueMove } from './movement';
 import { scatterFields } from './scenario';
 import { applyTier } from './structures';
@@ -46,7 +46,7 @@ export function countShips(ships: ShipCounts): number {
 
 /** Total build cost: a rough measure of fighting strength. */
 export function fleetValue(ships: ShipCounts, heroes: HeroId[] = []): number {
-  return SHIP_CLASSES.reduce((v, c) => v + (ships[c] ?? 0) * SHIPS[c].cost, 0) + heroes.reduce((v, h) => v + HEROES[h].cost, 0);
+  return SHIP_CLASSES.reduce((v, c) => v + (ships[c] ?? 0) * unitValue(c), 0) + heroes.reduce((v, h) => v + HEROES[h].cost, 0);
 }
 
 function placeShips(world: World, side: BattleSide, x: number, y: number, angle: number): void {
@@ -120,7 +120,7 @@ export function battleOutcome(world: World, attacker: FactionId, defender: Facti
 export function survivors(world: World, faction: FactionId): ShipCounts {
   const out: ShipCounts = {};
   for (const e of world.entities.values()) {
-    if (e.kind !== 'ship' || e.faction !== faction || e.hero) continue;
+    if (e.kind !== 'ship' || e.faction !== faction || e.hero || e.launched) continue;
     const cls = e.type as ShipClass;
     if (SHIPS[cls].source === 'shipyard') out[cls] = (out[cls] ?? 0) + 1;
   }

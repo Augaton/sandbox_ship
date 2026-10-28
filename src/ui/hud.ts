@@ -4,7 +4,7 @@ import './hud.css';
 import { ABILITIES, type AbilityId } from '../data/abilities';
 import { HEROES, heroesOf, type HeroId } from '../data/heroes';
 import { MAX_TECH_LEVEL, TECHS, TECH_IDS, type TechId } from '../data/research';
-import { FACTIONS, FACTION_IDS, SHIPS, SHIP_CLASSES, shipCost, type FactionId, type ShipClass } from '../data/units';
+import { FACTIONS, FACTION_IDS, SHIPS, SHIP_CLASSES, orderName, shipCost, type FactionId, type ShipClass } from '../data/units';
 import { BUILDABLES, BUILDABLE_TYPES, HARDPOINTS, STATION, type BuildableType } from '../data/structures';
 import type { SpawnWhat } from '../input/selection';
 import type { BattleScene } from '../scenes/BattleScene';
@@ -14,6 +14,7 @@ import {
 } from '../sim/structures';
 import { childrenOf, newAI, stationOf, type Entity, type QueueItem, type Result } from '../sim/world';
 import { isVisible, wasSeen } from '../sim/vision';
+import { BATTLE_CONTROLS, controlsList } from './controls';
 import { el, hex, pct, shortReason, toast } from './dom';
 import { emblemUrl } from './logos';
 import { optionsPanel } from './options';
@@ -176,7 +177,7 @@ export class Hud {
     const ships = addTab('ships', 'Vaisseaux');
     const shipRow = ships.appendChild(el('div', { class: 'row' }));
     for (const cls of SHIPYARD_CLASSES) {
-      const b = shipRow.appendChild(el('button', {}, `<span>${SHIPS[cls].name}</span><small></small>`));
+      const b = shipRow.appendChild(el('button', {}, `<span>${orderName(cls)}</span><small></small>`));
       b.onclick = () => this.report(enqueueShip(this.world, this.player, cls));
       this.shipButtons.set(cls, b);
     }
@@ -276,7 +277,7 @@ export class Hud {
       this.setButton(b, canBuildHero(w, this.player, id), `${HEROES[id].cost} cr, ${HEROES[id].buildTime} s`);
     }
     this.renderList(this.unitsQueue!, f.queue.map((q, i) => ({
-      label: q.kind === 'ship' ? SHIPS[q.cls].name : q.kind === 'hero' ? HEROES[q.hero].name : '',
+      label: q.kind === 'ship' ? orderName(q.cls) : q.kind === 'hero' ? HEROES[q.hero].name : '',
       attr: `data-index="${i}"`, progress: i === 0 ? 1 - q.remaining / q.total : 0,
     })), 'File vide : choisis un vaisseau ci-dessus.');
     const sites = [...w.entities.values()].filter((e) => e.faction === this.player && e.kind === 'structure' && e.build < 1);
@@ -316,7 +317,7 @@ export class Hud {
       '<optgroup label="Héros"><option value="admiral">Amiral</option><option value="ace">As</option><option value="engineer">Ingénieur</option></optgroup></select>'));
     const faction = p.querySelector<HTMLSelectElement>('[name=faction]')!;
     const what = p.querySelector<HTMLSelectElement>('[name=what]')!;
-    faction.value = this.scene.opts.enemy;
+    faction.value = this.scene.opts.enemies[0];
     what.value = 'frigate';
     const spawn = p.appendChild(el('button', { 'data-act': 'spawn' }, 'Placer au clic'));
     const pick = () => ({ kind: 'spawn' as const, faction: faction.value as FactionId, what: what.value as SpawnWhat });
@@ -338,8 +339,10 @@ export class Hud {
     const box = ai.querySelector('input')!;
     box.checked = !open;
     box.onchange = () => {
-      const enemy = this.world.factions.get(this.scene.opts.enemy);
-      if (enemy) enemy.ai = box.checked ? newAI() : null;
+      for (const id of this.scene.opts.enemies) {
+        const enemy = this.world.factions.get(id);
+        if (enemy) enemy.ai = box.checked ? newAI(this.scene.opts.difficulty) : null;
+      }
     };
     p.appendChild(el('button', {}, '+5 000 crédits')).onclick = () => {
       this.world.factions.get(this.player)!.credits += 5000;
@@ -503,7 +506,9 @@ export class Hud {
       const parts = childrenOf(this.world, e.id);
       const turrets = parts.filter((p) => p.weapons.length > 0).length;
       const maxTurrets = slots.filter((s) => s.role === 'turret' || s.role === 'heavyTurret').length;
-      lines.push(`<div>Tourelles ${turrets} / ${maxTurrets}, réacteurs ${e.engines} / ${e.maxEngines}</div>`);
+      const status = [`tourelles ${turrets} / ${maxTurrets}`];
+      if (e.maxEngines > 0) status.push(`réacteurs ${e.engines} / ${e.maxEngines}`);
+      lines.push(`<div>Pièces : ${status.join(', ')}</div>`);
       if (e.shieldGens === 0) lines.push('<div>Générateur de bouclier détruit</div>');
     }
     if (e.kind === 'ship' && own) {
@@ -591,25 +596,8 @@ export class Hud {
   }
 
   private showHelp(): void {
-    const keys: [string, string][] = [
-      ['Clic gauche', 'Sélectionner (glisser : rectangle, Maj : ajouter)'],
-      ['Clic droit', 'Déplacer, ou attaquer la cible visée'],
-      ['A puis clic', 'Attaque-mouvement : engage tout ce qui croise la route'],
-      ['S', 'Stop'],
-      ['Ctrl ou Maj + 1 à 9', 'Créer un groupe'],
-      ['1 à 9', 'Rappeler un groupe (deux fois : centrer)'],
-      ['H', 'Centrer sur la station'],
-      ['Flèches, bords, clic molette', 'Déplacer la vue'],
-      ['Molette', 'Zoom'],
-      ['Espace', 'Pause'],
-      ['Échap', 'Annuler le mode en cours'],
-      ['Double clic', 'Tous les vaisseaux de la même classe à l\'écran'],
-      ['Ctrl + A', 'Tous tes vaisseaux'],
-      ['P', 'Piloter le vaisseau sélectionné : ZQSD (ou WASD) ou flèches, clic gauche pour tirer'],
-      ['E', 'Capacité des vaisseaux sélectionnés (salve, surcharge, réparation…)'],
-    ];
     const p = el('div', { class: 'panel' },
-      '<h2>Commandes</h2><dl>' + keys.map(([k, v]) => `<dt>${k}</dt><dd>${v}</dd>`).join('') + '</dl>' +
+      '<h2>Commandes</h2>' + controlsList(BATTLE_CONTROLS) +
       '<p class="muted">Les chasseurs et bombardiers sortent seuls des hangars. Détruire les points d\'attache d\'une station la désarme : chantier naval, hangar, générateur de bouclier, tourelles. ' +
       'Le brouillard de guerre cache ce que tes unités ne voient pas, et l\'IA y est soumise aussi. ' +
       'Plateformes et docks de réparation se construisent aussi près de tes mines. Sélectionne une plateforme ou un hangar pour l\'améliorer. ' +

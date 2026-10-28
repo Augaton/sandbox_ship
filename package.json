@@ -7,6 +7,8 @@
     "dev": "vite",
     "build": "tsc --noEmit && vite build",
     "preview": "vite preview",
+    "release": "node scripts/release.mjs",
+    "play": "vite preview --outDir release",
     "test": "vitest run",
     "import-assets": "node scripts/import-assets.mjs"
   },

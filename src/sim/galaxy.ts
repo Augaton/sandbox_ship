@@ -6,14 +6,14 @@ import {
   MAX_TECH_LEVEL, TECHS, TECH_BONUS, noResearch, type ResearchJob, type ResearchLevels, type TechId,
 } from '../data/research';
 import { BUILDABLES, MAX_QUEUE, STATION } from '../data/structures';
-import { SHIPS, SHIP_CLASSES, shipCost, type FactionId, type ShipClass } from '../data/units';
+import { SHIPS, SHIP_CLASSES, orderName, shipCost, type FactionId, type ShipClass } from '../data/units';
 import {
   NO_DEFENSE, battleOutcome, countShips, createPlanetBattle, defenseLeft, fleetValue, heroSurvivors, survivors, updateBattleAI,
   type BattleResult, type PlanetDefense, type ShipCounts,
 } from './battle';
 import { CLASSIC, type GalaxyLayout } from './galaxyGen';
 import { step } from './step';
-import { dist, type Result, type World } from './world';
+import { DIFFICULTIES, dist, type Difficulty, type Result, type World } from './world';
 
 export type BuildingKind = 'station' | 'mine' | 'platform' | 'platformTier' | 'lab' | 'repairDock' | 'ionCannon';
 
@@ -89,7 +89,7 @@ export interface GalaxyFaction {
   id: FactionId;
   credits: number;
   /** `want` is the ship class the AI saves up for. */
-  ai: { timer: number; want: ShipClass | null } | null;
+  ai: { timer: number; want: ShipClass | null; difficulty: Difficulty } | null;
   eliminated: boolean;
   research: ResearchLevels;
   researching: ResearchJob | null;
@@ -130,8 +130,10 @@ export function galaxyRand(g: Galaxy): number {
 
 /** Both capitals start with a level 1 station, a mine and a small fleet. */
 export function createGalaxy(
-  player: FactionId, enemy: FactionId, enemyAI = true, seed = 7, layout: GalaxyLayout = CLASSIC,
+  player: FactionId, enemies: FactionId | FactionId[], enemyAI = true, seed = 7, layout: GalaxyLayout = CLASSIC,
+  difficulty: Difficulty = 'normal',
 ): Galaxy {
+  const foes = Array.isArray(enemies) ? enemies : [enemies];
   const g: Galaxy = {
     time: 0, player,
     planets: layout.planets.map((p, id) => ({
@@ -141,10 +143,10 @@ export function createGalaxy(
     lanes: layout.lanes, fleets: new Map(), factions: new Map(), battles: [], events: [],
     nextId: 1, seed, winner: null,
   };
-  const sides: [FactionId, number, boolean][] = [[player, layout.capitals[0], false], [enemy, layout.capitals[1], enemyAI]];
+  const sides: [FactionId, number, boolean][] = [[player, layout.capitals[0], false], ...foes.map((f, i) => [f, layout.capitals[i + 1], enemyAI] as [FactionId, number, boolean])];
   for (const [faction, capital, ai] of sides) {
     g.factions.set(faction, {
-      id: faction, credits: GALAXY_RULES.startCredits, ai: ai ? { timer: 0, want: null } : null, eliminated: false,
+      id: faction, credits: GALAXY_RULES.startCredits, ai: ai ? { timer: 0, want: null, difficulty } : null, eliminated: false,
       research: noResearch(), researching: null, heroCooldowns: {},
     });
     Object.assign(g.planets[capital], { owner: faction, station: 1, mines: 1 });
@@ -487,7 +489,7 @@ const BUILDING_NAMES: Record<BuildingKind, string> = {
 };
 
 export function buildName(planet: Planet, build: GalaxyBuild): string {
-  if (build.kind === 'ship') return SHIPS[build.cls].name;
+  if (build.kind === 'ship') return orderName(build.cls);
   if (build.kind === 'hero') return `${HEROES[build.hero].name} (${HEROES[build.hero].title})`;
   if (build.kind === 'station' && planet.station > 0) return 'Améliorer la station';
   if (build.kind === 'platformTier') return `Plateformes niveau ${Math.min(3, planet.platformTier + 1)}`;
@@ -624,8 +626,8 @@ function finish(g: Galaxy, planet: Planet, item: GalaxyQueueItem): void {
   const owner = planet.owner!;
   let what: string;
   if (item.kind === 'ship') {
-    addShipsAt(g, owner, planet.id, { [item.cls]: 1 });
-    what = SHIPS[item.cls].name;
+    addShipsAt(g, owner, planet.id, { [item.cls]: SHIPS[item.cls].squad ?? 1 });
+    what = orderName(item.cls);
   } else if (item.kind === 'hero') {
     addShipsAt(g, owner, planet.id, {}, [item.hero]);
     what = HEROES[item.hero].name;
@@ -729,7 +731,7 @@ export function waitingForPlayer(g: Galaxy): boolean {
 
 export function updateGalaxy(g: Galaxy, dt: number): void {
   for (const f of g.factions.values()) {
-    if (!f.eliminated) f.credits += incomeOf(g, f.id) * dt;
+    if (!f.eliminated) f.credits += incomeOf(g, f.id) * (f.ai ? DIFFICULTIES[f.ai.difficulty].income : 1) * dt;
     for (const h of Object.keys(f.heroCooldowns) as HeroId[]) f.heroCooldowns[h] = Math.max(0, f.heroCooldowns[h]! - dt);
   }
   updateProduction(g, dt);

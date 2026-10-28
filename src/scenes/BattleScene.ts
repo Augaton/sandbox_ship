@@ -9,9 +9,9 @@ import { HEROES } from '../data/heroes';
 import { aimedTarget } from '../sim/combat';
 import { buildZones } from '../sim/structures';
 import { isVisible, visionOf, wasSeen } from '../sim/vision';
-import { createSkirmish } from '../sim/scenario';
+import { createSkirmish, type MapSize } from '../sim/scenario';
 import { STEP, step } from '../sim/step';
-import { stationOf, type Entity, type World } from '../sim/world';
+import { stationOf, type Difficulty, type Entity, type World } from '../sim/world';
 import { Hud } from '../ui/hud';
 import { settings } from '../ui/settings';
 import type { BackgroundScene } from './BackgroundScene';
@@ -29,12 +29,15 @@ export interface CampaignBattle {
 
 export interface BattleOptions {
   player: FactionId;
-  enemy: FactionId;
+  /** Everyone else: one or two factions, each against all. */
+  enemies: FactionId[];
   mode: 'skirmish' | 'sandbox' | 'campaign';
   campaign?: CampaignBattle;
   /** Map of a skirmish or sandbox game. */
   seed?: number;
   map?: 'classic' | 'random';
+  size?: MapSize;
+  difficulty?: Difficulty;
 }
 
 interface View {
@@ -83,9 +86,9 @@ export class BattleScene extends Phaser.Scene {
     this.manifest = this.cache.json.get('manifest') ?? {};
     const sandbox = opts.mode === 'sandbox';
     this.world = opts.campaign?.world ?? createSkirmish({
-      player: opts.player, enemy: opts.enemy, enemyAI: !sandbox,
+      player: opts.player, enemies: opts.enemies, enemyAI: !sandbox,
       credits: sandbox ? 50000 : undefined, seed: opts.seed ?? ((Math.random() * 1e9) | 0),
-      map: opts.map ?? 'random', fog: !sandbox,
+      map: opts.map ?? 'random', size: opts.size, fog: !sandbox, difficulty: opts.difficulty,
     });
     this.result = null;
     // In a campaign battle the AI runs both sides' abilities; the player uses their own.
@@ -133,7 +136,7 @@ export class BattleScene extends Phaser.Scene {
       let n = 0;
       while (this.acc >= STEP && n < MAX_STEPS_PER_FRAME) {
         step(this.world);
-        if (this.opts.campaign) updateBattleAI(this.world, [this.opts.enemy], STEP);
+        if (this.opts.campaign) updateBattleAI(this.world, this.opts.enemies, STEP);
         this.acc -= STEP;
         n++;
       }
@@ -385,6 +388,13 @@ export class BattleScene extends Phaser.Scene {
       }
       const damaged = e.hull < e.maxHull || e.shield < e.maxShield;
       if (sel || damaged || e.build < 1 || settings.alwaysBars) this.bars(g, e, z);
+    }
+
+    // Ring under the cursor: green for your units, red for a target.
+    const c = this.controls;
+    const over = c.mode.kind === 'select' && c.pilotId == null && !c.box && c.pointerOver ? c.hovered() : null;
+    if (over && !this.selected.has(over.id) && this.canSee(over)) {
+      g.lineStyle(1.5 / z, over.faction === player ? 0x6fd08c : 0xe05a4a, 0.5).strokeCircle(over.x, over.y, over.radius + 5 / z);
     }
 
     const piloted = this.controls.pilotId == null ? undefined : this.world.entities.get(this.controls.pilotId);

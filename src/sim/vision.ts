@@ -11,6 +11,9 @@ const STRUCTURE_VISION: Record<string, number> = {
 };
 /** Seconds between two vision updates. */
 const VISION_INTERVAL = 0.2;
+/** At least the longest sight (hero scouts) plus a large target's radius. */
+const EYE_CELL = 1400;
+const eyeKey = (cx: number, cy: number) => ((cx + 64) << 10) | (cy + 64);
 
 /** How far an entity sees; hardpoints see through their parent. */
 export function visionOf(e: Entity): number {
@@ -35,12 +38,32 @@ export function updateVision(world: World, dt: number): void {
   world.visionTimer = VISION_INTERVAL;
   const all = [...world.entities.values()];
   for (const faction of world.factions.keys()) {
-    const eyes = all.filter((e) => e.faction === faction && visionOf(e) > 0);
     const visible = new Set<number>();
     const seen = world.seen.get(faction) ?? new Set<number>();
+    // Eyes binned in cells as wide as the longest sight: a target only checks the 3x3
+    // cells around it, and stops at the first eye that sees it.
+    const eyes = new Map<number, Entity[]>();
+    for (const e of all) {
+      if (e.faction !== faction || visionOf(e) <= 0) continue;
+      const k = eyeKey(Math.floor(e.x / EYE_CELL), Math.floor(e.y / EYE_CELL));
+      let list = eyes.get(k);
+      if (!list) eyes.set(k, (list = []));
+      list.push(e);
+    }
     for (const t of all) {
       if (t.faction === faction || t.kind === 'hardpoint') continue;
-      if (eyes.some((e) => Math.hypot(e.x - t.x, e.y - t.y) <= visionOf(e) + t.radius)) visible.add(t.id);
+      const cx = Math.floor(t.x / EYE_CELL);
+      const cy = Math.floor(t.y / EYE_CELL);
+      search: for (let dx = -1; dx <= 1; dx++) {
+        for (let dy = -1; dy <= 1; dy++) {
+          for (const e of eyes.get(eyeKey(cx + dx, cy + dy)) ?? []) {
+            if (Math.hypot(e.x - t.x, e.y - t.y) <= visionOf(e) + t.radius) {
+              visible.add(t.id);
+              break search;
+            }
+          }
+        }
+      }
     }
     // Parts are seen along with what they are attached to.
     for (const t of all) {

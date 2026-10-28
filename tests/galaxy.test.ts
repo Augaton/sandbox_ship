@@ -186,7 +186,7 @@ describe('battles', () => {
 describe('galaxy AI', () => {
   it('expands, builds up and fights another AI', () => {
     const g = createGalaxy('klaed', 'nairan', true, 3);
-    g.factions.get('klaed')!.ai = { timer: 0, want: null };
+    g.factions.get('klaed')!.ai = { timer: 0, want: null, difficulty: 'normal' };
     g.player = 'nautolan';
     runGalaxy(g, 90);
     // Early skirmishes may favour one side: count the expansion of both together.
@@ -246,7 +246,7 @@ describe('planet production and research', () => {
     expect(enqueueBuild(g, 'klaed', WEST, { kind: 'mine' }).ok).toBe(true);
     expect(enqueueBuild(g, 'klaed', WEST, { kind: 'ship', cls: 'scout' }).ok).toBe(true);
     runGalaxy(g, SHIPS.scout.buildTime + 0.5);
-    expect(fleetsAt(g, WEST, 'klaed')[0].ships.scout).toBe(3);
+    expect(fleetsAt(g, WEST, 'klaed')[0].ships.scout).toBe(2 + SHIPS.scout.squad!);
     expect(g.planets[WEST].buildings).toHaveLength(1);
   });
 
@@ -375,4 +375,20 @@ describe('galaxy fog of war', () => {
     expect(fleetVisible(g, 'klaed', enemy)).toBe(false);
     expect(fleetVisible(g, 'nairan', enemy)).toBe(true);
   });
+});
+
+describe('galaxies for three', () => {
+  it('give each faction a capital far from the others, and run with three AIs', () => {
+    const layout = generateLayout(21, 3);
+    expect(new Set(layout.capitals).size).toBe(3);
+    const g = createGalaxy('klaed', ['nairan', 'nautolan'], true, 21, layout);
+    g.factions.get('klaed')!.ai = { timer: 0, want: null, difficulty: 'normal' };
+    g.player = 'nautolan';
+    for (const [i, f] of (['klaed', 'nairan', 'nautolan'] as const).entries()) expect(g.planets[layout.capitals[i]].owner).toBe(f);
+    for (let i = 0; i < 3; i++) for (let j = i + 1; j < 3; j++) expect(findPath(g, layout.capitals[i], layout.capitals[j])!.length).toBeGreaterThanOrEqual(2);
+    g.player = 'klaed';
+    g.factions.get('klaed')!.ai = null;
+    runGalaxy(g, 300);
+    expect(g.planets.filter((p) => p.owner === 'nautolan').length).toBeGreaterThan(1);
+  }, 30000);
 });

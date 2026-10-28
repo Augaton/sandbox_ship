@@ -135,6 +135,10 @@ export interface TierDef {
 
 /** Radius around a built mine where platforms and repair docks may go. */
 export const MINE_ZONE = 350;
+/** Away from the station, a mine needs one of the faction's ships this close to the field... */
+export const MINE_ESCORT = 400;
+/** ...and no enemy ship or gun this close. */
+export const MINE_DANGER = 600;
 
 export const BUILDABLES: Record<BuildableType, BuildableDef> = {
   platform: {

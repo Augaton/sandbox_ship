@@ -4,7 +4,7 @@ import type { FactionId } from '../data/units';
 import type { Fleet, Galaxy, GalaxyFaction, Planet } from './galaxy';
 
 /** Bumped whenever the saved shape changes: older saves are then ignored. */
-const VERSION = 4;
+const VERSION = 5;
 const KEY = 'sandbox-ship:campaign';
 
 interface SavedGalaxy {

@@ -4,8 +4,8 @@ import { CAPITALS, GALAXY_H, GALAXY_W, LANES, PLANETS, type PlanetDef, type Plan
 export interface GalaxyLayout {
   planets: PlanetDef[];
   lanes: [number, number][];
-  /** Index of each side's capital in `planets`. */
-  capitals: [number, number];
+  /** Index of each side's capital in `planets`, the player's first. */
+  capitals: number[];
 }
 
 export const CLASSIC: GalaxyLayout = { planets: PLANETS, lanes: LANES, capitals: [CAPITALS[0], CAPITALS[1]] };
@@ -61,7 +61,7 @@ function hops(lanes: [number, number][], n: number, from: number): number[] {
  * A random galaxy: 12 to 18 planets spread out, lanes between near neighbours that never
  * cross, everything connected, and the two capitals as far apart as the lanes allow.
  */
-export function generateLayout(seed: number): GalaxyLayout {
+export function generateLayout(seed: number, players = 2): GalaxyLayout {
   const rnd = seededRandom(seed);
   const count = 12 + Math.floor(rnd() * 7);
   const points: Point[] = [];
@@ -113,18 +113,24 @@ export function generateLayout(seed: number): GalaxyLayout {
     lanes.push([a, b]);
   }
 
-  // Capitals: the pair furthest apart in lanes, then in distance.
-  let capitals: [number, number] = [0, 1];
+  // Capitals: the pair furthest apart in lanes (then in distance), then each further one as
+  // far as possible from those already picked.
+  const allHops = points.map((_, i) => hops(lanes, points.length, i));
+  const gap = (a: number, b: number) => allHops[a][b] * 10000 + Math.hypot(points[a].x - points[b].x, points[a].y - points[b].y);
+  let capitals: number[] = [0, 1];
   let best = -1;
   for (const a of points.keys()) {
-    const h = hops(lanes, points.length, a);
     for (const b of points.keys()) {
-      const score = h[b] * 10000 + Math.hypot(points[a].x - points[b].x, points[a].y - points[b].y);
-      if (b !== a && score > best) {
-        best = score;
+      if (b !== a && gap(a, b) > best) {
+        best = gap(a, b);
         capitals = points[a].x <= points[b].x ? [a, b] : [b, a];
       }
     }
+  }
+  while (capitals.length < players) {
+    const next = [...points.keys()].filter((i) => !capitals.includes(i))
+      .sort((a, b) => Math.min(...capitals.map((c) => gap(b, c))) - Math.min(...capitals.map((c) => gap(a, c))))[0];
+    capitals.push(next);
   }
   for (const c of capitals) Object.assign(planets[c], { income: 6, mineSlots: 3, special: undefined });
   return { planets, lanes, capitals };

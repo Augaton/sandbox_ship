@@ -1,19 +1,26 @@
 # Sandbox Ship
 
-Jeu de stratégie spatiale 2D en temps réel, en bac à sable. Trois modes :
+Jeu de stratégie spatiale 2D en temps réel, en bac à sable. Trois modes, à deux ou à
+trois factions (à trois, chacun se bat contre tous) :
 
-- **Campagne galactique** : 14 planètes reliées par des routes. On y gagne des crédits,
-  on bâtit des stations, des mines et des plateformes, on produit des vaisseaux et on
-  déplace ses flottes. Quand deux camps se rencontrent sur une planète, la bataille se
+- **Campagne galactique** : une carte de planètes reliées par des routes. On y gagne des
+  crédits, on bâtit des stations, des mines et des plateformes, on produit des vaisseaux et
+  on déplace ses flottes. Quand deux camps se rencontrent sur une planète, la bataille se
   commande dans la vue tactique ou se résout seule. On perd quand on n'a plus de planète.
-- **Escarmouche** : une seule bataille contre l'IA. Chaque camp a une station améliorable,
-  des mines sur les astéroïdes, des hangars qui lancent des chasseurs et un chantier naval.
-  On gagne en détruisant la station adverse, point d'attache par point d'attache.
+- **Escarmouche** : une seule bataille contre l'IA, sur une carte petite, moyenne ou grande.
+  Chaque camp a une station améliorable avec deux champs d'astéroïdes juste derrière, des
+  hangars qui lancent des chasseurs et un chantier naval. On gagne en détruisant la station
+  adverse, point d'attache par point d'attache.
 - **Bac à sable** : la même bataille, IA coupée, placement libre de n'importe quelle unité.
 
-Les croiseurs et les cuirassés ont des pièces destructibles, comme les stations :
+Les frégates, croiseurs et cuirassés ont des pièces destructibles, comme les stations :
 tourelles, réacteurs (le vaisseau ralentit), générateur de bouclier, hangar. N'importe quel
 vaisseau se pilote à la main (touche P), et chaque classe a une capacité active (touche E).
+Éclaireurs et bombardiers sortent du chantier par escouades de trois. Une mine ne se pose
+que sur un champ près de la station, ou tenu par un de tes vaisseaux, et jamais en plein
+combat. L'IA s'adapte : elle répond à ce qu'elle a vu (frégates anti-chasseurs contre les
+essaims, torpilleurs contre les gros vaisseaux), se replie quand elle est dépassée et
+attaque quand elle a l'avantage. Trois difficultés changent ses revenus et sa réactivité.
 Les trois factions ont chacune leur trait et trois héros uniques. La production passe par
 deux files, bâtiments et vaisseaux, et la recherche améliore armes, boucliers, blindage,
 propulsion, mines et hangars. Plateformes et hangars montent jusqu'au niveau 3, et les
@@ -27,12 +34,33 @@ navigateur.
 
 ```bash
 npm install
-npm run dev        # http://localhost:5173
+npm run play       # la dernière version publiée : http://localhost:4173
+npm run dev        # la version en cours de développement : http://localhost:5173
 npm test           # tests de la simulation
 npm run build      # vérification des types + build de production dans dist/
 ```
 
-Les commandes du jeu sont dans le bouton « Aide ».
+Les commandes du jeu sont dans le menu (« Commandes ») et dans le bouton « Aide ». La vue
+se déplace avec ZQSD (WASD en QWERTY), les flèches ou les bords de l'écran.
+
+## Versions : dev et main
+
+Deux branches git :
+
+- `dev` reçoit le travail en cours ; `npm run dev` le lance.
+- `main` ne contient que des versions finies. Elle ne bouge qu'à la publication d'une
+  nouvelle version.
+
+`npm run play` sert le dossier `release/`, qui ne change qu'à la publication. Le travail
+sur `dev` n'y touche donc pas. Pour publier une version :
+
+```bash
+git switch main
+git merge dev
+npm run release    # tests, types, puis build dans release/ (refuse hors de main)
+git tag v0.2.0     # avec le numéro de package.json, monté sur dev avant la fusion
+git switch dev
+```
 
 ## Ajouter les sprites
 

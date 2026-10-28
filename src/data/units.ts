@@ -92,6 +92,8 @@ export interface ShipDef {
   /** Destructible parts: turrets, engines, shield generator, hangar. */
   hardpoints?: HardpointSlot[];
   ability?: AbilityId;
+  /** Ships delivered per order; cost and build time are for the whole squadron. */
+  squad?: number;
 }
 
 export const flak: WeaponDef = {
@@ -111,7 +113,7 @@ export const SHIPS: Record<ShipClass, ShipDef> = {
   scout: {
     id: 'scout', name: 'Éclaireur', size: 'small',
     hull: 60, shield: 20, shieldRegen: 2, speed: 230, accel: 300, turnRate: 4, radius: 10,
-    ability: 'sprint', source: 'shipyard', cost: 150, buildTime: 6, minStationLevel: 1,
+    ability: 'sprint', source: 'shipyard', cost: 400, buildTime: 10, minStationLevel: 1, squad: 3,
     weapons: [{ kind: 'bullet', range: 220, damage: 4, cooldown: 0.4, projectileSpeed: 650 }],
   },
   fighter: {
@@ -126,7 +128,7 @@ export const SHIPS: Record<ShipClass, ShipDef> = {
   bomber: {
     id: 'bomber', name: 'Bombardier', size: 'small',
     hull: 70, shield: 0, shieldRegen: 0, speed: 190, accel: 260, turnRate: 3.5, radius: 12,
-    source: 'hangar', cost: 0, buildTime: 0, minStationLevel: 1,
+    source: 'shipyard', cost: 500, buildTime: 15, minStationLevel: 1, squad: 3,
     weapons: [{ ...torpedo, range: 260, damage: 30, cooldown: 3, mult: { small: 0.2, large: 1.5, structure: 1.8 } }],
   },
   support: {
@@ -146,7 +148,11 @@ export const SHIPS: Record<ShipClass, ShipDef> = {
     id: 'frigate', name: 'Frégate', size: 'medium',
     hull: 600, shield: 250, shieldRegen: 3, speed: 90, accel: 80, turnRate: 1.2, radius: 26,
     ability: 'overcharge', source: 'shipyard', cost: 650, buildTime: 16, minStationLevel: 1,
-    weapons: [laser, flak],
+    weapons: [flak],
+    hardpoints: [
+      { role: 'turret', x: 10, y: 0, hull: 200, radius: 7, weapons: [laser] },
+      { role: 'shield', x: -12, y: 0, hull: 220, radius: 7 },
+    ],
   },
   battlecruiser: {
     id: 'battlecruiser', name: 'Croiseur', size: 'large',
@@ -183,9 +189,20 @@ export const SHIPS: Record<ShipClass, ShipDef> = {
 
 export const SHIP_CLASSES = Object.keys(SHIPS) as ShipClass[];
 
-/** Price of a ship for a faction, after its trait. */
+/** Price of one order (a ship, or a squadron) for a faction, after its trait. */
 export function shipCost(cls: ShipClass, faction: FactionId): number {
   return Math.round(SHIPS[cls].cost * FACTIONS[faction].trait.cost);
+}
+
+/** Value of a single ship, for strength estimates. */
+export function unitValue(cls: ShipClass): number {
+  return SHIPS[cls].cost / (SHIPS[cls].squad ?? 1);
+}
+
+/** Display name of an order: "3× Éclaireur" for a squadron. */
+export function orderName(cls: ShipClass): string {
+  const squad = SHIPS[cls].squad;
+  return squad ? `${squad}× ${SHIPS[cls].name}` : SHIPS[cls].name;
 }
 
 export function maxRange(weapons: WeaponDef[]): number {

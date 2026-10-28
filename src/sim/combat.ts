@@ -20,14 +20,14 @@ function reach(e: Entity, t: Entity): number {
 function nearestHostile(world: World, e: Entity, range: number): Entity | null {
   let best: Entity | null = null;
   let bestD = range;
-  for (const t of world.entities.values()) {
-    if (t.faction === e.faction || !isVisible(world, e.faction, t)) continue;
+  world.grid.near(e.x, e.y, range, (t) => {
+    if (t.faction === e.faction || !isVisible(world, e.faction, t)) return;
     const d = reach(e, t);
     if (d < bestD) {
       bestD = d;
       best = t;
     }
-  }
+  });
   return best;
 }
 
@@ -182,11 +182,11 @@ export function updateRepair(world: World, dt: number): void {
     // Repair docks mend every friendly ship around them.
     const dock = e.kind === 'structure' && operational(e) ? BUILDABLES[e.type as BuildableType]?.repair : undefined;
     if (dock) {
-      for (const t of world.entities.values()) {
+      world.grid.near(e.x, e.y, dock.range, (t) => {
         if (t.kind === 'ship' && t.faction === e.faction && dist(e, t) <= dock.range) {
           t.hull = Math.min(t.maxHull, t.hull + dock.rate * dt);
         }
-      }
+      });
       continue;
     }
     if (e.kind !== 'ship') continue;
@@ -194,14 +194,14 @@ export function updateRepair(world: World, dt: number): void {
     if (!repair) continue;
     let best: Entity | null = null;
     let bestRatio = 1;
-    for (const t of world.entities.values()) {
-      if (t === e || t.faction !== e.faction || !operational(t)) continue;
+    world.grid.near(e.x, e.y, repair.range, (t) => {
+      if (t === e || t.faction !== e.faction || !operational(t)) return;
       const ratio = t.hull / t.maxHull;
       if (ratio < bestRatio && dist(e, t) - t.radius <= repair.range) {
         bestRatio = ratio;
         best = t;
       }
-    }
-    if (best) best.hull = Math.min(best.maxHull, best.hull + repair.rate * dt);
+    });
+    if (best) (best as Entity).hull = Math.min((best as Entity).maxHull, (best as Entity).hull + repair.rate * dt);
   }
 }
