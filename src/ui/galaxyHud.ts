@@ -15,7 +15,7 @@ import {
   type BuildingKind, type Fleet, type GalaxyBattle, type GalaxyBuild, type GalaxyEvent, type Planet,
 } from '../sim/galaxy';
 import { GALAXY_CONTROLS, controlsList } from './controls';
-import { el, pct, shortReason, toast } from './dom';
+import { el, pct, percent, shortReason, toast } from './dom';
 import { emblemUrl } from './logos';
 
 const REFRESH_MS = 100;
@@ -39,7 +39,7 @@ const emblem = (faction: keyof typeof FACTIONS, cls = 'emblem') => `<img class="
 /** ", état 64 %" for a damaged fleet; nothing for a whole one. */
 function condition(f: Fleet): string {
   const c = f.condition ?? 1;
-  return c < 1 ? `, état ${pct(c)}` : '';
+  return c < 1 ? `, état ${percent(c)}` : '';
 }
 
 export class GalaxyHud {
@@ -170,7 +170,7 @@ export class GalaxyHud {
     this.credits.innerHTML = `Crédits <strong>${Math.floor(f.credits)}</strong> <span class="muted">+${Math.round(incomeOf(g, player))}/s</span>` +
       ` <span class="muted">${owned} planète${owned > 1 ? 's' : ''}</span>`;
     const job = f.researching;
-    this.researching.textContent = job ? `Recherche : ${TECHS[job.tech].name} ${pct(1 - job.remaining / job.total)}` : '';
+    this.researching.textContent = job ? `Recherche : ${TECHS[job.tech].name} ${percent(1 - job.remaining / job.total)}` : '';
     const id = this.scene.selected;
     const p = id == null ? null : g.planets[id];
     const sig = this.signature(p);
@@ -326,7 +326,7 @@ export class GalaxyHud {
       if (cond && own) {
         const c = own.condition ?? 1;
         const home = p.owner === player;
-        cond.textContent = c >= 1 ? 'intacte' : `état ${pct(c)}${home ? ', en réparation' : ''}`;
+        cond.textContent = c >= 1 ? 'intacte' : `état ${percent(c)}${home ? ', en réparation' : ''}`;
         cond.className = c < 0.5 ? 'warn' : 'muted';
       }
       const occ = this.panel.querySelector('[data-occupation]');
@@ -413,6 +413,10 @@ export class GalaxyHud {
       this.toast(`Bataille de ${g.planets[ev.planetId].name} : ${what}`);
       play(winner === player && ev.result !== 'retreat' ? 'built' : 'alert');
     }
+  }
+
+  dialogOpen(): boolean {
+    return this.modal != null;
   }
 
   private openModal(content: HTMLElement): void {

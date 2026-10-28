@@ -110,6 +110,12 @@ export function createPlanetBattle(attacker: BattleSide, defender: BattleSide, d
  * The defender holds while it keeps a station or a ship; the attacker while it keeps a ship.
  * Returns null while both sides still stand.
  */
+/**
+ * Seconds without a single hit after which a planet battle ends with the attacker falling
+ * back: ships that cannot hurt what is left would otherwise circle forever.
+ */
+export const STALEMATE = 240;
+
 export function battleOutcome(world: World, attacker: FactionId, defender: FactionId): BattleResult | null {
   let att = false;
   let def = stationOf(world, defender) != null;
@@ -120,6 +126,7 @@ export function battleOutcome(world: World, attacker: FactionId, defender: Facti
   }
   if (!att) return 'defender';
   if (!def) return 'attacker';
+  if (world.time - world.lastDamage > STALEMATE) return 'retreat';
   return null;
 }
 

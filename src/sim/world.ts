@@ -4,8 +4,8 @@ import { HEROES, type HeroId } from '../data/heroes';
 import { TECH_BONUS, noResearch, type ResearchJob, type ResearchLevels, type TechId } from '../data/research';
 import { FACTIONS, SHIPS, maxRange, type FactionId, type ShipClass, type SizeClass, type WeaponDef } from '../data/units';
 import {
-  BUILDABLES, HARDPOINTS, STATION,
-  type BuildableType, type HangarDef, type HardpointSlot,
+  BUILDABLES, HARDPOINTS, REBUILD, STATION,
+  type BuildableType, type HangarDef, type HardpointRole, type HardpointSlot,
 } from '../data/structures';
 
 export type EntityKind = 'ship' | 'structure' | 'hardpoint';
@@ -138,6 +138,10 @@ export interface Entity {
   expires: number | null;
   /** Faction that hit it last: the kill is theirs. */
   lastHitBy: FactionId | null;
+  /** World time of the last hit it took. */
+  hitAt: number;
+  /** Station parts lost and waiting to be rebuilt, seconds left for each. */
+  rebuild: { role: HardpointRole; x: number; y: number; timer: number }[];
 }
 
 export interface Projectile {
@@ -254,6 +258,7 @@ export type SimEvent =
   /** An ability was used, from (x, y), aimed at (tx, ty). */
   | { type: 'ability'; id: AbilityId; faction: FactionId; entityId: number; x: number; y: number; tx: number; ty: number }
   | { type: 'strike'; strike: Strike }
+  | { type: 'rebuilt'; id: number; faction: FactionId; role: HardpointRole }
   | { type: 'victory'; faction: FactionId };
 
 export interface World {
@@ -270,6 +275,8 @@ export interface World {
   winner: FactionId | null;
   zones: Zone[];
   strikes: Strike[];
+  /** World time of the last damage anyone dealt: a long quiet means a battle that cannot end. */
+  lastDamage: number;
   /** Fog of war: each faction only sees and targets what its own units see. */
   fog: boolean;
   /** Enemy entities each faction sees right now. */
@@ -287,7 +294,7 @@ export function createWorld(width: number, height: number, seed = 1): World {
   return {
     time: 0, width, height,
     entities: new Map(), projectiles: [], factions: new Map(), fields: [], events: [],
-    nextId: 1, seed, winner: null, zones: [], strikes: [],
+    nextId: 1, seed, winner: null, zones: [], strikes: [], lastDamage: 0,
     fog: false, visible: new Map(), seen: new Map(), visionTimer: 0, grid: new SpatialGrid(),
   };
 }
@@ -330,6 +337,7 @@ function baseEntity(world: World, kind: EntityKind, type: string, faction: Facti
     build: 1, buildTime: 0, level: 0, parentId: null, hangar: null, income: 0, fieldId: null,
     ox: 0, oy: 0, engines: null, maxEngines: 0, shieldGens: null, pilot: null, ability: null, hero: null,
     launched: false, retreating: false, effects: { marked: 0, stunned: 0, corroded: 0 }, expires: null, lastHitBy: null,
+    hitAt: -Infinity, rebuild: [],
   };
 }
 
@@ -558,6 +566,7 @@ export function removeDead(world: World): void {
       if (f) f.heroCooldowns[e.hero] = HEROES[e.hero].respawn;
     }
     const parent = e.parentId == null ? undefined : world.entities.get(e.parentId);
+    if (parent?.type === 'station') parent.rebuild.push({ role: e.type as HardpointRole, x: e.ox, y: e.oy, timer: REBUILD.time });
     if (parent && e.type === 'engine' && parent.engines) parent.engines--;
     if (parent && e.type === 'shield' && parent.shieldGens) parent.shieldGens--;
     dead.push(...childrenOf(world, e.id));

@@ -481,6 +481,12 @@ export function concludeBattle(g: Galaxy, battleId: number, result: BattleResult
   g.events.push({ type: 'battleEnd', planetId: planet.id, attacker: b.attacker, defender: b.defender, result });
 }
 
+/** The player leaves a battle they were commanding: it plays on by itself. */
+export function delegateBattle(g: Galaxy, battleId: number): void {
+  const b = g.battles.find((x) => x.id === battleId);
+  if (b?.status === 'tactical') b.status = 'auto';
+}
+
 export function chooseBattle(g: Galaxy, battleId: number, mode: 'auto' | 'tactical'): void {
   const b = g.battles.find((x) => x.id === battleId);
   if (b?.status === 'pending') b.status = mode;

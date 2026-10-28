@@ -39,6 +39,12 @@ statistiques de chaque faction et propose de rejouer la même carte ou une nouve
 montre un aperçu de la carte avant de lancer. En campagne, une flotte garde ses dégâts
 d'une bataille à l'autre et se répare à quai sur une planète alliée, plus vite avec une
 station ou un dock de réparation.
+Rien ne peut bloquer une partie : une station reconstruit ses pièces perdues (chantier
+naval compris) quand plus personne ne l'attaque ; une bataille de campagne où plus aucun
+tir ne touche pendant 4 minutes se termine sur le repli de l'attaquant, et le menu pause
+permet de laisser l'IA la finir ; une bataille en attente de ton choix est reposée tant
+qu'elle n'est pas tranchée ; en escarmouche à trois, la défaite s'affiche dès que ta
+station tombe.
 Les trois factions ont chacune leur trait et trois héros uniques. La production passe par
 deux files, bâtiments et vaisseaux, et la recherche améliore armes, boucliers, blindage,
 propulsion, mines et hangars. Plateformes et avant-postes montent jusqu'au niveau 3, et les

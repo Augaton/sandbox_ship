@@ -1,6 +1,6 @@
 import { HEROES, type HeroId } from '../data/heroes';
 import { MAX_TECH_LEVEL, TECHS, TECH_BONUS, type TechId } from '../data/research';
-import { BUILDABLES, DANGER_RANGE, HOLD_RANGE, MAX_QUEUE, MINE_ZONE, STATION, type BuildableType } from '../data/structures';
+import { BUILDABLES, DANGER_RANGE, HOLD_RANGE, MAX_QUEUE, MINE_ZONE, REBUILD, STATION, type BuildableType } from '../data/structures';
 import { SHIPS, maxRange, shipCost, type FactionId, type ShipClass } from '../data/units';
 import {
   addHardpoints, armed, childrenOf, dist, hasHardpoint, hullMult, rand, rescaleForResearch, researchLevel,
@@ -228,6 +228,19 @@ export function cancelQueued(world: World, faction: FactionId, index: number, wh
   if (!f || !queue || !item) return;
   queue.splice(index, 1);
   f.credits += item.cost;
+}
+
+/** A station rebuilds its lost parts one at a time, while nobody shoots at it. */
+export function updateRebuild(world: World, dt: number): void {
+  for (const e of world.entities.values()) {
+    if (e.rebuild.length === 0 || world.time - e.hitAt < REBUILD.quiet) continue;
+    const next = e.rebuild[0];
+    next.timer -= dt;
+    if (next.timer > 0) continue;
+    e.rebuild.shift();
+    addHardpoints(world, e, [{ role: next.role, x: next.x, y: next.y }]);
+    world.events.push({ type: 'rebuilt', id: e.id, faction: e.faction, role: next.role });
+  }
 }
 
 /** Next level of a platform or outpost: sturdier, better armed, a wider build area. */

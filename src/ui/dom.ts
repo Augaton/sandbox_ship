@@ -9,6 +9,8 @@ export function el<K extends keyof HTMLElementTagNameMap>(tag: K, attrs: Record<
 
 export const hex = (c: number) => `#${c.toString(16).padStart(6, '0')}`;
 export const pct = (v: number) => `${Math.round(Math.max(0, Math.min(1, v)) * 100)}%`;
+/** The same share for reading, French style: "42 %", the space unbreakable. */
+export const percent = (v: number) => `${Math.round(Math.max(0, Math.min(1, v)) * 100)}\u00a0%`;
 
 /** Build buttons are narrow: "Station niveau 2 requise" becomes "Niveau 2". */
 export function shortReason(reason: string): string {

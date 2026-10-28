@@ -3,7 +3,7 @@ import { updateAI } from './ai';
 import { updateProjectiles, updateRepair, updateShields, updateTargeting, updateWeapons } from './combat';
 import { separate, updateShips } from './movement';
 import { updateVision } from './vision';
-import { updateConstruction, updateEconomy, updateHangars, updateProduction, updateResearch } from './structures';
+import { updateConstruction, updateEconomy, updateHangars, updateProduction, updateRebuild, updateResearch } from './structures';
 import { attachHardpoints, checkVictory, removeDead, type World } from './world';
 
 /** Fixed simulation time step, in seconds. */
@@ -17,6 +17,7 @@ export function step(world: World, dt = STEP): void {
   updateProduction(world, dt);
   updateResearch(world, dt);
   updateConstruction(world, dt);
+  updateRebuild(world, dt);
   updateHangars(world, dt);
   updateVision(world, dt);
   updateTargeting(world, dt);

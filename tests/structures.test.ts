@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { BUILDABLES, STATION } from '../src/data/structures';
+import { BUILDABLES, REBUILD, STATION } from '../src/data/structures';
 import { SHIPS } from '../src/data/units';
 import {
   addFaction, addField, childrenOf, createWorld, spawnShip, spawnStation, spawnStructure, type World,
@@ -85,7 +85,7 @@ describe('hangars', () => {
     expect(ships(w, 'klaed', 'bomber').length).toBeGreaterThan(0);
   });
 
-  it('relaunch once craft are lost, and stop when destroyed', () => {
+  it('relaunch once craft are lost, stop when destroyed, and start again once rebuilt', () => {
     const w = world();
     const st = spawnStation(w, 'klaed', 700, 2000);
     const hangar = childrenOf(w, st.id).find((c) => c.type === 'hangar')!;
@@ -96,8 +96,11 @@ describe('hangars', () => {
     hangar.hull = 0;
     step(w);
     for (const s of ships(w, 'klaed')) s.hull = 0;
-    run(w, 100);
+    run(w, REBUILD.time - 10);
     expect(ships(w, 'klaed')).toHaveLength(0);
+    run(w, 60);
+    expect(childrenOf(w, st.id).some((c) => c.type === 'hangar')).toBe(true);
+    expect(ships(w, 'klaed').length).toBeGreaterThan(0);
   });
 });
 

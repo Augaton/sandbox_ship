@@ -8,8 +8,9 @@ import { SelectionController } from '../input/selection';
 import { opaqueSize } from '../render/opaque';
 import { factionKey } from '../render/recolor';
 import { asteroidKeys, lookFor, projectileKey, type Layer, type Look, type Manifest } from '../render/sprites';
-import { battleOutcome, updateBattleAI, type BattleResult } from '../sim/battle';
+import { STALEMATE, battleOutcome, updateBattleAI, type BattleResult } from '../sim/battle';
 import { HEROES } from '../data/heroes';
+import { ownerOf } from '../sim/abilities';
 import { aimedTarget } from '../sim/combat';
 import { buildZones } from '../sim/structures';
 import { isVisible, visionOf, wasSeen } from '../sim/vision';
@@ -119,6 +120,9 @@ export class BattleScene extends Phaser.Scene {
   private fogBrush!: Phaser.GameObjects.Image;
   /** Set once a campaign battle is decided. */
   private result: BattleResult | null = null;
+  /** The player's station fell while others fight on. */
+  private defeated = false;
+  private stalemateWarned = false;
 
   constructor() {
     super('battle');
@@ -134,6 +138,8 @@ export class BattleScene extends Phaser.Scene {
       map: opts.map ?? 'random', size: opts.size, fog: !sandbox, difficulty: opts.difficulty,
     });
     this.result = null;
+    this.defeated = false;
+    this.stalemateWarned = false;
     // The player's ships use their abilities by themselves if the player wants so.
     const own = this.world.factions.get(opts.player);
     if (own) own.autoAbilities = settings.autoAbilities;
@@ -243,11 +249,28 @@ export class BattleScene extends Phaser.Scene {
   private checkCampaignEnd(): void {
     const c = this.opts.campaign;
     if (!c || this.result) return;
+    // Warn before a battle where nobody hits anything ends on its own.
+    const quiet = this.world.time - this.world.lastDamage;
+    if (quiet > STALEMATE - 30 && !this.stalemateWarned) {
+      this.stalemateWarned = true;
+      this.hud.toast("Aucun tir depuis longtemps : dans 30 s, l'attaquant se replie");
+    } else if (quiet < STALEMATE - 30) this.stalemateWarned = false;
     const result = battleOutcome(this.world, c.attacker, c.defender);
     if (!result) return;
     this.result = result;
     const winner = result === 'attacker' ? c.attacker : c.defender;
     this.hud.showBattleEnd(winner === this.opts.player, () => this.returnToGalaxy());
+  }
+
+  /** Leaves a campaign battle to play on by itself, back on the galaxy map. */
+  delegate(): void {
+    const c = this.opts.campaign;
+    if (!c || this.result) return;
+    const game = this.game;
+    game.scene.stop('battle');
+    game.scene.stop('background');
+    (game.scene.getScene('galaxy') as GalaxyScene).delegateBattle(c.battleId);
+    game.scene.wake('galaxy');
   }
 
   /** The attacker can fall back: its surviving ships return to the planet they came from. */
@@ -466,6 +489,11 @@ export class BattleScene extends Phaser.Scene {
         this.explode(ev.id, ev.x, ev.y, ev.radius);
         this.sfx(ev.radius >= 50 ? 'bigExplosion' : 'explosion', ev.x, ev.y, Math.min(1, 0.4 + ev.radius / 60));
         if (ev.faction === this.opts.player && ev.kind !== 'ship') this.alert(`Perte : ${typeName(ev.entityType)}`, ev.x, ev.y, true);
+        // Out of a free-for-all before it ends: say so now, the others may fight on for long.
+        if (ev.entityType === 'station' && ev.faction === this.opts.player && !this.opts.campaign && !w.winner && !this.defeated) {
+          this.defeated = true;
+          this.hud.showEnd(false);
+        }
         else if (ev.faction === this.opts.player && !this.onScreen(ev.x, ev.y)) this.alert(`Perte : ${typeName(ev.entityType)}`, ev.x, ev.y);
       } else if (ev.type === 'hit') {
         this.spark(ev.x, ev.y);
@@ -479,7 +507,9 @@ export class BattleScene extends Phaser.Scene {
           play('built');
         }
       } else if (ev.type === 'victory') {
-        this.hud.showEnd(ev.faction === this.opts.player);
+        if (!this.defeated) this.hud.showEnd(ev.faction === this.opts.player);
+      } else if (ev.type === 'rebuilt') {
+        if (ev.faction === this.opts.player) this.hud.toast(`${typeName(ev.role)} reconstruit`);
       } else if (ev.type === 'ability') {
         const e = w.entities.get(ev.entityId);
         if (e && this.canSee(e)) {
@@ -513,7 +543,7 @@ export class BattleScene extends Phaser.Scene {
   private underFire(id: number, x: number, y: number): void {
     const t = this.world.entities.get(id);
     if (!t) return;
-    const owner = t.kind === 'hardpoint' && t.parentId != null ? this.world.entities.get(t.parentId) ?? t : t;
+    const owner = ownerOf(this.world, t);
     if (owner.kind === 'structure') this.alert(`Attaque : ${typeName(owner.type)}`, x, y, true);
     else if (!this.onScreen(x, y)) this.alert('Attaque : tes vaisseaux', x, y);
   }

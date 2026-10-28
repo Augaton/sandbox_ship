@@ -66,7 +66,12 @@ export function hurt(world: World, t: Entity, amount: number, from: FactionId): 
   const dealt = amount * damageTaken(world, t);
   applyDamage(t, dealt, parent?.kind === 'ship' ? parent : t);
   t.lastHitBy = from;
-  if (parent) parent.lastHitBy = from;
+  t.hitAt = world.time;
+  if (parent) {
+    parent.lastHitBy = from;
+    parent.hitAt = world.time;
+  }
+  world.lastDamage = world.time;
   const f = world.factions.get(from);
   if (f) f.stats.damage += dealt;
 }
@@ -262,6 +267,7 @@ export function updateAbilities(world: World, dt: number): void {
     const fx = e.effects;
     if (fx.corroded > 0) {
       e.hull -= Math.min(CORROSION.max, Math.max(CORROSION.min, e.maxHull * CORROSION.share)) * dt;
+      world.lastDamage = world.time;
       fx.corroded = Math.max(0, fx.corroded - dt);
     }
     if (fx.marked > 0) fx.marked = Math.max(0, fx.marked - dt);

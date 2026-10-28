@@ -15,7 +15,7 @@ import {
 import { childrenOf, newAI, stationOf, type Entity, type QueueItem, type Result } from '../sim/world';
 import { isVisible, wasSeen } from '../sim/vision';
 import { BATTLE_CONTROLS, controlsList } from './controls';
-import { el, hex, pct, shortReason, toast } from './dom';
+import { el, hex, pct, percent, shortReason, toast } from './dom';
 import { emblemUrl } from './logos';
 import { optionsPanel } from './options';
 import { saveSettings, settings } from './settings';
@@ -61,10 +61,7 @@ function duration(seconds: number): string {
 }
 
 export function entityName(e: Entity): string {
-  if (e.hero) return HEROES[e.hero].name;
-  if (e.kind === 'ship') return SHIPS[e.type as ShipClass].name;
-  if (e.kind === 'hardpoint') return HARDPOINTS[e.type as keyof typeof HARDPOINTS].name;
-  return e.type === 'station' ? STATION.name : BUILDABLES[e.type as BuildableType].name;
+  return e.hero ? HEROES[e.hero].name : typeName(e.type);
 }
 
 export class Hud {
@@ -97,6 +94,7 @@ export class Hud {
   private tip!: HTMLElement;
   private timer = 0;
   private lastSelection = '';
+  private selectionSig = '';
 
   /**
    * `campaign` is the planet fought over in a campaign battle: no building, no sandbox,
@@ -242,8 +240,11 @@ export class Hud {
       return body;
     };
 
+    // Buttons scroll inside each tab; tabs and queue stay in view.
+    const scroll = (tab: HTMLElement) => tab.appendChild(el('div', { class: 'scroll' }));
     const ships = addTab('ships', 'Vaisseaux');
-    const shipRow = ships.appendChild(el('div', { class: 'row' }));
+    const shipList = scroll(ships);
+    const shipRow = shipList.appendChild(el('div', { class: 'row' }));
     for (const cls of SHIPYARD_CLASSES) {
       const b = shipRow.appendChild(el('button', {}, `<span>${orderName(cls)}</span><small></small>`));
       // Shift: five at once, as many as the queue and the credits allow.
@@ -263,7 +264,7 @@ export class Hud {
       });
       this.shipButtons.set(cls, b);
     }
-    const heroRow = ships.appendChild(el('div', { class: 'row heroes', 'aria-label': 'Héros' }));
+    const heroRow = shipList.appendChild(el('div', { class: 'row heroes', 'aria-label': 'Héros' }));
     for (const h of heroesOf(this.player)) {
       const power = ABILITIES[h.ability];
       const b = heroRow.appendChild(el('button', { title: `${h.description} ${power.name} : ${power.description}` }, `<span>${h.name}, ${h.title.toLowerCase()}</span><small></small>`));
@@ -276,9 +277,10 @@ export class Hud {
     });
 
     const buildings = addTab('buildings', 'Bâtiments');
-    this.upgradeButton = buildings.appendChild(el('button', { class: 'wide' }));
+    const buildingList = scroll(buildings);
+    this.upgradeButton = buildingList.appendChild(el('button', { class: 'wide' }));
     this.upgradeButton.onclick = () => this.report(enqueueUpgrade(this.world, this.player));
-    const structureRow = buildings.appendChild(el('div', { class: 'row' }));
+    const structureRow = buildingList.appendChild(el('div', { class: 'row' }));
     for (const type of BUILDABLE_TYPES) {
       const b = structureRow.appendChild(el('button', {}, `<span>${BUILDABLES[type].name}</span><small></small>`));
       b.onclick = () => this.scene.controls.setMode({ kind: 'place', type });
@@ -291,7 +293,7 @@ export class Hud {
     });
 
     const research = addTab('research', 'Recherche');
-    const techRow = research.appendChild(el('div', { class: 'row' }));
+    const techRow = scroll(research).appendChild(el('div', { class: 'row' }));
     for (const tech of TECH_IDS) {
       const b = techRow.appendChild(el('button', {}, '<span></span><small></small>'));
       b.onclick = () => this.report(startResearch(this.world, this.player, tech));
@@ -477,6 +479,13 @@ export class Hud {
   update(delta: number): void {
     this.placeTip();
     this.timer -= delta;
+    // A new selection shows at once, not at the next refresh.
+    const sel = this.scene.selected;
+    const sig = `${sel.size}:${sel.values().next().value ?? ''}`;
+    if (sig !== this.selectionSig) {
+      this.selectionSig = sig;
+      this.timer = 0;
+    }
     if (this.timer > 0) return;
     this.timer = REFRESH_MS;
     this.refresh();
@@ -502,7 +511,7 @@ export class Hud {
     const own = e.faction === this.player;
     const lines = [`<strong>${entityName(e)}</strong> <span class="muted">${FACTIONS[e.faction].name}${own ? '' : ', ennemi'}</span>`];
     lines.push(`Coque ${Math.ceil(e.hull)} / ${Math.round(e.maxHull)}${e.maxShield > 0 ? `, bouclier ${Math.ceil(e.shield)} / ${Math.round(e.maxShield)}` : ''}`);
-    if (e.build < 1) lines.push(`En construction : ${pct(e.build)}`);
+    if (e.build < 1) lines.push(`En construction : ${percent(e.build)}`);
     const a = e.ability;
     if (a) lines.push(`${ABILITIES[a.id].name} : ${a.active > 0 ? 'active' : a.cooldown > 0 ? `recharge ${Math.ceil(a.cooldown)} s` : 'prête'}`);
     if (own && e.kind === 'ship') lines.push(`<span class="muted">${e.order ? { move: 'En route', attackMove: 'Attaque-mouvement', attack: 'Attaque' }[e.order.type] : e.targetId != null ? 'Au combat' : 'Inactif'}</span>`);
@@ -620,10 +629,10 @@ export class Hud {
     if (e.maxShield > 0) {
       lines.push(`Bouclier ${Math.floor(e.shield)} / ${Math.round(e.maxShield)}<div class="bar"><i style="width:${pct(e.shield / e.maxShield)};background:var(--shield)"></i></div>`);
     }
-    if (e.build < 1) lines.push(`En construction : ${pct(e.build)}`);
+    if (e.build < 1) lines.push(`<div>En construction : ${percent(e.build)}</div>`);
     if (e.type === 'station') {
-      lines.push(`Niveau ${e.level}, ${childrenOf(this.world, e.id).length} points d'attache`);
-      if (own) lines.push('<span class="muted">Clic droit : point de ralliement</span>');
+      lines.push(`<div>Niveau ${e.level}, ${childrenOf(this.world, e.id).length} points d'attache</div>`);
+      if (own) lines.push('<div class="muted">Clic droit : point de ralliement</div>');
     }
     if (e.hero) lines.splice(1, 0, `<div class="muted">${HEROES[e.hero].title}, ${HEROES[e.hero].description}</div>`);
     const tiers = e.kind === 'structure' ? BUILDABLES[e.type as BuildableType]?.tiers : undefined;
@@ -635,8 +644,8 @@ export class Hud {
         lines.push(`<div><button data-tier="${e.id}"${r.ok ? '' : ` disabled title="${r.reason}"`}>${label}</button>${r.ok ? '' : `<br><span class="muted">${r.reason}</span>`}</div>`);
       }
     }
-    if (e.hangar) lines.push(`Appareils lancés : ${e.hangar.launched.length} / ${e.hangar.def.cap}`);
-    if (e.income > 0) lines.push(`Revenu : +${e.income} cr/s`);
+    if (e.hangar) lines.push(`<div>Appareils lancés : ${e.hangar.launched.length} / ${e.hangar.def.cap}</div>`);
+    if (e.income > 0) lines.push(`<div>Revenu : +${e.income} cr/s</div>`);
     if (e.kind === 'hardpoint' && e.parentId != null) {
       const parent = this.world.entities.get(e.parentId);
       if (parent) lines.push(`<span class="muted">Sur : ${entityName(parent)}</span>`);
@@ -744,6 +753,7 @@ export class Hud {
       '<button data-act="options">Options</button><button data-act="help">Commandes</button>' +
       (campaign ? '' : '<button data-act="restart">Recommencer</button><button data-act="menu">Menu principal</button>') +
       (retreat ? '<button data-act="retreat">Retraite</button>' : '') +
+      (campaign ? '<button data-act="delegate" title="La bataille continue seule ; tu retrouves la carte galactique">Laisser l\'IA finir</button>' : '') +
       '</div>');
     const back = () => this.pauseMenu();
     p.addEventListener('click', (ev) => {
@@ -754,6 +764,7 @@ export class Hud {
       if (act === 'restart') this.confirm('Recommencer ?', 'La bataille repart du début, sur la même carte.', 'Recommencer', () => this.scene.restart(), back);
       if (act === 'menu') this.confirm('Quitter la partie ?', 'La bataille en cours sera perdue.', 'Quitter', () => this.scene.toMenu(), back);
       if (act === 'retreat') this.scene.retreat();
+      if (act === 'delegate') this.scene.delegate();
     });
     this.openModal(p, () => {
       if (!this.menuPaused) return;

@@ -192,3 +192,10 @@ export const BUILDABLES: Record<BuildableType, BuildableDef> = {
 export const BUILDABLE_TYPES = Object.keys(BUILDABLES) as BuildableType[];
 
 export const MAX_QUEUE = 8;
+
+/**
+ * A station's lost parts come back on their own: none could ever build ships again after
+ * losing its shipyard otherwise. Seconds to rebuild one, counted only once the station has
+ * gone this long without being hit.
+ */
+export const REBUILD = { time: 90, quiet: 20 };

@@ -53,7 +53,12 @@ export function pickAt(world: World, x: number, y: number, slop: number, viewer?
   return best;
 }
 
-export function spawnAt(world: World, faction: FactionId, what: SpawnWhat, x: number, y: number): void {
+/** Sandbox spawns stop here: past it, the game would crawl. */
+export const MAX_ENTITIES = 2500;
+
+/** Places a unit or structure for the sandbox; false when the battle is already full. */
+export function spawnAt(world: World, faction: FactionId, what: SpawnWhat, x: number, y: number): boolean {
+  if (world.entities.size >= MAX_ENTITIES) return false;
   if (!world.factions.has(faction)) addFaction(world, faction, 0);
   if (what === 'station') {
     if (!stationOf(world, faction)) spawnStation(world, faction, x, y);
@@ -71,6 +76,7 @@ export function spawnAt(world: World, faction: FactionId, what: SpawnWhat, x: nu
       e.fieldId = field.id;
     }
   }
+  return true;
 }
 
 export class SelectionController {
@@ -184,7 +190,7 @@ export class SelectionController {
       const used = this.aimAbility(m.id, { x: w.x, y: w.y, id: t && t.faction !== this.player ? t.id : undefined });
       if (used && !shift) this.setMode({ kind: 'select' });
     } else if (m.kind === 'spawn') {
-      spawnAt(this.world, m.faction, m.what, w.x, w.y);
+      if (!spawnAt(this.world, m.faction, m.what, w.x, w.y)) this.scene.hud.toast(`Limite de ${MAX_ENTITIES} éléments atteinte`);
     } else {
       this.box = { x0: w.x, y0: w.y, x1: w.x, y1: w.y };
       dragging(true);
@@ -542,6 +548,9 @@ export class SelectionController {
    */
   update(delta: number): void {
     this.easeZoom(delta);
+    // Its casters gone (destroyed, deselected), an ability has nothing left to aim with.
+    const m = this.mode;
+    if (m.kind === 'ability' && !this.ownShips().some((s) => s.ability?.id === m.id)) this.setMode({ kind: 'select' });
     if (this.pilotId != null) return this.updatePilot();
     const cam = this.scene.cameras.main;
     const p = this.scene.input.activePointer;

@@ -55,7 +55,7 @@ export function damageMult(world: World, e: Entity): number {
   if (isActive(world, e, 'broadside')) m *= 2;
   // Out of hiding, the first blows hit hard.
   if (isActive(world, e, 'cloak')) m *= 2;
-  const owner = e.kind === 'hardpoint' && e.parentId != null ? world.entities.get(e.parentId) ?? e : e;
+  const owner = ownerOf(world, e);
   if (owner.hero) m *= HEROES[owner.hero].damage;
   if (inCommandAura(world, owner)) m *= 1.15;
   return m;

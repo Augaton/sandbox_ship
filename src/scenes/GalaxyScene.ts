@@ -5,7 +5,7 @@ import { opaqueSize } from '../render/opaque';
 import { backdrop, planetKey, type Manifest } from '../render/sprites';
 import { countShips, type BattleResult } from '../sim/battle';
 import {
-  chooseBattle, concludeBattle, createGalaxy, findPath, fleetVisible, fleetsAt, sendFleet, visiblePlanets,
+  chooseBattle, concludeBattle, createGalaxy, delegateBattle, findPath, fleetVisible, fleetsAt, sendFleet, visiblePlanets,
   type Galaxy, type Planet,
 } from '../sim/galaxy';
 import { CLASSIC, generateLayout } from '../sim/galaxyGen';
@@ -25,6 +25,8 @@ const NEUTRAL = 0x6b7588;
 const ACCENT = 0xe8a13a;
 /** Planet tints, so that the placeholder planets do not all look alike. */
 const AUTOSAVE_MS = 20000;
+/** Time the galaxy may take per frame, in milliseconds. */
+const STEP_BUDGET_MS = 12;
 const TINTS = [0xffffff, 0xffd2a8, 0xc8f0c8, 0xffc0c0, 0xd8ccff, 0xfff0b0];
 
 export class GalaxyScene extends Phaser.Scene {
@@ -46,7 +48,6 @@ export class GalaxyScene extends Phaser.Scene {
   private labels: Phaser.GameObjects.Text[] = [];
   private stars: Phaser.GameObjects.TileSprite[] = [];
   private view = { s: 1, ox: 0, oy: 0 };
-  private prompted = new Set<number>();
   private ended = false;
   /** Milliseconds since the last autosave. */
   private saveTimer = 0;
@@ -67,7 +68,6 @@ export class GalaxyScene extends Phaser.Scene {
     this.speed = 1;
     this.paused = false;
     this.acc = 0;
-    this.prompted = new Set();
     this.ended = false;
     this.labels = [];
 
@@ -232,6 +232,12 @@ export class GalaxyScene extends Phaser.Scene {
     chooseBattle(this.galaxy, battleId, 'auto');
   }
 
+  /** The player left a battle they were commanding: it plays on by itself. */
+  delegateBattle(battleId: number): void {
+    delegateBattle(this.galaxy, battleId);
+    this.save();
+  }
+
   /** Called by the battle view when a tactical battle ends. */
   finishBattle(battleId: number, result: BattleResult): void {
     concludeBattle(this.galaxy, battleId, result);
@@ -242,18 +248,26 @@ export class GalaxyScene extends Phaser.Scene {
     const g = this.galaxy;
     if (!this.paused) {
       this.acc += Math.min(delta / 1000, 0.25) * this.speed;
-      while (this.acc >= GALAXY_STEP) {
+      // A big battle resolving on its own can make a step slow: past the budget, the rest
+      // carries over to the next frames rather than freezing this one.
+      const deadline = performance.now() + STEP_BUDGET_MS;
+      while (this.acc >= GALAXY_STEP && performance.now() < deadline) {
         stepGalaxy(g);
         this.acc -= GALAXY_STEP;
       }
+      this.acc = Math.min(this.acc, 1);
     }
     for (const ev of g.events) this.hud.onEvent(ev);
     g.events.length = 0;
-    const pending = g.battles.find((b) => b.status === 'pending' && !this.prompted.has(b.id));
-    if (pending) {
-      this.prompted.add(pending.id);
-      this.hud.promptBattle(pending);
+    // A battle commanded from a view that is no longer running has nobody to finish it.
+    if (!this.game.scene.isActive('battle')) {
+      for (const b of g.battles) if (b.status === 'tactical') b.status = 'pending';
     }
+    // A battle waiting for the player is asked about whenever no other dialog is open: a
+    // prompt pushed aside (by the help, or by a second battle at once) comes back, rather
+    // than leaving the galaxy waiting forever.
+    const pending = g.battles.find((b) => b.status === 'pending');
+    if (pending && !g.winner && !this.hud.dialogOpen()) this.hud.promptBattle(pending);
     if (g.winner && !this.ended) {
       this.ended = true;
       this.hud.showEnd(g.winner === this.opts.player);
