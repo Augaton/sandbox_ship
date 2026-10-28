@@ -2,8 +2,11 @@ import { GALAXY_RULES } from '../data/galaxy';
 import { STATION } from '../data/structures';
 import { SHIPS, SHIP_CLASSES, type FactionId, type ShipClass } from '../data/units';
 import { countShips, fleetValue } from './battle';
+import { heroesOf } from '../data/heroes';
+import type { TechId } from '../data/research';
 import {
-  canBuild, defenseValue, enqueueBuild, fleetsAt, galaxyRand, neighbours, sendFleet,
+  canBuild, canResearchTech, defenseValue, enqueueBuild, fleetsAt, galaxyRand, neighbours, sendFleet, startTech,
+  visiblePlanets,
   type Fleet, type Galaxy, type GalaxyBuild, type Planet,
 } from './galaxy';
 
@@ -16,8 +19,9 @@ const SHIP_WEIGHTS: Partial<Record<ShipClass, number>> = {
 /** Hops from each planet to the nearest planet held by another faction or with an enemy fleet on it. */
 function hopsToEnemy(g: Galaxy, faction: FactionId): Map<number, number> {
   const hops = new Map<number, number>();
+  const seen = visiblePlanets(g, faction);
   let frontier = g.planets
-    .filter((p) => (p.owner && p.owner !== faction) || fleetsAt(g, p.id).some((f) => f.faction !== faction))
+    .filter((p) => (p.owner && p.owner !== faction) || (seen.has(p.id) && fleetsAt(g, p.id).some((f) => f.faction !== faction)))
     .map((p) => p.id);
   for (const id of frontier) hops.set(id, 0);
   for (let d = 1; frontier.length > 0; d++) {
@@ -34,11 +38,12 @@ function hopsToEnemy(g: Galaxy, faction: FactionId): Map<number, number> {
   return hops;
 }
 
-/** Strength an attacker would meet at a planet. */
+/** Strength an attacker would meet at a planet, as far as the faction can see. */
 function threat(g: Galaxy, planet: Planet, faction: FactionId): number {
+  if (!visiblePlanets(g, faction).has(planet.id)) return 0;
   const owned = planet.owner && planet.owner !== faction ? defenseValue(g, planet) : 0;
   const fleets = fleetsAt(g, planet.id).filter((f) => f.faction !== faction && f.faction !== planet.owner);
-  return owned + fleets.reduce((v, f) => v + fleetValue(f.ships), 0);
+  return owned + fleets.reduce((v, f) => v + fleetValue(f.ships, f.heroes), 0);
 }
 
 function pickShip(g: Galaxy, planet: Planet): ShipClass | null {
@@ -52,26 +57,48 @@ function pickShip(g: Galaxy, planet: Planet): ShipClass | null {
   return options[0] ?? null;
 }
 
+type Wish = { planet: number; build: GalaxyBuild } | { tech: TechId };
+
+/** Least researched tech, combat techs first. */
+function pickTech(g: Galaxy, faction: FactionId): TechId {
+  const r = g.factions.get(faction)!.research;
+  const order: TechId[] = ['weapons', 'armor', 'shields', 'engines', 'mining', 'hangars'];
+  return [...order].sort((a, b) => r[a] - r[b])[0];
+}
+
 /** Candidate purchases, most wanted first. */
-function wishes(g: Galaxy, faction: FactionId, hops: Map<number, number>): [number, GalaxyBuild][] {
+function wishes(g: Galaxy, faction: FactionId, hops: Map<number, number>): Wish[] {
   const own = g.planets.filter((p) => p.owner === faction);
   const byFront = [...own].sort((a, b) => (hops.get(a.id) ?? 99) - (hops.get(b.id) ?? 99));
-  const out: [number, GalaxyBuild][] = [];
-  for (const p of [...own].sort((a, b) => b.income - a.income)) out.push([p.id, { kind: 'mine' }]);
+  const at = (p: Planet, build: GalaxyBuild): Wish => ({ planet: p.id, build });
+  const out: Wish[] = [...own].sort((a, b) => b.income - a.income).map((p) => at(p, { kind: 'mine' }));
 
-  const infra: [number, GalaxyBuild][] = [];
+  const infra: Wish[] = [];
   const capital = [...own].sort((a, b) => b.station - a.station)[0];
-  if (capital && capital.station < STATION.levels.length) infra.push([capital.id, { kind: 'station' }]);
+  if (capital && capital.station < STATION.levels.length) infra.push(at(capital, { kind: 'station' }));
   const stations = own.filter((p) => p.station > 0).length;
   const staging = byFront.find((p) => p.station === 0 && p.income >= 3);
-  if (staging && stations < 1 + own.length / 3) infra.push([staging.id, { kind: 'station' }]);
-  for (const p of byFront) if (p.station > 0 && (hops.get(p.id) ?? 99) <= 1) infra.push([p.id, { kind: 'platform' }]);
+  if (staging && stations < 1 + own.length / 3) infra.push(at(staging, { kind: 'station' }));
+  // Research: a lab in the rear once the empire grows, then one tech after another.
+  const rear = byFront.at(-1);
+  if (rear && own.length >= 3 && !own.some((p) => p.lab > 0)) infra.push(at(rear, { kind: 'lab' }));
+  if (own.some((p) => p.lab > 0)) infra.push({ tech: pickTech(g, faction) });
+  for (const p of byFront) {
+    if (p.station === 0 || (hops.get(p.id) ?? 99) > 1) continue;
+    infra.push(at(p, { kind: 'platform' }), at(p, { kind: 'repairDock' }), at(p, { kind: 'ionCannon' }));
+  }
 
-  const ships: [number, GalaxyBuild][] = [];
-  const yard = byFront.find((p) => p.station > 0 && p.queue.length < 2);
+  const ships: Wish[] = [];
+  const yard = byFront.find((p) => p.station > 0 && p.units.length < 2);
   const ai = g.factions.get(faction)!.ai!;
   if (yard) ai.want ??= pickShip(g, yard);
-  if (yard && ai.want) ships.push([yard.id, { kind: 'ship', cls: ai.want }]);
+  if (yard && ai.want) ships.push(at(yard, { kind: 'ship', cls: ai.want }));
+  // Heroes now and then, at the front shipyard.
+  const hero = yard && heroesOf(faction).find((h) => {
+    const r = canBuild(g, faction, yard.id, { kind: 'hero', hero: h.id });
+    return r.ok || r.reason === 'Crédits insuffisants';
+  });
+  if (yard && hero && galaxyRand(g) < 0.15) ships.unshift(at(yard, { kind: 'hero', hero: hero.id }));
 
   // Alternate between growing the fleet and the infrastructure.
   return Math.floor(g.time / 20) % 2 === 0 ? [...out, ...ships, ...infra] : [...out, ...infra, ...ships];
@@ -79,11 +106,12 @@ function wishes(g: Galaxy, faction: FactionId, hops: Map<number, number>): [numb
 
 /** Buys the first wish it can; stops to save up when the wish is only too expensive. */
 function spend(g: Galaxy, faction: FactionId, hops: Map<number, number>): void {
-  for (const [planetId, build] of wishes(g, faction, hops)) {
-    const r = canBuild(g, faction, planetId, build);
+  for (const wish of wishes(g, faction, hops)) {
+    const r = 'tech' in wish ? canResearchTech(g, faction, wish.tech) : canBuild(g, faction, wish.planet, wish.build);
     if (r.ok) {
-      enqueueBuild(g, faction, planetId, build);
-      if (build.kind === 'ship') g.factions.get(faction)!.ai!.want = null;
+      if ('tech' in wish) startTech(g, faction, wish.tech);
+      else enqueueBuild(g, faction, wish.planet, wish.build);
+      if ('build' in wish && wish.build.kind === 'ship') g.factions.get(faction)!.ai!.want = null;
       return;
     }
     if (r.reason === 'Crédits insuffisants') return;
@@ -107,7 +135,7 @@ function command(g: Galaxy, faction: FactionId, hops: Map<number, number>): void
   for (const fleet of [...g.fleets.values()]) {
     if (fleet.faction !== faction || fleet.at == null || fleet.battleId != null) continue;
     const near = neighbours(g, fleet.at).map((id) => g.planets[id]);
-    const value = fleetValue(fleet.ships);
+    const value = fleetValue(fleet.ships, fleet.heroes);
 
     // Defend first: an own planet with enemies on it.
     const rescue = near.find((p) => p.owner === faction && threat(g, p, faction) > 0 && value >= threat(g, p, faction) * 1.2);

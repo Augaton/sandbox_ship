@@ -16,5 +16,5 @@ export function showStartMenu(game: Phaser.Game): void {
       game.scene.start('background');
       game.scene.start('battle', choice);
     }
-  }, Object.keys(manifest).length);
+  }, manifest);
 }

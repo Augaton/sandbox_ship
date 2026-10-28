@@ -1,19 +1,31 @@
 // HTML overlay above the game canvas. It reads the simulation and calls its commands;
 // it never changes simulation state on its own.
 import './hud.css';
-import { FACTIONS, FACTION_IDS, SHIPS, SHIP_CLASSES, type FactionId, type ShipClass } from '../data/units';
+import { ABILITIES, type AbilityId } from '../data/abilities';
+import { HEROES, heroesOf, type HeroId } from '../data/heroes';
+import { MAX_TECH_LEVEL, TECHS, TECH_IDS, type TechId } from '../data/research';
+import { FACTIONS, FACTION_IDS, SHIPS, SHIP_CLASSES, shipCost, type FactionId, type ShipClass } from '../data/units';
 import { BUILDABLES, BUILDABLE_TYPES, HARDPOINTS, STATION, type BuildableType } from '../data/structures';
 import type { SpawnWhat } from '../input/selection';
 import type { BattleScene } from '../scenes/BattleScene';
-import { canBuildShip, canUpgrade, cancelQueued, enqueueShip, enqueueUpgrade } from '../sim/structures';
-import { childrenOf, newAI, stationOf, type Entity, type Result } from '../sim/world';
+import {
+  canBuildHero, canBuildShip, canResearch, canUpgrade, canUpgradeStructure, cancelConstruction, cancelQueued, cancelResearch,
+  enqueueHero, enqueueShip, enqueueUpgrade, startResearch, upgradeStructure,
+} from '../sim/structures';
+import { childrenOf, newAI, stationOf, type Entity, type QueueItem, type Result } from '../sim/world';
+import { isVisible, wasSeen } from '../sim/vision';
 import { el, hex, pct, shortReason, toast } from './dom';
+import { emblemUrl } from './logos';
+import { optionsPanel } from './options';
+
+type Tab = 'ships' | 'buildings' | 'research';
 
 const REFRESH_MS = 100;
 const SHIPYARD_CLASSES = SHIP_CLASSES.filter((c) => SHIPS[c].source === 'shipyard');
 const SPEEDS = [0.5, 1, 2, 4];
 
 export function entityName(e: Entity): string {
+  if (e.hero) return HEROES[e.hero].name;
   if (e.kind === 'ship') return SHIPS[e.type as ShipClass].name;
   if (e.kind === 'hardpoint') return HARDPOINTS[e.type as keyof typeof HARDPOINTS].name;
   return e.type === 'station' ? STATION.name : BUILDABLES[e.type as BuildableType].name;
@@ -24,7 +36,14 @@ export class Hud {
   private credits!: HTMLElement;
   private level!: HTMLElement;
   private selection!: HTMLElement;
-  private queue: HTMLElement | null = null;
+  private unitsQueue: HTMLElement | null = null;
+  private buildingsQueue: HTMLElement | null = null;
+  private researchStatus: HTMLElement | null = null;
+  private tabs = new Map<Tab, { button: HTMLButtonElement; body: HTMLElement }>();
+  private techButtons = new Map<TechId, HTMLButtonElement>();
+  private heroButtons = new Map<HeroId, HTMLButtonElement>();
+  /** Last rendered signature of each list. */
+  private lists = new Map<HTMLElement, string>();
   private minimap!: HTMLCanvasElement;
   private toasts!: HTMLElement;
   private sandboxPanel: HTMLElement | null = null;
@@ -32,10 +51,9 @@ export class Hud {
   private structureButtons = new Map<BuildableType, HTMLButtonElement>();
   private upgradeButton: HTMLButtonElement | null = null;
   private modal: HTMLElement | null = null;
+  private pilotBanner!: HTMLElement;
   private timer = 0;
   private lastSelection = '';
-  /** Signature of the rendered queue; null forces the first render. */
-  private lastQueue: string | null = null;
 
   /**
    * `campaign` is the planet fought over in a campaign battle: no building, no sandbox,
@@ -46,6 +64,8 @@ export class Hud {
     this.buildBottombar();
     if (!mode.campaign) this.buildSandbox(mode.sandbox);
     this.toasts = this.root.appendChild(el('div', { class: 'toasts', role: 'status', 'aria-live': 'polite' }));
+    this.pilotBanner = this.root.appendChild(el('div', { class: 'pilot-banner panel', role: 'status' }));
+    this.pilotBanner.hidden = true;
     document.body.appendChild(this.root);
     // A clicked button keeps focus, and Space or Enter would press it again: give focus back.
     this.root.addEventListener('click', (ev) => {
@@ -70,7 +90,8 @@ export class Hud {
   private buildTopbar(): void {
     const f = FACTIONS[this.player];
     const bar = this.root.appendChild(el('div', { class: 'topbar panel' }));
-    bar.append(el('span', { class: 'faction' }, `<span class="swatch" style="background:${hex(f.color)}"></span>${f.name}`));
+    bar.append(el('span', { class: 'faction', title: `${f.trait.name} : ${f.trait.description}` },
+      `<img class="emblem" src="${emblemUrl(this.player, 2)}" alt="">${f.name}`));
     this.credits = bar.appendChild(el('span', { class: 'credits' }));
     this.level = bar.appendChild(el('span', { class: 'muted' }));
     bar.append(el('span', { class: 'spacer' }));
@@ -85,6 +106,7 @@ export class Hud {
     if (this.mode.campaign) {
       this.credits.textContent = `Bataille de ${this.mode.campaign}`;
       group.appendChild(el('button', {}, 'Aide')).onclick = () => this.showHelp();
+      group.appendChild(el('button', {}, 'Options')).onclick = () => this.showOptions();
       if (this.scene.opts.campaign?.attacker === this.player) {
         group.appendChild(el('button', { title: 'Les survivants regagnent la planète d\'où ils venaient' }, 'Retraite')).onclick = () => this.scene.retreat();
       }
@@ -96,14 +118,25 @@ export class Hud {
       this.refreshModes();
     };
     group.appendChild(el('button', {}, 'Aide')).onclick = () => this.showHelp();
-    group.appendChild(el('button', {}, 'Menu')).onclick = () => this.scene.toMenu();
+    group.appendChild(el('button', {}, 'Options')).onclick = () => this.showOptions();
+    group.appendChild(el('button', {}, 'Menu')).onclick = () =>
+      this.confirm('Quitter la partie ?', 'La bataille en cours sera perdue.', 'Quitter', () => this.scene.toMenu());
   }
 
   private buildBottombar(): void {
     const bar = this.root.appendChild(el('div', { class: 'bottombar' }));
     this.selection = bar.appendChild(el('section', { class: 'selection panel', 'aria-label': 'Sélection' }));
+    // Ability buttons react on press: the panel redraws every second with their cooldown.
+    this.selection.addEventListener('pointerdown', (ev) => {
+      const id = (ev.target as HTMLElement).closest('button')?.dataset.ability;
+      if (id) this.scene.controls.useAbilities(id as AbilityId);
+    });
     this.selection.addEventListener('click', (ev) => {
-      const type = (ev.target as HTMLElement).closest('button')?.dataset.type;
+      const b = (ev.target as HTMLElement).closest('button');
+      if (b?.dataset.ability && ev.detail === 0) return this.scene.controls.useAbilities(b.dataset.ability as AbilityId);
+      if (b?.dataset.act === 'pilot') return this.scene.controls.togglePilot();
+      if (b?.dataset.tier) return this.report(upgradeStructure(this.world, this.player, Number(b.dataset.tier)));
+      const type = b?.dataset.type;
       if (!type) return;
       for (const id of [...this.scene.selected]) {
         if (this.world.entities.get(id)?.type !== type) this.scene.selected.delete(id);
@@ -130,28 +163,143 @@ export class Hud {
   }
 
   private buildProduction(bar: HTMLElement): void {
-    const build = bar.appendChild(el('section', { class: 'build panel', 'aria-label': 'Construction' }));
-    const head = build.appendChild(el('div', { class: 'head' }));
-    head.append(el('h3', {}, 'Chantier naval'));
-    this.upgradeButton = head.appendChild(el('button'));
-    this.upgradeButton.onclick = () => this.report(enqueueUpgrade(this.world, this.player));
-    const ships = build.appendChild(el('div', { class: 'row' }));
+    const build = bar.appendChild(el('section', { class: 'build panel', 'aria-label': 'Production' }));
+    const tabs = build.appendChild(el('div', { class: 'tabs', role: 'tablist' }));
+    const addTab = (id: Tab, label: string): HTMLElement => {
+      const button = tabs.appendChild(el('button', { role: 'tab', 'data-tab': id }, label));
+      const body = build.appendChild(el('div', { class: 'tab-body', role: 'tabpanel', 'aria-label': label }));
+      button.onclick = () => this.showTab(id);
+      this.tabs.set(id, { button, body });
+      return body;
+    };
+
+    const ships = addTab('ships', 'Vaisseaux');
+    const shipRow = ships.appendChild(el('div', { class: 'row' }));
     for (const cls of SHIPYARD_CLASSES) {
-      const b = ships.appendChild(el('button', {}, `<span>${SHIPS[cls].name}</span><small></small>`));
+      const b = shipRow.appendChild(el('button', {}, `<span>${SHIPS[cls].name}</span><small></small>`));
       b.onclick = () => this.report(enqueueShip(this.world, this.player, cls));
       this.shipButtons.set(cls, b);
     }
-    const structures = build.appendChild(el('div', { class: 'row', 'aria-label': 'Structures' }));
+    const heroRow = ships.appendChild(el('div', { class: 'row heroes', 'aria-label': 'Héros' }));
+    for (const h of heroesOf(this.player)) {
+      const b = heroRow.appendChild(el('button', { title: h.description }, `<span>${h.name}, ${h.title.toLowerCase()}</span><small></small>`));
+      b.onclick = () => this.report(enqueueHero(this.world, this.player, h.id));
+      this.heroButtons.set(h.id, b);
+    }
+    this.unitsQueue = ships.appendChild(el('div', { class: 'queue', 'aria-label': 'File des vaisseaux' }));
+    this.unitsQueue.addEventListener('click', (ev) => {
+      const i = (ev.target as HTMLElement).closest('button')?.dataset.index;
+      if (i != null) cancelQueued(this.world, this.player, Number(i), 'units');
+    });
+
+    const buildings = addTab('buildings', 'Bâtiments');
+    this.upgradeButton = buildings.appendChild(el('button', { class: 'wide' }));
+    this.upgradeButton.onclick = () => this.report(enqueueUpgrade(this.world, this.player));
+    const structureRow = buildings.appendChild(el('div', { class: 'row' }));
     for (const type of BUILDABLE_TYPES) {
-      const b = structures.appendChild(el('button', {}, `<span>${BUILDABLES[type].name}</span><small></small>`));
+      const b = structureRow.appendChild(el('button', {}, `<span>${BUILDABLES[type].name}</span><small></small>`));
       b.onclick = () => this.scene.controls.setMode({ kind: 'place', type });
       this.structureButtons.set(type, b);
     }
-    this.queue = build.appendChild(el('div', { class: 'queue', 'aria-label': "File d'attente" }));
-    this.queue.addEventListener('click', (ev) => {
-      const i = (ev.target as HTMLElement).closest('button')?.dataset.index;
-      if (i != null) cancelQueued(this.world, this.player, Number(i));
+    this.buildingsQueue = buildings.appendChild(el('div', { class: 'queue', 'aria-label': 'File des bâtiments' }));
+    this.buildingsQueue.addEventListener('click', (ev) => {
+      const b = (ev.target as HTMLElement).closest('button');
+      if (b?.dataset.index != null) cancelQueued(this.world, this.player, Number(b.dataset.index), 'buildings');
+      if (b?.dataset.site != null) cancelConstruction(this.world, this.player, Number(b.dataset.site));
     });
+
+    const research = addTab('research', 'Recherche');
+    const techRow = research.appendChild(el('div', { class: 'row' }));
+    for (const tech of TECH_IDS) {
+      const b = techRow.appendChild(el('button', {}, '<span></span><small></small>'));
+      b.onclick = () => this.report(startResearch(this.world, this.player, tech));
+      this.techButtons.set(tech, b);
+    }
+    this.researchStatus = research.appendChild(el('div', { class: 'queue', 'aria-label': 'Recherche en cours' }));
+    this.researchStatus.addEventListener('click', (ev) => {
+      if ((ev.target as HTMLElement).closest('button')?.dataset.act === 'cancel-research') cancelResearch(this.world, this.player);
+    });
+    this.showTab('ships');
+  }
+
+  private showTab(id: Tab): void {
+    for (const [key, t] of this.tabs) {
+      t.button.setAttribute('aria-selected', String(key === id));
+      t.body.hidden = key !== id;
+    }
+  }
+
+  /** Re-renders a queue only when its items change, so that its buttons stay clickable. */
+  private renderList(target: HTMLElement, items: { label: string; attr: string; progress: number }[], empty: string): void {
+    const sig = items.map((i) => i.attr + i.label).join('|');
+    if (this.lists.get(target) !== sig) {
+      this.lists.set(target, sig);
+      target.innerHTML = items.length === 0
+        ? `<span class="muted">${empty}</span>`
+        : '<span class="muted">File (clic : annuler)</span>' + items.map((i) =>
+          `<button ${i.attr} aria-label="Annuler ${i.label}">${i.label}<span class="progress"></span></button>`).join('');
+    }
+    target.querySelectorAll<HTMLElement>('.progress').forEach((bar, k) => (bar.style.width = pct(items[k]?.progress ?? 0)));
+  }
+
+  private refreshProduction(): void {
+    const w = this.world;
+    const f = w.factions.get(this.player)!;
+    const station = stationOf(w, this.player);
+    for (const [cls, b] of this.shipButtons) {
+      this.setButton(b, canBuildShip(w, this.player, cls), `${shipCost(cls, this.player)} cr, ${SHIPS[cls].buildTime} s`);
+    }
+    for (const [type, b] of this.structureButtons) {
+      const def = BUILDABLES[type];
+      const r: Result =
+        !station ? { ok: false, reason: 'Aucune station' }
+        : station.level < def.minStationLevel ? { ok: false, reason: `Station niveau ${def.minStationLevel} requise` }
+        : f.credits < def.cost ? { ok: false, reason: 'Crédits insuffisants' }
+        : { ok: true };
+      this.setButton(b, r, `${def.cost} cr, ${def.buildTime} s`);
+    }
+    const next = station && STATION.levels[station.level];
+    const up = canUpgrade(w, this.player);
+    this.upgradeButton!.disabled = !up.ok;
+    this.upgradeButton!.textContent = next
+      ? `Améliorer la station au niveau ${station.level + 1} (${next.upgradeCost} cr)${up.ok ? '' : ` : ${up.reason}`}`
+      : 'Station au niveau maximum';
+    for (const [tech, b] of this.techButtons) {
+      const level = f.research[tech];
+      b.querySelector('span')!.textContent = `${TECHS[tech].name} ${level}/${MAX_TECH_LEVEL}`;
+      const detail = level < MAX_TECH_LEVEL ? `${TECHS[tech].costs[level]} cr, ${TECHS[tech].times[level]} s` : 'Terminé';
+      this.setButton(b, canResearch(w, this.player, tech), detail);
+      b.title = `${TECHS[tech].effect}. ${b.title}`;
+    }
+
+    for (const [id, b] of this.heroButtons) {
+      this.setButton(b, canBuildHero(w, this.player, id), `${HEROES[id].cost} cr, ${HEROES[id].buildTime} s`);
+    }
+    this.renderList(this.unitsQueue!, f.queue.map((q, i) => ({
+      label: q.kind === 'ship' ? SHIPS[q.cls].name : q.kind === 'hero' ? HEROES[q.hero].name : '',
+      attr: `data-index="${i}"`, progress: i === 0 ? 1 - q.remaining / q.total : 0,
+    })), 'File vide : choisis un vaisseau ci-dessus.');
+    const sites = [...w.entities.values()].filter((e) => e.faction === this.player && e.kind === 'structure' && e.build < 1);
+    const workName = (q: QueueItem): string => {
+      if (q.kind !== 'tier') return 'Amélioration de la station';
+      const target = w.entities.get(q.id);
+      return target ? `${entityName(target)} niveau ${target.level + 1}` : 'Amélioration';
+    };
+    this.renderList(this.buildingsQueue!, [
+      ...f.buildQueue.map((q, i) => ({ label: workName(q), attr: `data-index="${i}"`, progress: i === 0 ? 1 - q.remaining / q.total : 0 })),
+      ...sites.map((e) => ({ label: entityName(e), attr: `data-site="${e.id}"`, progress: e.build })),
+    ], 'Rien en construction.');
+    const job = f.researching;
+    const sig = job ? `job:${job.tech}` : 'none';
+    if (this.lists.get(this.researchStatus!) !== sig) {
+      this.lists.set(this.researchStatus!, sig);
+      this.researchStatus!.innerHTML = job
+        ? `<span>${TECHS[job.tech].name} niveau ${f.research[job.tech] + 1}</span>` +
+          '<button data-act="cancel-research" aria-label="Annuler la recherche">Annuler<span class="progress"></span></button>'
+        : '<span class="muted">Aucune recherche en cours. Chaque niveau demande une station du même niveau.</span>';
+    }
+    const bar = this.researchStatus!.querySelector<HTMLElement>('.progress');
+    if (bar && job) bar.style.width = pct(1 - job.remaining / job.total);
   }
 
   private buildSandbox(open: boolean): void {
@@ -164,7 +312,8 @@ export class Hud {
     const structures = BUILDABLE_TYPES.map((t) => `<option value="${t}">${BUILDABLES[t].name}</option>`).join('');
     p.append(el('label', {}, `Faction<select name="faction">${factions}</select>`));
     p.append(el('label', {}, `Élément<select name="what"><optgroup label="Vaisseaux">${ships}</optgroup>` +
-      `<optgroup label="Structures">${structures}<option value="station">${STATION.name}</option></optgroup></select>`));
+      `<optgroup label="Structures">${structures}<option value="station">${STATION.name}</option></optgroup>` +
+      '<optgroup label="Héros"><option value="admiral">Amiral</option><option value="ace">As</option><option value="engineer">Ingénieur</option></optgroup></select>'));
     const faction = p.querySelector<HTMLSelectElement>('[name=faction]')!;
     const what = p.querySelector<HTMLSelectElement>('[name=what]')!;
     faction.value = this.scene.opts.enemy;
@@ -181,6 +330,10 @@ export class Hud {
     faction.onchange = sync;
     what.onchange = sync;
 
+    const fog = p.appendChild(el('label', { class: 'check' }, '<input type="checkbox" name="fog"> Brouillard de guerre'));
+    const fogBox = fog.querySelector('input')!;
+    fogBox.checked = this.world.fog;
+    fogBox.onchange = () => (this.world.fog = fogBox.checked);
     const ai = p.appendChild(el('label', { class: 'check' }, '<input type="checkbox" name="ai"> IA ennemie active'));
     const box = ai.querySelector('input')!;
     box.checked = !open;
@@ -219,6 +372,12 @@ export class Hud {
 
   /** Reflects speed, pause, sandbox and mode states in the buttons. */
   refreshModes(): void {
+    const piloted = this.scene.controls?.pilotId == null ? undefined : this.world.entities.get(this.scene.controls.pilotId);
+    this.pilotBanner.hidden = !piloted;
+    if (piloted) {
+      this.pilotBanner.innerHTML = `<strong>Pilotage : ${entityName(piloted)}</strong> ` +
+        '<span class="muted">ZQSD (ou WASD) ou flèches : piloter. Clic gauche maintenu : tirer sur la cible marquée. P ou Échap : rendre la main.</span>';
+    }
     for (const b of this.root.querySelectorAll<HTMLButtonElement>('[data-speed]')) {
       const s = Number(b.dataset.speed);
       b.setAttribute('aria-pressed', String(s === 0 ? this.scene.paused : !this.scene.paused && this.scene.speed === s));
@@ -254,27 +413,7 @@ export class Hud {
     this.credits.innerHTML = `Crédits <strong>${Math.floor(f.credits)}</strong> <span class="muted">+${income}/s</span>`;
     this.level.textContent = station ? `Station niveau ${station.level}` : 'Station détruite';
 
-    for (const [cls, b] of this.shipButtons) {
-      const def = SHIPS[cls];
-      this.setButton(b, canBuildShip(w, this.player, cls), `${def.cost} cr, ${def.buildTime} s`);
-    }
-    for (const [type, b] of this.structureButtons) {
-      const def = BUILDABLES[type];
-      const r: Result =
-        !station ? { ok: false, reason: 'Aucune station' }
-        : station.level < def.minStationLevel ? { ok: false, reason: `Station niveau ${def.minStationLevel} requise` }
-        : f.credits < def.cost ? { ok: false, reason: 'Crédits insuffisants' }
-        : { ok: true };
-      this.setButton(b, r, `${def.cost} cr, ${def.buildTime} s`);
-    }
-    const next = station && STATION.levels[station.level];
-    const up = canUpgrade(w, this.player);
-    this.upgradeButton!.disabled = !up.ok;
-    this.upgradeButton!.textContent = next
-      ? `Améliorer la station (${next.upgradeCost} cr)${up.ok ? '' : ` : ${up.reason}`}`
-      : 'Station au niveau maximum';
-
-    this.refreshQueue();
+    this.refreshProduction();
     this.refreshSelection();
     this.drawMinimap();
   }
@@ -283,23 +422,6 @@ export class Hud {
     b.disabled = !r.ok;
     b.querySelector('small')!.textContent = r.ok ? detail : shortReason(r.reason);
     b.title = r.ok ? detail : r.reason;
-  }
-
-  private refreshQueue(): void {
-    if (!this.queue) return;
-    const q = this.world.factions.get(this.player)!.queue;
-    const sig = q.map((i) => (i.kind === 'ship' ? i.cls : 'upgrade')).join(',');
-    if (sig !== this.lastQueue) {
-      this.lastQueue = sig;
-      this.queue.innerHTML = q.length === 0
-        ? '<span class="muted">File vide : choisis un vaisseau ci-dessus.</span>'
-        : '<span class="muted">File (clic : annuler)</span>' + q.map((item, i) => {
-          const name = item.kind === 'ship' ? SHIPS[item.cls].name : 'Amélioration';
-          return `<button data-index="${i}" aria-label="Annuler ${name}">${name}<span class="progress"></span></button>`;
-        }).join('');
-    }
-    const bar = this.queue.querySelector<HTMLElement>('.progress');
-    if (bar && q[0]) bar.style.width = pct(1 - q[0].remaining / q[0].total);
   }
 
   private refreshSelection(): void {
@@ -321,10 +443,29 @@ export class Hud {
         [...counts].map(([type, c]) => `<button data-type="${type}" aria-label="Garder seulement : ${entityName(c.e)}">${c.n}× ${entityName(c.e)}</button>`).join('') +
         '</div>';
     }
+    html += this.abilityButtons(ents);
     if (html !== this.lastSelection) {
       this.lastSelection = html;
       this.selection.innerHTML = html;
     }
+  }
+
+  /** One button per ability among the selected own ships, with its cooldown. */
+  private abilityButtons(ents: Entity[]): string {
+    const byId = new Map<AbilityId, { ready: number; wait: number }>();
+    for (const e of ents) {
+      if (e.faction !== this.player || !e.ability) continue;
+      const a = byId.get(e.ability.id) ?? { ready: 0, wait: Infinity };
+      if (e.ability.cooldown === 0) a.ready++;
+      else a.wait = Math.min(a.wait, e.ability.cooldown);
+      byId.set(e.ability.id, a);
+    }
+    if (byId.size === 0) return '';
+    return '<div class="abilities">' + [...byId].map(([id, a]) => {
+      const def = ABILITIES[id];
+      const state = a.ready > 0 ? 'prête' : `${Math.ceil(a.wait)} s`;
+      return `<button data-ability="${id}" title="${def.description}"><span>${def.name} (E)</span><small>${state}</small></button>`;
+    }).join('') + '</div>';
   }
 
   private describe(e: Entity): string {
@@ -332,19 +473,42 @@ export class Hud {
     const lines: string[] = [];
     lines.push(`<div class="title">${entityName(e)}</div>`);
     lines.push(`<div class="muted">${FACTIONS[e.faction].name}${own ? '' : ' (ennemi)'}</div>`);
-    lines.push(`Coque ${Math.ceil(e.hull)} / ${e.maxHull}<div class="bar"><i style="width:${pct(e.hull / e.maxHull)};background:var(--ok)"></i></div>`);
+    lines.push(`Coque ${Math.ceil(e.hull)} / ${Math.round(e.maxHull)}<div class="bar"><i style="width:${pct(e.hull / e.maxHull)};background:var(--ok)"></i></div>`);
     if (e.maxShield > 0) {
-      lines.push(`Bouclier ${Math.floor(e.shield)} / ${e.maxShield}<div class="bar"><i style="width:${pct(e.shield / e.maxShield)};background:var(--shield)"></i></div>`);
+      lines.push(`Bouclier ${Math.floor(e.shield)} / ${Math.round(e.maxShield)}<div class="bar"><i style="width:${pct(e.shield / e.maxShield)};background:var(--shield)"></i></div>`);
     }
     if (e.build < 1) lines.push(`En construction : ${pct(e.build)}`);
     if (e.type === 'station') {
       lines.push(`Niveau ${e.level}, ${childrenOf(this.world, e.id).length} points d'attache`);
       if (own) lines.push('<span class="muted">Clic droit : point de ralliement</span>');
     }
+    if (e.hero) lines.splice(1, 0, `<div class="muted">${HEROES[e.hero].title}, ${HEROES[e.hero].description}</div>`);
+    const tiers = e.kind === 'structure' ? BUILDABLES[e.type as BuildableType]?.tiers : undefined;
+    if (tiers) {
+      lines.push(`<div>Niveau ${e.level} / ${tiers.length + 1}</div>`);
+      if (own && e.level <= tiers.length) {
+        const r = canUpgradeStructure(this.world, this.player, e.id);
+        const label = `Améliorer au niveau ${e.level + 1} (${tiers[e.level - 1].cost} cr)`;
+        lines.push(`<div><button data-tier="${e.id}"${r.ok ? '' : ` disabled title="${r.reason}"`}>${label}</button>${r.ok ? '' : `<br><span class="muted">${r.reason}</span>`}</div>`);
+      }
+    }
     if (e.hangar) lines.push(`Appareils lancés : ${e.hangar.launched.length} / ${e.hangar.def.cap}`);
     if (e.income > 0) lines.push(`Revenu : +${e.income} cr/s`);
+    if (e.kind === 'hardpoint' && e.parentId != null) {
+      const parent = this.world.entities.get(e.parentId);
+      if (parent) lines.push(`<span class="muted">Sur : ${entityName(parent)}</span>`);
+    }
+    const slots = e.kind === 'ship' ? SHIPS[e.type as ShipClass].hardpoints : undefined;
+    if (slots) {
+      const parts = childrenOf(this.world, e.id);
+      const turrets = parts.filter((p) => p.weapons.length > 0).length;
+      const maxTurrets = slots.filter((s) => s.role === 'turret' || s.role === 'heavyTurret').length;
+      lines.push(`<div>Tourelles ${turrets} / ${maxTurrets}, réacteurs ${e.engines} / ${e.maxEngines}</div>`);
+      if (e.shieldGens === 0) lines.push('<div>Générateur de bouclier détruit</div>');
+    }
     if (e.kind === 'ship' && own) {
-      lines.push(`<span class="muted">${e.order ? { move: 'En route', attackMove: 'Attaque-mouvement', attack: 'Attaque' }[e.order.type] : 'En position'}</span>`);
+      lines.push(`<span class="muted">${e.pilot ? 'Piloté' : e.order ? { move: 'En route', attackMove: 'Attaque-mouvement', attack: 'Attaque' }[e.order.type] : 'En position'}</span>`);
+      lines.push('<div><button data-act="pilot">Piloter (P)</button></div>');
     }
     return lines.join('');
   }
@@ -365,6 +529,7 @@ export class Hud {
     }
     for (const e of w.entities.values()) {
       if (e.kind === 'hardpoint') continue;
+      if (!isVisible(w, this.player, e) && !(e.kind === 'structure' && wasSeen(w, this.player, e))) continue;
       ctx.fillStyle = hex(FACTIONS[e.faction].color);
       const s = e.kind === 'ship' ? (e.size === 'small' ? 1.5 : 2.5) : e.type === 'station' ? 7 : 4;
       ctx.fillRect(e.x * sx - s / 2, e.y * sy - s / 2, s, s);
@@ -408,6 +573,23 @@ export class Hud {
     this.openModal(p);
   }
 
+  /** Asks before an action that loses progress. */
+  private confirm(title: string, text: string, action: string, onYes: () => void): void {
+    const p = el('div', { class: 'panel' },
+      `<h2>${title}</h2><p>${text}</p>` +
+      `<div class="actions"><button data-act="no">Annuler</button><button class="primary" data-act="yes">${action}</button></div>`);
+    p.querySelector<HTMLButtonElement>('[data-act=no]')!.onclick = () => this.closeModal();
+    p.querySelector<HTMLButtonElement>('[data-act=yes]')!.onclick = () => {
+      this.closeModal();
+      onYes();
+    };
+    this.openModal(p);
+  }
+
+  private showOptions(): void {
+    this.openModal(optionsPanel(() => this.closeModal()));
+  }
+
   private showHelp(): void {
     const keys: [string, string][] = [
       ['Clic gauche', 'Sélectionner (glisser : rectangle, Maj : ajouter)'],
@@ -421,10 +603,17 @@ export class Hud {
       ['Molette', 'Zoom'],
       ['Espace', 'Pause'],
       ['Échap', 'Annuler le mode en cours'],
+      ['Double clic', 'Tous les vaisseaux de la même classe à l\'écran'],
+      ['Ctrl + A', 'Tous tes vaisseaux'],
+      ['P', 'Piloter le vaisseau sélectionné : ZQSD (ou WASD) ou flèches, clic gauche pour tirer'],
+      ['E', 'Capacité des vaisseaux sélectionnés (salve, surcharge, réparation…)'],
     ];
     const p = el('div', { class: 'panel' },
       '<h2>Commandes</h2><dl>' + keys.map(([k, v]) => `<dt>${k}</dt><dd>${v}</dd>`).join('') + '</dl>' +
-      '<p class="muted">Les chasseurs et bombardiers sortent seuls des hangars. Détruire les points d\'attache d\'une station la désarme : chantier naval, hangar, générateur de bouclier, tourelles.</p>' +
+      '<p class="muted">Les chasseurs et bombardiers sortent seuls des hangars. Détruire les points d\'attache d\'une station la désarme : chantier naval, hangar, générateur de bouclier, tourelles. ' +
+      'Le brouillard de guerre cache ce que tes unités ne voient pas, et l\'IA y est soumise aussi. ' +
+      'Plateformes et docks de réparation se construisent aussi près de tes mines. Sélectionne une plateforme ou un hangar pour l\'améliorer. ' +
+      'Les héros sont uniques ; un héros détruit se reconstruit après un délai.</p>' +
       '<div class="actions"><button class="primary">Fermer</button></div>');
     p.querySelector('button')!.onclick = () => this.closeModal();
     this.openModal(p);

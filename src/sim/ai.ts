@@ -1,7 +1,10 @@
+import { MAX_TECH_LEVEL, type TechId } from '../data/research';
 import { SHIPS, SHIP_CLASSES, type ShipClass } from '../data/units';
-import { STATION } from '../data/structures';
+import { STATION, type BuildableType } from '../data/structures';
 import { issueMove } from './movement';
-import { enqueueShip, enqueueUpgrade, placeStructure } from './structures';
+import { isVisible } from './vision';
+import { heroesOf } from '../data/heroes';
+import { canBuildHero, enqueueHero, enqueueShip, enqueueUpgrade, placeStructure, startResearch } from './structures';
 import {
   dist, hasHardpoint, rand, stationOf,
   type AIGoal, type Entity, type FactionState, type Result, type World,
@@ -50,6 +53,16 @@ function chooseGoal(world: World, f: FactionState, station: Entity): AIGoal | nu
     return { kind: 'upgrade' };
   }
   if (count(world, f, 'platform') < station.level && rand(world) < 0.25) return { kind: 'platform' };
+  if (count(world, f, 'repairDock') === 0 && rand(world) < 0.1) return { kind: 'structure', type: 'repairDock' };
+  if (station.level >= 3 && count(world, f, 'ionCannon') === 0 && rand(world) < 0.15) return { kind: 'structure', type: 'ionCannon' };
+  const tech = !f.researching && rand(world) < 0.2 ? pickTech(f, station) : null;
+  if (tech) return { kind: 'research', tech };
+  // Now and then, a hero: whichever is available, saving up for it if needed.
+  const hero = heroesOf(f.id).find((h) => {
+    const r = canBuildHero(world, f.id, h.id);
+    return r.ok || r.reason === 'Crédits insuffisants';
+  });
+  if (hero && rand(world) < 0.12) return { kind: 'hero', hero: hero.id };
   const cls = pickShip(world, station);
   return cls ? { kind: 'ship', cls } : null;
 }
@@ -61,13 +74,21 @@ function placeMine(world: World, f: FactionState, station: Entity): Result {
   return free ? placeStructure(world, f.id, 'mine', free.x, free.y) : { ok: false, reason: 'Aucun champ libre' };
 }
 
-function placePlatform(world: World, f: FactionState, station: Entity, toward: Entity | null): Result {
+/** Least researched tech the station allows, combat techs first. */
+function pickTech(f: FactionState, station: Entity): TechId | null {
+  const order: TechId[] = ['weapons', 'armor', 'shields', 'engines', 'mining', 'hangars'];
+  const open = order.filter((t) => f.research[t] < MAX_TECH_LEVEL && station.level > f.research[t]);
+  return open.sort((a, b) => f.research[a] - f.research[b])[0] ?? null;
+}
+
+/** Defensive structures go on the side of the station facing the enemy. */
+function placeDefense(world: World, f: FactionState, station: Entity, toward: Entity | null, type: BuildableType): Result {
   const base = toward ? Math.atan2(toward.y - station.y, toward.x - station.x) : 0;
   let r: Result = { ok: false, reason: 'Aucun emplacement' };
   for (let i = 0; i < 6 && !r.ok; i++) {
     const a = base + (rand(world) - 0.5) * Math.PI;
     const d = STATION.radius + 150 + rand(world) * 300;
-    r = placeStructure(world, f.id, 'platform', station.x + Math.cos(a) * d, station.y + Math.sin(a) * d);
+    r = placeStructure(world, f.id, type, station.x + Math.cos(a) * d, station.y + Math.sin(a) * d);
     if (!r.ok && r.reason === 'Crédits insuffisants') break;
   }
   return r;
@@ -75,11 +96,14 @@ function placePlatform(world: World, f: FactionState, station: Entity, toward: E
 
 /** Tries to buy the goal. Returns true when the goal is done or can no longer be reached. */
 function pursue(world: World, f: FactionState, station: Entity, goal: AIGoal, enemy: Entity | null): boolean {
-  if (goal.kind === 'ship' && f.queue.length >= 2) return false;
+  if ((goal.kind === 'ship' || goal.kind === 'hero') && f.queue.length >= 2) return false;
   const r =
     goal.kind === 'mine' ? placeMine(world, f, station)
     : goal.kind === 'upgrade' ? enqueueUpgrade(world, f.id)
-    : goal.kind === 'platform' ? placePlatform(world, f, station, enemy)
+    : goal.kind === 'platform' ? placeDefense(world, f, station, enemy, 'platform')
+    : goal.kind === 'structure' ? placeDefense(world, f, station, enemy, goal.type)
+    : goal.kind === 'research' ? startResearch(world, f.id, goal.tech)
+    : goal.kind === 'hero' ? enqueueHero(world, f.id, goal.hero)
     : enqueueShip(world, f.id, goal.cls);
   // Short on credits: keep saving for it.
   return r.ok || r.reason !== 'Crédits insuffisants';
@@ -91,7 +115,7 @@ function command(world: World, f: FactionState, station: Entity, enemy: Entity |
   for (const e of world.entities.values()) {
     if (e.faction === f.id) {
       if (e.kind === 'ship' && !e.order && SHIPS[e.type as ShipClass].source === 'shipyard') idle.push(e);
-    } else if (e.kind === 'ship' && dist(e, station) < STATION.constructionRadius) {
+    } else if (e.kind === 'ship' && dist(e, station) < STATION.constructionRadius && isVisible(world, f.id, e)) {
       threatened = true;
     }
   }

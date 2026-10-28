@@ -1,5 +1,7 @@
 import Phaser from 'phaser';
+import { FACTION_IDS } from '../data/units';
 import { createPlaceholders } from '../render/placeholders';
+import { emblemCanvas } from '../ui/logos';
 import type { Manifest } from '../render/sprites';
 import { showStartMenu } from './flow';
 
@@ -21,6 +23,7 @@ export class BootScene extends Phaser.Scene {
     }
     this.load.once('complete', () => {
       createPlaceholders(this);
+      for (const f of FACTION_IDS) this.textures.addCanvas(`emblem-${f}`, emblemCanvas(f, 2));
       showStartMenu(this.game);
     });
     this.load.start();

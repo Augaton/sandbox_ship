@@ -1,20 +1,23 @@
 // Galaxy map simulation: planets, fleets travelling along lanes, production, and the
 // battles that start when two factions meet over a planet. Pure TypeScript, no Phaser.
-import { CAPITALS, GALAXY_RULES, LANES, PLANETS } from '../data/galaxy';
-import { BUILDABLES, MAX_QUEUE, STATION } from '../data/structures';
-import { SHIPS, SHIP_CLASSES, type FactionId, type ShipClass } from '../data/units';
+import { GALAXY_RULES, type PlanetSpecial } from '../data/galaxy';
+import { HEROES, type HeroId } from '../data/heroes';
 import {
-  battleOutcome, countShips, createPlanetBattle, defenseLeft, fleetValue, survivors, updateBattleAI,
+  MAX_TECH_LEVEL, TECHS, TECH_BONUS, noResearch, type ResearchJob, type ResearchLevels, type TechId,
+} from '../data/research';
+import { BUILDABLES, MAX_QUEUE, STATION } from '../data/structures';
+import { SHIPS, SHIP_CLASSES, shipCost, type FactionId, type ShipClass } from '../data/units';
+import {
+  NO_DEFENSE, battleOutcome, countShips, createPlanetBattle, defenseLeft, fleetValue, heroSurvivors, survivors, updateBattleAI,
   type BattleResult, type PlanetDefense, type ShipCounts,
 } from './battle';
+import { CLASSIC, type GalaxyLayout } from './galaxyGen';
 import { step } from './step';
 import { dist, type Result, type World } from './world';
 
-export type GalaxyBuild =
-  | { kind: 'ship'; cls: ShipClass }
-  | { kind: 'station' }
-  | { kind: 'mine' }
-  | { kind: 'platform' };
+export type BuildingKind = 'station' | 'mine' | 'platform' | 'platformTier' | 'lab' | 'repairDock' | 'ionCannon';
+
+export type GalaxyBuild = { kind: 'ship'; cls: ShipClass } | { kind: 'hero'; hero: HeroId } | { kind: BuildingKind };
 
 export type GalaxyQueueItem = GalaxyBuild & { remaining: number; total: number; cost: number };
 
@@ -30,7 +33,16 @@ export interface Planet {
   station: number;
   mines: number;
   platforms: number;
-  queue: GalaxyQueueItem[];
+  /** A lab lets its owner research; it stays on the ground, out of space battles. */
+  lab: number;
+  repairDock: number;
+  ionCannon: number;
+  /** Level of the planet's platforms, 1 to 3. */
+  platformTier: number;
+  special?: PlanetSpecial;
+  /** Two queues run side by side: ships, and everything else. */
+  units: GalaxyQueueItem[];
+  buildings: GalaxyQueueItem[];
   /** A lone fleet taking the planet over. */
   occupation: { faction: FactionId; remaining: number } | null;
 }
@@ -39,6 +51,7 @@ export interface Fleet {
   id: number;
   faction: FactionId;
   ships: ShipCounts;
+  heroes: HeroId[];
   /** Planet the fleet is docked at, null while travelling. */
   at: number | null;
   /** Planet last left (or docked at). */
@@ -68,6 +81,8 @@ export interface GalaxyBattle {
   world: World;
   status: BattleStatus;
   elapsed: number;
+  /** Heroes each side brought, to know who fell. */
+  heroes: Partial<Record<FactionId, HeroId[]>>;
 }
 
 export interface GalaxyFaction {
@@ -76,6 +91,10 @@ export interface GalaxyFaction {
   /** `want` is the ship class the AI saves up for. */
   ai: { timer: number; want: ShipClass | null } | null;
   eliminated: boolean;
+  research: ResearchLevels;
+  researching: ResearchJob | null;
+  /** Galaxy seconds before each fallen hero can be built again. */
+  heroCooldowns: Partial<Record<HeroId, number>>;
 }
 
 export type GalaxyEvent =
@@ -83,6 +102,7 @@ export type GalaxyEvent =
   | { type: 'battleEnd'; planetId: number; attacker: FactionId; defender: FactionId; result: BattleResult }
   | { type: 'captured'; planetId: number; faction: FactionId; from: FactionId | null }
   | { type: 'built'; planetId: number; faction: FactionId; what: string }
+  | { type: 'researched'; faction: FactionId; tech: TechId }
   | { type: 'victory'; faction: FactionId };
 
 export interface Galaxy {
@@ -109,16 +129,24 @@ export function galaxyRand(g: Galaxy): number {
 }
 
 /** Both capitals start with a level 1 station, a mine and a small fleet. */
-export function createGalaxy(player: FactionId, enemy: FactionId, enemyAI = true, seed = 7): Galaxy {
+export function createGalaxy(
+  player: FactionId, enemy: FactionId, enemyAI = true, seed = 7, layout: GalaxyLayout = CLASSIC,
+): Galaxy {
   const g: Galaxy = {
     time: 0, player,
-    planets: PLANETS.map((p, id) => ({ ...p, id, owner: null, station: 0, mines: 0, platforms: 0, queue: [], occupation: null })),
-    lanes: LANES, fleets: new Map(), factions: new Map(), battles: [], events: [],
+    planets: layout.planets.map((p, id) => ({
+      ...p, id, owner: null, station: 0, mines: 0, platforms: 0, lab: 0, repairDock: 0, ionCannon: 0, platformTier: 1,
+      units: [], buildings: [], occupation: null,
+    })),
+    lanes: layout.lanes, fleets: new Map(), factions: new Map(), battles: [], events: [],
     nextId: 1, seed, winner: null,
   };
-  const sides: [FactionId, number, boolean][] = [[player, CAPITALS[0], false], [enemy, CAPITALS[1], enemyAI]];
+  const sides: [FactionId, number, boolean][] = [[player, layout.capitals[0], false], [enemy, layout.capitals[1], enemyAI]];
   for (const [faction, capital, ai] of sides) {
-    g.factions.set(faction, { id: faction, credits: GALAXY_RULES.startCredits, ai: ai ? { timer: 0, want: null } : null, eliminated: false });
+    g.factions.set(faction, {
+      id: faction, credits: GALAXY_RULES.startCredits, ai: ai ? { timer: 0, want: null } : null, eliminated: false,
+      research: noResearch(), researching: null, heroCooldowns: {},
+    });
     Object.assign(g.planets[capital], { owner: faction, station: 1, mines: 1 });
     addShipsAt(g, faction, capital, { frigate: 2, scout: 2 });
   }
@@ -159,33 +187,65 @@ export function findPath(g: Galaxy, from: number, to: number): number[] | null {
   return path;
 }
 
-/** Map speed of a fleet: as fast as its slowest ship. */
-export function fleetSpeed(ships: ShipCounts): number {
-  const slowest = Math.min(...SHIP_CLASSES.filter((c) => ships[c]).map((c) => SHIPS[c].speed));
-  return 30 + slowest * 0.5;
+/** Map speed of a fleet: as fast as its slowest ship, faster with engine research. */
+export function fleetSpeed(ships: ShipCounts, engines = 0, heroes: HeroId[] = []): number {
+  const slowest = Math.min(
+    ...SHIP_CLASSES.filter((c) => ships[c]).map((c) => SHIPS[c].speed),
+    ...heroes.map((h) => SHIPS[HEROES[h].base].speed * HEROES[h].speed),
+  );
+  return (30 + slowest * 0.5) * (1 + TECH_BONUS.engines * engines);
+}
+
+/**
+ * Planets a faction has eyes on: its own, their neighbours, and those its fleets sit at or
+ * fly between. Ownership is known everywhere; defenses and fleets only there.
+ */
+export function visiblePlanets(g: Galaxy, faction: FactionId): Set<number> {
+  const out = new Set<number>();
+  for (const p of g.planets) {
+    if (p.owner !== faction) continue;
+    out.add(p.id);
+    for (const n of neighbours(g, p.id)) out.add(n);
+  }
+  for (const f of g.fleets.values()) {
+    if (f.faction !== faction) continue;
+    if (f.at != null) out.add(f.at);
+    out.add(f.from);
+    if (f.to != null) out.add(f.to);
+  }
+  return out;
+}
+
+export function fleetVisible(g: Galaxy, faction: FactionId, fleet: Fleet, seen = visiblePlanets(g, faction)): boolean {
+  if (fleet.faction === faction) return true;
+  return fleet.at != null ? seen.has(fleet.at) : seen.has(fleet.from) || (fleet.to != null && seen.has(fleet.to));
 }
 
 export function fleetsAt(g: Galaxy, planetId: number, faction?: FactionId): Fleet[] {
   return [...g.fleets.values()].filter((f) => f.at === planetId && f.battleId == null && (!faction || f.faction === faction));
 }
 
-export function addShipsAt(g: Galaxy, faction: FactionId, planetId: number, ships: ShipCounts): Fleet | null {
-  if (countShips(ships) === 0) return null;
+export function addShipsAt(g: Galaxy, faction: FactionId, planetId: number, ships: ShipCounts, heroes: HeroId[] = []): Fleet | null {
+  if (countShips(ships) === 0 && heroes.length === 0) return null;
   const fleet = fleetsAt(g, planetId, faction)[0];
   if (fleet) {
     for (const c of SHIP_CLASSES) if (ships[c]) fleet.ships[c] = (fleet.ships[c] ?? 0) + ships[c]!;
+    fleet.heroes.push(...heroes);
     return fleet;
   }
   const f: Fleet = {
-    id: g.nextId++, faction, ships: { ...ships }, at: planetId, from: planetId, to: null, path: [],
+    id: g.nextId++, faction, ships: { ...ships }, heroes: [...heroes], at: planetId, from: planetId, to: null, path: [],
     progress: 0, came: planetId, arrivedAt: g.time, battleId: null,
   };
   g.fleets.set(f.id, f);
   return f;
 }
 
-/** Sends `ships` (all of the fleet by default) towards `dest`; a partial order splits the fleet. */
-export function sendFleet(g: Galaxy, fleetId: number, dest: number, ships?: ShipCounts): Result {
+/**
+ * Sends `ships` and `heroes` (the whole fleet by default) towards `dest`; a partial order
+ * splits the fleet, and heroes left out of it stay behind.
+ */
+export function sendFleet(g: Galaxy, fleetId: number, dest: number, ships?: ShipCounts, heroes: HeroId[] = []): Result {
   const fleet = g.fleets.get(fleetId);
   if (!fleet || fleet.at == null || fleet.battleId != null) return fail('Flotte indisponible');
   const path = findPath(g, fleet.at, dest);
@@ -193,15 +253,18 @@ export function sendFleet(g: Galaxy, fleetId: number, dest: number, ships?: Ship
   let moving = fleet;
   if (ships) {
     for (const c of SHIP_CLASSES) if ((ships[c] ?? 0) > (fleet.ships[c] ?? 0)) return fail('Vaisseaux insuffisants');
-    if (countShips(ships) === 0) return fail('Aucun vaisseau choisi');
+    if (heroes.some((h) => !fleet.heroes.includes(h))) return fail('Héros absent');
+    if (countShips(ships) === 0 && heroes.length === 0) return fail('Aucun vaisseau choisi');
     const rest: ShipCounts = {};
     for (const c of SHIP_CLASSES) {
       const left = (fleet.ships[c] ?? 0) - (ships[c] ?? 0);
       if (left > 0) rest[c] = left;
     }
-    if (countShips(rest) > 0) {
+    const restHeroes = fleet.heroes.filter((h) => !heroes.includes(h));
+    if (countShips(rest) > 0 || restHeroes.length > 0) {
       fleet.ships = rest;
-      moving = { ...fleet, id: g.nextId++, ships: { ...ships }, path: [] };
+      fleet.heroes = restHeroes;
+      moving = { ...fleet, id: g.nextId++, ships: { ...ships }, heroes: [...heroes], path: [] };
       g.fleets.set(moving.id, moving);
     }
   }
@@ -224,7 +287,8 @@ function moveFleets(g: Galaxy, dt: number): void {
     if (f.to == null) continue;
     const a = g.planets[f.from];
     const b = g.planets[f.to];
-    f.progress += (fleetSpeed(f.ships) * dt) / dist(a, b);
+    const engines = g.factions.get(f.faction)?.research.engines ?? 0;
+    f.progress += (fleetSpeed(f.ships, engines, f.heroes) * dt) / dist(a, b);
     if (f.progress < 1) continue;
     const arrived = f.to;
     f.came = f.from;
@@ -252,6 +316,7 @@ function mergeFleets(g: Galaxy): void {
       continue;
     }
     for (const c of SHIP_CLASSES) if (f.ships[c]) into.ships[c] = (into.ships[c] ?? 0) + f.ships[c]!;
+    into.heroes.push(...f.heroes);
     g.fleets.delete(f.id);
   }
 }
@@ -259,15 +324,21 @@ function mergeFleets(g: Galaxy): void {
 function capture(g: Galaxy, planet: Planet, faction: FactionId): void {
   const from = planet.owner;
   planet.owner = faction;
-  planet.station = 0;
-  planet.platforms = 0;
-  planet.queue = [];
-  planet.occupation = null;
+  // Space structures are lost; mines and labs on the ground change hands.
+  Object.assign(planet, {
+    station: 0, platforms: 0, platformTier: 1, repairDock: 0, ionCannon: 0, units: [], buildings: [], occupation: null,
+  });
   g.events.push({ type: 'captured', planetId: planet.id, faction, from });
 }
 
 function defenseOf(planet: Planet): PlanetDefense {
-  return { station: planet.station, platforms: planet.platforms, mines: planet.mines };
+  const { station, platforms, mines, repairDock, ionCannon, platformTier } = planet;
+  return { station, platforms, mines, repairDock, ionCannon, platformTier };
+}
+
+/** Whether the planet has anything in orbit that fights back. */
+function fortified(planet: Planet): boolean {
+  return planet.station > 0 || planet.platforms > 0 || planet.ionCannon > 0 || planet.repairDock > 0;
 }
 
 /** Strength a planet opposes to an attacker: its defenses plus the fleets docked there. */
@@ -275,28 +346,36 @@ export function defenseValue(g: Galaxy, planet: Planet): number {
   const owner = planet.owner;
   const fleets = owner ? fleetsAt(g, planet.id, owner) : [];
   const levels = STATION.levels.slice(0, planet.station).reduce((v, l) => v + l.hull + l.shield, 0);
-  return levels / 2 + planet.platforms * BUILDABLES.platform.cost + fleets.reduce((v, f) => v + fleetValue(f.ships), 0);
+  return levels / 2 + planet.platforms * BUILDABLES.platform.cost + planet.ionCannon * BUILDABLES.ionCannon.cost
+    + fleets.reduce((v, f) => v + fleetValue(f.ships, f.heroes), 0);
 }
 
 function startBattle(g: Galaxy, planet: Planet, attacker: FactionId, defender: FactionId, from: number): void {
   const id = g.nextId++;
-  const side = (faction: FactionId): ShipCounts => {
+  const side = (faction: FactionId) => {
     const ships: ShipCounts = {};
+    const heroes: HeroId[] = [];
     for (const f of fleetsAt(g, planet.id, faction)) {
       f.battleId = id;
       for (const c of SHIP_CLASSES) if (f.ships[c]) ships[c] = (ships[c] ?? 0) + f.ships[c]!;
+      heroes.push(...f.heroes);
     }
-    return ships;
+    return { faction, ships, heroes, research: g.factions.get(faction)?.research };
   };
-  const defense = planet.owner === defender ? defenseOf(planet) : { station: 0, platforms: 0, mines: 0 };
+  const defense = planet.owner === defender ? defenseOf(planet) : NO_DEFENSE;
+  const att = side(attacker);
+  const def = side(defender);
   const world = createPlanetBattle(
-    { faction: attacker, ships: side(attacker) },
-    { faction: defender, ships: side(defender) },
+    att,
+    def,
     defense,
     Math.floor(galaxyRand(g) * 2147483646) + 1,
   );
   const status: BattleStatus = attacker === g.player || defender === g.player ? 'pending' : 'auto';
-  g.battles.push({ id, planetId: planet.id, attacker, defender, from, world, status, elapsed: 0 });
+  g.battles.push({
+    id, planetId: planet.id, attacker, defender, from, world, status, elapsed: 0,
+    heroes: { [attacker]: att.heroes, [defender]: def.heroes },
+  });
   g.events.push({ type: 'battle', battleId: id });
 }
 
@@ -311,7 +390,7 @@ function detectConflicts(g: Galaxy): void {
     const here = fleetsAt(g, planet.id).sort((a, b) => a.arrivedAt - b.arrivedAt);
     const present = new Set(here.map((f) => f.faction));
     const owner = planet.owner;
-    const defended = owner != null && (planet.station > 0 || planet.platforms > 0 || present.has(owner));
+    const defended = owner != null && (fortified(planet) || present.has(owner));
     if (!defended && present.size === 1) {
       const f = here[0].faction;
       if (owner === f) planet.occupation = null;
@@ -342,13 +421,20 @@ export function concludeBattle(g: Galaxy, battleId: number, result: BattleResult
   if (planet.owner === b.defender) Object.assign(planet, defenseLeft(w, b.defender));
   const att = survivors(w, b.attacker);
   const def = survivors(w, b.defender);
+  const attHeroes = heroSurvivors(w, b.attacker);
+  const defHeroes = heroSurvivors(w, b.defender);
+  // Fallen heroes can be built again after a while.
+  for (const [faction, alive] of [[b.attacker, attHeroes], [b.defender, defHeroes]] as const) {
+    const f = g.factions.get(faction);
+    for (const h of b.heroes[faction] ?? []) if (f && !alive.includes(h)) f.heroCooldowns[h] = HEROES[h].respawn;
+  }
   if (result === 'attacker') {
     capture(g, planet, b.attacker);
-    addShipsAt(g, b.attacker, planet.id, att);
+    addShipsAt(g, b.attacker, planet.id, att, attHeroes);
   } else {
-    addShipsAt(g, b.defender, planet.id, def);
+    addShipsAt(g, b.defender, planet.id, def, defHeroes);
     if (result === 'retreat') {
-      const back = addShipsAt(g, b.attacker, planet.id, att);
+      const back = addShipsAt(g, b.attacker, planet.id, att, attHeroes);
       if (back) sendFleet(g, back.id, b.from);
     }
   }
@@ -387,19 +473,45 @@ function updateOccupations(g: Galaxy, dt: number): void {
   }
 }
 
-/** Galaxy income per second for a faction. */
+/** Galaxy income per second for a faction: planets, plus mines (more on rich deposits, more with research). */
 export function incomeOf(g: Galaxy, faction: FactionId): number {
+  const mining = 1 + TECH_BONUS.mining * (g.factions.get(faction)?.research.mining ?? 0);
   return g.planets
     .filter((p) => p.owner === faction)
-    .reduce((s, p) => s + p.income + p.mines * GALAXY_RULES.mineIncome, 0);
+    .reduce((s, p) => s + p.income + p.mines * GALAXY_RULES.mineIncome * mining * (p.special === 'rich' ? 2 : 1), 0);
+}
+
+const BUILDING_NAMES: Record<BuildingKind, string> = {
+  station: STATION.name, mine: BUILDABLES.mine.name, platform: BUILDABLES.platform.name, platformTier: 'Renforcer les plateformes',
+  lab: 'Laboratoire', repairDock: BUILDABLES.repairDock.name, ionCannon: BUILDABLES.ionCannon.name,
+};
+
+export function buildName(planet: Planet, build: GalaxyBuild): string {
+  if (build.kind === 'ship') return SHIPS[build.cls].name;
+  if (build.kind === 'hero') return `${HEROES[build.hero].name} (${HEROES[build.hero].title})`;
+  if (build.kind === 'station' && planet.station > 0) return 'Améliorer la station';
+  if (build.kind === 'platformTier') return `Plateformes niveau ${Math.min(3, planet.platformTier + 1)}`;
+  return BUILDING_NAMES[build.kind];
 }
 
 function buildCost(planet: Planet, build: GalaxyBuild): { cost: number; time: number } {
-  if (build.kind === 'ship') return { cost: SHIPS[build.cls].cost, time: SHIPS[build.cls].buildTime };
+  if (build.kind === 'hero') {
+    const def = HEROES[build.hero];
+    return { cost: def.cost, time: def.buildTime * (planet.special === 'shipyard' ? 0.7 : 1) };
+  }
+  if (build.kind === 'ship') {
+    const time = SHIPS[build.cls].buildTime * (planet.special === 'shipyard' ? 0.7 : 1);
+    return { cost: shipCost(build.cls, planet.owner ?? 'klaed'), time };
+  }
   if (build.kind === 'station') {
     if (planet.station === 0) return { cost: GALAXY_RULES.stationCost, time: GALAXY_RULES.stationTime };
     const next = STATION.levels[planet.station];
     return { cost: next.upgradeCost, time: next.upgradeTime };
+  }
+  if (build.kind === 'lab') return { cost: GALAXY_RULES.labCost, time: GALAXY_RULES.labTime };
+  if (build.kind === 'platformTier') {
+    const tier = BUILDABLES.platform.tiers![Math.min(planet.platformTier, 2) - 1];
+    return { cost: tier.cost, time: tier.time };
   }
   return { cost: BUILDABLES[build.kind].cost, time: BUILDABLES[build.kind].buildTime };
 }
@@ -408,27 +520,79 @@ export function buildPrice(planet: Planet, build: GalaxyBuild): number {
   return buildCost(planet, build).cost;
 }
 
+export function buildTime(planet: Planet, build: GalaxyBuild): number {
+  return buildCost(planet, build).time;
+}
+
+function queueFor(planet: Planet, build: GalaxyBuild): GalaxyQueueItem[] {
+  return build.kind === 'ship' || build.kind === 'hero' ? planet.units : planet.buildings;
+}
+
+/** Whether a hero is out there already: in a fleet, in a battle, or being built. */
+function heroInService(g: Galaxy, hero: HeroId): boolean {
+  return [...g.fleets.values()].some((f) => f.heroes.includes(hero))
+    || g.battles.some((b) => Object.values(b.heroes).some((list) => list?.includes(hero)))
+    || g.planets.some((p) => p.units.some((q) => q.kind === 'hero' && q.hero === hero));
+}
+
+export function platformCap(planet: Planet): number {
+  return planet.station * 2 + (planet.special === 'fortress' ? 2 : 0);
+}
+
 /** Whether the faction can queue this at the planet right now, and if not, why. */
 export function canBuild(g: Galaxy, faction: FactionId, planetId: number, build: GalaxyBuild): Result {
   const planet = g.planets[planetId];
   const f = g.factions.get(faction);
   if (!f || planet.owner !== faction) return fail('Planète non contrôlée');
   if (g.battles.some((b) => b.planetId === planetId)) return fail('Combat en cours');
-  if (planet.queue.length >= MAX_QUEUE) return fail("File d'attente pleine");
-  const queued = (kind: string) => planet.queue.filter((q) => q.kind === kind).length;
+  if (queueFor(planet, build).length >= MAX_QUEUE) return fail("File d'attente pleine");
+  const queued = (kind: string) => planet.buildings.filter((q) => q.kind === kind).length;
   // Queued station work counts: a station being built or upgraded unlocks what comes after it.
-  const level = planet.station + queued('station');
-  if (build.kind === 'station' && level >= STATION.levels.length) return fail('Niveau maximum');
-  if (build.kind === 'mine' && planet.mines + queued('mine') >= planet.mineSlots) return fail('Aucun emplacement');
-  if (build.kind === 'platform') {
-    if (planet.station === 0) return fail('Station requise');
-    if (planet.platforms + queued('platform') >= planet.station * 2) return fail(`Maximum ${planet.station * 2}`);
-  }
-  if (build.kind === 'ship') {
-    const need = SHIPS[build.cls].minStationLevel;
-    if (SHIPS[build.cls].source !== 'shipyard') return fail('Lancé par les hangars');
-    if (planet.station === 0) return fail('Station requise');
-    if (planet.station < need) return fail(`Station niveau ${need} requise`);
+  const have = (kind: Exclude<BuildingKind, 'mine' | 'platform' | 'platformTier'> | 'mines' | 'platforms') =>
+    (kind === 'mines' ? planet.mines : kind === 'platforms' ? planet.platforms : planet[kind])
+    + queued(kind === 'mines' ? 'mine' : kind === 'platforms' ? 'platform' : kind);
+  switch (build.kind) {
+    case 'station':
+      if (have('station') >= STATION.levels.length) return fail('Niveau maximum');
+      break;
+    case 'mine':
+      if (have('mines') >= planet.mineSlots) return fail('Aucun emplacement');
+      break;
+    case 'lab':
+      if (have('lab') >= 1) return fail('Déjà construit');
+      break;
+    case 'platformTier':
+      if (planet.platformTier >= 3) return fail('Niveau maximum');
+      if (queued('platformTier') > 0) return fail('Déjà en cours');
+      if (planet.platforms === 0) return fail('Plateforme requise');
+      if (planet.station < planet.platformTier + 1) return fail(`Station niveau ${planet.platformTier + 1} requise`);
+      break;
+    case 'platform':
+      if (planet.station === 0) return fail('Station requise');
+      if (have('platforms') >= platformCap(planet)) return fail(`Maximum ${platformCap(planet)}`);
+      break;
+    case 'repairDock':
+    case 'ionCannon': {
+      const need = build.kind === 'ionCannon' ? 2 : 1;
+      if (planet.station < need) return fail(need === 1 ? 'Station requise' : `Station niveau ${need} requise`);
+      if (have(build.kind) >= 1) return fail('Déjà construit');
+      break;
+    }
+    case 'hero': {
+      const def = HEROES[build.hero];
+      if (def.faction !== faction) return fail("Héros d'une autre faction");
+      if (planet.station < def.minStationLevel) return fail(`Station niveau ${def.minStationLevel} requise`);
+      if (heroInService(g, build.hero)) return fail('Déjà en service');
+      const wait = f.heroCooldowns[build.hero] ?? 0;
+      if (wait > 0) return fail(`Disponible dans ${Math.ceil(wait)} s`);
+      break;
+    }
+    case 'ship': {
+      const need = SHIPS[build.cls].minStationLevel;
+      if (SHIPS[build.cls].source !== 'shipyard') return fail('Lancé par les hangars');
+      if (planet.station === 0) return fail('Station requise');
+      if (planet.station < need) return fail(`Station niveau ${need} requise`);
+    }
   }
   if (f.credits < buildCost(planet, build).cost) return fail('Crédits insuffisants');
   return OK;
@@ -439,41 +603,102 @@ export function enqueueBuild(g: Galaxy, faction: FactionId, planetId: number, bu
   if (!r.ok) return r;
   const planet = g.planets[planetId];
   // A station upgrade queued behind another one is priced at the level it will reach.
-  const ahead = { ...planet, station: planet.station + planet.queue.filter((q) => q.kind === 'station').length };
+  const ahead = { ...planet, station: planet.station + planet.buildings.filter((q) => q.kind === 'station').length };
   const { cost, time } = buildCost(ahead, build);
   if (g.factions.get(faction)!.credits < cost) return fail('Crédits insuffisants');
   g.factions.get(faction)!.credits -= cost;
-  planet.queue.push({ ...build, remaining: time, total: time, cost });
+  queueFor(planet, build).push({ ...build, remaining: time, total: time, cost });
   return OK;
 }
 
-export function cancelBuild(g: Galaxy, planetId: number, index: number): void {
+export function cancelBuild(g: Galaxy, planetId: number, index: number, which: 'units' | 'buildings' = 'buildings'): void {
   const planet = g.planets[planetId];
-  const item = planet.queue[index];
+  const queue = planet[which];
+  const item = queue[index];
   if (!item || !planet.owner) return;
-  planet.queue.splice(index, 1);
+  queue.splice(index, 1);
   g.factions.get(planet.owner)!.credits += item.cost;
 }
 
+function finish(g: Galaxy, planet: Planet, item: GalaxyQueueItem): void {
+  const owner = planet.owner!;
+  let what: string;
+  if (item.kind === 'ship') {
+    addShipsAt(g, owner, planet.id, { [item.cls]: 1 });
+    what = SHIPS[item.cls].name;
+  } else if (item.kind === 'hero') {
+    addShipsAt(g, owner, planet.id, {}, [item.hero]);
+    what = HEROES[item.hero].name;
+  } else if (item.kind === 'station') {
+    planet.station++;
+    what = planet.station === 1 ? STATION.name : `${STATION.name} niveau ${planet.station}`;
+  } else {
+    if (item.kind === 'mine') planet.mines++;
+    else if (item.kind === 'platform') planet.platforms++;
+    else if (item.kind === 'platformTier') planet.platformTier++;
+    else planet[item.kind]++;
+    what = BUILDING_NAMES[item.kind];
+  }
+  g.events.push({ type: 'built', planetId: planet.id, faction: owner, what });
+}
+
+/** The front of each queue progresses; nothing is built on a planet under attack. */
 function updateProduction(g: Galaxy, dt: number): void {
   for (const planet of g.planets) {
-    const item = planet.queue[0];
-    if (!item || !planet.owner || g.battles.some((b) => b.planetId === planet.id)) continue;
-    item.remaining -= dt;
-    if (item.remaining > 0) continue;
-    planet.queue.shift();
-    let what: string;
-    if (item.kind === 'ship') {
-      addShipsAt(g, planet.owner, planet.id, { [item.cls]: 1 });
-      what = SHIPS[item.cls].name;
-    } else if (item.kind === 'station') {
-      planet.station++;
-      what = planet.station === 1 ? STATION.name : `${STATION.name} niveau ${planet.station}`;
-    } else {
-      planet[item.kind === 'mine' ? 'mines' : 'platforms']++;
-      what = BUILDABLES[item.kind].name;
+    if (!planet.owner || g.battles.some((b) => b.planetId === planet.id)) continue;
+    for (const queue of [planet.buildings, planet.units]) {
+      const item = queue[0];
+      if (!item || (item.remaining -= dt) > 0) continue;
+      queue.shift();
+      finish(g, planet, item);
     }
-    g.events.push({ type: 'built', planetId: planet.id, faction: planet.owner, what });
+  }
+}
+
+/** Research needs a lab, and a station of the level about to be reached. */
+export function canResearchTech(g: Galaxy, faction: FactionId, tech: TechId): Result {
+  const f = g.factions.get(faction);
+  if (!f) return fail('Faction inconnue');
+  const own = g.planets.filter((p) => p.owner === faction);
+  const level = f.research[tech];
+  if (!own.some((p) => p.lab > 0)) return fail('Laboratoire requis');
+  if (level >= MAX_TECH_LEVEL) return fail('Niveau maximum');
+  if (f.researching) return fail('Recherche déjà en cours');
+  if (Math.max(0, ...own.map((p) => p.station)) < level + 1) return fail(`Station niveau ${level + 1} requise`);
+  if (f.credits < TECHS[tech].costs[level]) return fail('Crédits insuffisants');
+  return OK;
+}
+
+export function startTech(g: Galaxy, faction: FactionId, tech: TechId): Result {
+  const r = canResearchTech(g, faction, tech);
+  if (!r.ok) return r;
+  const f = g.factions.get(faction)!;
+  const level = f.research[tech];
+  const cost = TECHS[tech].costs[level];
+  f.credits -= cost;
+  f.researching = { tech, remaining: TECHS[tech].times[level], total: TECHS[tech].times[level], cost };
+  return OK;
+}
+
+export function cancelTech(g: Galaxy, faction: FactionId): void {
+  const f = g.factions.get(faction);
+  if (!f?.researching) return;
+  f.credits += f.researching.cost;
+  f.researching = null;
+}
+
+/** Owning ancient archives speeds research up. */
+export function researchSpeed(g: Galaxy, faction: FactionId): number {
+  return g.planets.some((p) => p.owner === faction && p.special === 'archive') ? 1 / 0.75 : 1;
+}
+
+function updateResearch(g: Galaxy, dt: number): void {
+  for (const f of g.factions.values()) {
+    const job = f.researching;
+    if (!job || (job.remaining -= dt * researchSpeed(g, f.id)) > 0) continue;
+    f.research[job.tech]++;
+    f.researching = null;
+    g.events.push({ type: 'researched', faction: f.id, tech: job.tech });
   }
 }
 
@@ -505,8 +730,10 @@ export function waitingForPlayer(g: Galaxy): boolean {
 export function updateGalaxy(g: Galaxy, dt: number): void {
   for (const f of g.factions.values()) {
     if (!f.eliminated) f.credits += incomeOf(g, f.id) * dt;
+    for (const h of Object.keys(f.heroCooldowns) as HeroId[]) f.heroCooldowns[h] = Math.max(0, f.heroCooldowns[h]! - dt);
   }
   updateProduction(g, dt);
+  updateResearch(g, dt);
   moveFleets(g, dt);
   mergeFleets(g);
   detectConflicts(g);

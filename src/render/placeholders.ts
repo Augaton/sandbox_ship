@@ -87,6 +87,16 @@ const STRUCTURES: Record<string, Draw> = {
   hangar: (ctx, r) => {
     poly(ctx, r, [-0.9, -0.7, 0.9, -0.7, 0.9, 0.7, 0.35, 0.7, 0.35, 0.1, -0.35, 0.1, -0.35, 0.7, -0.9, 0.7]);
   },
+  repairDock: (ctx, r) => {
+    poly(ctx, r, [-0.7, -0.9, 0.7, -0.9, 0.7, 0.9, -0.7, 0.9]);
+    poly(ctx, r, [-0.15, -0.55, 0.15, -0.55, 0.15, -0.15, 0.55, -0.15, 0.55, 0.15, 0.15, 0.15, 0.15, 0.55, -0.15, 0.55, -0.15, 0.15, -0.55, 0.15, -0.55, -0.15, -0.15, -0.15]);
+  },
+  ionCannon: (ctx, r) => {
+    poly(ctx, r, [-0.75, -0.75, 0.75, -0.75, 0.75, 0.75, -0.75, 0.75]);
+    circle(ctx, 0, 0, r * 0.45);
+    ctx.fillStyle = LINE;
+    ctx.fillRect(-r * 0.12, -r, r * 0.24, r * 0.9);
+  },
 };
 
 const HARDPOINT_DRAW: Record<string, Draw> = {
@@ -108,6 +118,10 @@ const HARDPOINT_DRAW: Record<string, Draw> = {
     circle(ctx, 0, 0, r * 0.2, false);
   },
   shipyard: (ctx, r) => poly(ctx, r, [-0.9, -0.9, -0.5, -0.9, -0.5, 0.5, 0.5, 0.5, 0.5, -0.9, 0.9, -0.9, 0.9, 0.9, -0.9, 0.9]),
+  engine: (ctx, r) => {
+    poly(ctx, r, [-0.6, -0.8, 0.6, -0.8, 0.8, 0.8, -0.8, 0.8]);
+    circle(ctx, 0, 0.3 * r, r * 0.3, false);
+  },
 };
 
 function stars(scene: Phaser.Scene, key: string, count: number, maxSize: number, seed: number): void {
@@ -178,6 +192,15 @@ export function createPlaceholders(scene: Phaser.Scene): void {
     ctx.beginPath();
     ctx.arc(220, 220, 218, 0, Math.PI * 2);
     ctx.fill();
+  });
+  // Soft round brush that clears the fog of war around what the player sees.
+  canvas(scene, 'fog-brush', 256, 256, (ctx) => {
+    const g = ctx.createRadialGradient(128, 128, 0, 128, 128, 128);
+    g.addColorStop(0, 'rgba(255,255,255,1)');
+    g.addColorStop(0.8, 'rgba(255,255,255,1)');
+    g.addColorStop(1, 'rgba(255,255,255,0)');
+    ctx.fillStyle = g;
+    ctx.fillRect(0, 0, 256, 256);
   });
   canvas(scene, 'ph-spark', 8, 8, (ctx) => {
     const g = ctx.createRadialGradient(4, 4, 0, 4, 4, 4);

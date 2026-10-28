@@ -4,6 +4,15 @@
 export const GALAXY_W = 1600;
 export const GALAXY_H = 1000;
 
+export type PlanetSpecial = 'rich' | 'shipyard' | 'fortress' | 'archive';
+
+export const SPECIALS: Record<PlanetSpecial, { name: string; description: string }> = {
+  rich: { name: 'Gisement riche', description: 'Les mines rapportent le double.' },
+  shipyard: { name: 'Chantier orbital', description: 'Les vaisseaux sont construits 30 % plus vite.' },
+  fortress: { name: 'Forteresse', description: 'Deux plateformes de défense de plus.' },
+  archive: { name: 'Archives anciennes', description: 'Tant que la planète est à toi, la recherche va 25 % plus vite.' },
+};
+
 export interface PlanetDef {
   name: string;
   x: number;
@@ -11,16 +20,17 @@ export interface PlanetDef {
   /** Credits per second while owned. */
   income: number;
   mineSlots: number;
+  special?: PlanetSpecial;
 }
 
 const WEST: PlanetDef[] = [
   { name: 'Vesper', x: 150, y: 500, income: 6, mineSlots: 3 },
-  { name: 'Orin', x: 330, y: 260, income: 3, mineSlots: 2 },
+  { name: 'Orin', x: 330, y: 260, income: 3, mineSlots: 2, special: 'archive' },
   { name: 'Maru', x: 330, y: 740, income: 3, mineSlots: 2 },
-  { name: 'Kaldra', x: 520, y: 470, income: 4, mineSlots: 2 },
-  { name: 'Sorel', x: 600, y: 150, income: 2, mineSlots: 1 },
+  { name: 'Kaldra', x: 520, y: 470, income: 4, mineSlots: 2, special: 'shipyard' },
+  { name: 'Sorel', x: 600, y: 150, income: 2, mineSlots: 1, special: 'fortress' },
   { name: 'Thessa', x: 640, y: 820, income: 2, mineSlots: 1 },
-  { name: 'Nadir', x: 800, y: 330, income: 5, mineSlots: 3 },
+  { name: 'Nadir', x: 800, y: 330, income: 5, mineSlots: 3, special: 'rich' },
 ];
 const EAST_NAMES = ['Ostra', 'Pélion', 'Yvra', 'Tarsis', 'Brume', 'Ixion', 'Calyx'];
 
@@ -58,6 +68,9 @@ export const GALAXY_RULES = {
   mineIncome: 3,
   stationCost: 1500,
   stationTime: 40,
+  /** A lab is needed to research; it stays on the ground, out of space battles. */
+  labCost: 800,
+  labTime: 30,
   /** Seconds a lone fleet must hold an undefended enemy planet before taking it. */
   captureTime: 15,
   neutralCaptureTime: 5,

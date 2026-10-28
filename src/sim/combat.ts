@@ -1,5 +1,10 @@
-import { SHIPS, type ShipClass, type WeaponDef } from '../data/units';
-import { applyDamage, dist, hasHardpoint, rand, type Entity, type Projectile, type World } from './world';
+import { TECH_BONUS } from '../data/research';
+import { BUILDABLES, type BuildableType } from '../data/structures';
+import { FACTIONS, SHIPS, type ShipClass, type WeaponDef } from '../data/units';
+import { HEROES } from '../data/heroes';
+import { inCommandAura, isActive } from './abilities';
+import { isVisible } from './vision';
+import { applyDamage, dist, rand, researchLevel, type Entity, type Pilot, type Projectile, type World } from './world';
 
 const RETARGET_INTERVAL = 0.5;
 
@@ -16,7 +21,7 @@ function nearestHostile(world: World, e: Entity, range: number): Entity | null {
   let best: Entity | null = null;
   let bestD = range;
   for (const t of world.entities.values()) {
-    if (t.faction === e.faction) continue;
+    if (t.faction === e.faction || !isVisible(world, e.faction, t)) continue;
     const d = reach(e, t);
     if (d < bestD) {
       bestD = d;
@@ -31,14 +36,33 @@ function aggroRange(e: Entity): number {
   return e.kind === 'ship' ? Math.max(e.range * 1.6, 350) : e.range;
 }
 
+/** Armed entities pick targets; so do ships whose weapons sit on their turrets, to close in. */
 export function updateTargeting(world: World, dt: number): void {
   for (const e of world.entities.values()) {
-    if (e.weapons.length === 0 || !operational(e)) continue;
+    const seeks = e.weapons.length > 0 || (e.kind === 'ship' && e.range > 0);
+    if (!seeks || !operational(e)) continue;
     e.retarget -= dt;
     if (e.retarget > 0) continue;
     e.retarget = RETARGET_INTERVAL;
     e.targetId = nearestHostile(world, e, aggroRange(e))?.id ?? null;
   }
+}
+
+/** Faction trait, weapons research and damage abilities. */
+export function damageMult(world: World, e: Entity): number {
+  let m = FACTIONS[e.faction].trait.damage * (1 + TECH_BONUS.weapons * researchLevel(world, e.faction, 'weapons'));
+  if (isActive(world, e, 'barrage')) m *= 1.5;
+  if (isActive(world, e, 'broadside')) m *= 2;
+  if (isActive(world, e, 'precision')) m *= 3;
+  const owner = e.kind === 'hardpoint' && e.parentId != null ? world.entities.get(e.parentId) ?? e : e;
+  if (owner.hero) m *= HEROES[owner.hero].damage;
+  if (inCommandAura(world, owner)) m *= 1.3;
+  return m;
+}
+
+function reload(world: World, e: Entity, w: WeaponDef): number {
+  // A little jitter keeps identical ships from firing in lockstep.
+  return w.cooldown * (0.9 + rand(world) * 0.2) * (isActive(world, e, 'salvo') ? 1 / 3 : 1);
 }
 
 function fire(world: World, e: Entity, w: WeaponDef, t: Entity): void {
@@ -53,14 +77,50 @@ function fire(world: World, e: Entity, w: WeaponDef, t: Entity): void {
     id: world.nextId++, faction: e.faction, kind: w.kind,
     x: e.x, y: e.y,
     vx: (ax / len) * w.projectileSpeed, vy: (ay / len) * w.projectileSpeed,
-    speed: w.projectileSpeed, damage: w.damage, mult: w.mult,
+    speed: w.projectileSpeed, damage: w.damage * damageMult(world, e), mult: w.mult,
     targetId: t.id, homing: !!w.homing, ttl: (w.range * 1.3) / w.projectileSpeed,
   });
+}
+
+/** The enemy closest to where a pilot aims, among those within `range`. */
+export function aimedTarget(world: World, e: Entity, pilot: Pilot, range: number): Entity | null {
+  let best: Entity | null = null;
+  let bestD = Infinity;
+  for (const t of world.entities.values()) {
+    if (t.faction === e.faction || reach(e, t) > range || !isVisible(world, e.faction, t)) continue;
+    const d = Math.hypot(t.x - pilot.aimX, t.y - pilot.aimY) - t.radius;
+    if (d < bestD) {
+      bestD = d;
+      best = t;
+    }
+  }
+  return best;
+}
+
+/** A hand-flown ship and its turrets only fire while the pilot holds the trigger. */
+function pilotOf(world: World, e: Entity): Pilot | null {
+  if (e.pilot) return e.pilot;
+  return e.parentId == null ? null : world.entities.get(e.parentId)?.pilot ?? null;
 }
 
 export function updateWeapons(world: World, dt: number): void {
   for (const e of world.entities.values()) {
     if (e.weapons.length === 0 || !operational(e)) continue;
+    const pilot = pilotOf(world, e);
+    if (pilot) {
+      for (const w of e.weapons) {
+        w.cooldown -= dt;
+        if (w.cooldown > 0) continue;
+        const t = pilot.firing ? aimedTarget(world, e, pilot, w.def.range) : null;
+        if (!t) {
+          w.cooldown = 0;
+          continue;
+        }
+        fire(world, e, w.def, t);
+        w.cooldown = reload(world, e, w.def);
+      }
+      continue;
+    }
     const ordered = e.order?.type === 'attack' ? world.entities.get(e.order.targetId) : undefined;
     const auto = e.targetId == null ? undefined : world.entities.get(e.targetId);
     for (const w of e.weapons) {
@@ -72,8 +132,7 @@ export function updateWeapons(world: World, dt: number): void {
         continue;
       }
       fire(world, e, w.def, t);
-      // A little jitter keeps identical ships from firing in lockstep.
-      w.cooldown = w.def.cooldown * (0.9 + rand(world) * 0.2);
+      w.cooldown = reload(world, e, w.def);
     }
   }
 }
@@ -91,7 +150,8 @@ export function updateProjectiles(world: World, dt: number): void {
     p.y += p.vy * dt;
     p.ttl -= dt;
     if (t && dist(p, t) <= t.radius) {
-      applyDamage(t, p.damage * (p.mult?.[t.size] ?? 1));
+      const parent = t.kind === 'hardpoint' && t.parentId != null ? world.entities.get(t.parentId) : undefined;
+      applyDamage(t, p.damage * (p.mult?.[t.size] ?? 1), parent?.kind === 'ship' ? parent : t);
       world.events.push({ type: 'hit', x: p.x, y: p.y, kind: p.kind });
       continue;
     }
@@ -100,21 +160,35 @@ export function updateProjectiles(world: World, dt: number): void {
   world.projectiles = kept;
 }
 
-/** A station only has shields while its shield generator hardpoint stands. */
+/** Stations and ships with shield generators lose their shields with the last generator. */
 export function updateShields(world: World, dt: number): void {
   for (const e of world.entities.values()) {
+    // Biomechanical hulls mend themselves.
+    const regen = FACTIONS[e.faction].trait.hullRegen;
+    if (regen > 0 && e.kind === 'ship') e.hull = Math.min(e.maxHull, e.hull + e.maxHull * regen * dt);
     if (e.maxShield <= 0 || !operational(e)) continue;
-    if (e.type === 'station' && !hasHardpoint(world, e.id, 'shield')) {
+    if (e.shieldGens === 0) {
       e.shield = 0;
       continue;
     }
-    e.shield = Math.min(e.maxShield, e.shield + e.shieldRegen * dt);
+    const boost = isActive(world, e, 'overcharge') ? 4 : 1;
+    e.shield = Math.min(e.maxShield, e.shield + e.shieldRegen * boost * dt);
   }
 }
 
 /** Support ships repair the most damaged friendly ship or structure in range. */
 export function updateRepair(world: World, dt: number): void {
   for (const e of world.entities.values()) {
+    // Repair docks mend every friendly ship around them.
+    const dock = e.kind === 'structure' && operational(e) ? BUILDABLES[e.type as BuildableType]?.repair : undefined;
+    if (dock) {
+      for (const t of world.entities.values()) {
+        if (t.kind === 'ship' && t.faction === e.faction && dist(e, t) <= dock.range) {
+          t.hull = Math.min(t.maxHull, t.hull + dock.rate * dt);
+        }
+      }
+      continue;
+    }
     if (e.kind !== 'ship') continue;
     const repair = SHIPS[e.type as ShipClass].repair;
     if (!repair) continue;

@@ -1,1 +1,1970 @@
-{}
+{
+ "foozle-2ds0011-void-mainship-foozle-2ds0011-void-mainship-main-ship-main-ship-bases-pngs-main-ship-base-damaged": {
+  "url": "assets/foozle-2ds0011-void-mainship-foozle-2ds0011-void-mainship-main-ship-main-ship-bases-pngs-main-ship-base-damaged.png",
+  "w": 48,
+  "h": 48,
+  "frameW": 48,
+  "frameH": 48,
+  "frames": 1
+ },
+ "foozle-2ds0011-void-mainship-foozle-2ds0011-void-mainship-main-ship-main-ship-bases-pngs-main-ship-base-full-health": {
+  "url": "assets/foozle-2ds0011-void-mainship-foozle-2ds0011-void-mainship-main-ship-main-ship-bases-pngs-main-ship-base-full-health.png",
+  "w": 48,
+  "h": 48,
+  "frameW": 48,
+  "frameH": 48,
+  "frames": 1
+ },
+ "foozle-2ds0011-void-mainship-foozle-2ds0011-void-mainship-main-ship-main-ship-bases-pngs-main-ship-base-slight-damage": {
+  "url": "assets/foozle-2ds0011-void-mainship-foozle-2ds0011-void-mainship-main-ship-main-ship-bases-pngs-main-ship-base-slight-damage.png",
+  "w": 48,
+  "h": 48,
+  "frameW": 48,
+  "frameH": 48,
+  "frames": 1
+ },
+ "foozle-2ds0011-void-mainship-foozle-2ds0011-void-mainship-main-ship-main-ship-bases-pngs-main-ship-base-very-damaged": {
+  "url": "assets/foozle-2ds0011-void-mainship-foozle-2ds0011-void-mainship-main-ship-main-ship-bases-pngs-main-ship-base-very-damaged.png",
+  "w": 48,
+  "h": 48,
+  "frameW": 48,
+  "frameH": 48,
+  "frames": 1
+ },
+ "foozle-2ds0011-void-mainship-foozle-2ds0011-void-mainship-main-ship-main-ship-engine-effects-pngs-main-ship-engines-base-engine-idle": {
+  "url": "assets/foozle-2ds0011-void-mainship-foozle-2ds0011-void-mainship-main-ship-main-ship-engine-effects-pngs-main-ship-engines-base-engine-idle.png",
+  "w": 144,
+  "h": 48,
+  "frameW": 48,
+  "frameH": 48,
+  "frames": 3
+ },
+ "foozle-2ds0011-void-mainship-foozle-2ds0011-void-mainship-main-ship-main-ship-engine-effects-pngs-main-ship-engines-base-engine-powering": {
+  "url": "assets/foozle-2ds0011-void-mainship-foozle-2ds0011-void-mainship-main-ship-main-ship-engine-effects-pngs-main-ship-engines-base-engine-powering.png",
+  "w": 192,
+  "h": 48,
+  "frameW": 48,
+  "frameH": 48,
+  "frames": 4
+ },
+ "foozle-2ds0011-void-mainship-foozle-2ds0011-void-mainship-main-ship-main-ship-engine-effects-pngs-main-ship-engines-base-engine-spritesheet": {
+  "url": "assets/foozle-2ds0011-void-mainship-foozle-2ds0011-void-mainship-main-ship-main-ship-engine-effects-pngs-main-ship-engines-base-engine-spritesheet.png",
+  "w": 192,
+  "h": 96,
+  "frameW": 96,
+  "frameH": 96,
+  "frames": 2
+ },
+ "foozle-2ds0011-void-mainship-foozle-2ds0011-void-mainship-main-ship-main-ship-engine-effects-pngs-main-ship-engines-big-pulse-engine-idle": {
+  "url": "assets/foozle-2ds0011-void-mainship-foozle-2ds0011-void-mainship-main-ship-main-ship-engine-effects-pngs-main-ship-engines-big-pulse-engine-idle.png",
+  "w": 192,
+  "h": 48,
+  "frameW": 48,
+  "frameH": 48,
+  "frames": 4
+ },
+ "foozle-2ds0011-void-mainship-foozle-2ds0011-void-mainship-main-ship-main-ship-engine-effects-pngs-main-ship-engines-big-pulse-engine-powering": {
+  "url": "assets/foozle-2ds0011-void-mainship-foozle-2ds0011-void-mainship-main-ship-main-ship-engine-effects-pngs-main-ship-engines-big-pulse-engine-powering.png",
+  "w": 192,
+  "h": 48,
+  "frameW": 48,
+  "frameH": 48,
+  "frames": 4
+ },
+ "foozle-2ds0011-void-mainship-foozle-2ds0011-void-mainship-main-ship-main-ship-engine-effects-pngs-main-ship-engines-big-pulse-engine-spritesheet": {
+  "url": "assets/foozle-2ds0011-void-mainship-foozle-2ds0011-void-mainship-main-ship-main-ship-engine-effects-pngs-main-ship-engines-big-pulse-engine-spritesheet.png",
+  "w": 192,
+  "h": 96,
+  "frameW": 96,
+  "frameH": 96,
+  "frames": 2
+ },
+ "foozle-2ds0011-void-mainship-foozle-2ds0011-void-mainship-main-ship-main-ship-engine-effects-pngs-main-ship-engines-burst-engine-idle": {
+  "url": "assets/foozle-2ds0011-void-mainship-foozle-2ds0011-void-mainship-main-ship-main-ship-engine-effects-pngs-main-ship-engines-burst-engine-idle.png",
+  "w": 336,
+  "h": 48,
+  "frameW": 48,
+  "frameH": 48,
+  "frames": 7
+ },
+ "foozle-2ds0011-void-mainship-foozle-2ds0011-void-mainship-main-ship-main-ship-engine-effects-pngs-main-ship-engines-burst-engine-powering": {
+  "url": "assets/foozle-2ds0011-void-mainship-foozle-2ds0011-void-mainship-main-ship-main-ship-engine-effects-pngs-main-ship-engines-burst-engine-powering.png",
+  "w": 288,
+  "h": 48,
+  "frameW": 48,
+  "frameH": 48,
+  "frames": 6
+ },
+ "foozle-2ds0011-void-mainship-foozle-2ds0011-void-mainship-main-ship-main-ship-engine-effects-pngs-main-ship-engines-burst-engine-spritesheet": {
+  "url": "assets/foozle-2ds0011-void-mainship-foozle-2ds0011-void-mainship-main-ship-main-ship-engine-effects-pngs-main-ship-engines-burst-engine-spritesheet.png",
+  "w": 336,
+  "h": 96,
+  "frameW": 336,
+  "frameH": 96,
+  "frames": 1
+ },
+ "foozle-2ds0011-void-mainship-foozle-2ds0011-void-mainship-main-ship-main-ship-engine-effects-pngs-main-ship-engines-supercharged-engine-idle": {
+  "url": "assets/foozle-2ds0011-void-mainship-foozle-2ds0011-void-mainship-main-ship-main-ship-engine-effects-pngs-main-ship-engines-supercharged-engine-idle.png",
+  "w": 192,
+  "h": 48,
+  "frameW": 48,
+  "frameH": 48,
+  "frames": 4
+ },
+ "foozle-2ds0011-void-mainship-foozle-2ds0011-void-mainship-main-ship-main-ship-engine-effects-pngs-main-ship-engines-supercharged-engine-powering": {
+  "url": "assets/foozle-2ds0011-void-mainship-foozle-2ds0011-void-mainship-main-ship-main-ship-engine-effects-pngs-main-ship-engines-supercharged-engine-powering.png",
+  "w": 192,
+  "h": 48,
+  "frameW": 48,
+  "frameH": 48,
+  "frames": 4
+ },
+ "foozle-2ds0011-void-mainship-foozle-2ds0011-void-mainship-main-ship-main-ship-engine-effects-pngs-main-ship-engines-supercharged-engine-spritesheet": {
+  "url": "assets/foozle-2ds0011-void-mainship-foozle-2ds0011-void-mainship-main-ship-main-ship-engine-effects-pngs-main-ship-engines-supercharged-engine-spritesheet.png",
+  "w": 192,
+  "h": 96,
+  "frameW": 96,
+  "frameH": 96,
+  "frames": 2
+ },
+ "foozle-2ds0011-void-mainship-foozle-2ds0011-void-mainship-main-ship-main-ship-engines-pngs-main-ship-engines-base-engine": {
+  "url": "assets/foozle-2ds0011-void-mainship-foozle-2ds0011-void-mainship-main-ship-main-ship-engines-pngs-main-ship-engines-base-engine.png",
+  "w": 48,
+  "h": 48,
+  "frameW": 48,
+  "frameH": 48,
+  "frames": 1
+ },
+ "foozle-2ds0011-void-mainship-foozle-2ds0011-void-mainship-main-ship-main-ship-engines-pngs-main-ship-engines-big-pulse-engine": {
+  "url": "assets/foozle-2ds0011-void-mainship-foozle-2ds0011-void-mainship-main-ship-main-ship-engines-pngs-main-ship-engines-big-pulse-engine.png",
+  "w": 48,
+  "h": 48,
+  "frameW": 48,
+  "frameH": 48,
+  "frames": 1
+ },
+ "foozle-2ds0011-void-mainship-foozle-2ds0011-void-mainship-main-ship-main-ship-engines-pngs-main-ship-engines-burst-engine": {
+  "url": "assets/foozle-2ds0011-void-mainship-foozle-2ds0011-void-mainship-main-ship-main-ship-engines-pngs-main-ship-engines-burst-engine.png",
+  "w": 48,
+  "h": 48,
+  "frameW": 48,
+  "frameH": 48,
+  "frames": 1
+ },
+ "foozle-2ds0011-void-mainship-foozle-2ds0011-void-mainship-main-ship-main-ship-engines-pngs-main-ship-engines-supercharged-engine": {
+  "url": "assets/foozle-2ds0011-void-mainship-foozle-2ds0011-void-mainship-main-ship-main-ship-engines-pngs-main-ship-engines-supercharged-engine.png",
+  "w": 48,
+  "h": 48,
+  "frameW": 48,
+  "frameH": 48,
+  "frames": 1
+ },
+ "foozle-2ds0011-void-mainship-foozle-2ds0011-void-mainship-main-ship-main-ship-shields-pngs-main-ship-shields-front-shield": {
+  "url": "assets/foozle-2ds0011-void-mainship-foozle-2ds0011-void-mainship-main-ship-main-ship-shields-pngs-main-ship-shields-front-shield.png",
+  "w": 640,
+  "h": 64,
+  "frameW": 64,
+  "frameH": 64,
+  "frames": 10
+ },
+ "foozle-2ds0011-void-mainship-foozle-2ds0011-void-mainship-main-ship-main-ship-shields-pngs-main-ship-shields-front-and-side-shield": {
+  "url": "assets/foozle-2ds0011-void-mainship-foozle-2ds0011-void-mainship-main-ship-main-ship-shields-pngs-main-ship-shields-front-and-side-shield.png",
+  "w": 384,
+  "h": 64,
+  "frameW": 64,
+  "frameH": 64,
+  "frames": 6
+ },
+ "foozle-2ds0011-void-mainship-foozle-2ds0011-void-mainship-main-ship-main-ship-shields-pngs-main-ship-shields-invincibility-shield": {
+  "url": "assets/foozle-2ds0011-void-mainship-foozle-2ds0011-void-mainship-main-ship-main-ship-shields-pngs-main-ship-shields-invincibility-shield.png",
+  "w": 640,
+  "h": 64,
+  "frameW": 64,
+  "frameH": 64,
+  "frames": 10
+ },
+ "foozle-2ds0011-void-mainship-foozle-2ds0011-void-mainship-main-ship-main-ship-shields-pngs-main-ship-shields-round-shield": {
+  "url": "assets/foozle-2ds0011-void-mainship-foozle-2ds0011-void-mainship-main-ship-main-ship-shields-pngs-main-ship-shields-round-shield.png",
+  "w": 768,
+  "h": 64,
+  "frameW": 64,
+  "frameH": 64,
+  "frames": 12
+ },
+ "foozle-2ds0011-void-mainship-foozle-2ds0011-void-mainship-main-ship-main-ship-weapons-pngs-main-ship-weapons-auto-cannon": {
+  "url": "assets/foozle-2ds0011-void-mainship-foozle-2ds0011-void-mainship-main-ship-main-ship-weapons-pngs-main-ship-weapons-auto-cannon.png",
+  "w": 336,
+  "h": 48,
+  "frameW": 48,
+  "frameH": 48,
+  "frames": 7
+ },
+ "foozle-2ds0011-void-mainship-foozle-2ds0011-void-mainship-main-ship-main-ship-weapons-pngs-main-ship-weapons-big-space-gun": {
+  "url": "assets/foozle-2ds0011-void-mainship-foozle-2ds0011-void-mainship-main-ship-main-ship-weapons-pngs-main-ship-weapons-big-space-gun.png",
+  "w": 576,
+  "h": 48,
+  "frameW": 48,
+  "frameH": 48,
+  "frames": 12
+ },
+ "foozle-2ds0011-void-mainship-foozle-2ds0011-void-mainship-main-ship-main-ship-weapons-pngs-main-ship-weapons-rockets": {
+  "url": "assets/foozle-2ds0011-void-mainship-foozle-2ds0011-void-mainship-main-ship-main-ship-weapons-pngs-main-ship-weapons-rockets.png",
+  "w": 816,
+  "h": 48,
+  "frameW": 48,
+  "frameH": 48,
+  "frames": 17
+ },
+ "foozle-2ds0011-void-mainship-foozle-2ds0011-void-mainship-main-ship-main-ship-weapons-pngs-main-ship-weapons-zapper": {
+  "url": "assets/foozle-2ds0011-void-mainship-foozle-2ds0011-void-mainship-main-ship-main-ship-weapons-pngs-main-ship-weapons-zapper.png",
+  "w": 672,
+  "h": 48,
+  "frameW": 48,
+  "frameH": 48,
+  "frames": 14
+ },
+ "foozle-2ds0011-void-mainship-foozle-2ds0011-void-mainship-main-ship-weapons-pngs-main-ship-weapon-projectile-auto-cannon-bullet": {
+  "url": "assets/foozle-2ds0011-void-mainship-foozle-2ds0011-void-mainship-main-ship-weapons-pngs-main-ship-weapon-projectile-auto-cannon-bullet.png",
+  "w": 128,
+  "h": 32,
+  "frameW": 32,
+  "frameH": 32,
+  "frames": 4
+ },
+ "foozle-2ds0011-void-mainship-foozle-2ds0011-void-mainship-main-ship-weapons-pngs-main-ship-weapon-projectile-big-space-gun": {
+  "url": "assets/foozle-2ds0011-void-mainship-foozle-2ds0011-void-mainship-main-ship-weapons-pngs-main-ship-weapon-projectile-big-space-gun.png",
+  "w": 320,
+  "h": 32,
+  "frameW": 32,
+  "frameH": 32,
+  "frames": 10
+ },
+ "foozle-2ds0011-void-mainship-foozle-2ds0011-void-mainship-main-ship-weapons-pngs-main-ship-weapon-projectile-rocket": {
+  "url": "assets/foozle-2ds0011-void-mainship-foozle-2ds0011-void-mainship-main-ship-weapons-pngs-main-ship-weapon-projectile-rocket.png",
+  "w": 96,
+  "h": 32,
+  "frameW": 32,
+  "frameH": 32,
+  "frames": 3
+ },
+ "foozle-2ds0011-void-mainship-foozle-2ds0011-void-mainship-main-ship-weapons-pngs-main-ship-weapon-projectile-zapper": {
+  "url": "assets/foozle-2ds0011-void-mainship-foozle-2ds0011-void-mainship-main-ship-weapons-pngs-main-ship-weapon-projectile-zapper.png",
+  "w": 256,
+  "h": 32,
+  "frameW": 32,
+  "frameH": 32,
+  "frames": 8
+ },
+ "foozle-2ds0012-void-fleetpack-1-foozle-2ds0012-void-enemyfleet-1-klaed-base-pngs-klaed-battlecruiser-base": {
+  "url": "assets/foozle-2ds0012-void-fleetpack-1-foozle-2ds0012-void-enemyfleet-1-klaed-base-pngs-klaed-battlecruiser-base.png",
+  "w": 128,
+  "h": 128,
+  "frameW": 128,
+  "frameH": 128,
+  "frames": 1
+ },
+ "foozle-2ds0012-void-fleetpack-1-foozle-2ds0012-void-enemyfleet-1-klaed-base-pngs-klaed-bomber-base": {
+  "url": "assets/foozle-2ds0012-void-fleetpack-1-foozle-2ds0012-void-enemyfleet-1-klaed-base-pngs-klaed-bomber-base.png",
+  "w": 64,
+  "h": 64,
+  "frameW": 64,
+  "frameH": 64,
+  "frames": 1
+ },
+ "foozle-2ds0012-void-fleetpack-1-foozle-2ds0012-void-enemyfleet-1-klaed-base-pngs-klaed-dreadnought-base": {
+  "url": "assets/foozle-2ds0012-void-fleetpack-1-foozle-2ds0012-void-enemyfleet-1-klaed-base-pngs-klaed-dreadnought-base.png",
+  "w": 128,
+  "h": 128,
+  "frameW": 128,
+  "frameH": 128,
+  "frames": 1
+ },
+ "foozle-2ds0012-void-fleetpack-1-foozle-2ds0012-void-enemyfleet-1-klaed-base-pngs-klaed-fighter-base": {
+  "url": "assets/foozle-2ds0012-void-fleetpack-1-foozle-2ds0012-void-enemyfleet-1-klaed-base-pngs-klaed-fighter-base.png",
+  "w": 64,
+  "h": 64,
+  "frameW": 64,
+  "frameH": 64,
+  "frames": 1
+ },
+ "foozle-2ds0012-void-fleetpack-1-foozle-2ds0012-void-enemyfleet-1-klaed-base-pngs-klaed-frigate-base": {
+  "url": "assets/foozle-2ds0012-void-fleetpack-1-foozle-2ds0012-void-enemyfleet-1-klaed-base-pngs-klaed-frigate-base.png",
+  "w": 64,
+  "h": 64,
+  "frameW": 64,
+  "frameH": 64,
+  "frames": 1
+ },
+ "foozle-2ds0012-void-fleetpack-1-foozle-2ds0012-void-enemyfleet-1-klaed-base-pngs-klaed-scout-base": {
+  "url": "assets/foozle-2ds0012-void-fleetpack-1-foozle-2ds0012-void-enemyfleet-1-klaed-base-pngs-klaed-scout-base.png",
+  "w": 64,
+  "h": 64,
+  "frameW": 64,
+  "frameH": 64,
+  "frames": 1
+ },
+ "foozle-2ds0012-void-fleetpack-1-foozle-2ds0012-void-enemyfleet-1-klaed-base-pngs-klaed-support-ship-base": {
+  "url": "assets/foozle-2ds0012-void-fleetpack-1-foozle-2ds0012-void-enemyfleet-1-klaed-base-pngs-klaed-support-ship-base.png",
+  "w": 64,
+  "h": 64,
+  "frameW": 64,
+  "frameH": 64,
+  "frames": 1
+ },
+ "foozle-2ds0012-void-fleetpack-1-foozle-2ds0012-void-enemyfleet-1-klaed-base-pngs-klaed-torpedo-ship-base": {
+  "url": "assets/foozle-2ds0012-void-fleetpack-1-foozle-2ds0012-void-enemyfleet-1-klaed-base-pngs-klaed-torpedo-ship-base.png",
+  "w": 64,
+  "h": 64,
+  "frameW": 64,
+  "frameH": 64,
+  "frames": 1
+ },
+ "foozle-2ds0012-void-fleetpack-1-foozle-2ds0012-void-enemyfleet-1-klaed-destruction-pngs-klaed-battlecruiser-destruction": {
+  "url": "assets/foozle-2ds0012-void-fleetpack-1-foozle-2ds0012-void-enemyfleet-1-klaed-destruction-pngs-klaed-battlecruiser-destruction.png",
+  "w": 1792,
+  "h": 128,
+  "frameW": 128,
+  "frameH": 128,
+  "frames": 14
+ },
+ "foozle-2ds0012-void-fleetpack-1-foozle-2ds0012-void-enemyfleet-1-klaed-destruction-pngs-klaed-bomber-destruction": {
+  "url": "assets/foozle-2ds0012-void-fleetpack-1-foozle-2ds0012-void-enemyfleet-1-klaed-destruction-pngs-klaed-bomber-destruction.png",
+  "w": 512,
+  "h": 64,
+  "frameW": 64,
+  "frameH": 64,
+  "frames": 8
+ },
+ "foozle-2ds0012-void-fleetpack-1-foozle-2ds0012-void-enemyfleet-1-klaed-destruction-pngs-klaed-dreadnought-destruction": {
+  "url": "assets/foozle-2ds0012-void-fleetpack-1-foozle-2ds0012-void-enemyfleet-1-klaed-destruction-pngs-klaed-dreadnought-destruction.png",
+  "w": 1536,
+  "h": 128,
+  "frameW": 128,
+  "frameH": 128,
+  "frames": 12
+ },
+ "foozle-2ds0012-void-fleetpack-1-foozle-2ds0012-void-enemyfleet-1-klaed-destruction-pngs-klaed-fighter-destruction": {
+  "url": "assets/foozle-2ds0012-void-fleetpack-1-foozle-2ds0012-void-enemyfleet-1-klaed-destruction-pngs-klaed-fighter-destruction.png",
+  "w": 576,
+  "h": 64,
+  "frameW": 64,
+  "frameH": 64,
+  "frames": 9
+ },
+ "foozle-2ds0012-void-fleetpack-1-foozle-2ds0012-void-enemyfleet-1-klaed-destruction-pngs-klaed-frigate-destruction": {
+  "url": "assets/foozle-2ds0012-void-fleetpack-1-foozle-2ds0012-void-enemyfleet-1-klaed-destruction-pngs-klaed-frigate-destruction.png",
+  "w": 576,
+  "h": 64,
+  "frameW": 64,
+  "frameH": 64,
+  "frames": 9
+ },
+ "foozle-2ds0012-void-fleetpack-1-foozle-2ds0012-void-enemyfleet-1-klaed-destruction-pngs-klaed-scout-destruction": {
+  "url": "assets/foozle-2ds0012-void-fleetpack-1-foozle-2ds0012-void-enemyfleet-1-klaed-destruction-pngs-klaed-scout-destruction.png",
+  "w": 640,
+  "h": 64,
+  "frameW": 64,
+  "frameH": 64,
+  "frames": 10
+ },
+ "foozle-2ds0012-void-fleetpack-1-foozle-2ds0012-void-enemyfleet-1-klaed-destruction-pngs-klaed-support-ship-destruction": {
+  "url": "assets/foozle-2ds0012-void-fleetpack-1-foozle-2ds0012-void-enemyfleet-1-klaed-destruction-pngs-klaed-support-ship-destruction.png",
+  "w": 640,
+  "h": 64,
+  "frameW": 64,
+  "frameH": 64,
+  "frames": 10
+ },
+ "foozle-2ds0012-void-fleetpack-1-foozle-2ds0012-void-enemyfleet-1-klaed-destruction-pngs-klaed-torpedo-ship-destruction": {
+  "url": "assets/foozle-2ds0012-void-fleetpack-1-foozle-2ds0012-void-enemyfleet-1-klaed-destruction-pngs-klaed-torpedo-ship-destruction.png",
+  "w": 640,
+  "h": 64,
+  "frameW": 64,
+  "frameH": 64,
+  "frames": 10
+ },
+ "foozle-2ds0012-void-fleetpack-1-foozle-2ds0012-void-enemyfleet-1-klaed-engine-pngs-klaed-battlecruiser-engine": {
+  "url": "assets/foozle-2ds0012-void-fleetpack-1-foozle-2ds0012-void-enemyfleet-1-klaed-engine-pngs-klaed-battlecruiser-engine.png",
+  "w": 1536,
+  "h": 128,
+  "frameW": 128,
+  "frameH": 128,
+  "frames": 12
+ },
+ "foozle-2ds0012-void-fleetpack-1-foozle-2ds0012-void-enemyfleet-1-klaed-engine-pngs-klaed-bomber-engine": {
+  "url": "assets/foozle-2ds0012-void-fleetpack-1-foozle-2ds0012-void-enemyfleet-1-klaed-engine-pngs-klaed-bomber-engine.png",
+  "w": 640,
+  "h": 64,
+  "frameW": 64,
+  "frameH": 64,
+  "frames": 10
+ },
+ "foozle-2ds0012-void-fleetpack-1-foozle-2ds0012-void-enemyfleet-1-klaed-engine-pngs-klaed-dreadnought-engine": {
+  "url": "assets/foozle-2ds0012-void-fleetpack-1-foozle-2ds0012-void-enemyfleet-1-klaed-engine-pngs-klaed-dreadnought-engine.png",
+  "w": 1536,
+  "h": 128,
+  "frameW": 128,
+  "frameH": 128,
+  "frames": 12
+ },
+ "foozle-2ds0012-void-fleetpack-1-foozle-2ds0012-void-enemyfleet-1-klaed-engine-pngs-klaed-fighter-engine": {
+  "url": "assets/foozle-2ds0012-void-fleetpack-1-foozle-2ds0012-void-enemyfleet-1-klaed-engine-pngs-klaed-fighter-engine.png",
+  "w": 640,
+  "h": 64,
+  "frameW": 64,
+  "frameH": 64,
+  "frames": 10
+ },
+ "foozle-2ds0012-void-fleetpack-1-foozle-2ds0012-void-enemyfleet-1-klaed-engine-pngs-klaed-frigate-engine": {
+  "url": "assets/foozle-2ds0012-void-fleetpack-1-foozle-2ds0012-void-enemyfleet-1-klaed-engine-pngs-klaed-frigate-engine.png",
+  "w": 768,
+  "h": 64,
+  "frameW": 64,
+  "frameH": 64,
+  "frames": 12
+ },
+ "foozle-2ds0012-void-fleetpack-1-foozle-2ds0012-void-enemyfleet-1-klaed-engine-pngs-klaed-scout-engine": {
+  "url": "assets/foozle-2ds0012-void-fleetpack-1-foozle-2ds0012-void-enemyfleet-1-klaed-engine-pngs-klaed-scout-engine.png",
+  "w": 640,
+  "h": 64,
+  "frameW": 64,
+  "frameH": 64,
+  "frames": 10
+ },
+ "foozle-2ds0012-void-fleetpack-1-foozle-2ds0012-void-enemyfleet-1-klaed-engine-pngs-klaed-support-ship-engine": {
+  "url": "assets/foozle-2ds0012-void-fleetpack-1-foozle-2ds0012-void-enemyfleet-1-klaed-engine-pngs-klaed-support-ship-engine.png",
+  "w": 640,
+  "h": 64,
+  "frameW": 64,
+  "frameH": 64,
+  "frames": 10
+ },
+ "foozle-2ds0012-void-fleetpack-1-foozle-2ds0012-void-enemyfleet-1-klaed-engine-pngs-klaed-torpedo-ship-engine": {
+  "url": "assets/foozle-2ds0012-void-fleetpack-1-foozle-2ds0012-void-enemyfleet-1-klaed-engine-pngs-klaed-torpedo-ship-engine.png",
+  "w": 640,
+  "h": 64,
+  "frameW": 64,
+  "frameH": 64,
+  "frames": 10
+ },
+ "foozle-2ds0012-void-fleetpack-1-foozle-2ds0012-void-enemyfleet-1-klaed-projectiles-pngs-klaed-big-bullet": {
+  "url": "assets/foozle-2ds0012-void-fleetpack-1-foozle-2ds0012-void-enemyfleet-1-klaed-projectiles-pngs-klaed-big-bullet.png",
+  "w": 32,
+  "h": 16,
+  "frameW": 8,
+  "frameH": 16,
+  "frames": 4
+ },
+ "foozle-2ds0012-void-fleetpack-1-foozle-2ds0012-void-enemyfleet-1-klaed-projectiles-pngs-klaed-bullet": {
+  "url": "assets/foozle-2ds0012-void-fleetpack-1-foozle-2ds0012-void-enemyfleet-1-klaed-projectiles-pngs-klaed-bullet.png",
+  "w": 16,
+  "h": 16,
+  "frameW": 4,
+  "frameH": 16,
+  "frames": 4
+ },
+ "foozle-2ds0012-void-fleetpack-1-foozle-2ds0012-void-enemyfleet-1-klaed-projectiles-pngs-klaed-ray": {
+  "url": "assets/foozle-2ds0012-void-fleetpack-1-foozle-2ds0012-void-enemyfleet-1-klaed-projectiles-pngs-klaed-ray.png",
+  "w": 72,
+  "h": 38,
+  "frameW": 18,
+  "frameH": 38,
+  "frames": 4
+ },
+ "foozle-2ds0012-void-fleetpack-1-foozle-2ds0012-void-enemyfleet-1-klaed-projectiles-pngs-klaed-torpedo": {
+  "url": "assets/foozle-2ds0012-void-fleetpack-1-foozle-2ds0012-void-enemyfleet-1-klaed-projectiles-pngs-klaed-torpedo.png",
+  "w": 33,
+  "h": 32,
+  "frameW": 11,
+  "frameH": 32,
+  "frames": 3
+ },
+ "foozle-2ds0012-void-fleetpack-1-foozle-2ds0012-void-enemyfleet-1-klaed-projectiles-pngs-klaed-wave": {
+  "url": "assets/foozle-2ds0012-void-fleetpack-1-foozle-2ds0012-void-enemyfleet-1-klaed-projectiles-pngs-klaed-wave.png",
+  "w": 384,
+  "h": 64,
+  "frameW": 64,
+  "frameH": 64,
+  "frames": 6
+ },
+ "foozle-2ds0012-void-fleetpack-1-foozle-2ds0012-void-enemyfleet-1-klaed-shield-pngs-klaed-battlecruiser-shield": {
+  "url": "assets/foozle-2ds0012-void-fleetpack-1-foozle-2ds0012-void-enemyfleet-1-klaed-shield-pngs-klaed-battlecruiser-shield.png",
+  "w": 2048,
+  "h": 128,
+  "frameW": 128,
+  "frameH": 128,
+  "frames": 16
+ },
+ "foozle-2ds0012-void-fleetpack-1-foozle-2ds0012-void-enemyfleet-1-klaed-shield-pngs-klaed-bomber-shield": {
+  "url": "assets/foozle-2ds0012-void-fleetpack-1-foozle-2ds0012-void-enemyfleet-1-klaed-shield-pngs-klaed-bomber-shield.png",
+  "w": 384,
+  "h": 64,
+  "frameW": 64,
+  "frameH": 64,
+  "frames": 6
+ },
+ "foozle-2ds0012-void-fleetpack-1-foozle-2ds0012-void-enemyfleet-1-klaed-shield-pngs-klaed-dreadnought-shield": {
+  "url": "assets/foozle-2ds0012-void-fleetpack-1-foozle-2ds0012-void-enemyfleet-1-klaed-shield-pngs-klaed-dreadnought-shield.png",
+  "w": 1280,
+  "h": 128,
+  "frameW": 128,
+  "frameH": 128,
+  "frames": 10
+ },
+ "foozle-2ds0012-void-fleetpack-1-foozle-2ds0012-void-enemyfleet-1-klaed-shield-pngs-klaed-fighter-shield": {
+  "url": "assets/foozle-2ds0012-void-fleetpack-1-foozle-2ds0012-void-enemyfleet-1-klaed-shield-pngs-klaed-fighter-shield.png",
+  "w": 640,
+  "h": 64,
+  "frameW": 64,
+  "frameH": 64,
+  "frames": 10
+ },
+ "foozle-2ds0012-void-fleetpack-1-foozle-2ds0012-void-enemyfleet-1-klaed-shield-pngs-klaed-frigate-shield": {
+  "url": "assets/foozle-2ds0012-void-fleetpack-1-foozle-2ds0012-void-enemyfleet-1-klaed-shield-pngs-klaed-frigate-shield.png",
+  "w": 2560,
+  "h": 64,
+  "frameW": 64,
+  "frameH": 64,
+  "frames": 40
+ },
+ "foozle-2ds0012-void-fleetpack-1-foozle-2ds0012-void-enemyfleet-1-klaed-shield-pngs-klaed-scout-shield": {
+  "url": "assets/foozle-2ds0012-void-fleetpack-1-foozle-2ds0012-void-enemyfleet-1-klaed-shield-pngs-klaed-scout-shield.png",
+  "w": 896,
+  "h": 64,
+  "frameW": 64,
+  "frameH": 64,
+  "frames": 14
+ },
+ "foozle-2ds0012-void-fleetpack-1-foozle-2ds0012-void-enemyfleet-1-klaed-shield-pngs-klaed-torpedo-ship-shield": {
+  "url": "assets/foozle-2ds0012-void-fleetpack-1-foozle-2ds0012-void-enemyfleet-1-klaed-shield-pngs-klaed-torpedo-ship-shield.png",
+  "w": 640,
+  "h": 64,
+  "frameW": 64,
+  "frameH": 64,
+  "frames": 10
+ },
+ "foozle-2ds0012-void-fleetpack-1-foozle-2ds0012-void-enemyfleet-1-klaed-weapons-pngs-klaed-battlecruiser-weapons": {
+  "url": "assets/foozle-2ds0012-void-fleetpack-1-foozle-2ds0012-void-enemyfleet-1-klaed-weapons-pngs-klaed-battlecruiser-weapons.png",
+  "w": 3840,
+  "h": 128,
+  "frameW": 128,
+  "frameH": 128,
+  "frames": 30
+ },
+ "foozle-2ds0012-void-fleetpack-1-foozle-2ds0012-void-enemyfleet-1-klaed-weapons-pngs-klaed-dreadnought-weapons": {
+  "url": "assets/foozle-2ds0012-void-fleetpack-1-foozle-2ds0012-void-enemyfleet-1-klaed-weapons-pngs-klaed-dreadnought-weapons.png",
+  "w": 7680,
+  "h": 128,
+  "frameW": 128,
+  "frameH": 128,
+  "frames": 60
+ },
+ "foozle-2ds0012-void-fleetpack-1-foozle-2ds0012-void-enemyfleet-1-klaed-weapons-pngs-klaed-fighter-weapons": {
+  "url": "assets/foozle-2ds0012-void-fleetpack-1-foozle-2ds0012-void-enemyfleet-1-klaed-weapons-pngs-klaed-fighter-weapons.png",
+  "w": 384,
+  "h": 64,
+  "frameW": 64,
+  "frameH": 64,
+  "frames": 6
+ },
+ "foozle-2ds0012-void-fleetpack-1-foozle-2ds0012-void-enemyfleet-1-klaed-weapons-pngs-klaed-frigate-weapons": {
+  "url": "assets/foozle-2ds0012-void-fleetpack-1-foozle-2ds0012-void-enemyfleet-1-klaed-weapons-pngs-klaed-frigate-weapons.png",
+  "w": 384,
+  "h": 64,
+  "frameW": 64,
+  "frameH": 64,
+  "frames": 6
+ },
+ "foozle-2ds0012-void-fleetpack-1-foozle-2ds0012-void-enemyfleet-1-klaed-weapons-pngs-klaed-scout-weapons": {
+  "url": "assets/foozle-2ds0012-void-fleetpack-1-foozle-2ds0012-void-enemyfleet-1-klaed-weapons-pngs-klaed-scout-weapons.png",
+  "w": 384,
+  "h": 64,
+  "frameW": 64,
+  "frameH": 64,
+  "frames": 6
+ },
+ "foozle-2ds0012-void-fleetpack-1-foozle-2ds0012-void-enemyfleet-1-klaed-weapons-pngs-klaed-torpedo-ship-weapons": {
+  "url": "assets/foozle-2ds0012-void-fleetpack-1-foozle-2ds0012-void-enemyfleet-1-klaed-weapons-pngs-klaed-torpedo-ship-weapons.png",
+  "w": 1024,
+  "h": 64,
+  "frameW": 64,
+  "frameH": 64,
+  "frames": 16
+ },
+ "foozle-2ds0013-void-fleetpack-2-foozle-2ds0013-void-enemyfleet-2-nairan-designs-base-pngs-nairan-battlecruiser-base": {
+  "url": "assets/foozle-2ds0013-void-fleetpack-2-foozle-2ds0013-void-enemyfleet-2-nairan-designs-base-pngs-nairan-battlecruiser-base.png",
+  "w": 128,
+  "h": 128,
+  "frameW": 128,
+  "frameH": 128,
+  "frames": 1
+ },
+ "foozle-2ds0013-void-fleetpack-2-foozle-2ds0013-void-enemyfleet-2-nairan-designs-base-pngs-nairan-bomber-base": {
+  "url": "assets/foozle-2ds0013-void-fleetpack-2-foozle-2ds0013-void-enemyfleet-2-nairan-designs-base-pngs-nairan-bomber-base.png",
+  "w": 64,
+  "h": 64,
+  "frameW": 64,
+  "frameH": 64,
+  "frames": 1
+ },
+ "foozle-2ds0013-void-fleetpack-2-foozle-2ds0013-void-enemyfleet-2-nairan-designs-base-pngs-nairan-dreadnought-base": {
+  "url": "assets/foozle-2ds0013-void-fleetpack-2-foozle-2ds0013-void-enemyfleet-2-nairan-designs-base-pngs-nairan-dreadnought-base.png",
+  "w": 128,
+  "h": 128,
+  "frameW": 128,
+  "frameH": 128,
+  "frames": 1
+ },
+ "foozle-2ds0013-void-fleetpack-2-foozle-2ds0013-void-enemyfleet-2-nairan-designs-base-pngs-nairan-fighter-base": {
+  "url": "assets/foozle-2ds0013-void-fleetpack-2-foozle-2ds0013-void-enemyfleet-2-nairan-designs-base-pngs-nairan-fighter-base.png",
+  "w": 64,
+  "h": 64,
+  "frameW": 64,
+  "frameH": 64,
+  "frames": 1
+ },
+ "foozle-2ds0013-void-fleetpack-2-foozle-2ds0013-void-enemyfleet-2-nairan-designs-base-pngs-nairan-frigate-base": {
+  "url": "assets/foozle-2ds0013-void-fleetpack-2-foozle-2ds0013-void-enemyfleet-2-nairan-designs-base-pngs-nairan-frigate-base.png",
+  "w": 64,
+  "h": 64,
+  "frameW": 64,
+  "frameH": 64,
+  "frames": 1
+ },
+ "foozle-2ds0013-void-fleetpack-2-foozle-2ds0013-void-enemyfleet-2-nairan-designs-base-pngs-nairan-scout-base": {
+  "url": "assets/foozle-2ds0013-void-fleetpack-2-foozle-2ds0013-void-enemyfleet-2-nairan-designs-base-pngs-nairan-scout-base.png",
+  "w": 64,
+  "h": 64,
+  "frameW": 64,
+  "frameH": 64,
+  "frames": 1
+ },
+ "foozle-2ds0013-void-fleetpack-2-foozle-2ds0013-void-enemyfleet-2-nairan-designs-base-pngs-nairan-support-ship-base": {
+  "url": "assets/foozle-2ds0013-void-fleetpack-2-foozle-2ds0013-void-enemyfleet-2-nairan-designs-base-pngs-nairan-support-ship-base.png",
+  "w": 64,
+  "h": 64,
+  "frameW": 64,
+  "frameH": 64,
+  "frames": 1
+ },
+ "foozle-2ds0013-void-fleetpack-2-foozle-2ds0013-void-enemyfleet-2-nairan-designs-base-pngs-nairan-torpedo-ship-base": {
+  "url": "assets/foozle-2ds0013-void-fleetpack-2-foozle-2ds0013-void-enemyfleet-2-nairan-designs-base-pngs-nairan-torpedo-ship-base.png",
+  "w": 64,
+  "h": 64,
+  "frameW": 64,
+  "frameH": 64,
+  "frames": 1
+ },
+ "foozle-2ds0013-void-fleetpack-2-foozle-2ds0013-void-enemyfleet-2-nairan-destruction-pngs-nairan-battlecruiser-destruction": {
+  "url": "assets/foozle-2ds0013-void-fleetpack-2-foozle-2ds0013-void-enemyfleet-2-nairan-destruction-pngs-nairan-battlecruiser-destruction.png",
+  "w": 2304,
+  "h": 128,
+  "frameW": 128,
+  "frameH": 128,
+  "frames": 18
+ },
+ "foozle-2ds0013-void-fleetpack-2-foozle-2ds0013-void-enemyfleet-2-nairan-destruction-pngs-nairan-bomber-destruction": {
+  "url": "assets/foozle-2ds0013-void-fleetpack-2-foozle-2ds0013-void-enemyfleet-2-nairan-destruction-pngs-nairan-bomber-destruction.png",
+  "w": 1024,
+  "h": 64,
+  "frameW": 64,
+  "frameH": 64,
+  "frames": 16
+ },
+ "foozle-2ds0013-void-fleetpack-2-foozle-2ds0013-void-enemyfleet-2-nairan-destruction-pngs-nairan-dreadnought-destruction": {
+  "url": "assets/foozle-2ds0013-void-fleetpack-2-foozle-2ds0013-void-enemyfleet-2-nairan-destruction-pngs-nairan-dreadnought-destruction.png",
+  "w": 2304,
+  "h": 128,
+  "frameW": 128,
+  "frameH": 128,
+  "frames": 18
+ },
+ "foozle-2ds0013-void-fleetpack-2-foozle-2ds0013-void-enemyfleet-2-nairan-destruction-pngs-nairan-fighter-destruction": {
+  "url": "assets/foozle-2ds0013-void-fleetpack-2-foozle-2ds0013-void-enemyfleet-2-nairan-destruction-pngs-nairan-fighter-destruction.png",
+  "w": 1152,
+  "h": 64,
+  "frameW": 64,
+  "frameH": 64,
+  "frames": 18
+ },
+ "foozle-2ds0013-void-fleetpack-2-foozle-2ds0013-void-enemyfleet-2-nairan-destruction-pngs-nairan-frigate-destruction": {
+  "url": "assets/foozle-2ds0013-void-fleetpack-2-foozle-2ds0013-void-enemyfleet-2-nairan-destruction-pngs-nairan-frigate-destruction.png",
+  "w": 1024,
+  "h": 64,
+  "frameW": 64,
+  "frameH": 64,
+  "frames": 16
+ },
+ "foozle-2ds0013-void-fleetpack-2-foozle-2ds0013-void-enemyfleet-2-nairan-destruction-pngs-nairan-scout-destruction": {
+  "url": "assets/foozle-2ds0013-void-fleetpack-2-foozle-2ds0013-void-enemyfleet-2-nairan-destruction-pngs-nairan-scout-destruction.png",
+  "w": 1024,
+  "h": 64,
+  "frameW": 64,
+  "frameH": 64,
+  "frames": 16
+ },
+ "foozle-2ds0013-void-fleetpack-2-foozle-2ds0013-void-enemyfleet-2-nairan-destruction-pngs-nairan-support-ship-destruction": {
+  "url": "assets/foozle-2ds0013-void-fleetpack-2-foozle-2ds0013-void-enemyfleet-2-nairan-destruction-pngs-nairan-support-ship-destruction.png",
+  "w": 1024,
+  "h": 64,
+  "frameW": 64,
+  "frameH": 64,
+  "frames": 16
+ },
+ "foozle-2ds0013-void-fleetpack-2-foozle-2ds0013-void-enemyfleet-2-nairan-destruction-pngs-nairan-torpedo-ship-destruction": {
+  "url": "assets/foozle-2ds0013-void-fleetpack-2-foozle-2ds0013-void-enemyfleet-2-nairan-destruction-pngs-nairan-torpedo-ship-destruction.png",
+  "w": 1024,
+  "h": 64,
+  "frameW": 64,
+  "frameH": 64,
+  "frames": 16
+ },
+ "foozle-2ds0013-void-fleetpack-2-foozle-2ds0013-void-enemyfleet-2-nairan-engine-effects-pngs-nairan-battlecruiser-engine": {
+  "url": "assets/foozle-2ds0013-void-fleetpack-2-foozle-2ds0013-void-enemyfleet-2-nairan-engine-effects-pngs-nairan-battlecruiser-engine.png",
+  "w": 1024,
+  "h": 128,
+  "frameW": 128,
+  "frameH": 128,
+  "frames": 8
+ },
+ "foozle-2ds0013-void-fleetpack-2-foozle-2ds0013-void-enemyfleet-2-nairan-engine-effects-pngs-nairan-bomber-engine": {
+  "url": "assets/foozle-2ds0013-void-fleetpack-2-foozle-2ds0013-void-enemyfleet-2-nairan-engine-effects-pngs-nairan-bomber-engine.png",
+  "w": 512,
+  "h": 64,
+  "frameW": 64,
+  "frameH": 64,
+  "frames": 8
+ },
+ "foozle-2ds0013-void-fleetpack-2-foozle-2ds0013-void-enemyfleet-2-nairan-engine-effects-pngs-nairan-dreadnought-engine": {
+  "url": "assets/foozle-2ds0013-void-fleetpack-2-foozle-2ds0013-void-enemyfleet-2-nairan-engine-effects-pngs-nairan-dreadnought-engine.png",
+  "w": 1024,
+  "h": 128,
+  "frameW": 128,
+  "frameH": 128,
+  "frames": 8
+ },
+ "foozle-2ds0013-void-fleetpack-2-foozle-2ds0013-void-enemyfleet-2-nairan-engine-effects-pngs-nairan-fighter-engine": {
+  "url": "assets/foozle-2ds0013-void-fleetpack-2-foozle-2ds0013-void-enemyfleet-2-nairan-engine-effects-pngs-nairan-fighter-engine.png",
+  "w": 512,
+  "h": 64,
+  "frameW": 64,
+  "frameH": 64,
+  "frames": 8
+ },
+ "foozle-2ds0013-void-fleetpack-2-foozle-2ds0013-void-enemyfleet-2-nairan-engine-effects-pngs-nairan-frigate-engine": {
+  "url": "assets/foozle-2ds0013-void-fleetpack-2-foozle-2ds0013-void-enemyfleet-2-nairan-engine-effects-pngs-nairan-frigate-engine.png",
+  "w": 512,
+  "h": 64,
+  "frameW": 64,
+  "frameH": 64,
+  "frames": 8
+ },
+ "foozle-2ds0013-void-fleetpack-2-foozle-2ds0013-void-enemyfleet-2-nairan-engine-effects-pngs-nairan-scout-engine": {
+  "url": "assets/foozle-2ds0013-void-fleetpack-2-foozle-2ds0013-void-enemyfleet-2-nairan-engine-effects-pngs-nairan-scout-engine.png",
+  "w": 512,
+  "h": 64,
+  "frameW": 64,
+  "frameH": 64,
+  "frames": 8
+ },
+ "foozle-2ds0013-void-fleetpack-2-foozle-2ds0013-void-enemyfleet-2-nairan-engine-effects-pngs-nairan-support-ship-engine": {
+  "url": "assets/foozle-2ds0013-void-fleetpack-2-foozle-2ds0013-void-enemyfleet-2-nairan-engine-effects-pngs-nairan-support-ship-engine.png",
+  "w": 512,
+  "h": 64,
+  "frameW": 64,
+  "frameH": 64,
+  "frames": 8
+ },
+ "foozle-2ds0013-void-fleetpack-2-foozle-2ds0013-void-enemyfleet-2-nairan-engine-effects-pngs-nairan-torpedo-ship-engine": {
+  "url": "assets/foozle-2ds0013-void-fleetpack-2-foozle-2ds0013-void-enemyfleet-2-nairan-engine-effects-pngs-nairan-torpedo-ship-engine.png",
+  "w": 512,
+  "h": 64,
+  "frameW": 64,
+  "frameH": 64,
+  "frames": 8
+ },
+ "foozle-2ds0013-void-fleetpack-2-foozle-2ds0013-void-enemyfleet-2-nairan-shields-pngs-nairan-battlecruiser-shield": {
+  "url": "assets/foozle-2ds0013-void-fleetpack-2-foozle-2ds0013-void-enemyfleet-2-nairan-shields-pngs-nairan-battlecruiser-shield.png",
+  "w": 1024,
+  "h": 128,
+  "frameW": 128,
+  "frameH": 128,
+  "frames": 8
+ },
+ "foozle-2ds0013-void-fleetpack-2-foozle-2ds0013-void-enemyfleet-2-nairan-shields-pngs-nairan-bomber-shield": {
+  "url": "assets/foozle-2ds0013-void-fleetpack-2-foozle-2ds0013-void-enemyfleet-2-nairan-shields-pngs-nairan-bomber-shield.png",
+  "w": 640,
+  "h": 64,
+  "frameW": 64,
+  "frameH": 64,
+  "frames": 10
+ },
+ "foozle-2ds0013-void-fleetpack-2-foozle-2ds0013-void-enemyfleet-2-nairan-shields-pngs-nairan-dreadnought-shield": {
+  "url": "assets/foozle-2ds0013-void-fleetpack-2-foozle-2ds0013-void-enemyfleet-2-nairan-shields-pngs-nairan-dreadnought-shield.png",
+  "w": 1024,
+  "h": 128,
+  "frameW": 128,
+  "frameH": 128,
+  "frames": 8
+ },
+ "foozle-2ds0013-void-fleetpack-2-foozle-2ds0013-void-enemyfleet-2-nairan-shields-pngs-nairan-fighter-shield": {
+  "url": "assets/foozle-2ds0013-void-fleetpack-2-foozle-2ds0013-void-enemyfleet-2-nairan-shields-pngs-nairan-fighter-shield.png",
+  "w": 1280,
+  "h": 64,
+  "frameW": 64,
+  "frameH": 64,
+  "frames": 20
+ },
+ "foozle-2ds0013-void-fleetpack-2-foozle-2ds0013-void-enemyfleet-2-nairan-shields-pngs-nairan-frigate-shield": {
+  "url": "assets/foozle-2ds0013-void-fleetpack-2-foozle-2ds0013-void-enemyfleet-2-nairan-shields-pngs-nairan-frigate-shield.png",
+  "w": 512,
+  "h": 64,
+  "frameW": 64,
+  "frameH": 64,
+  "frames": 8
+ },
+ "foozle-2ds0013-void-fleetpack-2-foozle-2ds0013-void-enemyfleet-2-nairan-shields-pngs-nairan-scout-shield": {
+  "url": "assets/foozle-2ds0013-void-fleetpack-2-foozle-2ds0013-void-enemyfleet-2-nairan-shields-pngs-nairan-scout-shield.png",
+  "w": 1152,
+  "h": 64,
+  "frameW": 64,
+  "frameH": 64,
+  "frames": 18
+ },
+ "foozle-2ds0013-void-fleetpack-2-foozle-2ds0013-void-enemyfleet-2-nairan-shields-pngs-nairan-torpedo-ship-shield": {
+  "url": "assets/foozle-2ds0013-void-fleetpack-2-foozle-2ds0013-void-enemyfleet-2-nairan-shields-pngs-nairan-torpedo-ship-shield.png",
+  "w": 512,
+  "h": 64,
+  "frameW": 64,
+  "frameH": 64,
+  "frames": 8
+ },
+ "foozle-2ds0013-void-fleetpack-2-foozle-2ds0013-void-enemyfleet-2-nairan-weapon-effects-projectiles-pngs-nairan-bolt": {
+  "url": "assets/foozle-2ds0013-void-fleetpack-2-foozle-2ds0013-void-enemyfleet-2-nairan-weapon-effects-projectiles-pngs-nairan-bolt.png",
+  "w": 45,
+  "h": 9,
+  "frameW": 9,
+  "frameH": 9,
+  "frames": 5
+ },
+ "foozle-2ds0013-void-fleetpack-2-foozle-2ds0013-void-enemyfleet-2-nairan-weapon-effects-projectiles-pngs-nairan-ray": {
+  "url": "assets/foozle-2ds0013-void-fleetpack-2-foozle-2ds0013-void-enemyfleet-2-nairan-weapon-effects-projectiles-pngs-nairan-ray.png",
+  "w": 72,
+  "h": 38,
+  "frameW": 18,
+  "frameH": 38,
+  "frames": 4
+ },
+ "foozle-2ds0013-void-fleetpack-2-foozle-2ds0013-void-enemyfleet-2-nairan-weapon-effects-projectiles-pngs-nairan-rocket": {
+  "url": "assets/foozle-2ds0013-void-fleetpack-2-foozle-2ds0013-void-enemyfleet-2-nairan-weapon-effects-projectiles-pngs-nairan-rocket.png",
+  "w": 36,
+  "h": 16,
+  "frameW": 9,
+  "frameH": 16,
+  "frames": 4
+ },
+ "foozle-2ds0013-void-fleetpack-2-foozle-2ds0013-void-enemyfleet-2-nairan-weapon-effects-projectiles-pngs-nairan-torpedo": {
+  "url": "assets/foozle-2ds0013-void-fleetpack-2-foozle-2ds0013-void-enemyfleet-2-nairan-weapon-effects-projectiles-pngs-nairan-torpedo.png",
+  "w": 27,
+  "h": 24,
+  "frameW": 9,
+  "frameH": 24,
+  "frames": 3
+ },
+ "foozle-2ds0013-void-fleetpack-2-foozle-2ds0013-void-enemyfleet-2-nairan-weapons-pngs-nairan-battlecruiser-weapons": {
+  "url": "assets/foozle-2ds0013-void-fleetpack-2-foozle-2ds0013-void-enemyfleet-2-nairan-weapons-pngs-nairan-battlecruiser-weapons.png",
+  "w": 1152,
+  "h": 128,
+  "frameW": 128,
+  "frameH": 128,
+  "frames": 9
+ },
+ "foozle-2ds0013-void-fleetpack-2-foozle-2ds0013-void-enemyfleet-2-nairan-weapons-pngs-nairan-dreadnought-weapons": {
+  "url": "assets/foozle-2ds0013-void-fleetpack-2-foozle-2ds0013-void-enemyfleet-2-nairan-weapons-pngs-nairan-dreadnought-weapons.png",
+  "w": 4352,
+  "h": 128,
+  "frameW": 128,
+  "frameH": 128,
+  "frames": 34
+ },
+ "foozle-2ds0013-void-fleetpack-2-foozle-2ds0013-void-enemyfleet-2-nairan-weapons-pngs-nairan-fighter-weapons": {
+  "url": "assets/foozle-2ds0013-void-fleetpack-2-foozle-2ds0013-void-enemyfleet-2-nairan-weapons-pngs-nairan-fighter-weapons.png",
+  "w": 1792,
+  "h": 64,
+  "frameW": 64,
+  "frameH": 64,
+  "frames": 28
+ },
+ "foozle-2ds0013-void-fleetpack-2-foozle-2ds0013-void-enemyfleet-2-nairan-weapons-pngs-nairan-frigate-weapons": {
+  "url": "assets/foozle-2ds0013-void-fleetpack-2-foozle-2ds0013-void-enemyfleet-2-nairan-weapons-pngs-nairan-frigate-weapons.png",
+  "w": 320,
+  "h": 64,
+  "frameW": 64,
+  "frameH": 64,
+  "frames": 5
+ },
+ "foozle-2ds0013-void-fleetpack-2-foozle-2ds0013-void-enemyfleet-2-nairan-weapons-pngs-nairan-scout-weapons": {
+  "url": "assets/foozle-2ds0013-void-fleetpack-2-foozle-2ds0013-void-enemyfleet-2-nairan-weapons-pngs-nairan-scout-weapons.png",
+  "w": 384,
+  "h": 64,
+  "frameW": 64,
+  "frameH": 64,
+  "frames": 6
+ },
+ "foozle-2ds0013-void-fleetpack-2-foozle-2ds0013-void-enemyfleet-2-nairan-weapons-pngs-nairan-torpedo-ship-weapons": {
+  "url": "assets/foozle-2ds0013-void-fleetpack-2-foozle-2ds0013-void-enemyfleet-2-nairan-weapons-pngs-nairan-torpedo-ship-weapons.png",
+  "w": 768,
+  "h": 64,
+  "frameW": 64,
+  "frameH": 64,
+  "frames": 12
+ },
+ "foozle-2ds0014-void-fleetpack-3-foozle-2ds0014-void-enemyfleet-3-nautolan-designs-base-pngs-nautolan-ship-battlecruiser-base": {
+  "url": "assets/foozle-2ds0014-void-fleetpack-3-foozle-2ds0014-void-enemyfleet-3-nautolan-designs-base-pngs-nautolan-ship-battlecruiser-base.png",
+  "w": 128,
+  "h": 128,
+  "frameW": 128,
+  "frameH": 128,
+  "frames": 1
+ },
+ "foozle-2ds0014-void-fleetpack-3-foozle-2ds0014-void-enemyfleet-3-nautolan-designs-base-pngs-nautolan-ship-bomber-base": {
+  "url": "assets/foozle-2ds0014-void-fleetpack-3-foozle-2ds0014-void-enemyfleet-3-nautolan-designs-base-pngs-nautolan-ship-bomber-base.png",
+  "w": 64,
+  "h": 64,
+  "frameW": 64,
+  "frameH": 64,
+  "frames": 1
+ },
+ "foozle-2ds0014-void-fleetpack-3-foozle-2ds0014-void-enemyfleet-3-nautolan-designs-base-pngs-nautolan-ship-dreadnought-base": {
+  "url": "assets/foozle-2ds0014-void-fleetpack-3-foozle-2ds0014-void-enemyfleet-3-nautolan-designs-base-pngs-nautolan-ship-dreadnought-base.png",
+  "w": 128,
+  "h": 128,
+  "frameW": 128,
+  "frameH": 128,
+  "frames": 1
+ },
+ "foozle-2ds0014-void-fleetpack-3-foozle-2ds0014-void-enemyfleet-3-nautolan-designs-base-pngs-nautolan-ship-fighter-base": {
+  "url": "assets/foozle-2ds0014-void-fleetpack-3-foozle-2ds0014-void-enemyfleet-3-nautolan-designs-base-pngs-nautolan-ship-fighter-base.png",
+  "w": 64,
+  "h": 64,
+  "frameW": 64,
+  "frameH": 64,
+  "frames": 1
+ },
+ "foozle-2ds0014-void-fleetpack-3-foozle-2ds0014-void-enemyfleet-3-nautolan-designs-base-pngs-nautolan-ship-frigate-base": {
+  "url": "assets/foozle-2ds0014-void-fleetpack-3-foozle-2ds0014-void-enemyfleet-3-nautolan-designs-base-pngs-nautolan-ship-frigate-base.png",
+  "w": 64,
+  "h": 64,
+  "frameW": 64,
+  "frameH": 64,
+  "frames": 1
+ },
+ "foozle-2ds0014-void-fleetpack-3-foozle-2ds0014-void-enemyfleet-3-nautolan-designs-base-pngs-nautolan-ship-scout-base": {
+  "url": "assets/foozle-2ds0014-void-fleetpack-3-foozle-2ds0014-void-enemyfleet-3-nautolan-designs-base-pngs-nautolan-ship-scout-base.png",
+  "w": 64,
+  "h": 64,
+  "frameW": 64,
+  "frameH": 64,
+  "frames": 1
+ },
+ "foozle-2ds0014-void-fleetpack-3-foozle-2ds0014-void-enemyfleet-3-nautolan-designs-base-pngs-nautolan-ship-support-base": {
+  "url": "assets/foozle-2ds0014-void-fleetpack-3-foozle-2ds0014-void-enemyfleet-3-nautolan-designs-base-pngs-nautolan-ship-support-base.png",
+  "w": 64,
+  "h": 64,
+  "frameW": 64,
+  "frameH": 64,
+  "frames": 1
+ },
+ "foozle-2ds0014-void-fleetpack-3-foozle-2ds0014-void-enemyfleet-3-nautolan-designs-base-pngs-nautolan-ship-torpedo-ship": {
+  "url": "assets/foozle-2ds0014-void-fleetpack-3-foozle-2ds0014-void-enemyfleet-3-nautolan-designs-base-pngs-nautolan-ship-torpedo-ship.png",
+  "w": 64,
+  "h": 64,
+  "frameW": 64,
+  "frameH": 64,
+  "frames": 1
+ },
+ "foozle-2ds0014-void-fleetpack-3-foozle-2ds0014-void-enemyfleet-3-nautolan-destruction-pngs-nautolan-ship-battlecruiser": {
+  "url": "assets/foozle-2ds0014-void-fleetpack-3-foozle-2ds0014-void-enemyfleet-3-nautolan-destruction-pngs-nautolan-ship-battlecruiser.png",
+  "w": 1664,
+  "h": 128,
+  "frameW": 128,
+  "frameH": 128,
+  "frames": 13
+ },
+ "foozle-2ds0014-void-fleetpack-3-foozle-2ds0014-void-enemyfleet-3-nautolan-destruction-pngs-nautolan-ship-bomber": {
+  "url": "assets/foozle-2ds0014-void-fleetpack-3-foozle-2ds0014-void-enemyfleet-3-nautolan-destruction-pngs-nautolan-ship-bomber.png",
+  "w": 640,
+  "h": 64,
+  "frameW": 64,
+  "frameH": 64,
+  "frames": 10
+ },
+ "foozle-2ds0014-void-fleetpack-3-foozle-2ds0014-void-enemyfleet-3-nautolan-destruction-pngs-nautolan-ship-dreadnought": {
+  "url": "assets/foozle-2ds0014-void-fleetpack-3-foozle-2ds0014-void-enemyfleet-3-nautolan-destruction-pngs-nautolan-ship-dreadnought.png",
+  "w": 1536,
+  "h": 128,
+  "frameW": 128,
+  "frameH": 128,
+  "frames": 12
+ },
+ "foozle-2ds0014-void-fleetpack-3-foozle-2ds0014-void-enemyfleet-3-nautolan-destruction-pngs-nautolan-ship-fighter": {
+  "url": "assets/foozle-2ds0014-void-fleetpack-3-foozle-2ds0014-void-enemyfleet-3-nautolan-destruction-pngs-nautolan-ship-fighter.png",
+  "w": 576,
+  "h": 64,
+  "frameW": 64,
+  "frameH": 64,
+  "frames": 9
+ },
+ "foozle-2ds0014-void-fleetpack-3-foozle-2ds0014-void-enemyfleet-3-nautolan-destruction-pngs-nautolan-ship-frigate": {
+  "url": "assets/foozle-2ds0014-void-fleetpack-3-foozle-2ds0014-void-enemyfleet-3-nautolan-destruction-pngs-nautolan-ship-frigate.png",
+  "w": 576,
+  "h": 64,
+  "frameW": 64,
+  "frameH": 64,
+  "frames": 9
+ },
+ "foozle-2ds0014-void-fleetpack-3-foozle-2ds0014-void-enemyfleet-3-nautolan-destruction-pngs-nautolan-ship-scout": {
+  "url": "assets/foozle-2ds0014-void-fleetpack-3-foozle-2ds0014-void-enemyfleet-3-nautolan-destruction-pngs-nautolan-ship-scout.png",
+  "w": 576,
+  "h": 64,
+  "frameW": 64,
+  "frameH": 64,
+  "frames": 9
+ },
+ "foozle-2ds0014-void-fleetpack-3-foozle-2ds0014-void-enemyfleet-3-nautolan-destruction-pngs-nautolan-ship-support": {
+  "url": "assets/foozle-2ds0014-void-fleetpack-3-foozle-2ds0014-void-enemyfleet-3-nautolan-destruction-pngs-nautolan-ship-support.png",
+  "w": 512,
+  "h": 64,
+  "frameW": 64,
+  "frameH": 64,
+  "frames": 8
+ },
+ "foozle-2ds0014-void-fleetpack-3-foozle-2ds0014-void-enemyfleet-3-nautolan-destruction-pngs-nautolan-ship-torpedo-ship": {
+  "url": "assets/foozle-2ds0014-void-fleetpack-3-foozle-2ds0014-void-enemyfleet-3-nautolan-destruction-pngs-nautolan-ship-torpedo-ship.png",
+  "w": 512,
+  "h": 64,
+  "frameW": 64,
+  "frameH": 64,
+  "frames": 8
+ },
+ "foozle-2ds0014-void-fleetpack-3-foozle-2ds0014-void-enemyfleet-3-nautolan-engine-effects-pngs-nautolan-ship-battlecruiser-engine-effect": {
+  "url": "assets/foozle-2ds0014-void-fleetpack-3-foozle-2ds0014-void-enemyfleet-3-nautolan-engine-effects-pngs-nautolan-ship-battlecruiser-engine-effect.png",
+  "w": 1024,
+  "h": 128,
+  "frameW": 128,
+  "frameH": 128,
+  "frames": 8
+ },
+ "foozle-2ds0014-void-fleetpack-3-foozle-2ds0014-void-enemyfleet-3-nautolan-engine-effects-pngs-nautolan-ship-bomber-engine-effect": {
+  "url": "assets/foozle-2ds0014-void-fleetpack-3-foozle-2ds0014-void-enemyfleet-3-nautolan-engine-effects-pngs-nautolan-ship-bomber-engine-effect.png",
+  "w": 512,
+  "h": 64,
+  "frameW": 64,
+  "frameH": 64,
+  "frames": 8
+ },
+ "foozle-2ds0014-void-fleetpack-3-foozle-2ds0014-void-enemyfleet-3-nautolan-engine-effects-pngs-nautolan-ship-dreadnought-engine-effect": {
+  "url": "assets/foozle-2ds0014-void-fleetpack-3-foozle-2ds0014-void-enemyfleet-3-nautolan-engine-effects-pngs-nautolan-ship-dreadnought-engine-effect.png",
+  "w": 1024,
+  "h": 128,
+  "frameW": 128,
+  "frameH": 128,
+  "frames": 8
+ },
+ "foozle-2ds0014-void-fleetpack-3-foozle-2ds0014-void-enemyfleet-3-nautolan-engine-effects-pngs-nautolan-ship-fighter-engine-effect": {
+  "url": "assets/foozle-2ds0014-void-fleetpack-3-foozle-2ds0014-void-enemyfleet-3-nautolan-engine-effects-pngs-nautolan-ship-fighter-engine-effect.png",
+  "w": 512,
+  "h": 64,
+  "frameW": 64,
+  "frameH": 64,
+  "frames": 8
+ },
+ "foozle-2ds0014-void-fleetpack-3-foozle-2ds0014-void-enemyfleet-3-nautolan-engine-effects-pngs-nautolan-ship-frigate-engine-effect": {
+  "url": "assets/foozle-2ds0014-void-fleetpack-3-foozle-2ds0014-void-enemyfleet-3-nautolan-engine-effects-pngs-nautolan-ship-frigate-engine-effect.png",
+  "w": 512,
+  "h": 64,
+  "frameW": 64,
+  "frameH": 64,
+  "frames": 8
+ },
+ "foozle-2ds0014-void-fleetpack-3-foozle-2ds0014-void-enemyfleet-3-nautolan-engine-effects-pngs-nautolan-ship-scout-engine-effect": {
+  "url": "assets/foozle-2ds0014-void-fleetpack-3-foozle-2ds0014-void-enemyfleet-3-nautolan-engine-effects-pngs-nautolan-ship-scout-engine-effect.png",
+  "w": 512,
+  "h": 64,
+  "frameW": 64,
+  "frameH": 64,
+  "frames": 8
+ },
+ "foozle-2ds0014-void-fleetpack-3-foozle-2ds0014-void-enemyfleet-3-nautolan-engine-effects-pngs-nautolan-ship-support-engine-effect": {
+  "url": "assets/foozle-2ds0014-void-fleetpack-3-foozle-2ds0014-void-enemyfleet-3-nautolan-engine-effects-pngs-nautolan-ship-support-engine-effect.png",
+  "w": 512,
+  "h": 64,
+  "frameW": 64,
+  "frameH": 64,
+  "frames": 8
+ },
+ "foozle-2ds0014-void-fleetpack-3-foozle-2ds0014-void-enemyfleet-3-nautolan-engine-effects-pngs-nautolan-ship-torpedo-ship-engine-effect": {
+  "url": "assets/foozle-2ds0014-void-fleetpack-3-foozle-2ds0014-void-enemyfleet-3-nautolan-engine-effects-pngs-nautolan-ship-torpedo-ship-engine-effect.png",
+  "w": 512,
+  "h": 64,
+  "frameW": 64,
+  "frameH": 64,
+  "frames": 8
+ },
+ "foozle-2ds0014-void-fleetpack-3-foozle-2ds0014-void-enemyfleet-3-nautolan-shields-pngs-nautolan-ship-battlecruiser-shield": {
+  "url": "assets/foozle-2ds0014-void-fleetpack-3-foozle-2ds0014-void-enemyfleet-3-nautolan-shields-pngs-nautolan-ship-battlecruiser-shield.png",
+  "w": 1408,
+  "h": 128,
+  "frameW": 128,
+  "frameH": 128,
+  "frames": 11
+ },
+ "foozle-2ds0014-void-fleetpack-3-foozle-2ds0014-void-enemyfleet-3-nautolan-shields-pngs-nautolan-ship-bomber-shield": {
+  "url": "assets/foozle-2ds0014-void-fleetpack-3-foozle-2ds0014-void-enemyfleet-3-nautolan-shields-pngs-nautolan-ship-bomber-shield.png",
+  "w": 640,
+  "h": 64,
+  "frameW": 64,
+  "frameH": 64,
+  "frames": 10
+ },
+ "foozle-2ds0014-void-fleetpack-3-foozle-2ds0014-void-enemyfleet-3-nautolan-shields-pngs-nautolan-ship-dreadnought-shield": {
+  "url": "assets/foozle-2ds0014-void-fleetpack-3-foozle-2ds0014-void-enemyfleet-3-nautolan-shields-pngs-nautolan-ship-dreadnought-shield.png",
+  "w": 2560,
+  "h": 128,
+  "frameW": 128,
+  "frameH": 128,
+  "frames": 20
+ },
+ "foozle-2ds0014-void-fleetpack-3-foozle-2ds0014-void-enemyfleet-3-nautolan-shields-pngs-nautolan-ship-fighter-shield": {
+  "url": "assets/foozle-2ds0014-void-fleetpack-3-foozle-2ds0014-void-enemyfleet-3-nautolan-shields-pngs-nautolan-ship-fighter-shield.png",
+  "w": 640,
+  "h": 64,
+  "frameW": 64,
+  "frameH": 64,
+  "frames": 10
+ },
+ "foozle-2ds0014-void-fleetpack-3-foozle-2ds0014-void-enemyfleet-3-nautolan-shields-pngs-nautolan-ship-frigate-shield": {
+  "url": "assets/foozle-2ds0014-void-fleetpack-3-foozle-2ds0014-void-enemyfleet-3-nautolan-shields-pngs-nautolan-ship-frigate-shield.png",
+  "w": 2268,
+  "h": 63,
+  "frameW": 63,
+  "frameH": 63,
+  "frames": 36
+ },
+ "foozle-2ds0014-void-fleetpack-3-foozle-2ds0014-void-enemyfleet-3-nautolan-shields-pngs-nautolan-ship-scout-shield": {
+  "url": "assets/foozle-2ds0014-void-fleetpack-3-foozle-2ds0014-void-enemyfleet-3-nautolan-shields-pngs-nautolan-ship-scout-shield.png",
+  "w": 832,
+  "h": 64,
+  "frameW": 64,
+  "frameH": 64,
+  "frames": 13
+ },
+ "foozle-2ds0014-void-fleetpack-3-foozle-2ds0014-void-enemyfleet-3-nautolan-shields-pngs-nautolan-ship-torpedo-ship-shield": {
+  "url": "assets/foozle-2ds0014-void-fleetpack-3-foozle-2ds0014-void-enemyfleet-3-nautolan-shields-pngs-nautolan-ship-torpedo-ship-shield.png",
+  "w": 512,
+  "h": 64,
+  "frameW": 64,
+  "frameH": 64,
+  "frames": 8
+ },
+ "foozle-2ds0014-void-fleetpack-3-foozle-2ds0014-void-enemyfleet-3-nautolan-weapon-effects-projectiles-pngs-nautolan-bomb": {
+  "url": "assets/foozle-2ds0014-void-fleetpack-3-foozle-2ds0014-void-enemyfleet-3-nautolan-weapon-effects-projectiles-pngs-nautolan-bomb.png",
+  "w": 256,
+  "h": 16,
+  "frameW": 16,
+  "frameH": 16,
+  "frames": 16
+ },
+ "foozle-2ds0014-void-fleetpack-3-foozle-2ds0014-void-enemyfleet-3-nautolan-weapon-effects-projectiles-pngs-nautolan-bullet": {
+  "url": "assets/foozle-2ds0014-void-fleetpack-3-foozle-2ds0014-void-enemyfleet-3-nautolan-weapon-effects-projectiles-pngs-nautolan-bullet.png",
+  "w": 72,
+  "h": 12,
+  "frameW": 9,
+  "frameH": 12,
+  "frames": 8
+ },
+ "foozle-2ds0014-void-fleetpack-3-foozle-2ds0014-void-enemyfleet-3-nautolan-weapon-effects-projectiles-pngs-nautolan-ray": {
+  "url": "assets/foozle-2ds0014-void-fleetpack-3-foozle-2ds0014-void-enemyfleet-3-nautolan-weapon-effects-projectiles-pngs-nautolan-ray.png",
+  "w": 72,
+  "h": 38,
+  "frameW": 18,
+  "frameH": 38,
+  "frames": 4
+ },
+ "foozle-2ds0014-void-fleetpack-3-foozle-2ds0014-void-enemyfleet-3-nautolan-weapon-effects-projectiles-pngs-nautolan-rocket": {
+  "url": "assets/foozle-2ds0014-void-fleetpack-3-foozle-2ds0014-void-enemyfleet-3-nautolan-weapon-effects-projectiles-pngs-nautolan-rocket.png",
+  "w": 96,
+  "h": 32,
+  "frameW": 16,
+  "frameH": 32,
+  "frames": 6
+ },
+ "foozle-2ds0014-void-fleetpack-3-foozle-2ds0014-void-enemyfleet-3-nautolan-weapon-effects-projectiles-pngs-nautolan-spinning-bullet": {
+  "url": "assets/foozle-2ds0014-void-fleetpack-3-foozle-2ds0014-void-enemyfleet-3-nautolan-weapon-effects-projectiles-pngs-nautolan-spinning-bullet.png",
+  "w": 64,
+  "h": 8,
+  "frameW": 8,
+  "frameH": 8,
+  "frames": 8
+ },
+ "foozle-2ds0014-void-fleetpack-3-foozle-2ds0014-void-enemyfleet-3-nautolan-weapon-effects-projectiles-pngs-nautolan-wave": {
+  "url": "assets/foozle-2ds0014-void-fleetpack-3-foozle-2ds0014-void-enemyfleet-3-nautolan-weapon-effects-projectiles-pngs-nautolan-wave.png",
+  "w": 384,
+  "h": 64,
+  "frameW": 64,
+  "frameH": 64,
+  "frames": 6
+ },
+ "foozle-2ds0014-void-fleetpack-3-foozle-2ds0014-void-enemyfleet-3-nautolan-weapons-pngs-nautolan-ship-battlecruiser-weapons": {
+  "url": "assets/foozle-2ds0014-void-fleetpack-3-foozle-2ds0014-void-enemyfleet-3-nautolan-weapons-pngs-nautolan-ship-battlecruiser-weapons.png",
+  "w": 1152,
+  "h": 128,
+  "frameW": 128,
+  "frameH": 128,
+  "frames": 9
+ },
+ "foozle-2ds0014-void-fleetpack-3-foozle-2ds0014-void-enemyfleet-3-nautolan-weapons-pngs-nautolan-ship-dreadnought-weapons": {
+  "url": "assets/foozle-2ds0014-void-fleetpack-3-foozle-2ds0014-void-enemyfleet-3-nautolan-weapons-pngs-nautolan-ship-dreadnought-weapons.png",
+  "w": 4480,
+  "h": 128,
+  "frameW": 128,
+  "frameH": 128,
+  "frames": 35
+ },
+ "foozle-2ds0014-void-fleetpack-3-foozle-2ds0014-void-enemyfleet-3-nautolan-weapons-pngs-nautolan-ship-fighter-weapons": {
+  "url": "assets/foozle-2ds0014-void-fleetpack-3-foozle-2ds0014-void-enemyfleet-3-nautolan-weapons-pngs-nautolan-ship-fighter-weapons.png",
+  "w": 576,
+  "h": 64,
+  "frameW": 64,
+  "frameH": 64,
+  "frames": 9
+ },
+ "foozle-2ds0014-void-fleetpack-3-foozle-2ds0014-void-enemyfleet-3-nautolan-weapons-pngs-nautolan-ship-frigate-weapons": {
+  "url": "assets/foozle-2ds0014-void-fleetpack-3-foozle-2ds0014-void-enemyfleet-3-nautolan-weapons-pngs-nautolan-ship-frigate-weapons.png",
+  "w": 576,
+  "h": 64,
+  "frameW": 64,
+  "frameH": 64,
+  "frames": 9
+ },
+ "foozle-2ds0014-void-fleetpack-3-foozle-2ds0014-void-enemyfleet-3-nautolan-weapons-pngs-nautolan-ship-scout-weapons": {
+  "url": "assets/foozle-2ds0014-void-fleetpack-3-foozle-2ds0014-void-enemyfleet-3-nautolan-weapons-pngs-nautolan-ship-scout-weapons.png",
+  "w": 448,
+  "h": 64,
+  "frameW": 64,
+  "frameH": 64,
+  "frames": 7
+ },
+ "foozle-2ds0014-void-fleetpack-3-foozle-2ds0014-void-enemyfleet-3-nautolan-weapons-pngs-nautolan-ship-torpedo-ship-weapons": {
+  "url": "assets/foozle-2ds0014-void-fleetpack-3-foozle-2ds0014-void-enemyfleet-3-nautolan-weapons-pngs-nautolan-ship-torpedo-ship-weapons.png",
+  "w": 1024,
+  "h": 64,
+  "frameW": 64,
+  "frameH": 64,
+  "frames": 16
+ },
+ "foozle-2ds0015-void-environmentpack-foozle-2ds0015-void-environmentpack-asteroids-pngs-asteroid-01-base": {
+  "url": "assets/foozle-2ds0015-void-environmentpack-foozle-2ds0015-void-environmentpack-asteroids-pngs-asteroid-01-base.png",
+  "w": 96,
+  "h": 96,
+  "frameW": 96,
+  "frameH": 96,
+  "frames": 1
+ },
+ "foozle-2ds0015-void-environmentpack-foozle-2ds0015-void-environmentpack-asteroids-pngs-asteroid-01-explode": {
+  "url": "assets/foozle-2ds0015-void-environmentpack-foozle-2ds0015-void-environmentpack-asteroids-pngs-asteroid-01-explode.png",
+  "w": 768,
+  "h": 96,
+  "frameW": 96,
+  "frameH": 96,
+  "frames": 8
+ },
+ "foozle-2ds0015-void-environmentpack-foozle-2ds0015-void-environmentpack-backgrounds-pngs-condesed-starry-background-layer-01-void": {
+  "url": "assets/foozle-2ds0015-void-environmentpack-foozle-2ds0015-void-environmentpack-backgrounds-pngs-condesed-starry-background-layer-01-void.png",
+  "w": 5760,
+  "h": 360,
+  "frameW": 360,
+  "frameH": 360,
+  "frames": 16
+ },
+ "foozle-2ds0015-void-environmentpack-foozle-2ds0015-void-environmentpack-backgrounds-pngs-condesed-starry-background-layer-02-stars": {
+  "url": "assets/foozle-2ds0015-void-environmentpack-foozle-2ds0015-void-environmentpack-backgrounds-pngs-condesed-starry-background-layer-02-stars.png",
+  "w": 5760,
+  "h": 360,
+  "frameW": 360,
+  "frameH": 360,
+  "frames": 16
+ },
+ "foozle-2ds0015-void-environmentpack-foozle-2ds0015-void-environmentpack-backgrounds-pngs-condesed-starry-background-layer-03-stars": {
+  "url": "assets/foozle-2ds0015-void-environmentpack-foozle-2ds0015-void-environmentpack-backgrounds-pngs-condesed-starry-background-layer-03-stars.png",
+  "w": 5760,
+  "h": 360,
+  "frameW": 360,
+  "frameH": 360,
+  "frames": 16
+ },
+ "foozle-2ds0015-void-environmentpack-foozle-2ds0015-void-environmentpack-backgrounds-pngs-split-up-starry-background-layer-01-solid-colour": {
+  "url": "assets/foozle-2ds0015-void-environmentpack-foozle-2ds0015-void-environmentpack-backgrounds-pngs-split-up-starry-background-layer-01-solid-colour.png",
+  "w": 5760,
+  "h": 360,
+  "frameW": 360,
+  "frameH": 360,
+  "frames": 16
+ },
+ "foozle-2ds0015-void-environmentpack-foozle-2ds0015-void-environmentpack-backgrounds-pngs-split-up-starry-background-layer-02-shadows-2": {
+  "url": "assets/foozle-2ds0015-void-environmentpack-foozle-2ds0015-void-environmentpack-backgrounds-pngs-split-up-starry-background-layer-02-shadows-2.png",
+  "w": 5760,
+  "h": 360,
+  "frameW": 360,
+  "frameH": 360,
+  "frames": 16
+ },
+ "foozle-2ds0015-void-environmentpack-foozle-2ds0015-void-environmentpack-backgrounds-pngs-split-up-starry-background-layer-02-shadows": {
+  "url": "assets/foozle-2ds0015-void-environmentpack-foozle-2ds0015-void-environmentpack-backgrounds-pngs-split-up-starry-background-layer-02-shadows.png",
+  "w": 5760,
+  "h": 360,
+  "frameW": 360,
+  "frameH": 360,
+  "frames": 16
+ },
+ "foozle-2ds0015-void-environmentpack-foozle-2ds0015-void-environmentpack-backgrounds-pngs-split-up-starry-background-layer-03-stars-2": {
+  "url": "assets/foozle-2ds0015-void-environmentpack-foozle-2ds0015-void-environmentpack-backgrounds-pngs-split-up-starry-background-layer-03-stars-2.png",
+  "w": 5760,
+  "h": 360,
+  "frameW": 360,
+  "frameH": 360,
+  "frames": 16
+ },
+ "foozle-2ds0015-void-environmentpack-foozle-2ds0015-void-environmentpack-backgrounds-pngs-split-up-starry-background-layer-03-stars": {
+  "url": "assets/foozle-2ds0015-void-environmentpack-foozle-2ds0015-void-environmentpack-backgrounds-pngs-split-up-starry-background-layer-03-stars.png",
+  "w": 5760,
+  "h": 360,
+  "frameW": 360,
+  "frameH": 360,
+  "frames": 16
+ },
+ "foozle-2ds0015-void-environmentpack-foozle-2ds0015-void-environmentpack-backgrounds-pngs-split-up-starry-background-layer-x-big-star-2": {
+  "url": "assets/foozle-2ds0015-void-environmentpack-foozle-2ds0015-void-environmentpack-backgrounds-pngs-split-up-starry-background-layer-x-big-star-2.png",
+  "w": 5760,
+  "h": 360,
+  "frameW": 360,
+  "frameH": 360,
+  "frames": 16
+ },
+ "foozle-2ds0015-void-environmentpack-foozle-2ds0015-void-environmentpack-backgrounds-pngs-split-up-starry-background-layer-x-big-star": {
+  "url": "assets/foozle-2ds0015-void-environmentpack-foozle-2ds0015-void-environmentpack-backgrounds-pngs-split-up-starry-background-layer-x-big-star.png",
+  "w": 5760,
+  "h": 360,
+  "frameW": 360,
+  "frameH": 360,
+  "frames": 16
+ },
+ "foozle-2ds0015-void-environmentpack-foozle-2ds0015-void-environmentpack-backgrounds-pngs-split-up-starry-background-layer-x-black-hole": {
+  "url": "assets/foozle-2ds0015-void-environmentpack-foozle-2ds0015-void-environmentpack-backgrounds-pngs-split-up-starry-background-layer-x-black-hole.png",
+  "w": 5760,
+  "h": 360,
+  "frameW": 360,
+  "frameH": 360,
+  "frames": 16
+ },
+ "foozle-2ds0015-void-environmentpack-foozle-2ds0015-void-environmentpack-backgrounds-pngs-split-up-starry-background-layer-x-rotary-star-2": {
+  "url": "assets/foozle-2ds0015-void-environmentpack-foozle-2ds0015-void-environmentpack-backgrounds-pngs-split-up-starry-background-layer-x-rotary-star-2.png",
+  "w": 5760,
+  "h": 360,
+  "frameW": 360,
+  "frameH": 360,
+  "frames": 16
+ },
+ "foozle-2ds0015-void-environmentpack-foozle-2ds0015-void-environmentpack-backgrounds-pngs-split-up-starry-background-layer-x-rotary-star": {
+  "url": "assets/foozle-2ds0015-void-environmentpack-foozle-2ds0015-void-environmentpack-backgrounds-pngs-split-up-starry-background-layer-x-rotary-star.png",
+  "w": 5760,
+  "h": 360,
+  "frameW": 360,
+  "frameH": 360,
+  "frames": 16
+ },
+ "foozle-2ds0015-void-environmentpack-foozle-2ds0015-void-environmentpack-effects-pngs-asteroid-flame": {
+  "url": "assets/foozle-2ds0015-void-environmentpack-foozle-2ds0015-void-environmentpack-effects-pngs-asteroid-flame.png",
+  "w": 288,
+  "h": 96,
+  "frameW": 96,
+  "frameH": 96,
+  "frames": 3
+ },
+ "foozle-2ds0015-void-environmentpack-foozle-2ds0015-void-environmentpack-planets-pngs-earth-like-planet-without-back-glow": {
+  "url": "assets/foozle-2ds0015-void-environmentpack-foozle-2ds0015-void-environmentpack-planets-pngs-earth-like-planet-without-back-glow.png",
+  "w": 7392,
+  "h": 96,
+  "frameW": 96,
+  "frameH": 96,
+  "frames": 77
+ },
+ "foozle-2ds0015-void-environmentpack-foozle-2ds0015-void-environmentpack-planets-pngs-earth-like-planet": {
+  "url": "assets/foozle-2ds0015-void-environmentpack-foozle-2ds0015-void-environmentpack-planets-pngs-earth-like-planet.png",
+  "w": 7392,
+  "h": 96,
+  "frameW": 96,
+  "frameH": 96,
+  "frames": 77
+ },
+ "space-breaker-asset-space-breaker-asset-background-galaxy": {
+  "url": "assets/space-breaker-asset-space-breaker-asset-background-galaxy.png",
+  "w": 2048,
+  "h": 2048,
+  "frameW": 2048,
+  "frameH": 2048,
+  "frames": 1
+ },
+ "space-breaker-asset-space-breaker-asset-background-stars-texture": {
+  "url": "assets/space-breaker-asset-space-breaker-asset-background-stars-texture.png",
+  "w": 2048,
+  "h": 2048,
+  "frameW": 2048,
+  "frameH": 2048,
+  "frames": 1
+ },
+ "space-breaker-asset-space-breaker-asset-bonus-body-01a": {
+  "url": "assets/space-breaker-asset-space-breaker-asset-bonus-body-01a.png",
+  "w": 64,
+  "h": 128,
+  "frameW": 64,
+  "frameH": 128,
+  "frames": 1
+ },
+ "space-breaker-asset-space-breaker-asset-bonus-body-01b": {
+  "url": "assets/space-breaker-asset-space-breaker-asset-bonus-body-01b.png",
+  "w": 64,
+  "h": 128,
+  "frameW": 64,
+  "frameH": 128,
+  "frames": 1
+ },
+ "space-breaker-asset-space-breaker-asset-bonus-turret-01c-mk3": {
+  "url": "assets/space-breaker-asset-space-breaker-asset-bonus-turret-01c-mk3.png",
+  "w": 64,
+  "h": 64,
+  "frameW": 64,
+  "frameH": 64,
+  "frames": 1
+ },
+ "space-breaker-asset-space-breaker-asset-bonus-turret-02-mk1b": {
+  "url": "assets/space-breaker-asset-space-breaker-asset-bonus-turret-02-mk1b.png",
+  "w": 64,
+  "h": 64,
+  "frameW": 64,
+  "frameH": 64,
+  "frames": 1
+ },
+ "space-breaker-asset-space-breaker-asset-bonus-turret-02-mk1c": {
+  "url": "assets/space-breaker-asset-space-breaker-asset-bonus-turret-02-mk1c.png",
+  "w": 64,
+  "h": 64,
+  "frameW": 64,
+  "frameH": 64,
+  "frames": 1
+ },
+ "space-breaker-asset-space-breaker-asset-bonus-turret-02-mk2a": {
+  "url": "assets/space-breaker-asset-space-breaker-asset-bonus-turret-02-mk2a.png",
+  "w": 64,
+  "h": 64,
+  "frameW": 64,
+  "frameH": 64,
+  "frames": 1
+ },
+ "space-breaker-asset-space-breaker-asset-bonus-turret-03b-mk3": {
+  "url": "assets/space-breaker-asset-space-breaker-asset-bonus-turret-03b-mk3.png",
+  "w": 64,
+  "h": 64,
+  "frameW": 64,
+  "frameH": 64,
+  "frames": 1
+ },
+ "space-breaker-asset-space-breaker-asset-others-mechs-bottom-01-stay": {
+  "url": "assets/space-breaker-asset-space-breaker-asset-others-mechs-bottom-01-stay.png",
+  "w": 96,
+  "h": 96,
+  "frameW": 96,
+  "frameH": 96,
+  "frames": 1
+ },
+ "space-breaker-asset-space-breaker-asset-others-mechs-torso-01": {
+  "url": "assets/space-breaker-asset-space-breaker-asset-others-mechs-torso-01.png",
+  "w": 96,
+  "h": 96,
+  "frameW": 96,
+  "frameH": 96,
+  "frames": 1
+ },
+ "space-breaker-asset-space-breaker-asset-others-mechs-weapon-left": {
+  "url": "assets/space-breaker-asset-space-breaker-asset-others-mechs-weapon-left.png",
+  "w": 96,
+  "h": 96,
+  "frameW": 96,
+  "frameH": 96,
+  "frames": 1
+ },
+ "space-breaker-asset-space-breaker-asset-others-mechs-weapon-right": {
+  "url": "assets/space-breaker-asset-space-breaker-asset-others-mechs-weapon-right.png",
+  "w": 96,
+  "h": 96,
+  "frameW": 96,
+  "frameH": 96,
+  "frames": 1
+ },
+ "space-breaker-asset-space-breaker-asset-others-stations-station": {
+  "url": "assets/space-breaker-asset-space-breaker-asset-others-stations-station.png",
+  "w": 128,
+  "h": 128,
+  "frameW": 128,
+  "frameH": 128,
+  "frames": 1
+ },
+ "space-breaker-asset-space-breaker-asset-others-tanks-01": {
+  "url": "assets/space-breaker-asset-space-breaker-asset-others-tanks-01.png",
+  "w": 96,
+  "h": 128,
+  "frameW": 96,
+  "frameH": 128,
+  "frames": 1
+ },
+ "space-breaker-asset-space-breaker-asset-others-towers-tower01-pixart-128": {
+  "url": "assets/space-breaker-asset-space-breaker-asset-others-towers-tower01-pixart-128.png",
+  "w": 128,
+  "h": 128,
+  "frameW": 128,
+  "frameH": 128,
+  "frames": 1
+ },
+ "space-breaker-asset-space-breaker-asset-others-palete": {
+  "url": "assets/space-breaker-asset-space-breaker-asset-others-palete.png",
+  "w": 64,
+  "h": 128,
+  "frameW": 64,
+  "frameH": 128,
+  "frames": 1
+ },
+ "space-breaker-asset-space-breaker-asset-others-practice-target": {
+  "url": "assets/space-breaker-asset-space-breaker-asset-others-practice-target.png",
+  "w": 32,
+  "h": 32,
+  "frameW": 32,
+  "frameH": 32,
+  "frames": 1
+ },
+ "space-breaker-asset-space-breaker-asset-others-weapon-base-medium": {
+  "url": "assets/space-breaker-asset-space-breaker-asset-others-weapon-base-medium.png",
+  "w": 64,
+  "h": 64,
+  "frameW": 64,
+  "frameH": 64,
+  "frames": 1
+ },
+ "space-breaker-asset-space-breaker-asset-others-weapon-base-small": {
+  "url": "assets/space-breaker-asset-space-breaker-asset-others-weapon-base-small.png",
+  "w": 32,
+  "h": 32,
+  "frameW": 32,
+  "frameH": 32,
+  "frames": 1
+ },
+ "space-breaker-asset-space-breaker-asset-others-weapon-hardpoint-medium": {
+  "url": "assets/space-breaker-asset-space-breaker-asset-others-weapon-hardpoint-medium.png",
+  "w": 64,
+  "h": 64,
+  "frameW": 64,
+  "frameH": 64,
+  "frames": 1
+ },
+ "space-breaker-asset-space-breaker-asset-others-weapon-hardpoint-small": {
+  "url": "assets/space-breaker-asset-space-breaker-asset-others-weapon-hardpoint-small.png",
+  "w": 32,
+  "h": 32,
+  "frameW": 32,
+  "frameH": 32,
+  "frames": 1
+ },
+ "space-breaker-asset-space-breaker-asset-ships-big-body-01": {
+  "url": "assets/space-breaker-asset-space-breaker-asset-ships-big-body-01.png",
+  "w": 128,
+  "h": 256,
+  "frameW": 128,
+  "frameH": 256,
+  "frames": 1
+ },
+ "space-breaker-asset-space-breaker-asset-ships-big-body-02": {
+  "url": "assets/space-breaker-asset-space-breaker-asset-ships-big-body-02.png",
+  "w": 128,
+  "h": 256,
+  "frameW": 128,
+  "frameH": 256,
+  "frames": 1
+ },
+ "space-breaker-asset-space-breaker-asset-ships-big-body-03": {
+  "url": "assets/space-breaker-asset-space-breaker-asset-ships-big-body-03.png",
+  "w": 128,
+  "h": 256,
+  "frameW": 128,
+  "frameH": 256,
+  "frames": 1
+ },
+ "space-breaker-asset-space-breaker-asset-ships-big-ship-big-128x256": {
+  "url": "assets/space-breaker-asset-space-breaker-asset-ships-big-ship-big-128x256.png",
+  "w": 384,
+  "h": 256,
+  "frameW": 384,
+  "frameH": 256,
+  "frames": 1
+ },
+ "space-breaker-asset-space-breaker-asset-ships-medium-body-01": {
+  "url": "assets/space-breaker-asset-space-breaker-asset-ships-medium-body-01.png",
+  "w": 64,
+  "h": 128,
+  "frameW": 64,
+  "frameH": 128,
+  "frames": 1
+ },
+ "space-breaker-asset-space-breaker-asset-ships-medium-body-02": {
+  "url": "assets/space-breaker-asset-space-breaker-asset-ships-medium-body-02.png",
+  "w": 64,
+  "h": 128,
+  "frameW": 64,
+  "frameH": 128,
+  "frames": 1
+ },
+ "space-breaker-asset-space-breaker-asset-ships-medium-body-03": {
+  "url": "assets/space-breaker-asset-space-breaker-asset-ships-medium-body-03.png",
+  "w": 64,
+  "h": 128,
+  "frameW": 64,
+  "frameH": 128,
+  "frames": 1
+ },
+ "space-breaker-asset-space-breaker-asset-ships-medium-ship-medium-64x128": {
+  "url": "assets/space-breaker-asset-space-breaker-asset-ships-medium-ship-medium-64x128.png",
+  "w": 192,
+  "h": 128,
+  "frameW": 192,
+  "frameH": 128,
+  "frames": 1
+ },
+ "space-breaker-asset-space-breaker-asset-ships-small-exhaust-exhaust-01a": {
+  "url": "assets/space-breaker-asset-space-breaker-asset-ships-small-exhaust-exhaust-01a.png",
+  "w": 32,
+  "h": 32,
+  "frameW": 32,
+  "frameH": 32,
+  "frames": 1
+ },
+ "space-breaker-asset-space-breaker-asset-ships-small-exhaust-exhaust-01b": {
+  "url": "assets/space-breaker-asset-space-breaker-asset-ships-small-exhaust-exhaust-01b.png",
+  "w": 32,
+  "h": 32,
+  "frameW": 32,
+  "frameH": 32,
+  "frames": 1
+ },
+ "space-breaker-asset-space-breaker-asset-ships-small-body-01": {
+  "url": "assets/space-breaker-asset-space-breaker-asset-ships-small-body-01.png",
+  "w": 32,
+  "h": 64,
+  "frameW": 32,
+  "frameH": 64,
+  "frames": 1
+ },
+ "space-breaker-asset-space-breaker-asset-ships-small-body-02": {
+  "url": "assets/space-breaker-asset-space-breaker-asset-ships-small-body-02.png",
+  "w": 32,
+  "h": 64,
+  "frameW": 32,
+  "frameH": 64,
+  "frames": 1
+ },
+ "space-breaker-asset-space-breaker-asset-ships-small-body-03": {
+  "url": "assets/space-breaker-asset-space-breaker-asset-ships-small-body-03.png",
+  "w": 32,
+  "h": 64,
+  "frameW": 32,
+  "frameH": 64,
+  "frames": 1
+ },
+ "space-breaker-asset-space-breaker-asset-ships-small-ship-small-32x64": {
+  "url": "assets/space-breaker-asset-space-breaker-asset-ships-small-ship-small-32x64.png",
+  "w": 96,
+  "h": 64,
+  "frameW": 96,
+  "frameH": 64,
+  "frames": 1
+ },
+ "space-breaker-asset-space-breaker-asset-weapons-medium-cannon-turret-01-mk1": {
+  "url": "assets/space-breaker-asset-space-breaker-asset-weapons-medium-cannon-turret-01-mk1.png",
+  "w": 64,
+  "h": 64,
+  "frameW": 64,
+  "frameH": 64,
+  "frames": 1
+ },
+ "space-breaker-asset-space-breaker-asset-weapons-medium-cannon-turret-01-mk2": {
+  "url": "assets/space-breaker-asset-space-breaker-asset-weapons-medium-cannon-turret-01-mk2.png",
+  "w": 64,
+  "h": 64,
+  "frameW": 64,
+  "frameH": 64,
+  "frames": 1
+ },
+ "space-breaker-asset-space-breaker-asset-weapons-medium-cannon-turret-01-mk3": {
+  "url": "assets/space-breaker-asset-space-breaker-asset-weapons-medium-cannon-turret-01-mk3.png",
+  "w": 64,
+  "h": 64,
+  "frameW": 64,
+  "frameH": 64,
+  "frames": 1
+ },
+ "space-breaker-asset-space-breaker-asset-weapons-medium-laser-turret-02-mk1": {
+  "url": "assets/space-breaker-asset-space-breaker-asset-weapons-medium-laser-turret-02-mk1.png",
+  "w": 64,
+  "h": 64,
+  "frameW": 64,
+  "frameH": 64,
+  "frames": 1
+ },
+ "space-breaker-asset-space-breaker-asset-weapons-medium-laser-turret-02-mk2": {
+  "url": "assets/space-breaker-asset-space-breaker-asset-weapons-medium-laser-turret-02-mk2.png",
+  "w": 64,
+  "h": 64,
+  "frameW": 64,
+  "frameH": 64,
+  "frames": 1
+ },
+ "space-breaker-asset-space-breaker-asset-weapons-medium-laser-turret-02-mk3": {
+  "url": "assets/space-breaker-asset-space-breaker-asset-weapons-medium-laser-turret-02-mk3.png",
+  "w": 64,
+  "h": 64,
+  "frameW": 64,
+  "frameH": 64,
+  "frames": 1
+ },
+ "space-breaker-asset-space-breaker-asset-weapons-medium-missile-turret-03-mk1": {
+  "url": "assets/space-breaker-asset-space-breaker-asset-weapons-medium-missile-turret-03-mk1.png",
+  "w": 64,
+  "h": 64,
+  "frameW": 64,
+  "frameH": 64,
+  "frames": 1
+ },
+ "space-breaker-asset-space-breaker-asset-weapons-medium-missile-turret-03-mk2": {
+  "url": "assets/space-breaker-asset-space-breaker-asset-weapons-medium-missile-turret-03-mk2.png",
+  "w": 64,
+  "h": 64,
+  "frameW": 64,
+  "frameH": 64,
+  "frames": 1
+ },
+ "space-breaker-asset-space-breaker-asset-weapons-medium-missile-turret-03-mk3": {
+  "url": "assets/space-breaker-asset-space-breaker-asset-weapons-medium-missile-turret-03-mk3.png",
+  "w": 64,
+  "h": 64,
+  "frameW": 64,
+  "frameH": 64,
+  "frames": 1
+ },
+ "space-breaker-asset-space-breaker-asset-weapons-medium-plasma-turret-04-mk1": {
+  "url": "assets/space-breaker-asset-space-breaker-asset-weapons-medium-plasma-turret-04-mk1.png",
+  "w": 64,
+  "h": 64,
+  "frameW": 64,
+  "frameH": 64,
+  "frames": 1
+ },
+ "space-breaker-asset-space-breaker-asset-weapons-medium-plasma-turret-04-mk2": {
+  "url": "assets/space-breaker-asset-space-breaker-asset-weapons-medium-plasma-turret-04-mk2.png",
+  "w": 64,
+  "h": 64,
+  "frameW": 64,
+  "frameH": 64,
+  "frames": 1
+ },
+ "space-breaker-asset-space-breaker-asset-weapons-medium-plasma-turret-04-mk3": {
+  "url": "assets/space-breaker-asset-space-breaker-asset-weapons-medium-plasma-turret-04-mk3.png",
+  "w": 64,
+  "h": 64,
+  "frameW": 64,
+  "frameH": 64,
+  "frames": 1
+ },
+ "space-breaker-asset-space-breaker-asset-weapons-medium-turret-medium-64x64": {
+  "url": "assets/space-breaker-asset-space-breaker-asset-weapons-medium-turret-medium-64x64.png",
+  "w": 192,
+  "h": 256,
+  "frameW": 192,
+  "frameH": 256,
+  "frames": 1
+ },
+ "space-breaker-asset-space-breaker-asset-weapons-small-cannon-turret-01-bullet-01": {
+  "url": "assets/space-breaker-asset-space-breaker-asset-weapons-small-cannon-turret-01-bullet-01.png",
+  "w": 8,
+  "h": 8,
+  "frameW": 8,
+  "frameH": 8,
+  "frames": 1
+ },
+ "space-breaker-asset-space-breaker-asset-weapons-small-cannon-turret-01-explosion": {
+  "url": "assets/space-breaker-asset-space-breaker-asset-weapons-small-cannon-turret-01-explosion.png",
+  "w": 160,
+  "h": 32,
+  "frameW": 32,
+  "frameH": 32,
+  "frames": 5
+ },
+ "space-breaker-asset-space-breaker-asset-weapons-small-cannon-turret-01-mk1": {
+  "url": "assets/space-breaker-asset-space-breaker-asset-weapons-small-cannon-turret-01-mk1.png",
+  "w": 32,
+  "h": 32,
+  "frameW": 32,
+  "frameH": 32,
+  "frames": 1
+ },
+ "space-breaker-asset-space-breaker-asset-weapons-small-cannon-turret-01-mk1-anim": {
+  "url": "assets/space-breaker-asset-space-breaker-asset-weapons-small-cannon-turret-01-mk1-anim.png",
+  "w": 192,
+  "h": 32,
+  "frameW": 32,
+  "frameH": 32,
+  "frames": 6
+ },
+ "space-breaker-asset-space-breaker-asset-weapons-small-cannon-turret-01-mk2": {
+  "url": "assets/space-breaker-asset-space-breaker-asset-weapons-small-cannon-turret-01-mk2.png",
+  "w": 32,
+  "h": 32,
+  "frameW": 32,
+  "frameH": 32,
+  "frames": 1
+ },
+ "space-breaker-asset-space-breaker-asset-weapons-small-cannon-turret-01-mk2-anim": {
+  "url": "assets/space-breaker-asset-space-breaker-asset-weapons-small-cannon-turret-01-mk2-anim.png",
+  "w": 192,
+  "h": 32,
+  "frameW": 32,
+  "frameH": 32,
+  "frames": 6
+ },
+ "space-breaker-asset-space-breaker-asset-weapons-small-cannon-turret-01-mk3": {
+  "url": "assets/space-breaker-asset-space-breaker-asset-weapons-small-cannon-turret-01-mk3.png",
+  "w": 32,
+  "h": 32,
+  "frameW": 32,
+  "frameH": 32,
+  "frames": 1
+ },
+ "space-breaker-asset-space-breaker-asset-weapons-small-cannon-turret-01-mk3-anim": {
+  "url": "assets/space-breaker-asset-space-breaker-asset-weapons-small-cannon-turret-01-mk3-anim.png",
+  "w": 192,
+  "h": 32,
+  "frameW": 32,
+  "frameH": 32,
+  "frames": 6
+ },
+ "space-breaker-asset-space-breaker-asset-weapons-small-laser-turret-02-beam-01-anim": {
+  "url": "assets/space-breaker-asset-space-breaker-asset-weapons-small-laser-turret-02-beam-01-anim.png",
+  "w": 160,
+  "h": 32,
+  "frameW": 32,
+  "frameH": 32,
+  "frames": 5
+ },
+ "space-breaker-asset-space-breaker-asset-weapons-small-laser-turret-02-explosion-01-anim": {
+  "url": "assets/space-breaker-asset-space-breaker-asset-weapons-small-laser-turret-02-explosion-01-anim.png",
+  "w": 224,
+  "h": 32,
+  "frameW": 32,
+  "frameH": 32,
+  "frames": 7
+ },
+ "space-breaker-asset-space-breaker-asset-weapons-small-laser-turret-02-mk1": {
+  "url": "assets/space-breaker-asset-space-breaker-asset-weapons-small-laser-turret-02-mk1.png",
+  "w": 32,
+  "h": 32,
+  "frameW": 32,
+  "frameH": 32,
+  "frames": 1
+ },
+ "space-breaker-asset-space-breaker-asset-weapons-small-laser-turret-02-mk1-anim": {
+  "url": "assets/space-breaker-asset-space-breaker-asset-weapons-small-laser-turret-02-mk1-anim.png",
+  "w": 192,
+  "h": 32,
+  "frameW": 32,
+  "frameH": 32,
+  "frames": 6
+ },
+ "space-breaker-asset-space-breaker-asset-weapons-small-laser-turret-02-mk2": {
+  "url": "assets/space-breaker-asset-space-breaker-asset-weapons-small-laser-turret-02-mk2.png",
+  "w": 32,
+  "h": 32,
+  "frameW": 32,
+  "frameH": 32,
+  "frames": 1
+ },
+ "space-breaker-asset-space-breaker-asset-weapons-small-laser-turret-02-mk3": {
+  "url": "assets/space-breaker-asset-space-breaker-asset-weapons-small-laser-turret-02-mk3.png",
+  "w": 32,
+  "h": 32,
+  "frameW": 32,
+  "frameH": 32,
+  "frames": 1
+ },
+ "space-breaker-asset-space-breaker-asset-weapons-small-missile-turret-03-mk1": {
+  "url": "assets/space-breaker-asset-space-breaker-asset-weapons-small-missile-turret-03-mk1.png",
+  "w": 32,
+  "h": 32,
+  "frameW": 32,
+  "frameH": 32,
+  "frames": 1
+ },
+ "space-breaker-asset-space-breaker-asset-weapons-small-missile-turret-03-mk2": {
+  "url": "assets/space-breaker-asset-space-breaker-asset-weapons-small-missile-turret-03-mk2.png",
+  "w": 32,
+  "h": 32,
+  "frameW": 32,
+  "frameH": 32,
+  "frames": 1
+ },
+ "space-breaker-asset-space-breaker-asset-weapons-small-missile-turret-03-mk3": {
+  "url": "assets/space-breaker-asset-space-breaker-asset-weapons-small-missile-turret-03-mk3.png",
+  "w": 32,
+  "h": 32,
+  "frameW": 32,
+  "frameH": 32,
+  "frames": 1
+ },
+ "space-breaker-asset-space-breaker-asset-weapons-small-plasma-turret-04-mk1": {
+  "url": "assets/space-breaker-asset-space-breaker-asset-weapons-small-plasma-turret-04-mk1.png",
+  "w": 32,
+  "h": 32,
+  "frameW": 32,
+  "frameH": 32,
+  "frames": 1
+ },
+ "space-breaker-asset-space-breaker-asset-weapons-small-plasma-turret-04-mk2": {
+  "url": "assets/space-breaker-asset-space-breaker-asset-weapons-small-plasma-turret-04-mk2.png",
+  "w": 32,
+  "h": 32,
+  "frameW": 32,
+  "frameH": 32,
+  "frames": 1
+ },
+ "space-breaker-asset-space-breaker-asset-weapons-small-plasma-turret-04-mk3": {
+  "url": "assets/space-breaker-asset-space-breaker-asset-weapons-small-plasma-turret-04-mk3.png",
+  "w": 32,
+  "h": 32,
+  "frameW": 32,
+  "frameH": 32,
+  "frames": 1
+ },
+ "space-breaker-asset-space-breaker-asset-weapons-small-turret-small-32x32": {
+  "url": "assets/space-breaker-asset-space-breaker-asset-weapons-small-turret-small-32x32.png",
+  "w": 96,
+  "h": 128,
+  "frameW": 96,
+  "frameH": 128,
+  "frames": 1
+ }
+}

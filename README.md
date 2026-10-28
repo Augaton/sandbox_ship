@@ -11,6 +11,18 @@ Jeu de stratégie spatiale 2D en temps réel, en bac à sable. Trois modes :
   On gagne en détruisant la station adverse, point d'attache par point d'attache.
 - **Bac à sable** : la même bataille, IA coupée, placement libre de n'importe quelle unité.
 
+Les croiseurs et les cuirassés ont des pièces destructibles, comme les stations :
+tourelles, réacteurs (le vaisseau ralentit), générateur de bouclier, hangar. N'importe quel
+vaisseau se pilote à la main (touche P), et chaque classe a une capacité active (touche E).
+Les trois factions ont chacune leur trait et trois héros uniques. La production passe par
+deux files, bâtiments et vaisseaux, et la recherche améliore armes, boucliers, blindage,
+propulsion, mines et hangars. Plateformes et hangars montent jusqu'au niveau 3, et les
+plateformes et docks peuvent se construire près des mines. Un brouillard de guerre couvre
+les batailles et la carte, pour l'IA comme pour le joueur. Chaque carte, de campagne ou
+d'escarmouche, se génère à partir d'une graine (la carte classique reste disponible). Sur la
+carte, certaines planètes ont un bonus. La campagne se sauvegarde toute seule dans le
+navigateur.
+
 ## Lancer
 
 ```bash

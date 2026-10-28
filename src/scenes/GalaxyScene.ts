@@ -1,12 +1,16 @@
 import Phaser from 'phaser';
 import { GALAXY_H, GALAXY_RULES, GALAXY_W } from '../data/galaxy';
 import { FACTIONS, type FactionId } from '../data/units';
-import { planetKey, type Manifest } from '../render/sprites';
+import { opaqueSize } from '../render/opaque';
+import { backdrop, planetKey, type Manifest } from '../render/sprites';
 import { countShips, type BattleResult } from '../sim/battle';
 import {
-  chooseBattle, concludeBattle, createGalaxy, findPath, fleetsAt, sendFleet, type Galaxy, type Planet,
+  chooseBattle, concludeBattle, createGalaxy, findPath, fleetVisible, fleetsAt, sendFleet, visiblePlanets,
+  type Galaxy, type Planet,
 } from '../sim/galaxy';
+import { CLASSIC, generateLayout } from '../sim/galaxyGen';
 import { GALAXY_STEP, stepGalaxy } from '../sim/galaxyStep';
+import { clearCampaign, loadCampaign, saveCampaign } from '../sim/galaxySave';
 import { hex } from '../ui/dom';
 import { GalaxyHud } from '../ui/galaxyHud';
 import type { MenuChoice } from '../ui/menu';
@@ -19,6 +23,7 @@ const PANEL_W = 340;
 const NEUTRAL = 0x6b7588;
 const ACCENT = 0xe8a13a;
 /** Planet tints, so that the placeholder planets do not all look alike. */
+const AUTOSAVE_MS = 20000;
 const TINTS = [0xffffff, 0xffd2a8, 0xc8f0c8, 0xffc0c0, 0xd8ccff, 0xfff0b0];
 
 export class GalaxyScene extends Phaser.Scene {
@@ -33,22 +38,31 @@ export class GalaxyScene extends Phaser.Scene {
   private acc = 0;
   private under!: Phaser.GameObjects.Graphics;
   private over!: Phaser.GameObjects.Graphics;
-  private planets: Phaser.GameObjects.Image[] = [];
+  private planets: Phaser.GameObjects.Sprite[] = [];
   private names: Phaser.GameObjects.Text[] = [];
+  /** Owner emblem next to each planet. */
+  private emblems: Phaser.GameObjects.Image[] = [];
   private labels: Phaser.GameObjects.Text[] = [];
   private stars: Phaser.GameObjects.TileSprite[] = [];
   private view = { s: 1, ox: 0, oy: 0 };
   private prompted = new Set<number>();
   private ended = false;
+  /** Milliseconds since the last autosave. */
+  private saveTimer = 0;
 
   constructor() {
     super('galaxy');
   }
 
   create(opts: MenuChoice): void {
-    this.opts = opts;
-    this.galaxy = createGalaxy(opts.player, opts.enemy, true, ((Math.random() * 1e9) | 0) + 1);
-    this.selected = this.galaxy.planets.findIndex((p) => p.owner === opts.player);
+    const saved = opts.resume ? loadCampaign() : null;
+    const layout = opts.map === 'classic' ? CLASSIC : generateLayout(opts.seed);
+    this.galaxy = saved ?? createGalaxy(opts.player, opts.enemy, true, opts.seed, layout);
+    const player = this.galaxy.player;
+    const enemy = [...this.galaxy.factions.keys()].find((f) => f !== player) ?? opts.enemy;
+    this.opts = { ...opts, player, enemy };
+    this.saveTimer = 0;
+    this.selected = this.galaxy.planets.findIndex((p) => p.owner === player);
     this.hover = null;
     this.speed = 1;
     this.paused = false;
@@ -58,18 +72,36 @@ export class GalaxyScene extends Phaser.Scene {
     this.labels = [];
 
     const manifest: Manifest = this.cache.json.get('manifest') ?? {};
-    this.stars = ['ph-stars-0', 'ph-stars-1'].map((k) => this.add.tileSprite(0, 0, 1, 1, k).setOrigin(0));
+    this.stars = backdrop(manifest).tiles.map((t) => {
+      const sprite = this.add.tileSprite(0, 0, 1, 1, t.key, t.frame).setOrigin(0);
+      if (sprite.frame.cutWidth < 512) sprite.setTileScale(2);
+      return sprite;
+    });
     this.under = this.add.graphics();
     const key = planetKey(manifest);
-    this.planets = this.galaxy.planets.map((p) => this.add.image(0, 0, key).setTint(TINTS[p.id % TINTS.length]));
+    const frames = manifest[key]?.frames ?? 1;
+    if (frames > 1 && !this.anims.exists(key)) {
+      this.anims.create({ key, frames: this.anims.generateFrameNumbers(key), frameRate: 8, repeat: -1 });
+    }
+    this.planets = this.galaxy.planets.map((p) => {
+      const s = this.add.sprite(0, 0, key).setTint(TINTS[p.id % TINTS.length]);
+      // Each planet starts its rotation at a different frame.
+      if (frames > 1) s.play({ key, startFrame: (p.id * 11) % frames });
+      return s;
+    });
     this.names = this.galaxy.planets.map((p) =>
       this.add.text(0, 0, p.name, { fontFamily: 'ui-monospace, monospace', fontSize: '14px', color: '#d9dee7' }).setOrigin(0.5, 0),
     );
+    this.emblems = this.galaxy.planets.map(() => this.add.image(0, 0, 'emblem-klaed').setVisible(false));
     this.over = this.add.graphics();
 
     this.input.mouse?.disableContextMenu();
     this.input.on('pointerdown', this.onPointerDown, this);
-    this.input.on('pointermove', (p: Phaser.Input.Pointer) => (this.hover = this.pick(p.x, p.y)));
+    this.input.on('pointermove', (p: Phaser.Input.Pointer) => {
+      this.hover = this.pick(p.x, p.y);
+      this.hud.tooltip(this.hover, p.x, p.y);
+    });
+    this.input.on('gameout', () => this.hud.tooltip(null, 0, 0));
     this.input.keyboard!.on('keydown', this.onKey, this);
     this.scale.on('resize', this.layout, this);
     this.hud = new GalaxyHud(this);
@@ -95,8 +127,9 @@ export class GalaxyScene extends Phaser.Scene {
     this.galaxy.planets.forEach((p, i) => {
       const r = this.radius(p);
       const img = this.planets[i];
-      img.setPosition(this.sx(p.x), this.sy(p.y)).setScale((r * 2) / Math.max(img.width, img.height));
+      img.setPosition(this.sx(p.x), this.sy(p.y)).setScale((r * 2) / opaqueSize(this, img.texture.key));
       this.names[i].setPosition(this.sx(p.x), this.sy(p.y) + r + 10);
+      this.emblems[i].setPosition(this.sx(p.x) - r - 6, this.sy(p.y) - r - 6).setScale(0.6);
     });
   }
 
@@ -148,7 +181,8 @@ export class GalaxyScene extends Phaser.Scene {
       this.hud.toast('Aucune flotte à toi sur cette planète');
       return;
     }
-    const r = sendFleet(this.galaxy, fleet.id, dest, this.hud.sendCounts());
+    const pick = this.hud.sendCounts();
+    const r = sendFleet(this.galaxy, fleet.id, dest, pick.ships, pick.heroes);
     if (!r.ok) this.hud.toast(r.reason);
     // The fleet left: show what stays, with fresh quantities, before the next order.
     else this.hud.refresh();
@@ -165,7 +199,14 @@ export class GalaxyScene extends Phaser.Scene {
     this.hud.refreshModes();
   }
 
+  /** Saves the campaign, unless it is over. */
+  save(): void {
+    if (!this.galaxy.winner && !saveCampaign(this.galaxy)) this.hud.toast('Sauvegarde impossible dans ce navigateur');
+    this.saveTimer = 0;
+  }
+
   toMenu(): void {
+    this.save();
     showStartMenu(this.game);
   }
 
@@ -181,6 +222,7 @@ export class GalaxyScene extends Phaser.Scene {
       mode: 'campaign',
       campaign: { world: b.world, battleId, planet: this.galaxy.planets[b.planetId].name, attacker: b.attacker, defender: b.defender },
     };
+    this.save();
     this.scene.sleep();
     this.game.scene.start('background');
     this.game.scene.start('battle', opts);
@@ -193,6 +235,7 @@ export class GalaxyScene extends Phaser.Scene {
   /** Called by the battle view when a tactical battle ends. */
   finishBattle(battleId: number, result: BattleResult): void {
     concludeBattle(this.galaxy, battleId, result);
+    this.save();
   }
 
   update(_time: number, delta: number): void {
@@ -214,7 +257,10 @@ export class GalaxyScene extends Phaser.Scene {
     if (g.winner && !this.ended) {
       this.ended = true;
       this.hud.showEnd(g.winner === this.opts.player);
+      clearCampaign();
     }
+    this.saveTimer += delta;
+    if (this.saveTimer >= AUTOSAVE_MS) this.save();
     for (const [i, t] of this.stars.entries()) t.tilePositionX += delta * 0.002 * (i + 1);
     this.draw();
     this.hud.update(delta);
@@ -266,13 +312,21 @@ export class GalaxyScene extends Phaser.Scene {
       }
     }
 
+    // Fog of war: ownership is known everywhere, the rest only where the player has eyes.
+    const seen = visiblePlanets(g, player);
     for (const p of g.planets) {
       const x = this.sx(p.x);
       const y = this.sy(p.y);
       const r = this.radius(p);
-      o.lineStyle(3, p.owner ? FACTIONS[p.owner].color : NEUTRAL, 1).strokeCircle(x, y, r + 3);
+      const visible = seen.has(p.id);
+      this.planets[p.id].setAlpha(visible ? 1 : 0.45);
+      o.lineStyle(3, p.owner ? FACTIONS[p.owner].color : NEUTRAL, visible ? 1 : 0.5).strokeCircle(x, y, r + 3);
       if (p.id === this.selected) o.lineStyle(2, ACCENT, 1).strokeCircle(x, y, r + 9);
       else if (p.id === this.hover) o.lineStyle(1, ACCENT, 0.6).strokeCircle(x, y, r + 9);
+      const badge = this.emblems[p.id];
+      badge.setVisible(p.owner != null);
+      if (p.owner && badge.texture.key !== `emblem-${p.owner}`) badge.setTexture(`emblem-${p.owner}`);
+      if (!visible) continue;
       if (p.occupation) {
         const total = p.owner ? GALAXY_RULES.captureTime : GALAXY_RULES.neutralCaptureTime;
         const done = 1 - p.occupation.remaining / total;
@@ -288,7 +342,8 @@ export class GalaxyScene extends Phaser.Scene {
 
     let n = 0;
     for (const f of g.fleets.values()) {
-      const count = countShips(f.ships);
+      if (!fleetVisible(g, player, f, seen)) continue;
+      const count = countShips(f.ships) + f.heroes.length;
       if (f.at != null) {
         const p = g.planets[f.at];
         const side = f.faction === p.owner || (p.owner == null && f.faction === player) ? -1 : 1;

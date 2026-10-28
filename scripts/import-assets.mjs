@@ -81,6 +81,8 @@ function main() {
       if (!size) continue;
       const rel = relative(dir, file).slice(0, -extname(file).length);
       let key = slug(`${pack}/${rel}`);
+      // Pack previews are big showcase pictures, not game sprites.
+      if (/(^|-)previews?(-|$)/.test(key)) continue;
       for (let i = 2; manifest[key]; i++) key = slug(`${pack}/${rel}-${i}`);
       copyFileSync(file, join(OUT, `${key}.png`));
       const o = overrides[key];

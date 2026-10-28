@@ -2,11 +2,16 @@ import { describe, expect, it } from 'vitest';
 import { CAPITALS, GALAXY_RULES, PLANETS } from '../src/data/galaxy';
 import { STATION } from '../src/data/structures';
 import { SHIPS } from '../src/data/units';
+import { HEROES } from '../src/data/heroes';
+import { TECHS } from '../src/data/research';
 import {
-  addShipsAt, cancelBuild, canBuild, chooseBattle, concludeBattle, createGalaxy, enqueueBuild, findPath,
-  fleetsAt, neighbours, sendFleet, waitingForPlayer, type Galaxy,
+  addShipsAt, buildTime, cancelBuild, canBuild, canResearchTech, chooseBattle, concludeBattle, createGalaxy,
+  enqueueBuild, findPath, fleetVisible, fleetsAt, incomeOf, neighbours, platformCap, researchSpeed, sendFleet, startTech,
+  visiblePlanets, waitingForPlayer, type Galaxy,
 } from '../src/sim/galaxy';
 import { runGalaxy, stepGalaxy } from '../src/sim/galaxyStep';
+import { crosses, generateLayout } from '../src/sim/galaxyGen';
+import { deserializeGalaxy, serializeGalaxy } from '../src/sim/galaxySave';
 
 const [WEST, EAST] = CAPITALS;
 const id = (name: string) => PLANETS.findIndex((p) => p.name === name);
@@ -98,7 +103,7 @@ describe('production', () => {
     expect(enqueueBuild(g, 'klaed', orin, { kind: 'station' }).ok).toBe(true);
     expect(enqueueBuild(g, 'klaed', orin, { kind: 'station' }).ok).toBe(true);
     // The second station order is an upgrade, priced at level 2.
-    expect(g.planets[orin].queue[2].cost).toBe(STATION.levels[1].upgradeCost);
+    expect(g.planets[orin].buildings[2].cost).toBe(STATION.levels[1].upgradeCost);
     const before = f.credits;
     cancelBuild(g, orin, 2);
     expect(f.credits).toBe(before + STATION.levels[1].upgradeCost);
@@ -199,4 +204,175 @@ describe('galaxy AI', () => {
     expect(g.factions.get('klaed')!.eliminated).toBe(true);
     expect([...g.fleets.values()].some((f) => f.faction === 'klaed')).toBe(false);
   }, 30000);
+});
+
+describe('campaign saves', () => {
+  it('restore the map, fleets and treasury', () => {
+    const g = spectated();
+    sendFleet(g, fleetsAt(g, WEST, 'klaed')[0].id, id('Nadir'));
+    runGalaxy(g, 25);
+    const back = deserializeGalaxy(serializeGalaxy(g))!;
+    expect(back.time).toBe(g.time);
+    expect(back.planets).toEqual(g.planets);
+    expect([...back.fleets.values()]).toEqual([...g.fleets.values()]);
+    expect(back.factions.get('klaed')!.credits).toBe(g.factions.get('klaed')!.credits);
+    // The game goes on from there.
+    runGalaxy(back, 30);
+    expect(back.planets[id('Nadir')].owner).toBe('klaed');
+  });
+
+  it('drop battles: the fleets meet again and fight once loaded', () => {
+    const g = createGalaxy('klaed', 'nairan', false);
+    Object.assign(g.planets[id('Kaldra')], { owner: 'nairan', station: 1 });
+    sendFleet(g, fleetsAt(g, WEST, 'klaed')[0].id, id('Kaldra'));
+    runGalaxy(g, 30);
+    expect(g.battles).toHaveLength(1);
+    const back = deserializeGalaxy(serializeGalaxy(g))!;
+    expect(back.battles).toHaveLength(0);
+    stepGalaxy(back);
+    expect(back.battles).toHaveLength(1);
+  });
+
+  it('reject what is not a save', () => {
+    expect(deserializeGalaxy('not json')).toBeNull();
+    expect(deserializeGalaxy('{"version":0}')).toBeNull();
+  });
+});
+
+describe('planet production and research', () => {
+  it('builds buildings and ships side by side', () => {
+    const g = spectated();
+    g.factions.get('klaed')!.credits = 100000;
+    expect(enqueueBuild(g, 'klaed', WEST, { kind: 'mine' }).ok).toBe(true);
+    expect(enqueueBuild(g, 'klaed', WEST, { kind: 'ship', cls: 'scout' }).ok).toBe(true);
+    runGalaxy(g, SHIPS.scout.buildTime + 0.5);
+    expect(fleetsAt(g, WEST, 'klaed')[0].ships.scout).toBe(3);
+    expect(g.planets[WEST].buildings).toHaveLength(1);
+  });
+
+  it('research needs a lab, then raises the level', () => {
+    const g = spectated();
+    const f = g.factions.get('klaed')!;
+    f.credits = 100000;
+    expect(canResearchTech(g, 'klaed', 'weapons')).toEqual({ ok: false, reason: 'Laboratoire requis' });
+    g.planets[WEST].lab = 1;
+    expect(startTech(g, 'klaed', 'weapons').ok).toBe(true);
+    runGalaxy(g, TECHS.weapons.times[0] + 0.5);
+    expect(f.research.weapons).toBe(1);
+  });
+
+  it('a battle fought at a planet uses both sides research', () => {
+    const g = spectated();
+    g.factions.get('klaed')!.research.armor = 2;
+    const kaldra = id('Kaldra');
+    Object.assign(g.planets[kaldra], { owner: 'nairan', station: 1 });
+    sendFleet(g, fleetsAt(g, WEST, 'klaed')[0].id, kaldra);
+    runGalaxy(g, 12);
+    expect(g.battles[0].world.factions.get('klaed')!.research.armor).toBe(2);
+  });
+
+  it('special planets', () => {
+    const g = spectated();
+    const f = g.factions.get('klaed')!;
+    // Rich deposit: double mine income.
+    const nadir = g.planets[id('Nadir')];
+    Object.assign(nadir, { owner: 'klaed', mines: 1 });
+    const capital = g.planets[WEST];
+    expect(incomeOf(g, 'klaed')).toBe(capital.income + nadir.income + GALAXY_RULES.mineIncome * (capital.mines + 2));
+    // Orbital shipyard: ships 30 % faster.
+    const kaldra = g.planets[id('Kaldra')];
+    Object.assign(kaldra, { owner: 'klaed', station: 1 });
+    expect(buildTime(kaldra, { kind: 'ship', cls: 'frigate' })).toBeCloseTo(SHIPS.frigate.buildTime * 0.7, 5);
+    // Fortress: two more platforms.
+    const sorel = g.planets[id('Sorel')];
+    Object.assign(sorel, { owner: 'klaed', station: 1 });
+    expect(platformCap(sorel)).toBe(4);
+    // Archives: research a quarter faster.
+    expect(researchSpeed(g, 'klaed')).toBe(1);
+    g.planets[id('Orin')].owner = 'klaed';
+    expect(researchSpeed(g, 'klaed')).toBeCloseTo(4 / 3, 5);
+    f.credits = 0;
+  });
+
+  it('taking a planet keeps its mines and lab but not what is in orbit', () => {
+    const g = spectated();
+    const kaldra = id('Kaldra');
+    Object.assign(g.planets[kaldra], { owner: 'nairan', mines: 2, lab: 1 });
+    sendFleet(g, fleetsAt(g, WEST, 'klaed')[0].id, kaldra);
+    runGalaxy(g, 40);
+    expect(g.planets[kaldra]).toMatchObject({ owner: 'klaed', mines: 2, lab: 1, station: 0 });
+  });
+});
+
+describe('generated galaxies', () => {
+  it('are the same for the same seed and differ between seeds', () => {
+    expect(generateLayout(42)).toEqual(generateLayout(42));
+    expect(generateLayout(42).planets).not.toEqual(generateLayout(43).planets);
+  });
+
+  it('are connected, spread out, without crossing lanes, with distant capitals', () => {
+    for (const seed of [1, 2, 3, 99, 12345]) {
+      const layout = generateLayout(seed);
+      const { planets, lanes, capitals } = layout;
+      expect(planets.length).toBeGreaterThanOrEqual(12);
+      const g = createGalaxy('klaed', 'nairan', false, seed, layout);
+      const seen = new Set([0]);
+      const todo = [0];
+      while (todo.length) for (const n of neighbours(g, todo.pop()!)) if (!seen.has(n)) seen.add(n), todo.push(n);
+      expect(seen.size).toBe(planets.length);
+      for (let i = 0; i < lanes.length; i++) {
+        for (let j = i + 1; j < lanes.length; j++) {
+          const [a, b] = lanes[i];
+          const [c, d] = lanes[j];
+          expect(crosses(planets[a], planets[b], planets[c], planets[d])).toBe(false);
+        }
+      }
+      expect(findPath(g, capitals[0], capitals[1])!.length).toBeGreaterThanOrEqual(3);
+      expect(g.planets[capitals[0]].owner).toBe('klaed');
+    }
+  });
+
+  it('saves keep the generated lanes', () => {
+    const layout = generateLayout(7);
+    const g = createGalaxy('klaed', 'nairan', true, 7, layout);
+    expect(deserializeGalaxy(serializeGalaxy(g))!.lanes).toEqual(layout.lanes);
+  });
+});
+
+describe('heroes on the galaxy map', () => {
+  it('are built at a planet, travel with fleets or stay behind, and fall in battle', () => {
+    const g = spectated();
+    const f = g.factions.get('klaed')!;
+    f.credits = 100000;
+    expect(enqueueBuild(g, 'klaed', WEST, { kind: 'hero', hero: 'klaed-ace' }).ok).toBe(true);
+    expect(canBuild(g, 'klaed', WEST, { kind: 'hero', hero: 'klaed-ace' })).toEqual({ ok: false, reason: 'Déjà en service' });
+    runGalaxy(g, 26);
+    const fleet = fleetsAt(g, WEST, 'klaed')[0];
+    expect(fleet.heroes).toEqual(['klaed-ace']);
+    // A partial order leaves the hero home unless it is picked.
+    sendFleet(g, fleet.id, id('Orin'), { scout: 1 });
+    expect(fleet.heroes).toEqual(['klaed-ace']);
+    // Sent alone against a strong planet, the hero falls and must wait to be rebuilt.
+    const kaldra = id('Kaldra');
+    Object.assign(g.planets[kaldra], { owner: 'nairan', station: 3, platforms: 6 });
+    sendFleet(g, fleet.id, kaldra, {}, ['klaed-ace']);
+    runGalaxy(g, 40);
+    expect([...g.fleets.values()].some((fl) => fl.heroes.includes('klaed-ace'))).toBe(false);
+    expect(canBuild(g, 'klaed', WEST, { kind: 'hero', hero: 'klaed-ace' }).ok).toBe(false);
+    runGalaxy(g, HEROES['klaed-ace'].respawn);
+    expect(canBuild(g, 'klaed', WEST, { kind: 'hero', hero: 'klaed-ace' }).ok).toBe(true);
+  }, 30000);
+});
+
+describe('galaxy fog of war', () => {
+  it('shows nearby planets and fleets only', () => {
+    const g = createGalaxy('klaed', 'nairan', false);
+    const seen = visiblePlanets(g, 'klaed');
+    expect(seen.has(WEST)).toBe(true);
+    for (const n of neighbours(g, WEST)) expect(seen.has(n)).toBe(true);
+    expect(seen.has(EAST)).toBe(false);
+    const enemy = fleetsAt(g, EAST, 'nairan')[0];
+    expect(fleetVisible(g, 'klaed', enemy)).toBe(false);
+    expect(fleetVisible(g, 'nairan', enemy)).toBe(true);
+  });
 });

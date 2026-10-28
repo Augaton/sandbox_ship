@@ -1,5 +1,9 @@
-import { SHIPS, type ShipClass, type ShipDef } from '../data/units';
-import { dist, type Entity, type World } from './world';
+import { TECH_BONUS } from '../data/research';
+import { FACTIONS, SHIPS, type ShipClass, type ShipDef } from '../data/units';
+import { HEROES } from '../data/heroes';
+import { inCommandAura, isActive } from './abilities';
+import { isVisible } from './vision';
+import { dist, researchLevel, type Entity, type World } from './world';
 
 /** Returns the angle in (-PI, PI]. */
 export function wrapAngle(a: number): number {
@@ -53,6 +57,33 @@ function engage(world: World, e: Entity, def: ShipDef, t: Entity, dt: number): v
   }
 }
 
+/**
+ * Lost engines slow a ship down and make it turn slower; the faction trait, engine
+ * research and the afterburner change its top speed.
+ */
+function effectiveDef(world: World, e: Entity): ShipDef {
+  const def = SHIPS[e.type as ShipClass];
+  const engines = e.engines == null || e.maxEngines === 0 ? 1 : Math.max(0.15, e.engines / e.maxEngines);
+  const boost = FACTIONS[e.faction].trait.speed * (1 + TECH_BONUS.engines * researchLevel(world, e.faction, 'engines'))
+    * (isActive(world, e, 'sprint') ? 2 : 1) * (e.hero ? HEROES[e.hero].speed : 1) * (inCommandAura(world, e) ? 1.2 : 1);
+  if (engines === 1 && boost === 1) return def;
+  return {
+    ...def,
+    speed: def.speed * engines * boost,
+    accel: def.accel * engines * boost,
+    turnRate: def.turnRate * (0.5 + 0.5 * engines),
+  };
+}
+
+/** Hand flying: the pilot sets thrust and turn; reverse is slower than full ahead. */
+function fly(e: Entity, def: ShipDef, dt: number): void {
+  const p = e.pilot!;
+  e.angle = wrapAngle(e.angle + p.turn * def.turnRate * dt);
+  const target = p.thrust >= 0 ? def.speed * p.thrust : def.speed * 0.35 * p.thrust;
+  const dv = def.accel * dt;
+  e.speed += Math.max(-dv, Math.min(dv, target - e.speed));
+}
+
 function hostileTarget(world: World, e: Entity): Entity | null {
   const t = e.targetId == null ? undefined : world.entities.get(e.targetId);
   return t && t.faction !== e.faction ? t : null;
@@ -62,13 +93,15 @@ function hostileTarget(world: World, e: Entity): Entity | null {
 const LEASH = 700;
 
 function updateShip(world: World, e: Entity, dt: number): void {
-  const def = SHIPS[e.type as ShipClass];
+  const def = effectiveDef(world, e);
+  if (e.pilot) return fly(e, def, dt);
   const o = e.order;
   const arrive = Math.max(6, e.radius * 0.3);
 
   if (o?.type === 'attack') {
+    // A target lost in the fog is lost.
     const t = world.entities.get(o.targetId);
-    if (t) return engage(world, e, def, t, dt);
+    if (t && isVisible(world, e.faction, t)) return engage(world, e, def, t, dt);
     e.order = null;
     e.guardX = e.x;
     e.guardY = e.y;

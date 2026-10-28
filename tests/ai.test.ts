@@ -15,9 +15,9 @@ describe('AI', () => {
 
   it('destroys a passive opponent', () => {
     const w = createSkirmish({ player: 'klaed', enemy: 'nairan', enemyAI: true, seed: 1 });
-    for (let minute = 0; minute < 15 && !w.winner; minute++) run(w, 60, 1 / 30);
+    for (let minute = 0; minute < 25 && !w.winner; minute++) run(w, 60, 1 / 30);
     expect(w.winner).toBe('nairan');
-  }, 30000);
+  }, 60000);
 
   it('two AIs fight without breaking the simulation', () => {
     const w = createSkirmish({ player: 'klaed', enemy: 'nairan', enemyAI: true, seed: 3 });

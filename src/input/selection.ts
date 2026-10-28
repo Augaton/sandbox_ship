@@ -1,14 +1,20 @@
 import Phaser from 'phaser';
+import { ABILITIES, type AbilityId } from '../data/abilities';
+import type { HeroRole } from '../data/heroes';
 import { SHIPS, type FactionId, type ShipClass } from '../data/units';
+import { useAbility } from '../sim/abilities';
+import { isVisible } from '../sim/vision';
 import { BUILDABLES, type BuildableType } from '../data/structures';
 import { issueAttack, issueMove, issueStop } from '../sim/movement';
 import { checkPlacement, placeStructure } from '../sim/structures';
 import {
-  addFaction, dist, spawnShip, spawnStation, spawnStructure, stationOf, type Entity, type World,
+  addFaction, dist, spawnHero, spawnShip, spawnStation, spawnStructure, stationOf, type Entity, type World,
 } from '../sim/world';
 import type { BattleScene } from '../scenes/BattleScene';
+import { settings } from '../ui/settings';
 
-export type SpawnWhat = ShipClass | BuildableType | 'station';
+/** In the sandbox, a hero spawns for whichever faction is picked. */
+export type SpawnWhat = ShipClass | BuildableType | 'station' | HeroRole;
 
 export type Mode =
   | { kind: 'select' }
@@ -21,11 +27,15 @@ const EDGE = 10;
 const PAN_SPEED = 900;
 const DOUBLE_TAP_MS = 350;
 
-/** The entity under a point; small entities win over the big ones they overlap. */
-export function pickAt(world: World, x: number, y: number, slop: number): Entity | null {
+/**
+ * The entity under a point; small entities win over the big ones they overlap. With
+ * `viewer`, enemies that faction cannot see are left out.
+ */
+export function pickAt(world: World, x: number, y: number, slop: number, viewer?: FactionId): Entity | null {
   let best: Entity | null = null;
   let bestRatio = Infinity;
   for (const e of world.entities.values()) {
+    if (viewer && !isVisible(world, viewer, e)) continue;
     const ratio = dist(e, { x, y }) / (e.radius + slop);
     if (ratio <= 1 && ratio < bestRatio) {
       bestRatio = ratio;
@@ -39,6 +49,8 @@ export function spawnAt(world: World, faction: FactionId, what: SpawnWhat, x: nu
   if (!world.factions.has(faction)) addFaction(world, faction, 0);
   if (what === 'station') {
     if (!stationOf(world, faction)) spawnStation(world, faction, x, y);
+  } else if (what === 'admiral' || what === 'ace' || what === 'engineer') {
+    spawnHero(world, faction, `${faction}-${what}`, x, y, Math.random() * Math.PI * 2);
   } else if (what in SHIPS) {
     spawnShip(world, faction, what as ShipClass, x, y, Math.random() * Math.PI * 2);
   } else {
@@ -64,6 +76,12 @@ export class SelectionController {
   private lastTap = { group: -1, time: 0 };
   private panFrom: { x: number; y: number } | null = null;
   private arrows: Phaser.Types.Input.Keyboard.CursorKeys;
+  /** Ship flown by hand, if any. */
+  pilotId: number | null = null;
+  private firing = false;
+  /** Physical keys held down (KeyboardEvent.code): WASD sits where ZQSD is on AZERTY. */
+  private keys = new Set<string>();
+  private lastClick = { id: -1, time: 0 };
 
   constructor(private scene: BattleScene) {
     const input = scene.input;
@@ -77,8 +95,15 @@ export class SelectionController {
     const kb = input.keyboard!;
     this.arrows = kb.createCursorKeys();
     kb.on('keydown', this.onKey, this);
+    kb.on('keyup', (ev: KeyboardEvent) => this.keys.delete(ev.code));
     // Keep Space from scrolling or pressing a focused HUD button.
     kb.addCapture('SPACE');
+    const release = () => {
+      this.keys.clear();
+      this.firing = false;
+    };
+    window.addEventListener('blur', release);
+    scene.events.once('shutdown', () => window.removeEventListener('blur', release));
   }
 
   private get world(): World {
@@ -110,6 +135,10 @@ export class SelectionController {
 
   private onDown(p: Phaser.Input.Pointer): void {
     const w = this.worldPoint(p);
+    if (this.pilotId != null) {
+      if (p.leftButtonDown()) this.firing = true;
+      return;
+    }
     if (p.middleButtonDown()) {
       this.panFrom = { x: p.x, y: p.y };
       return;
@@ -153,6 +182,7 @@ export class SelectionController {
 
   private onUp(p: Phaser.Input.Pointer): void {
     if (p.button === 1) this.panFrom = null;
+    if (p.button === 0) this.firing = false;
     if (!this.box || p.button !== 0) return;
     const b = this.box;
     this.box = null;
@@ -160,7 +190,21 @@ export class SelectionController {
     const sel = this.scene.selected;
     const zoom = this.scene.cameras.main.zoom;
     if (Math.abs(b.x1 - b.x0) * zoom < 6 && Math.abs(b.y1 - b.y0) * zoom < 6) {
-      const e = pickAt(this.world, b.x1, b.y1, 6 / zoom);
+      let e = pickAt(this.world, b.x1, b.y1, 6 / zoom, this.player);
+      // A click on one of your ship's parts selects the ship.
+      const parent = e?.parentId == null ? undefined : this.world.entities.get(e.parentId);
+      if (e && parent?.kind === 'ship' && e.faction === this.player) e = parent;
+      const now = performance.now();
+      const double = e != null && e.id === this.lastClick.id && now - this.lastClick.time < DOUBLE_TAP_MS;
+      this.lastClick = { id: e?.id ?? -1, time: now };
+      if (double && e!.kind === 'ship' && e!.faction === this.player) {
+        // Double click: every ship of that class on screen.
+        const view = this.scene.cameras.main.worldView;
+        for (const s of this.world.entities.values()) {
+          if (s.kind === 'ship' && s.faction === this.player && s.type === e!.type && view.contains(s.x, s.y)) sel.add(s.id);
+        }
+        return;
+      }
       if (!shift) sel.clear();
       if (e && shift && sel.has(e.id)) sel.delete(e.id);
       else if (e) sel.add(e.id);
@@ -178,7 +222,7 @@ export class SelectionController {
   private command(x: number, y: number): void {
     const ships = this.ownShips();
     if (ships.length > 0) {
-      const t = pickAt(this.world, x, y, 6 / this.scene.cameras.main.zoom);
+      const t = pickAt(this.world, x, y, 6 / this.scene.cameras.main.zoom, this.player);
       const ids = ships.map((s) => s.id);
       if (t && t.faction !== this.player) {
         issueAttack(this.world, ids, t.id);
@@ -213,6 +257,20 @@ export class SelectionController {
 
   private onKey(ev: KeyboardEvent): void {
     if (ev.target instanceof HTMLInputElement || ev.target instanceof HTMLSelectElement) return;
+    this.keys.add(ev.code);
+    const key = ev.key.toLowerCase();
+    if (key === 'p') return this.togglePilot();
+    if (key === 'e') return this.useAbilities();
+    if (this.pilotId != null) {
+      if (key === 'escape') this.stopPilot();
+      else if (key === ' ') this.scene.togglePause();
+      return;
+    }
+    if (key === 'a' && ev.ctrlKey) {
+      ev.preventDefault();
+      for (const e of this.world.entities.values()) if (e.kind === 'ship' && e.faction === this.player) this.scene.selected.add(e.id);
+      return;
+    }
     const digit = /^Digit([1-9])$/.exec(ev.code);
     if (digit) {
       ev.preventDefault();
@@ -221,7 +279,6 @@ export class SelectionController {
       else this.recallGroup(n);
       return;
     }
-    const key = ev.key.toLowerCase();
     if (key === ' ') this.scene.togglePause();
     else if (key === 'escape') {
       if (this.mode.kind !== 'select') this.setMode({ kind: 'select' });
@@ -248,12 +305,78 @@ export class SelectionController {
     this.lastTap = { group: n, time: now };
   }
 
-  /** Arrow keys and screen edges pan the camera. */
+  /**
+   * Fires the abilities of the selected ships (or of the piloted one), all of them or only
+   * those of one kind, when they are ready.
+   */
+  useAbilities(id?: AbilityId): void {
+    const piloted = this.pilotId == null ? undefined : this.world.entities.get(this.pilotId);
+    const ships = piloted ? [piloted] : this.ownShips();
+    const ready = ships.filter((s) => s.ability && (!id || s.ability.id === id) && s.ability.cooldown === 0);
+    if (ready.length === 0) {
+      if (ships.some((s) => s.ability)) this.scene.hud.toast('Capacité en recharge');
+      return;
+    }
+    for (const s of ready) useAbility(this.world, s);
+    this.scene.hud.toast(ABILITIES[ready[0].ability!.id].name);
+  }
+
+  /** Takes the controls of the one selected ship, or gives them back. */
+  togglePilot(): void {
+    if (this.pilotId != null) return this.stopPilot();
+    const ships = this.ownShips();
+    if (ships.length !== 1) {
+      this.scene.hud.toast('Sélectionne un seul de tes vaisseaux pour le piloter');
+      return;
+    }
+    const s = ships[0];
+    s.order = null;
+    s.pilot = { thrust: 0, turn: 0, firing: false, aimX: s.x, aimY: s.y };
+    this.pilotId = s.id;
+    this.box = null;
+    this.setMode({ kind: 'select' });
+  }
+
+  stopPilot(): void {
+    const s = this.pilotId == null ? undefined : this.world.entities.get(this.pilotId);
+    if (s) {
+      s.pilot = null;
+      s.guardX = s.x;
+      s.guardY = s.y;
+    }
+    this.pilotId = null;
+    this.firing = false;
+    this.scene.hud.refreshModes();
+  }
+
+  private updatePilot(): void {
+    const s = this.world.entities.get(this.pilotId!);
+    if (!s?.pilot) {
+      this.stopPilot();
+      this.scene.hud.toast('Vaisseau perdu');
+      return;
+    }
+    const held = (...codes: string[]) => codes.some((c) => this.keys.has(c));
+    s.pilot.thrust = (held('KeyW', 'ArrowUp') ? 1 : 0) - (held('KeyS', 'ArrowDown') ? 1 : 0);
+    s.pilot.turn = (held('KeyD', 'ArrowRight') ? 1 : 0) - (held('KeyA', 'ArrowLeft') ? 1 : 0);
+    s.pilot.firing = this.firing;
+    const cam = this.scene.cameras.main;
+    const p = this.scene.input.activePointer;
+    const aim = cam.getWorldPoint(p.x, p.y);
+    s.pilot.aimX = aim.x;
+    s.pilot.aimY = aim.y;
+    // The camera follows the ship, a little behind.
+    cam.scrollX += (s.x - cam.width / 2 - cam.scrollX) * 0.15;
+    cam.scrollY += (s.y - cam.height / 2 - cam.scrollY) * 0.15;
+  }
+
+  /** Arrow keys and screen edges pan the camera; while piloting, the camera follows the ship. */
   update(delta: number): void {
+    if (this.pilotId != null) return this.updatePilot();
     const cam = this.scene.cameras.main;
     const p = this.scene.input.activePointer;
     const step = (PAN_SPEED * delta) / 1000 / cam.zoom;
-    const edge = this.pointerInside && !this.panFrom;
+    const edge = settings.edgePan && this.pointerInside && !this.panFrom;
     if (this.arrows.left!.isDown || (edge && p.x < EDGE)) cam.scrollX -= step;
     if (this.arrows.right!.isDown || (edge && p.x > cam.width - EDGE)) cam.scrollX += step;
     if (this.arrows.up!.isDown || (edge && p.y < EDGE)) cam.scrollY -= step;

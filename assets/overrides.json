@@ -1,0 +1,42 @@
+{
+ "foozle-2ds0012-void-fleetpack-1-foozle-2ds0012-void-enemyfleet-1-klaed-projectiles-pngs-klaed-big-bullet": {
+  "frameW": 8,
+  "frameH": 16
+ },
+ "foozle-2ds0012-void-fleetpack-1-foozle-2ds0012-void-enemyfleet-1-klaed-projectiles-pngs-klaed-bullet": {
+  "frameW": 4,
+  "frameH": 16
+ },
+ "foozle-2ds0012-void-fleetpack-1-foozle-2ds0012-void-enemyfleet-1-klaed-projectiles-pngs-klaed-ray": {
+  "frameW": 18,
+  "frameH": 38
+ },
+ "foozle-2ds0012-void-fleetpack-1-foozle-2ds0012-void-enemyfleet-1-klaed-projectiles-pngs-klaed-torpedo": {
+  "frameW": 11,
+  "frameH": 32
+ },
+ "foozle-2ds0013-void-fleetpack-2-foozle-2ds0013-void-enemyfleet-2-nairan-weapon-effects-projectiles-pngs-nairan-ray": {
+  "frameW": 18,
+  "frameH": 38
+ },
+ "foozle-2ds0013-void-fleetpack-2-foozle-2ds0013-void-enemyfleet-2-nairan-weapon-effects-projectiles-pngs-nairan-rocket": {
+  "frameW": 9,
+  "frameH": 16
+ },
+ "foozle-2ds0013-void-fleetpack-2-foozle-2ds0013-void-enemyfleet-2-nairan-weapon-effects-projectiles-pngs-nairan-torpedo": {
+  "frameW": 9,
+  "frameH": 24
+ },
+ "foozle-2ds0014-void-fleetpack-3-foozle-2ds0014-void-enemyfleet-3-nautolan-weapon-effects-projectiles-pngs-nautolan-bullet": {
+  "frameW": 9,
+  "frameH": 12
+ },
+ "foozle-2ds0014-void-fleetpack-3-foozle-2ds0014-void-enemyfleet-3-nautolan-weapon-effects-projectiles-pngs-nautolan-ray": {
+  "frameW": 18,
+  "frameH": 38
+ },
+ "foozle-2ds0014-void-fleetpack-3-foozle-2ds0014-void-enemyfleet-3-nautolan-weapon-effects-projectiles-pngs-nautolan-rocket": {
+  "frameW": 16,
+  "frameH": 32
+ }
+}

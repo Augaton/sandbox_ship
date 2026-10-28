@@ -8,7 +8,7 @@ export interface HangarDef {
   interval: number;
 }
 
-export type HardpointRole = 'turret' | 'heavyTurret' | 'hangar' | 'shield' | 'shipyard';
+export type HardpointRole = 'turret' | 'heavyTurret' | 'hangar' | 'shield' | 'shipyard' | 'engine';
 
 export interface HardpointDef {
   role: HardpointRole;
@@ -32,17 +32,24 @@ export const HARDPOINTS: Record<HardpointRole, HardpointDef> = {
     role: 'hangar', name: 'Hangar', hull: 600, radius: 20, weapons: [],
     hangar: { squadrons: [{ cls: 'fighter', size: 3 }, { cls: 'bomber', size: 2 }], cap: 8, interval: 20 },
   },
-  /** While alive, the station core has shields. */
+  /** While one stands, the station or ship it belongs to has shields. */
   shield: { role: 'shield', name: 'Générateur de bouclier', hull: 500, radius: 16, weapons: [] },
   /** While alive, the faction can build ships. */
   shipyard: { role: 'shipyard', name: 'Chantier naval', hull: 800, radius: 22, weapons: [] },
+  /** Each engine lost slows its ship down. */
+  engine: { role: 'engine', name: 'Réacteur', hull: 300, radius: 9, weapons: [] },
 };
 
 export interface HardpointSlot {
   role: HardpointRole;
-  /** Offset from the station center, station facing angle 0. */
+  /** Offset from the parent's center with the parent at angle 0: x forward, y to starboard. */
   x: number;
   y: number;
+  /** Overrides of the role's defaults, for the smaller parts of ships. */
+  hull?: number;
+  radius?: number;
+  weapons?: WeaponDef[];
+  hangar?: HangarDef;
 }
 
 export interface StationLevel {
@@ -91,7 +98,7 @@ export const STATION = {
   ] as StationLevel[],
 };
 
-export type StructureType = 'station' | 'platform' | 'mine' | 'hangar';
+export type StructureType = 'station' | 'platform' | 'mine' | 'hangar' | 'repairDock' | 'ionCannon';
 export type BuildableType = Exclude<StructureType, 'station'>;
 
 export interface BuildableDef {
@@ -108,7 +115,26 @@ export interface BuildableDef {
   /** Credits per second once built. */
   income?: number;
   hangar?: HangarDef;
+  /** Repairs every friendly ship in range. */
+  repair?: { range: number; rate: number };
+  /** Can also be built next to one of the faction's mines, not only near its station. */
+  nearMines?: boolean;
+  /** Levels 2 and 3, bought one after the other. */
+  tiers?: TierDef[];
 }
+
+/** What a structure becomes at a higher level. */
+export interface TierDef {
+  cost: number;
+  time: number;
+  hull: number;
+  shield: number;
+  weapons?: WeaponDef[];
+  hangar?: HangarDef;
+}
+
+/** Radius around a built mine where platforms and repair docks may go. */
+export const MINE_ZONE = 350;
 
 export const BUILDABLES: Record<BuildableType, BuildableDef> = {
   platform: {
@@ -116,6 +142,11 @@ export const BUILDABLES: Record<BuildableType, BuildableDef> = {
     hull: 900, shield: 200, shieldRegen: 5, radius: 22,
     cost: 400, buildTime: 15, minStationLevel: 1,
     weapons: [{ ...laser, range: 450, damage: 12 }, flak],
+    nearMines: true,
+    tiers: [
+      { cost: 400, time: 20, hull: 1400, shield: 350, weapons: [{ ...laser, range: 470, damage: 18 }, flak] },
+      { cost: 700, time: 30, hull: 2000, shield: 500, weapons: [{ ...laser, range: 500, damage: 22 }, { ...laser, range: 500, damage: 22 }, flak] },
+    ],
   },
   mine: {
     id: 'mine', name: "Mine d'astéroïdes",
@@ -129,6 +160,23 @@ export const BUILDABLES: Record<BuildableType, BuildableDef> = {
     cost: 900, buildTime: 25, minStationLevel: 2,
     weapons: [],
     hangar: { squadrons: [{ cls: 'fighter', size: 3 }], cap: 6, interval: 25 },
+    tiers: [
+      { cost: 600, time: 25, hull: 1600, shield: 400, hangar: { squadrons: [{ cls: 'fighter', size: 3 }, { cls: 'bomber', size: 2 }], cap: 10, interval: 22 } },
+      { cost: 900, time: 30, hull: 2000, shield: 500, hangar: { squadrons: [{ cls: 'fighter', size: 3 }, { cls: 'bomber', size: 2 }, { cls: 'fighter', size: 3 }], cap: 14, interval: 16 } },
+    ],
+  },
+  repairDock: {
+    id: 'repairDock', name: 'Dock de réparation',
+    hull: 900, shield: 200, shieldRegen: 5, radius: 30,
+    cost: 600, buildTime: 20, minStationLevel: 1,
+    weapons: [], repair: { range: 280, rate: 15 },
+    nearMines: true,
+  },
+  ionCannon: {
+    id: 'ionCannon', name: 'Canon ionique',
+    hull: 1400, shield: 400, shieldRegen: 8, radius: 26,
+    cost: 1500, buildTime: 35, minStationLevel: 3,
+    weapons: [{ kind: 'ray', range: 900, damage: 90, cooldown: 5, projectileSpeed: 1200, mult: { small: 0.1, medium: 0.8 } }],
   },
 };
 

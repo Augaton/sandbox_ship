@@ -53,6 +53,19 @@
 .ui [hidden] { display: none !important; }
 .ui .swatch { display: inline-block; width: 12px; height: 12px; border-radius: var(--radius); }
 
+/* Tabs, emblems, abilities */
+.ui .emblem { width: 24px; height: 24px; image-rendering: pixelated; flex: none; }
+.tabs { display: flex; flex-wrap: wrap; gap: 4px; }
+.tabs button { min-height: 36px; }
+.tabs button[aria-selected='true'] { border-color: var(--accent); color: var(--accent); }
+.tab-body { display: flex; flex-direction: column; gap: 8px; }
+.ui button.wide { align-self: flex-start; }
+.abilities { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 8px; }
+.abilities button { display: flex; flex-direction: column; align-items: flex-start; padding: 2px 8px; }
+.abilities small { color: var(--accent); font-size: 12px; }
+.special { border-left: 3px solid var(--accent); padding-left: 8px; }
+.galaxy-panel h2, .modal h2 { display: flex; align-items: center; gap: 8px; }
+
 /* Top bar */
 .topbar {
   position: absolute;
@@ -127,6 +140,8 @@
 }
 .galaxy-panel h2 { font-size: 20px; }
 .galaxy-panel h3 { margin-top: 6px; color: var(--muted); }
+.galaxy-panel .tabs { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); }
+.galaxy-panel .tabs button { padding: 0 2px; font-size: 13px; }
 .galaxy-panel .grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px; }
 .galaxy-panel .grid button {
   display: flex;
@@ -170,10 +185,33 @@
 .sandbox label.check { flex-direction: row; align-items: center; gap: 8px; color: var(--text); min-height: 40px; }
 .sandbox select { width: 100%; }
 
+/* Piloting banner */
+.pilot-banner {
+  position: absolute;
+  top: 64px;
+  left: 50%;
+  transform: translateX(-50%);
+  max-width: min(720px, calc(100% - 32px));
+  padding: 8px 12px;
+  border-color: var(--accent);
+}
+
+.modal label.check { display: flex; align-items: center; gap: 10px; min-height: 40px; }
+.modal input[type='checkbox'] { width: 20px; height: 20px; accent-color: var(--accent); }
+
+/* Galaxy tooltip */
+.ui .tooltip {
+  position: absolute;
+  max-width: 300px;
+  padding: 8px 10px;
+  font-size: 14px;
+  pointer-events: none;
+}
+
 /* Toasts */
 .toasts {
   position: absolute;
-  top: 64px;
+  top: 112px;
   left: 50%;
   transform: translateX(-50%);
   display: flex;
@@ -202,12 +240,26 @@
 
 /* Start menu */
 .menu { font-size: 16px; }
-.menu .panel { max-width: 620px; }
+.menu .panel { max-width: 760px; max-height: calc(100vh - 32px); overflow-y: auto; }
+.menu .logo { display: block; width: min(100%, 560px); height: auto; image-rendering: pixelated; }
+.menu section { display: flex; flex-direction: column; gap: 8px; }
+.menu h3 { color: var(--muted); font-weight: 400; }
+.menu .cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 8px; }
+.menu .cards button { display: flex; flex-direction: column; align-items: flex-start; gap: 6px; padding: 12px; text-align: left; }
+.menu .cards .name { display: flex; align-items: center; gap: 10px; font-weight: 700; }
+.menu .cards .emblem { width: 40px; height: 40px; }
+.menu .cards small { color: var(--muted); font-size: 13px; line-height: 1.4; }
+.menu .cards strong { color: var(--accent); font-weight: 400; font-size: 14px; }
 .menu h1 { margin: 0; font-size: 28px; letter-spacing: 0.02em; }
 .menu fieldset { border: 0; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 8px; }
 .menu legend { color: var(--muted); margin-bottom: 8px; }
 .menu .choices { display: flex; gap: 8px; flex-wrap: wrap; }
-.menu .choices button { display: inline-flex; align-items: center; gap: 8px; }
+.menu .choices button { display: inline-flex; align-items: center; gap: 8px; min-height: 52px; }
+.menu .thumb { width: 40px; height: 40px; object-fit: contain; image-rendering: pixelated; }
+.menu .resume { align-items: center; }
+.menu .seed { display: flex; align-items: flex-end; gap: 8px; flex-wrap: wrap; }
+.menu .seed label { display: flex; flex-direction: column; gap: 4px; color: var(--muted); }
+.menu .seed input { width: 140px; }
 .menu .note { color: var(--muted); font-size: 14px; max-width: 65ch; }
 
 @media (prefers-reduced-motion: reduce) {

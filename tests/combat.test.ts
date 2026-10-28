@@ -16,12 +16,13 @@ describe('combat', () => {
   it('drains shields before the hull', () => {
     const w = world();
     const s = spawnShip(w, 'klaed', 'frigate', 0, 0);
+    const { maxShield, maxHull } = s;
     applyDamage(s, 100);
-    expect(s.shield).toBe(150);
-    expect(s.hull).toBe(600);
-    applyDamage(s, 200);
+    expect(s.shield).toBe(maxShield - 100);
+    expect(s.hull).toBe(maxHull);
+    applyDamage(s, maxShield);
     expect(s.shield).toBe(0);
-    expect(s.hull).toBe(550);
+    expect(s.hull).toBe(maxHull - 100);
   });
 
   it('fires at enemies in range and destroys them', () => {

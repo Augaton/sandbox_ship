@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { STATION } from '../src/data/structures';
 import {
-  battleOutcome, createPlanetBattle, defenseLeft, fleetValue, survivors, updateBattleAI,
+  NO_DEFENSE, battleOutcome, createPlanetBattle, defenseLeft, fleetValue, survivors, updateBattleAI,
 } from '../src/sim/battle';
 import { run } from '../src/sim/step';
 import { childrenOf, spawnShip, stationOf } from '../src/sim/world';
@@ -11,18 +11,18 @@ describe('planet battles', () => {
     const w = createPlanetBattle(
       { faction: 'klaed', ships: { frigate: 3 } },
       { faction: 'nairan', ships: { scout: 2 } },
-      { station: 2, platforms: 2, mines: 1 },
+      { ...NO_DEFENSE, station: 2, platforms: 2, mines: 1, repairDock: 1, platformTier: 2 },
     );
     const station = stationOf(w, 'nairan')!;
     expect(station.level).toBe(2);
     expect(childrenOf(w, station.id)).toHaveLength(STATION.levels[0].hardpoints.length + STATION.levels[1].hardpoints.length);
-    expect(defenseLeft(w, 'nairan')).toEqual({ station: 2, platforms: 2, mines: 1 });
+    expect(defenseLeft(w, 'nairan')).toEqual({ station: 2, platforms: 2, mines: 1, repairDock: 1, ionCannon: 0, platformTier: 2 });
     expect(survivors(w, 'klaed')).toEqual({ frigate: 3 });
     expect(survivors(w, 'nairan')).toEqual({ scout: 2 });
   });
 
   it('end when one side has nothing left', () => {
-    const w = createPlanetBattle({ faction: 'klaed', ships: { frigate: 1 } }, { faction: 'nairan', ships: {} }, { station: 1, platforms: 0, mines: 0 });
+    const w = createPlanetBattle({ faction: 'klaed', ships: { frigate: 1 } }, { faction: 'nairan', ships: {} }, { ...NO_DEFENSE, station: 1 });
     expect(battleOutcome(w, 'klaed', 'nairan')).toBeNull();
     stationOf(w, 'nairan')!.hull = 0;
     run(w, 0.1);
@@ -33,7 +33,7 @@ describe('planet battles', () => {
   });
 
   it('do not bring hangar craft back to the map', () => {
-    const w = createPlanetBattle({ faction: 'klaed', ships: { frigate: 1 } }, { faction: 'nairan', ships: {} }, { station: 0, platforms: 0, mines: 0 });
+    const w = createPlanetBattle({ faction: 'klaed', ships: { frigate: 1 } }, { faction: 'nairan', ships: {} }, NO_DEFENSE);
     spawnShip(w, 'klaed', 'fighter', 100, 100);
     expect(survivors(w, 'klaed')).toEqual({ frigate: 1 });
   });
@@ -42,7 +42,7 @@ describe('planet battles', () => {
     const w = createPlanetBattle(
       { faction: 'klaed', ships: { battlecruiser: 2, frigate: 4 } },
       { faction: 'nairan', ships: { scout: 3 } },
-      { station: 0, platforms: 0, mines: 0 },
+      NO_DEFENSE,
     );
     let result = null;
     for (let t = 0; t < 240 && !result; t += 1 / 30) {
