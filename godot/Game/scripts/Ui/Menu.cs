@@ -14,7 +14,7 @@ namespace SandboxShip.Ui;
 public partial class Menu : Node
 {
     /// <summary>The game's version, as in package.json (which the web version reads at build time).</summary>
-    public const string Version = "0.2.0";
+    public const string Version = "0.3.0";
 
     enum Screen { Home, New, Options, Controls, Credits }
 
