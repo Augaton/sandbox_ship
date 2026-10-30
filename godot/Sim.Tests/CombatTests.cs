@@ -110,3 +110,34 @@ public class CombatTests
         Assert.Equal(Faction.Klaed, w.Winner);
     }
 }
+
+/// <summary>Focus fire, a rule of this version only: a ship's turrets follow its attack order.</summary>
+public class FocusFireTests
+{
+    [Fact]
+    public void A_ships_turrets_fire_at_its_ordered_target_once_in_reach_not_at_the_nearest_foe()
+    {
+        var w = CreateWorld(6000, 4000);
+        AddFaction(w, Faction.Klaed, 0);
+        AddFaction(w, Faction.Nairan, 0);
+        var titan = SpawnShip(w, Faction.Klaed, ShipClass.Titan, 2000, 2000);
+        var near = SpawnShip(w, Faction.Nairan, ShipClass.Battlecruiser, 2220, 2000);
+        var ordered = SpawnShip(w, Faction.Nairan, ShipClass.Battlecruiser, 2000, 2380);
+        var turrets = ChildrenOf(w, titan.Id).Where(p => p.Weapons.Count > 0).Select(p => p.Id).ToHashSet();
+        Assert.NotEmpty(turrets);
+        Movement.IssueAttack(w, [titan.Id], ordered.Id);
+        var aimed = new Dictionary<int, int>();
+        for (var i = 0; i < 120; i++)
+        {
+            var before = w.Projectiles.Select(p => p.Id).ToHashSet();
+            StepWorld(w);
+            foreach (var p in w.Projectiles.Where(p => p.Side == titan.Side && !before.Contains(p.Id)))
+            {
+                aimed[p.TargetId] = aimed.GetValueOrDefault(p.TargetId) + 1;
+            }
+        }
+        // Every turret shot goes to the ordered target, though the other cruiser is closer.
+        Assert.True(aimed.GetValueOrDefault(ordered.Id) > 0);
+        Assert.Equal(0, aimed.GetValueOrDefault(near.Id));
+    }
+}

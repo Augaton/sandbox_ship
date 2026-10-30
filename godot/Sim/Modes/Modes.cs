@@ -40,6 +40,8 @@ public sealed class ModeState
     public double Deadline = double.PositiveInfinity;
     /// <summary>Regicide: each side's flagship still flying, by entity id.</summary>
     public Dictionary<Side, int> Flagships = [];
+    /// <summary>Regicide, after sudden death: the hull each flagship is held down to, never mended again (the host's business, not the view's).</summary>
+    public Dictionary<int, double> Worn = [];
     /// <summary>Regicide: the ships each AI keeps around its flagship (the AI's own business, not the view's).</summary>
     public Dictionary<Side, List<int>> Escorts = [];
 }
@@ -54,7 +56,7 @@ public sealed record BeaconTaken(int Beacon, Side Side) : SimEvent;
 public sealed record BeaconLost(int Beacon, Side Side) : SimEvent;
 /// <summary>Regicide: `Side`'s flagship fell at (X, Y); everything of that side blows up with it.</summary>
 public sealed record FlagshipLost(Side Side, double X, double Y) : SimEvent;
-/// <summary>Assault: `Left` seconds before the defenders have held.</summary>
+/// <summary>Assault: `Left` seconds before the defenders have held. Regicide: `Left` seconds before sudden death, 0 when it falls.</summary>
 public sealed record ClockWarning(double Left) : SimEvent;
 
 public static class Modes
@@ -90,7 +92,7 @@ public static class Modes
             case BattleMode.Survival: Survival.Update(world, dt); break;
             case BattleMode.Zones: ZoneControl.Update(world, dt); break;
             case BattleMode.Assault: Assault.Update(world, dt); break;
-            case BattleMode.Regicide: Regicide.Update(world); break;
+            case BattleMode.Regicide: Regicide.Update(world, dt); break;
         }
     }
 

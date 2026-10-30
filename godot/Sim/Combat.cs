@@ -138,7 +138,11 @@ public static class Combat
                 }
                 continue;
             }
-            var ordered = e.Order?.Type == OrderType.Attack ? world.Entities.Get(e.Order.TargetId) : null;
+            // A ship's turrets fire at what the ship was ordered to attack, once it is in their reach,
+            // rather than at the nearest foe (not in the web version): focus fire, and a flagship under
+            // its station's guns can still be singled out.
+            var commander = e.Kind == EntityKind.Hardpoint ? OwnerOf(world, e) : e;
+            var ordered = commander.Order?.Type == OrderType.Attack ? world.Entities.Get(commander.Order.TargetId) : null;
             var auto = world.Entities.Get(e.TargetId);
             foreach (var w in e.Weapons)
             {

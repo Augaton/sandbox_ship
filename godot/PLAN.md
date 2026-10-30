@@ -194,7 +194,11 @@ tests de `FixtureTests` et `CrossTests` les listent.
   minicarte, jamais reconstruit ; le perdre élimine le camp, dont tout s'autodétruit sans prime. La dernière équipe
   avec un vaisseau amiral gagne, les stations ne décident rien. L'IA le garde à 900 de sa station, sur le flanc
   opposé aux ennemis, avec une escorte de 2 à 6 vaisseaux ; ses vagues plongent sur un vaisseau amiral ennemi en vue,
-  et après 20 min elle y jette tout. Entre IA : 6 parties sur 14 finies en 45 min (médiane 29 min).
+  et après 20 min elle y jette tout. Mort subite à 25 min (annoncée 2 min avant) : les vaisseaux amiraux perdent
+  leurs boucliers et plus rien ne répare leur coque. Entre IA : 13 parties sur 15 finies en 60 min (médiane 35 min),
+  contre 9 avant tir concentré et mort subite ; les nulles restantes opposent Kla'ed et Nautolan.
+- Tir concentré (tous modes) : les tourelles d'un vaisseau tirent sur la cible qu'on lui a ordonné d'attaquer dès
+  qu'elle est à leur portée, et non plus sur l'ennemi le plus proche.
 
 ## Ce qui change de technique
 

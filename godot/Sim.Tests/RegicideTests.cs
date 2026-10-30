@@ -142,4 +142,29 @@ public class RegicideTests
         Assert.NotNull(w.Winner);
         Assert.Single(w.Mode.Flagships);
     }
+
+    [Fact]
+    public void Sudden_death_strips_the_flagships_shields_and_stops_every_repair()
+    {
+        var w = Regicide();
+        var id = w.Mode.Flagships[Faction.Klaed];
+        var flag = w.Entities.Get(id)!;
+        // A support ship beside it keeps mending it, until sudden death.
+        SpawnShip(w, Faction.Klaed, ShipClass.Support, flag.X + 60, flag.Y);
+        w.Time = SandboxShip.Sim.Regicide.SuddenDeath - SandboxShip.Sim.Regicide.Warning - 1;
+        var warnings = new List<double>();
+        for (var t = 0.0; t < SandboxShip.Sim.Regicide.Warning + 5; t += Steps.Step)
+        {
+            if (w.Time < SandboxShip.Sim.Regicide.SuddenDeath) flag.Hull = flag.MaxHull * 0.5;
+            Steps.StepWorld(w);
+            warnings.AddRange(w.Events.OfType<ClockWarning>().Select(c => c.Left));
+            w.Events.Clear();
+        }
+        Assert.Equal([SandboxShip.Sim.Regicide.Warning, 0.0], warnings);
+        Assert.Equal(0, flag.Shield);
+        var held = flag.Hull;
+        Steps.Run(w, 5);
+        Assert.Equal(0, flag.Shield);
+        Assert.True(flag.Hull <= held);
+    }
 }
