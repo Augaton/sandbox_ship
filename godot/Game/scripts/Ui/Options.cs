@@ -44,33 +44,38 @@ public static class Options
             box.AddChild(part);
         }
         // Only on the menu: in battle, a name could not change any more.
-        if (focusable) box.AddChild(PlayerName(s));
+        if (focusable) box.AddChild(Multiplayer(s));
         return box;
     }
 
-    /// <summary>The name other players see over the network.</summary>
-    static VBoxContainer PlayerName(Settings s)
+    /// <summary>The name other players see over the network, and the online server that lists the games and relays those hosted online.</summary>
+    static VBoxContainer Multiplayer(Settings s)
     {
         var part = new VBoxContainer();
         part.AddThemeConstantOverride("separation", 6);
         part.AddChild(UiTheme.Text("Multijoueur", Palette.Muted, 14));
+        part.AddChild(Field("Nom du joueur", s.PlayerName, "", Sim.Net.LobbyRoom.MaxName, text => s.PlayerName = text));
+        part.AddChild(Field("Serveur en ligne", s.MasterAddress, Settings.DefaultMaster, 100, text => s.MasterAddress = text.Trim()));
+        return part;
+    }
+
+    /// <summary>A line of text with its name before it, saved as it is typed.</summary>
+    static HBoxContainer Field(string name, string text, string placeholder, int max, Action<string> set)
+    {
         var row = new HBoxContainer();
         row.AddThemeConstantOverride("separation", 12);
-        var label = UiTheme.Text("Nom du joueur");
+        var label = UiTheme.Text(name);
+        label.CustomMinimumSize = new Vector2(170, 0);
         label.SizeFlagsVertical = Control.SizeFlags.ShrinkCenter;
         row.AddChild(label);
-        var input = new LineEdit
+        var input = new LineEdit { Text = text, PlaceholderText = placeholder, MaxLength = max, CustomMinimumSize = new Vector2(260, 40), AccessibilityName = name };
+        input.TextChanged += typed =>
         {
-            Text = s.PlayerName, MaxLength = Sim.Net.LobbyRoom.MaxName, CustomMinimumSize = new Vector2(240, 40), AccessibilityName = "Nom du joueur",
-        };
-        input.TextChanged += text =>
-        {
-            s.PlayerName = text;
-            s.Save();
+            set(typed);
+            Settings.Current.Save();
         };
         row.AddChild(input);
-        part.AddChild(row);
-        return part;
+        return row;
     }
 
     /// <summary>The effects volume: a slider and its value.</summary>

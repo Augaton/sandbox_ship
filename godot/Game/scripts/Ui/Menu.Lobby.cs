@@ -109,7 +109,9 @@ public partial class Menu
         // campaign saved over the network, to resume with its players.
         if (hosting)
         {
-            Titled("Héberger une partie", "Choisis le mode : les joueurs te rejoignent dans son salon. Échap : retour");
+            Titled(online ? "Héberger en ligne" : "Héberger en local", online
+                ? "Choisis le mode : ta partie s'affiche chez tous les joueurs, par le serveur en ligne. Échap : retour"
+                : "Choisis le mode : les joueurs te rejoignent dans son salon. Échap : retour");
             body.AddChild(ResumeCard() is { } resume ? Section("Campagne", ModeCard(Modes[0]), resume) : Section("Campagne", ModeCard(Modes[0])));
         }
         else
