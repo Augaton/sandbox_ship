@@ -4,3 +4,6 @@ release/
 assets/raw/*
 !assets/raw/.gitkeep
 assets/extracted/
+
+# Working copies of Claude Code agents.
+.claude/worktrees/
