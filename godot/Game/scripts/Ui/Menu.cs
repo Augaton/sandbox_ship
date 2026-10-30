@@ -348,7 +348,7 @@ public partial class Menu : Node
         nav.AddChild(Nav("Options", () => Open(Screen.Options, "options"), key: "options"));
         nav.AddChild(Nav("Commandes", () => Open(Screen.Controls, "controls"), key: "controls"));
         nav.AddChild(Nav("Crédits", () => Open(Screen.Credits, "credits"), key: "credits"));
-        nav.AddChild(Nav("Quitter", () => GetTree().Quit()));
+        nav.AddChild(Nav("Quitter", Main.Instance.QuitGame));
         body.AddChild(nav);
         body.AddChild(Spacer(1.6f));
         footer.AddChild(UiTheme.Text($"Version {Version}", Palette.Muted, 13));

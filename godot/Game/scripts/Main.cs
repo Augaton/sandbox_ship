@@ -56,6 +56,37 @@ public partial class Main : Node
         }
     }
 
+    /// <summary>Leaves the game: the "Quitter" entry of the menu, and the end of a capture.</summary>
+    public void QuitGame()
+    {
+        EnsureExit();
+        GetTree().Quit();
+    }
+
+    /// <summary>Closing the window quits too (Godot accepts it by itself): the same guarantee.</summary>
+    public override void _Notification(int what)
+    {
+        if (what == NotificationWMCloseRequest) EnsureExit();
+    }
+
+    bool exiting;
+
+    /// <summary>
+    /// Once the game is asked to quit, the process ends within a few seconds whatever happens
+    /// in the engine's shutdown, so that a terminal never has to interrupt it. Nothing is lost:
+    /// the settings and the campaign are saved as they change.
+    /// </summary>
+    void EnsureExit()
+    {
+        if (exiting) return;
+        exiting = true;
+        new System.Threading.Thread(() =>
+        {
+            System.Threading.Thread.Sleep(3000);
+            System.Diagnostics.Process.GetCurrentProcess().Kill();
+        }) { IsBackground = true }.Start();
+    }
+
     public override void _Process(double delta)
     {
         if (Dev.Shot is null || !started || ++frames < Dev.Frames) return;
@@ -63,7 +94,7 @@ public partial class Main : Node
         var image = GetViewport().GetTexture()?.GetImage();
         var err = image?.SavePng(Dev.Shot) ?? Error.Unavailable;
         GD.Print($"Capture {Dev.Shot} : {err}, {Engine.GetFramesPerSecond()} images/s");
-        GetTree().Quit();
+        QuitGame();
     }
 
     /// <summary>
