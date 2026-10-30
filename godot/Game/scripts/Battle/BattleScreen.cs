@@ -64,7 +64,7 @@ public partial class BattleScreen : Node
             World = Showcase.Create(o.Seed ?? 1);
             Opts = o = o with { Player = World.Factions.Keys.First() };
         }
-        else World = o.Campaign?.World ?? (Dev.Start == "stress" ? Stress.Create(o.Seed ?? 7) : Scenario.CreateSkirmish(new SkirmishOptions
+        else World = o.Net?.World ?? o.Campaign?.World ?? (Dev.Start == "stress" ? Stress.Create(o.Seed ?? 7) : Scenario.CreateSkirmish(new SkirmishOptions
         {
             // In the sandbox, nobody plays by itself: the others only do what the player spawns.
             Slots = [.. o.Slots.Select(s => sandbox ? s with { AI = null } : s)],
@@ -73,8 +73,8 @@ public partial class BattleScreen : Node
             Mode = o.Rules, ZoneTarget = o.ZoneTarget, AssaultMinutes = o.AssaultMinutes,
         }));
         // The sandbox's tools are open in a game played alone, outside the campaign.
-        World.SandboxTools = o.Campaign is null && !o.Demo;
-        Sink = new LocalSink<Command>(c => Commands.Apply(World, Opts.Player, c));
+        World.SandboxTools = o.Campaign is null && !o.Demo && o.Net is null;
+        Sink = o.Net?.Sink ?? new LocalSink<Command>(c => Commands.Apply(World, Opts.Player, c));
         // A campaign battle's AI plays the side facing the player.
         if (o.Campaign is { } cb) campaignFoe = [cb.Attacker == o.Player ? cb.Defender : cb.Attacker];
         // The player's ships use their abilities by themselves if the player wants so.
@@ -99,6 +99,7 @@ public partial class BattleScreen : Node
         AddChild(Controls);
         Hud = new Hud(this, sandbox, o.Campaign?.Title);
         AddChild(Hud);
+        if (o.Net is not null) NetReady();
         if (o.Demo)
         {
             Hud.Visible = false;
@@ -166,13 +167,15 @@ public partial class BattleScreen : Node
         probe?.Frame();
         var whole = StressProbe.Start();
         var t = StressProbe.Start();
-        if (!Paused)
+        // A player's replica of a battle over the network is never stepped: snapshots bring it up to date.
+        if (!Paused && Opts.Net is not { Replica: true })
         {
             // Measuring: one step a frame whatever the frame rate, so that every run shows the same battle.
             acc += probe is not null ? Steps.Step : Math.Min(delta, 0.1) * Speed;
             var n = 0;
             while (acc >= Steps.Step && n < MaxStepsPerFrame)
             {
+                Opts.Net?.Host?.BeforeStep();
                 Steps.StepWorld(World);
                 if (Opts.Campaign is not null) Sim.Battle.UpdateBattleAI(World, campaignFoe, Steps.Step);
                 if (Opts.Demo && World.Time >= nextSteer) Steer();
@@ -182,6 +185,7 @@ public partial class BattleScreen : Node
             // Too slow to keep up: drop the backlog rather than spiral.
             if (n == MaxStepsPerFrame) acc = 0;
         }
+        if (Opts.Net is not null) NetFrame(delta);
         StressProbe.Stop("sim", t);
         CheckCampaignEnd();
         if (Opts.Demo) Watch(delta);
@@ -307,12 +311,20 @@ public partial class BattleScreen : Node
 
     public void TogglePause()
     {
+        // Over the network, for everyone: the host decides, then tells this screen (NetPaused).
+        if (Opts.Net is { } net)
+        {
+            net.Session.AskPause(!Paused);
+            return;
+        }
         Paused = !Paused;
         Hud.RefreshModes();
     }
 
     public void SetSpeed(double speed)
     {
+        // A battle over the network goes at ×1, for everyone.
+        if (Opts.Net is not null) return;
         Speed = speed;
         Paused = false;
         Hud.RefreshModes();
@@ -322,7 +334,12 @@ public partial class BattleScreen : Node
     public void Restart(bool newMap = false) =>
         Main.Instance.StartBattle(newMap ? Opts with { Seed = random.Next(1, 1_000_000_000) } : Opts);
 
-    public void ToMenu() => Main.Instance.ShowMenu();
+    /// <summary>Back to the menu; over the network, out of the game (a player's side goes to the AI, a host closes it).</summary>
+    public void ToMenu()
+    {
+        Opts.Net?.Session.Leave();
+        Main.Instance.ShowMenu();
+    }
 
     void CheckCampaignEnd()
     {
@@ -416,6 +433,11 @@ public partial class BattleScreen : Node
                         Hud.Toast($"Les {Factions.Defs[built.Race].Name} ont mis en service une Lance stellaire");
                         Sfx.Play(Sound.Alert);
                     }
+                    break;
+                // The same, on a replica that does not see the lance.
+                case LanceOnline lo:
+                    Hud.Toast($"Les {Factions.Defs[Worlds.RaceOf(w, lo.Side)].Name} ont mis en service une Lance stellaire");
+                    Sfx.Play(Sound.Alert);
                     break;
                 case Victory v:
                     if (!defeated) Hud.ShowEnd(Worlds.Allies(w, v.Side, Opts.Player));

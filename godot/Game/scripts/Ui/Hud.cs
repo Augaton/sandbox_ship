@@ -85,7 +85,7 @@ public partial class Hud : CanvasLayer
         AddChild(root);
         BuildTopbar();
         BuildBottombar();
-        if (campaign is null) BuildSandbox(sandbox);
+        if (campaign is null && scene.Opts.Net is null) BuildSandbox(sandbox);
         BuildOverlays();
         RefreshModes();
         Refresh();
@@ -120,9 +120,10 @@ public partial class Hud : CanvasLayer
         row.AddChild(Ignore(new Control { SizeFlagsHorizontal = Control.SizeFlags.ExpandFill }));
         var speeds = row.Add(Row(4));
         pauseButton = speeds.Add(Button("Pause", scene.TogglePause, "Pause (Espace)"));
-        foreach (var s in Speeds)
+        // Over the network, everyone plays at ×1.
+        if (scene.Opts.Net is null)
         {
-            speedButtons[s] = speeds.Add(Button($"×{N(s)}", () => scene.SetSpeed(s), $"Vitesse ×{N(s)}"));
+            foreach (var s in Speeds) speedButtons[s] = speeds.Add(Button($"×{N(s)}", () => scene.SetSpeed(s), $"Vitesse ×{N(s)}"));
         }
         var group = row.Add(Row(4));
         if (campaign is not null)
@@ -137,6 +138,11 @@ public partial class Hud : CanvasLayer
             return;
         }
         credits.Text = "Crédits";
+        if (scene.Opts.Net is not null)
+        {
+            NetButtons(group);
+            return;
+        }
         sandboxButton = group.Add(Button("Bac à sable", () =>
         {
             sandboxPanel!.Visible = !sandboxPanel.Visible;
@@ -498,6 +504,7 @@ public partial class Hud : CanvasLayer
                 "[color=#949eb0]ZQSD (ou WASD) ou flèches : piloter. Clic gauche maintenu : tirer sur la cible marquée. P ou Échap : rendre la main.[/color]";
         }
         Outline(pauseButton, scene.Paused ? Palette.Accent : null);
+        pauseButton.Text = scene.PausedBy is { } who ? $"Pause · {who}" : "Pause";
         foreach (var (s, b) in speedButtons) Outline(b, !scene.Paused && scene.Speed == s ? Palette.Accent : null);
         if (sandboxButton is not null) Outline(sandboxButton, sandboxPanel?.Visible == true ? Palette.Accent : null);
         var mode = c?.Mode;

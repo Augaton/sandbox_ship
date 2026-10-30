@@ -1,0 +1,163 @@
+// A lobby shared over the network (not in the web version): who may change what, and who is in
+// it. Every change to a lobby, a local one included, is a request that LobbyRules applies for
+// the one asking; the host applies those of its players and sends the lobby back to all of
+// them, whole, after each change. A player who asks also applies its request at once to its own
+// copy, by the same rules, so that the menu answers before the host does.
+using SandboxShip.Sim.Data;
+
+namespace SandboxShip.Sim.Net;
+
+/// <summary>A change to a lobby, as the menu asks for it; seats by id.</summary>
+public abstract record LobbyRequest
+{
+    /// <summary>Who takes a seat. Human: the one asking sits there, leaving its old seat open; a bot plays at `Difficulty`.</summary>
+    public sealed record SetKind(int Seat, SeatKind Kind, Difficulty Difficulty = Difficulty.Normal) : LobbyRequest;
+    public sealed record SetRace(int Seat, Faction Race) : LobbyRequest;
+    public sealed record SetTeam(int Seat, int Team) : LobbyRequest;
+    public sealed record SetColor(int Seat, uint Color) : LobbyRequest;
+    /// <summary>The one asking is ready to start, or no longer.</summary>
+    public sealed record SetReady(bool Ready) : LobbyRequest;
+    public sealed record AddBot : LobbyRequest;
+    public sealed record Remove(int Seat) : LobbyRequest;
+    /// <summary>The map and the rules, all at once.</summary>
+    public sealed record Settings(LobbySettings Values) : LobbyRequest;
+}
+
+/// <summary>A lobby's map and rules: everything but its mode and its seats.</summary>
+public sealed record LobbySettings(MapKind Map, MapSize Size, int Seed, bool Raid, bool Fog, int ZoneTarget, int AssaultMinutes)
+{
+    public static LobbySettings Of(Lobby l) => new(l.Map, l.Size, l.Seed, l.Raid, l.Fog, l.ZoneTarget, l.AssaultMinutes);
+
+    /// <summary>Known values only: a map, a size, a seed from 1, a zone target and an assault length the lobby offers.</summary>
+    public bool Sane => Enum.IsDefined(Map) && Enum.IsDefined(Size) && Seed >= 1
+        && Lobby.ZoneTargets.Contains(ZoneTarget) && Lobby.AssaultLengths.Contains(AssaultMinutes);
+}
+
+/// <summary>
+/// Who may change what. The leader (the host, or on a dedicated server the first player in) has
+/// every right: the settings and every seat. Any other player only its own seat (race, team,
+/// color, ready) or an open seat to move to. A remote player always keeps a seat: it cannot
+/// leave its own, and when the leader takes it away, LobbyRoom.Seatless names it to be sent off.
+/// </summary>
+public static class LobbyRules
+{
+    /// <summary>Applies `peer`'s request if its rights allow it; false when refused or meaningless.</summary>
+    public static bool Apply(Lobby l, int peer, bool leads, LobbyRequest request)
+    {
+        var own = l.Seats.Find(s => s.Kind == SeatKind.Human && s.Peer == peer);
+        Seat? At(int id) => l.Seats.Find(s => s.Id == id);
+        bool Mine(Seat seat) => leads || seat == own;
+        switch (request)
+        {
+            case LobbyRequest.SetKind { Kind: SeatKind.Human } k:
+            {
+                // Sitting down: on an open seat, or for the leader any seat no other player holds.
+                if (At(k.Seat) is not { } seat || seat == own || seat.Kind == SeatKind.Human) return false;
+                if (seat.Kind != SeatKind.Open && !leads) return false;
+                l.SetKind(seat, SeatKind.Human, peer);
+                if (own is not null) l.SetKind(own, SeatKind.Open);
+                return true;
+            }
+            case LobbyRequest.SetKind k:
+            {
+                if (!leads || !Enum.IsDefined(k.Kind) || !Enum.IsDefined(k.Difficulty) || At(k.Seat) is not { } seat) return false;
+                if (seat == own && peer != Lobby.Host) return false;
+                l.SetKind(seat, k.Kind);
+                if (k.Kind == SeatKind.Bot) seat.Difficulty = k.Difficulty;
+                return true;
+            }
+            case LobbyRequest.SetRace r:
+            {
+                if (At(r.Seat) is not { } seat || !Mine(seat) || !Factions.All.Contains(r.Race)) return false;
+                l.SetRace(seat, r.Race);
+                return true;
+            }
+            case LobbyRequest.SetTeam t:
+            {
+                if (At(t.Seat) is not { } seat || !Mine(seat) || l.TeamsLocked) return false;
+                l.SetTeam(seat, t.Team);
+                return true;
+            }
+            case LobbyRequest.SetColor c:
+                return At(c.Seat) is { } colored && Mine(colored) && l.SetColor(colored, c.Color);
+            case LobbyRequest.SetReady r:
+                if (own is null) return false;
+                own.Ready = r.Ready;
+                return true;
+            case LobbyRequest.AddBot:
+                return leads && l.AddBot() is not null;
+            case LobbyRequest.Remove r:
+            {
+                if (!leads || At(r.Seat) is not { } seat || seat == own && peer != Lobby.Host) return false;
+                return l.Remove(seat);
+            }
+            case LobbyRequest.Settings { Values: var v }:
+                if (!leads || !v.Sane) return false;
+                (l.Map, l.Size, l.Seed, l.Raid, l.Fog, l.ZoneTarget, l.AssaultMinutes) = (v.Map, v.Size, v.Seed, v.Raid, v.Fog, v.ZoneTarget, v.AssaultMinutes);
+                l.Fit();
+                return true;
+        }
+        return false;
+    }
+}
+
+/// <summary>Someone in a lobby played over the network: its peer (Lobby.Host for the host's own player) and its name.</summary>
+public sealed record Member(int Peer, string Name);
+
+/// <summary>
+/// A lobby with the players in it, as the host keeps it: who joined, in what order, under what
+/// name, and who leads. On a dedicated server nobody plays on the host: the first player in
+/// leads, and the next one when it leaves.
+/// </summary>
+public sealed class LobbyRoom(Lobby lobby)
+{
+    public const int MaxName = 20;
+
+    public Lobby Lobby { get; set; } = lobby;
+    /// <summary>In the order they came: the host's own player first, unless the host is a dedicated server.</summary>
+    public List<Member> Members { get; set; } = [];
+
+    /// <summary>The peer with the host's rights; -1 on a dedicated server nobody has joined.</summary>
+    public int Leader => !Lobby.Dedicated ? Lobby.Host : Members.Count > 0 ? Members[0].Peer : -1;
+
+    public string NameOf(int peer) => Members.Find(m => m.Peer == peer)?.Name ?? "Joueur";
+
+    /// <summary>
+    /// A player comes in and takes the first open seat, under its name made clean and unique;
+    /// the reason it cannot, or null.
+    /// </summary>
+    public string? Join(int peer, string name)
+    {
+        if (Members.Exists(m => m.Peer == peer)) return "Déjà dans la partie.";
+        var seat = Lobby.Seats.Find(s => s.Kind == SeatKind.Open);
+        if (seat is null) return "La partie est complète.";
+        var clean = CleanName(name);
+        var unique = clean;
+        for (var n = 2; Members.Exists(m => m.Name == unique); n++) unique = $"{clean} {n}";
+        Members.Add(new Member(peer, unique));
+        Lobby.SetKind(seat, SeatKind.Human, peer);
+        return null;
+    }
+
+    /// <summary>A player goes: its seat opens again.</summary>
+    public void Leave(int peer)
+    {
+        Members.RemoveAll(m => m.Peer == peer);
+        foreach (var s in Lobby.Seats.Where(s => s.Kind == SeatKind.Human && s.Peer == peer).ToList()) Lobby.SetKind(s, SeatKind.Open);
+    }
+
+    public bool Apply(int peer, LobbyRequest request) =>
+        Members.Exists(m => m.Peer == peer) && LobbyRules.Apply(Lobby, peer, peer == Leader, request);
+
+    /// <summary>Remote players the leader moved out of their seat: they must go.</summary>
+    public List<int> Seatless() =>
+        [.. Members.Where(m => m.Peer != Lobby.Host && !Lobby.Seats.Exists(s => s.Kind == SeatKind.Human && s.Peer == m.Peer)).Select(m => m.Peer)];
+
+    /// <summary>A name as players see it: no control characters, trimmed, at most MaxName letters; "Joueur" when nothing is left.</summary>
+    public static string CleanName(string? name)
+    {
+        var clean = new string((name ?? "").Where(c => !char.IsControl(c)).ToArray()).Trim();
+        if (clean.Length > MaxName) clean = clean[..MaxName].TrimEnd();
+        return clean.Length > 0 ? clean : "Joueur";
+    }
+}

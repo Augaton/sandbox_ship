@@ -16,7 +16,7 @@ public partial class Menu : Node
     /// <summary>The game's version, as in package.json (which the web version reads at build time).</summary>
     public const string Version = "0.3.0";
 
-    enum Screen { Home, Modes, Lobby, Options, Controls, Credits }
+    enum Screen { Home, Modes, Lobby, Options, Controls, Credits, Join }
 
     /// <summary>Width of the panel: the home column, the wider panel of the other screens, a little more for the lobby's six rows.</summary>
     const float HomeWidth = 420, Width = 780, LobbyWidth = 860;
@@ -117,12 +117,14 @@ public partial class Menu : Node
             "controls" => Screen.Controls,
             "credits" => Screen.Credits,
             "options" => Screen.Options,
+            "join" => Screen.Join,
             "skirmish" => Screen.Lobby,
             var m when m.StartsWith("lobby-", StringComparison.Ordinal) => Screen.Lobby,
             _ => Screen.Home,
         };
         if (start is Screen.Modes or Screen.Lobby) opener = "new";
         if (start == Screen.Lobby) DevLobby(Dev.Menu == "skirmish" ? LobbyMode.Skirmish : Enum.Parse<LobbyMode>(Dev.Menu["lobby-".Length..], true));
+        start = NetStart(start);
         width = WidthOf(start);
         Show(start, false);
     }
@@ -142,6 +144,7 @@ public partial class Menu : Node
 
     public override void _Process(double delta)
     {
+        NetTick();
         if (demo is null) return;
         demo.DemoInset = width;
         if (demo.DemoOver && !nextRound) CrossRound();
@@ -236,6 +239,7 @@ public partial class Menu : Node
     /// <summary>Esc, or "Retour": from the lobby to the modes, from anywhere else home; the entry that led there has the focus again.</summary>
     void Back()
     {
+        if (NetBack()) return;
         if (screen == Screen.Lobby)
         {
             Remember();
@@ -292,6 +296,7 @@ public partial class Menu : Node
             case Screen.Home: Home(); break;
             case Screen.Modes: ModeCards(); break;
             case Screen.Lobby: LobbyScreen(); break;
+            case Screen.Join: JoinScreen(); break;
             case Screen.Options:
                 Titled("Options", "Les changements s'appliquent tout de suite.");
                 body.AddChild(Options.Body(true));
@@ -344,7 +349,9 @@ public partial class Menu : Node
             indent.AddChild(info);
             nav.AddChild(indent);
         }
-        nav.AddChild(Nav("Nouvelle partie", () => Open(Screen.Modes, "new"), save is null, "new"));
+        nav.AddChild(Nav("Nouvelle partie", () => OpenModes(false), save is null, "new"));
+        nav.AddChild(Nav("Héberger une partie", () => OpenModes(true), key: "host"));
+        nav.AddChild(Nav("Rejoindre", () => Open(Screen.Join, "join"), key: "join"));
         nav.AddChild(Nav("Options", () => Open(Screen.Options, "options"), key: "options"));
         nav.AddChild(Nav("Commandes", () => Open(Screen.Controls, "controls"), key: "controls"));
         nav.AddChild(Nav("Crédits", () => Open(Screen.Credits, "credits"), key: "credits"));
@@ -367,9 +374,13 @@ public partial class Menu : Node
         Rebuild(key);
     }
 
+    /// <summary>The key of the button last pressed: a rebuild the network asks for puts the focus back there.</summary>
+    string lastKey = "";
+
     /// <summary>Rebuilds the screen where it was scrolled to, with the focus on the button of that key.</summary>
     void Rebuild(string key)
     {
+        lastKey = key;
         var at = scroll.ScrollVertical;
         Build();
         Settle(keyed.GetValueOrDefault(key), at);

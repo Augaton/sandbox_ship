@@ -70,6 +70,8 @@ public sealed class Lobby
     public int ZoneTarget { get; set; } = 100;
     /// <summary>Assault: the minutes the defenders must hold out, one of AssaultLengths.</summary>
     public int AssaultMinutes { get; set; } = 15;
+    /// <summary>Set up on a dedicated server: nobody plays on the host, so no seat is Host's (see Sim/Net/LobbyRoom.cs).</summary>
+    public bool Dedicated { get; set; }
 
     /// <summary>
     /// A new lobby of a mode: you and one bot, at war; in survival, side by side; in an assault,
@@ -237,7 +239,7 @@ public sealed class Lobby
         var problems = new List<string>();
         var playing = Playing.ToList();
         var you = playing.Count(s => s.Kind == SeatKind.Human && s.Peer == Host);
-        if (you == 0) problems.Add("Il faut une place « Toi ».");
+        if (you == 0 && !Dedicated) problems.Add("Il faut une place « Toi ».");
         if (you > 1) problems.Add("Une seule place peut être « Toi ».");
         if (playing.Count < MinPlayers(Mode))
         {

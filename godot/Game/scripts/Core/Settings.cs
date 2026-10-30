@@ -15,8 +15,18 @@ public sealed class Settings
     /// <summary>Sound effects volume, 0 to 1.</summary>
     public double Volume { get; set; } = 0.5;
     public bool Muted { get; set; }
+    /// <summary>The name other players see, in a game over the network; at first, the system's user name.</summary>
+    public string PlayerName { get; set; } = UserName();
+    /// <summary>The last host joined by address, as "address:port".</summary>
+    public string JoinAddress { get; set; } = $"127.0.0.1:{Sim.Net.Protocol.DefaultPort}";
 
     const string Path = "user://settings.json";
+
+    static string UserName()
+    {
+        var name = System.Environment.UserName;
+        return name.Length > 0 ? char.ToUpperInvariant(name[0]) + name[1..] : "Joueur";
+    }
 
     public static Settings Current { get; } = Load();
 

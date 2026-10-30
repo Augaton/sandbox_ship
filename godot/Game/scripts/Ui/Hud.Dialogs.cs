@@ -91,6 +91,11 @@ public partial class Hud
     /// <summary>The game pauses behind a menu: resume, options, controls, restart or leave.</summary>
     public void PauseMenu()
     {
+        if (scene.Opts.Net is not null)
+        {
+            NetMenu();
+            return;
+        }
         if (!scene.Paused)
         {
             scene.TogglePause();
@@ -168,6 +173,11 @@ public partial class Hud
 
     public void ShowEnd(bool won)
     {
+        if (scene.Opts.Net is not null)
+        {
+            NetEnd(won);
+            return;
+        }
         var again = Primary(Button("Rejouer la même carte", () => scene.Restart()));
         var reroll = Button("Nouvelle carte", () => scene.Restart(true));
         var menu = Button("Menu", scene.ToMenu);

@@ -26,6 +26,12 @@ public partial class Main : Node
         Instance = this;
         RenderingServer.SetDefaultClearColor(Palette.Bg);
         Dev.Parse(OS.GetCmdlineUserArgs());
+        // A dedicated server: no window needed, nothing to draw, only the network.
+        if (Dev.Server)
+        {
+            Network.Session.RunServer();
+            return;
+        }
         // A capture window must not take the keyboard from whoever is typing elsewhere.
         if (Dev.Shot is not null) DisplayServer.WindowSetFlag(DisplayServer.WindowFlags.NoFocus, true);
         loading = new Ui.Loading();
@@ -133,10 +139,10 @@ public partial class Main : Node
     /// <summary>The start screen: the main menu, which calls Start with what the player chose.</summary>
     public void ShowMenu() => Show(new Ui.Menu());
 
-    /// <summary>What the menu's lobby starts: the campaign, or a battle under its rules.</summary>
-    public void Start(Lobby lobby)
+    /// <summary>What the menu's lobby starts: the campaign, or a battle under its rules; over the network, the battle `net` holds.</summary>
+    public void Start(Lobby lobby, Network.NetBattle? net = null)
     {
-        var me = lobby.SideOfPeer() ?? Lobby.SideOf(0);
+        var me = net?.Side ?? lobby.SideOfPeer() ?? Lobby.SideOf(0);
         if (lobby.Mode == LobbyMode.Campaign)
         {
             StartCampaign(new MenuChoice { Seats = lobby.Slots(), Me = me, Map = lobby.Map, Seed = lobby.Seed, Size = lobby.Size });
@@ -147,6 +153,7 @@ public partial class Main : Node
         {
             Player = me, Slots = o.Slots, Mode = lobby.Mode == LobbyMode.Sandbox ? GameMode.Sandbox : GameMode.Skirmish,
             Seed = o.Seed, Map = o.Map, Size = o.Size, Raid = o.Raid, Fog = o.Fog, Rules = o.Mode, ZoneTarget = o.ZoneTarget, AssaultMinutes = o.AssaultMinutes,
+            Net = net,
         });
     }
 

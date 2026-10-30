@@ -5,8 +5,10 @@ using System.Globalization;
 using System.Text.Json;
 using Godot;
 using SandboxShip.Core;
+using SandboxShip.Network;
 using SandboxShip.Sim;
 using SandboxShip.Sim.Data;
+using SandboxShip.Sim.Net;
 
 namespace SandboxShip.Ui;
 
@@ -29,10 +31,10 @@ public partial class Menu
 
     const string LobbyPath = "user://lobby.json";
 
-    /// <summary>Each mode's lobby, as last left; the one shown is Current.</summary>
+    /// <summary>Each mode's lobby, as last left; the one shown is Current, unless a game over the network is (Menu.Network.cs).</summary>
     readonly Dictionary<LobbyMode, Lobby> lobbies = [];
     LobbyMode mode;
-    Lobby Current => lobbies[mode];
+    Lobby Current => Session.Current?.Room?.Lobby ?? lobbies[mode];
 
     static string Players(LobbyMode m) => $"{Lobby.MinPlayers(m)} à {Lobby.MaxSeats} {(m == LobbyMode.Sandbox ? "camps" : "joueurs")}";
 
@@ -81,6 +83,7 @@ public partial class Menu
 
     void OpenLobby(LobbyMode m)
     {
+        if (hosting && !HostLobby(m)) return;
         mode = m;
         if (!lobbies.ContainsKey(m)) lobbies[m] = Lobby.Create(m, NewSeed());
         Show(Screen.Lobby);
@@ -89,6 +92,11 @@ public partial class Menu
     void Launch()
     {
         if (Current.Problems().Count > 0) return;
+        if (Session.Current is { } net)
+        {
+            net.Launch();
+            return;
+        }
         Remember();
         Main.Instance.Start(Current);
     }
@@ -97,13 +105,19 @@ public partial class Menu
 
     void ModeCards()
     {
-        Titled("Nouvelle partie", "Choisis un mode. Échap : retour");
-        body.AddChild(Section("Campagne", ModeCard(Modes[0])));
+        // Hosting: the battles only, the sandbox's tools being for a game played alone.
+        if (hosting) Titled("Héberger une partie", "Choisis le mode : les joueurs te rejoignent dans son salon. Échap : retour");
+        else
+        {
+            Titled("Nouvelle partie", "Choisis un mode. Échap : retour");
+            body.AddChild(Section("Campagne", ModeCard(Modes[0])));
+        }
         var grid = new GridContainer { Columns = 2 };
         grid.AddThemeConstantOverride("h_separation", 8);
         grid.AddThemeConstantOverride("v_separation", 8);
-        foreach (var m in Modes.Skip(1)) grid.AddChild(ModeCard(m));
+        foreach (var m in Modes.Skip(1).Where(m => !hosting || m.Mode != LobbyMode.Sandbox)) grid.AddChild(ModeCard(m));
         body.AddChild(Section("Bataille", grid));
+        if (hosting && hostError is not null) body.AddChild(Paragraph(hostError, Palette.Danger, 14));
         footer.AddChild(Btn("Retour", Back));
     }
 
@@ -132,11 +146,12 @@ public partial class Menu
     {
         var l = Current;
         var (_, name, description) = Modes.First(m => m.Mode == l.Mode);
-        Titled(name, $"{description} Échap : retour");
+        Titled(name, NetTitle() ?? $"{description} Échap : retour");
 
         body.AddChild(Section($"Joueurs · {l.Seats.Count} sur {Lobby.MaxSeats}", SeatGrid(l), SeatActions(l)));
-        body.AddChild(MapSection(l));
-        if (RulesSection(l) is { } rules) body.AddChild(rules);
+        // The map and the rules are the host's to set: the others see them.
+        body.AddChild(Locked(MapSection(l)));
+        if (RulesSection(l) is { } rules) body.AddChild(Locked(rules));
 
         var problems = l.Problems();
         var line = Paragraph(problems.Count > 0 ? problems[0] : Summary(l), problems.Count > 0 ? Palette.Danger : Palette.Muted, 13);
@@ -145,7 +160,9 @@ public partial class Menu
         line.SizeFlagsHorizontal = Control.SizeFlags.ExpandFill;
         line.SizeFlagsVertical = Control.SizeFlags.ShrinkCenter;
         footer.AddChild(line);
-        footer.AddChild(Btn("Retour", Back));
+        footer.AddChild(Btn(Session.Current is not { } net ? "Retour" : net.Hosting ? "Fermer la partie" : "Quitter", Back));
+        if (ReadyButton(l) is { } ready) footer.AddChild(ready);
+        if (!Leads) return;
         var go = Btn("Lancer la partie", Launch, Primary, "act:launch");
         go.Disabled = problems.Count > 0;
         go.TooltipText = string.Join("\n", problems);
@@ -178,8 +195,8 @@ public partial class Menu
 
         var races = Factions.All;
         var race = Drop($"{key}:race", $"Race de la place {n}", races.Select(f => Factions.Defs[f].Name), races.ToList().IndexOf(seat.Race),
-            i => l.SetRace(seat, races[i]), i => Logos.Emblem(races[i], 1, seat.Color));
-        race.Disabled = !plays;
+            i => Edit(new LobbyRequest.SetRace(seat.Id, races[i])), i => Logos.Emblem(races[i], 1, seat.Color));
+        race.Disabled = !plays || !Mine(seat);
         grid.AddChild(race);
 
         // Survival plays as one team; an assault, as the defense (team 1) against the attack (team 2).
@@ -189,69 +206,76 @@ public partial class Menu
             LobbyMode.Assault => (new[] { 1, 2 }, new[] { "Défense", "Attaque" }),
             _ => (new[] { 0, 1, 2, 3 }, new[] { "Aucune", "Équipe 1", "Équipe 2", "Équipe 3" }),
         };
-        var team = Drop($"{key}:team", $"Équipe de la place {n}", labels, Math.Max(0, Array.IndexOf(teams, seat.Team)), i => l.SetTeam(seat, teams[i]));
-        team.Disabled = !plays || l.TeamsLocked;
+        var team = Drop($"{key}:team", $"Équipe de la place {n}", labels, Math.Max(0, Array.IndexOf(teams, seat.Team)),
+            i => Edit(new LobbyRequest.SetTeam(seat.Id, teams[i])));
+        team.Disabled = !plays || l.TeamsLocked || !Mine(seat);
         if (l.TeamsLocked) team.TooltipText = "En survie, tout le monde fait équipe contre les vagues.";
         grid.AddChild(team);
 
         var colors = Lobby.Colors;
         var color = Drop($"{key}:color", $"Couleur de la place {n}", ColorNames, colors.ToList().IndexOf(seat.Color),
-            i => l.SetColor(seat, colors[i]), i => Swatch(colors[i]));
+            i => Edit(new LobbyRequest.SetColor(seat.Id, colors[i])), i => Swatch(colors[i]));
         for (var i = 0; i < colors.Count; i++)
         {
             if (l.ColorFree(seat, colors[i])) continue;
             color.SetItemDisabled(i, true);
             color.SetItemTooltip(i, "Déjà prise");
         }
-        color.Disabled = !plays;
+        color.Disabled = !plays || !Mine(seat);
         grid.AddChild(color);
 
         // Once it is gone, the focus goes to the seat that takes its place, or to the one before.
         var at = l.Seats.IndexOf(seat);
         var next = at + 1 < l.Seats.Count ? l.Seats[at + 1] : at > 0 ? l.Seats[at - 1] : null;
-        var remove = Btn("×", () => Pick(next is null ? "act:add" : $"seat:{next.Id}:remove", () => l.Remove(seat)), key: $"{key}:remove");
+        var remove = Btn("×", () => Pick(next is null ? "act:add" : $"seat:{next.Id}:remove", () => Edit(new LobbyRequest.Remove(seat.Id))), key: $"{key}:remove");
         remove.CustomMinimumSize = new Vector2(40, 40);
-        remove.Disabled = l.Seats.Count <= 1;
+        remove.Disabled = l.Seats.Count <= 1 || !Leads;
         remove.TooltipText = "Retirer la place";
         remove.AccessibilityName = $"Retirer la place {n}";
         grid.AddChild(remove);
     }
 
     /// <summary>
-    /// Who takes the seat: you, a bot at one of the difficulties, a remote player (with the
-    /// network: a seat it fills shows here, ready or not), nobody yet, or nobody.
+    /// Who takes the seat: you (leaving your seat open), a bot at one of the difficulties, a
+    /// remote player, or nobody. Over the network, a remote player's seat is free until one
+    /// sits there, then shows its name, ready or not. Without the host's rights, a player can
+    /// only take an open seat.
     /// </summary>
     OptionButton KindDrop(Lobby l, Seat seat, string key, int n)
     {
-        var remote = seat.Kind == SeatKind.Human && seat.Peer != Lobby.Host;
-        var levels = Enum.GetValues<Difficulty>();
-        var labels = new List<string> { "Toi" };
-        labels.AddRange(levels.Select(d => $"Bot · {Worlds.Difficulties[d].Name}"));
-        labels.Add(remote ? $"Joueur distant · {(seat.Ready ? "prêt" : "en attente")}" : "Joueur distant");
-        labels.Add("Ouvert");
-        labels.Add("Fermé");
-        var (far, open) = (1 + levels.Length, 2 + levels.Length);
-        var selected = seat.Kind switch
+        var mine = seat.Kind == SeatKind.Human && seat.Peer == Me;
+        var remote = seat.Kind == SeatKind.Human && !mine;
+        var net = Session.Current?.Room;
+        var choices = new List<(string Label, LobbyRequest? Ask, bool On)> { ("Toi", new LobbyRequest.SetKind(seat.Id, SeatKind.Human), mine) };
+        foreach (var d in Enum.GetValues<Difficulty>())
         {
-            SeatKind.Human => remote ? far : 0,
-            SeatKind.Bot => 1 + Array.IndexOf(levels, seat.Difficulty),
-            SeatKind.Open => open,
-            _ => open + 1,
-        };
-        var drop = Drop($"{key}:kind", $"Place {n}", labels, selected, i =>
+            choices.Add(($"Bot · {Worlds.Difficulties[d].Name}", new LobbyRequest.SetKind(seat.Id, SeatKind.Bot, d), seat.Kind == SeatKind.Bot && seat.Difficulty == d));
+        }
+        var far = choices.Count;
+        if (net is not null)
         {
-            if (i == 0) l.SetKind(seat, SeatKind.Human);
-            else if (i < far)
-            {
-                l.SetKind(seat, SeatKind.Bot);
-                seat.Difficulty = levels[i - 1];
-            }
-            else if (i == open) l.SetKind(seat, SeatKind.Open);
-            else if (i == open + 1) l.SetKind(seat, SeatKind.Closed);
+            var who = !remote ? "Joueur distant · libre"
+                : $"{net.NameOf(seat.Peer)} · {(seat.Peer == Lobby.Host ? "hôte" : seat.Ready ? "prêt" : "en attente")}";
+            choices.Add((who, new LobbyRequest.SetKind(seat.Id, SeatKind.Open), remote || seat.Kind == SeatKind.Open));
+        }
+        else
+        {
+            choices.Add((remote ? $"Joueur distant · {(seat.Ready ? "prêt" : "en attente")}" : "Joueur distant", null, remote));
+            choices.Add(("Ouvert", new LobbyRequest.SetKind(seat.Id, SeatKind.Open), seat.Kind == SeatKind.Open));
+        }
+        choices.Add(("Fermé", new LobbyRequest.SetKind(seat.Id, SeatKind.Closed), seat.Kind == SeatKind.Closed));
+        var drop = Drop($"{key}:kind", $"Place {n}", choices.Select(c => c.Label), choices.FindIndex(c => c.On), i =>
+        {
+            if (choices[i].Ask is { } ask) Edit(ask);
         });
-        // TODO(network): the network fills this seat (Lobby.SetKind with the peer) when a player joins.
-        drop.SetItemDisabled(far, true);
-        drop.SetItemTooltip(far, "Arrive avec le multijoueur.");
+        var claim = !Leads && seat.Kind == SeatKind.Open;
+        for (var i = 0; i < choices.Count; i++)
+        {
+            if (choices[i].Ask is null || !Leads && !(claim && i == 0)) drop.SetItemDisabled(i, !choices[i].On);
+        }
+        if (net is null) drop.SetItemTooltip(far, "Pour jouer à plusieurs : « Héberger une partie », au menu principal.");
+        drop.Disabled = !Leads && !claim;
+        if (claim) drop.TooltipText = "Choisis « Toi » pour prendre cette place.";
         return drop;
     }
 
@@ -261,14 +285,17 @@ public partial class Menu
         row.AddThemeConstantOverride("separation", 16);
         var add = Btn("Ajouter un bot", () =>
         {
-            var added = l.AddBot();
+            var count = l.Seats.Count;
+            Edit(new LobbyRequest.AddBot());
+            var added = l.Seats.Count > count ? l.Seats[^1] : null;
             // Full now: the focus goes to the seat just added.
             Rebuild(l.CanAdd || added is null ? "act:add" : $"seat:{added.Id}:kind");
         }, key: "act:add");
-        add.Disabled = !l.CanAdd;
+        add.Disabled = !l.CanAdd || !Leads;
         add.SizeFlagsVertical = Control.SizeFlags.ShrinkBegin;
         row.AddChild(add);
-        var note = Note(SeatsNote(l));
+        var remote = Session.Current is null ? "" : " « Joueur distant » : une place libre pour qui rejoint ; un joueur qui part la libère.";
+        var note = Note(SeatsNote(l) + remote);
         note.SizeFlagsHorizontal = Control.SizeFlags.ExpandFill;
         note.CustomMinimumSize = new Vector2(200, 0);
         row.AddChild(note);
@@ -293,14 +320,11 @@ public partial class Menu
         var battle = l.Mode != LobbyMode.Campaign;
         var settings = new VBoxContainer { SizeFlagsHorizontal = Control.SizeFlags.ExpandFill };
         settings.AddThemeConstantOverride("separation", 12);
-        settings.AddChild(Labelled("Type", Group("map", [(MapKind.Random, "Aléatoire"), (MapKind.Classic, "Classique")], l.Map, v =>
-        {
-            l.Map = v;
-            l.Fit();
-        }, v => v == MapKind.Classic && !l.ClassicAllowed)));
+        settings.AddChild(Labelled("Type", Group("map", [(MapKind.Random, "Aléatoire"), (MapKind.Classic, "Classique")], l.Map,
+            v => Set(s => s with { Map = v }), v => v == MapKind.Classic && !l.ClassicAllowed)));
         var classic = l.Map == MapKind.Classic && !battle;
         settings.AddChild(Labelled(battle ? "Taille de la carte" : "Taille de la galaxie",
-            Group("size", Scenario.MapSizes.Select(s => (s.Key, s.Value.Name)), l.Size, v => l.Size = v, _ => classic)));
+            Group("size", Scenario.MapSizes.Select(s => (s.Key, s.Value.Name)), l.Size, v => Set(s => s with { Size = v }), _ => classic)));
         settings.AddChild(SeedRow(l));
 
         var (mapW, mapH) = battle ? (Scenario.MapSizes[l.Size].W, Scenario.MapSizes[l.Size].H) : (l.Layout().W, l.Layout().H);
@@ -338,15 +362,11 @@ public partial class Menu
                 input.Text = digits;
                 input.CaretColumn = digits.Length;
             }
-            l.Seed = Math.Max(1, int.TryParse(digits, out var v) ? v : 1);
+            Set(s => s with { Seed = Math.Max(1, int.TryParse(digits, out var v) ? v : 1) });
             preview?.QueueRedraw();
         };
         row.AddChild(input);
-        var reroll = Btn("Nouvelle graine", () => Pick("act:reroll", () =>
-        {
-            l.Seed = NewSeed();
-            l.Map = MapKind.Random;
-        }), key: "act:reroll");
+        var reroll = Btn("Nouvelle graine", () => Pick("act:reroll", () => Set(s => s with { Seed = NewSeed(), Map = MapKind.Random })), key: "act:reroll");
         reroll.Disabled = l.Map == MapKind.Classic;
         row.AddChild(reroll);
         return Labelled("Graine", row);
@@ -358,14 +378,19 @@ public partial class Menu
         var items = new List<Control>();
         if (l.Mode == LobbyMode.Zones)
         {
-            items.Add(Labelled("Objectif", Group("zone", Lobby.ZoneTargets.Select(v => (v, $"{v} points")), l.ZoneTarget, v => l.ZoneTarget = v)));
+            items.Add(Labelled("Objectif", Group("zone", Lobby.ZoneTargets.Select(v => (v, $"{v} points")), l.ZoneTarget, v => Set(s => s with { ZoneTarget = v }))));
         }
         if (l.Mode == LobbyMode.Assault)
         {
-            items.Add(Labelled("Durée de l'assaut", Group("assault", Lobby.AssaultLengths.Select(v => (v, $"{v} min")), l.AssaultMinutes, v => l.AssaultMinutes = v)));
+            items.Add(Labelled("Durée de l'assaut", Group("assault", Lobby.AssaultLengths.Select(v => (v, $"{v} min")), l.AssaultMinutes,
+                v => Set(s => s with { AssaultMinutes = v }))));
         }
-        if (l.HasRaid) items.Add(Toggle("check:raid", $"Raid : un Colosse neutre garde un coin de la carte ({Raids.Bounty:0} crédits au premier qui l'abat)", l.Raid, on => l.Raid = on));
-        if (l.HasFog) items.Add(Toggle("check:fog", "Brouillard de guerre", l.Fog, on => l.Fog = on));
+        if (l.HasRaid)
+        {
+            items.Add(Toggle("check:raid", $"Raid : un Colosse neutre garde un coin de la carte ({Raids.Bounty:0} crédits au premier qui l'abat)", l.Raid,
+                on => Set(s => s with { Raid = on })));
+        }
+        if (l.HasFog) items.Add(Toggle("check:fog", "Brouillard de guerre", l.Fog, on => Set(s => s with { Fog = on })));
         return items.Count == 0 ? null : Section("Règles", [.. items]);
     }
 

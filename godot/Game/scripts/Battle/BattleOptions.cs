@@ -32,6 +32,8 @@ public sealed record BattleOptions
     public int AssaultMinutes { get; init; } = 15;
     /// <summary>The main menu's backdrop: a showcase fight under a drifting camera, without HUD, input or sound.</summary>
     public bool Demo { get; init; }
+    /// <summary>A battle over the network: the host's world, or a player's replica of it (Network.NetBattle).</summary>
+    public Network.NetBattle? Net { get; init; }
 
     /// <summary>The player's race against one or two others, each on its race's own side, every one at war with all; the enemies' AI at `difficulty`.</summary>
     public static IReadOnlyList<Slot> Versus(Faction player, IReadOnlyList<Faction> enemies, Difficulty difficulty = Difficulty.Normal) =>

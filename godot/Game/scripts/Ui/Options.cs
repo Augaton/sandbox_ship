@@ -43,7 +43,34 @@ public static class Options
             if (group == "Son") part.AddChild(Volume(s, focus));
             box.AddChild(part);
         }
+        // Only on the menu: in battle, a name could not change any more.
+        if (focusable) box.AddChild(PlayerName(s));
         return box;
+    }
+
+    /// <summary>The name other players see over the network.</summary>
+    static VBoxContainer PlayerName(Settings s)
+    {
+        var part = new VBoxContainer();
+        part.AddThemeConstantOverride("separation", 6);
+        part.AddChild(UiTheme.Text("Multijoueur", Palette.Muted, 14));
+        var row = new HBoxContainer();
+        row.AddThemeConstantOverride("separation", 12);
+        var label = UiTheme.Text("Nom du joueur");
+        label.SizeFlagsVertical = Control.SizeFlags.ShrinkCenter;
+        row.AddChild(label);
+        var input = new LineEdit
+        {
+            Text = s.PlayerName, MaxLength = Sim.Net.LobbyRoom.MaxName, CustomMinimumSize = new Vector2(240, 40), AccessibilityName = "Nom du joueur",
+        };
+        input.TextChanged += text =>
+        {
+            s.PlayerName = text;
+            s.Save();
+        };
+        row.AddChild(input);
+        part.AddChild(row);
+        return part;
     }
 
     /// <summary>The effects volume: a slider and its value.</summary>
