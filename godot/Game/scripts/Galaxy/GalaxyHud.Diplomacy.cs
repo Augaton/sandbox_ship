@@ -119,7 +119,7 @@ public partial class GalaxyHud
 
     void Propose(Side rival)
     {
-        var r = Galaxies.ProposeTruce(G, Player, rival);
+        var r = scene.Sink.Send(new GalaxyCommand.OfferTruce(rival));
         // A truce signed says so itself (TruceSigned).
         if (!r.Ok) Notify($"{NameOf(rival)} refuse la trêve : {Lower(r.Reason)}");
         RefreshSoon();
@@ -129,12 +129,12 @@ public partial class GalaxyHud
     {
         if (yes)
         {
-            var r = Galaxies.AcceptTruce(G, Player, rival);
+            var r = scene.Sink.Send(new GalaxyCommand.AnswerTruce(rival, true));
             if (!r.Ok) Notify($"L'offre de {NameOf(rival)} n'est plus valable");
         }
         else
         {
-            Galaxies.RefuseTruce(G, Player, rival);
+            scene.Sink.Send(new GalaxyCommand.AnswerTruce(rival, false));
             Notify($"Trêve de {NameOf(rival)} refusée");
         }
         RefreshSoon();
@@ -149,7 +149,7 @@ public partial class GalaxyHud
         box.AddChild(Actions(Btn("Annuler", CloseModal), Btn("Rompre", () =>
         {
             CloseModal();
-            Galaxies.BreakTruce(G, Player, rival);
+            scene.Sink.Send(new GalaxyCommand.BreakTruce(rival));
             RefreshSoon();
         }, primary: true)));
         OpenModal(p);

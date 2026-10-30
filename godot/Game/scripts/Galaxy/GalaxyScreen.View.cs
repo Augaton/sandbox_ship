@@ -340,7 +340,7 @@ public partial class GalaxyScreen
     /// <summary>Sends the selected fleet on the move to `dest`, the shorter way, turning back if need be.</summary>
     void Redirect(int fleetId, int dest)
     {
-        var r = Galaxies.RedirectFleet(Galaxy, fleetId, dest);
+        var r = Sink.Send(new GalaxyCommand.RedirectFleet(fleetId, dest));
         if (!r.Ok) Hud.Toast(r.Reason);
         else Hud.Refresh();
     }
@@ -349,7 +349,7 @@ public partial class GalaxyScreen
     public void StopFleet()
     {
         if (SelectedFleet is not int id) return;
-        var r = Galaxies.StopFleet(Galaxy, id);
+        var r = Sink.Send(new GalaxyCommand.StopFleet(id));
         if (!r.Ok)
         {
             Hud.Toast(r.Reason);
@@ -382,7 +382,7 @@ public partial class GalaxyScreen
             Hud.Toast("Sélectionne d'abord une de tes planètes");
             return;
         }
-        var refused = own.Select(id => Galaxies.SetRally(g, Player, id, dest)).Where(r => !r.Ok).ToList();
+        var refused = own.Select(id => Sink.Send(new GalaxyCommand.SetRally(id, dest))).Where(r => !r.Ok).ToList();
         if (refused.Count == own.Count)
         {
             Hud.Toast(refused[0].Reason);

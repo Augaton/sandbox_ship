@@ -40,7 +40,7 @@ public partial class GalaxyScreen
             Hud.Toast("Tir annulé");
             return;
         }
-        var r = Galaxies.FireLance(Galaxy, Player, from, t);
+        var r = Sink.Send(new GalaxyCommand.FireLance(from, t));
         if (!r.Ok) Hud.Toast(r.Reason);
         Hud.Refresh();
     }

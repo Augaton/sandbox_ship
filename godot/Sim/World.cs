@@ -403,6 +403,8 @@ public sealed class World
     public double LastDamage;
     /// <summary>Fog of war: each side only sees and targets what its own units and its allies' see.</summary>
     public bool Fog;
+    /// <summary>The sandbox's tools may be used: spawning, credits, fog, AI, destroying (Commands). Never in a campaign battle; a host decides.</summary>
+    public bool SandboxTools;
     /// <summary>Enemy entities each side sees right now.</summary>
     public readonly Dictionary<Side, HashSet<int>> Visible = [];
     /// <summary>Enemy structures each side has seen at least once.</summary>

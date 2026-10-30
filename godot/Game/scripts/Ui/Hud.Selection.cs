@@ -111,7 +111,7 @@ public partial class Hud
                 var r = Structures.CanUpgradeStructure(World, Player, e.Id);
                 var id = e.Id;
                 lines.Add(ActionPart($"tier:{id}", $"Améliorer au niveau {e.Level + 1} ({N(tiers[e.Level - 1].Cost)} cr)",
-                    () => Report(Structures.UpgradeStructure(World, Player, id)), r.Ok ? null : r.Reason));
+                    () => Report(scene.Sink.Send(new Command.UpgradeStructure(id))), r.Ok ? null : r.Reason));
                 if (!r.Ok) lines.Add(TextPart(r.Reason, Palette.Muted));
             }
         }

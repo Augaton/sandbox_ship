@@ -161,6 +161,14 @@ tests de `FixtureTests` et `CrossTests` les listent.
   combattre. Les Errants (camp 3) restent ennemis de tous. Escarmouche et campagne se créent depuis des places
   (`Slot`) ; les anciennes sauvegardes se chargent. Sans équipes, les parties sont identiques à avant. Galaxies
   générées : 4 planètes de plus par joueur au-delà de trois (petite et moyenne), pour séparer les capitales.
+- Multijoueur, fondations (pas encore de réseau) : tout ce que fait le joueur, en bataille comme en campagne,
+  devient une commande (`Sim/Commands.cs` : données pures, ids et points, sans le camp qui la donne) qu'applique
+  `Commands.Apply` : un camp n'ordonne que ce qui est à lui et ne vise que ce que son équipe voit ; une commande
+  mal formée est refusée. Chaque écran envoie les siennes à un « puits » (`Sim/CommandSinks.cs`) : appliquées
+  sur-le-champ en solo (parties identiques), gardées pour le pas suivant chez un hôte. Les outils du bac à sable
+  ne servent qu'au jeu seul (`World.SandboxTools`). Instantanés de bataille (`Sim/Snapshot*.cs`) : ce que voit
+  l'équipe d'un joueur, en binaire versionné, relu dans une copie du monde sans rien simuler ; 48 Ko pour la
+  bataille de mesure (1 270 entités), 1,6 Ko pour un duel à 5 min.
 
 ## Ce qui change de technique
 

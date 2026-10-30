@@ -165,6 +165,18 @@ public partial class Main : Node
         Show(galaxy);
     }
 
+    /// <summary>The player, attacking, falls back from a campaign battle: back to the galaxy, where the survivors head home.</summary>
+    public void RetreatCampaignBattle(int battleId)
+    {
+        if (galaxy is null)
+        {
+            ShowMenu();
+            return;
+        }
+        galaxy.Retreat(battleId);
+        Show(galaxy);
+    }
+
     /// <summary>The player leaves a campaign battle, which plays on by itself.</summary>
     public void DelegateCampaignBattle(int battleId)
     {

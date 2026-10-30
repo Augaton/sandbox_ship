@@ -362,12 +362,12 @@ public partial class GalaxyHud : CanvasLayer
         List<int> targets = build.Kind == GalaxyBuildKind.Ship ? OwnTargets() : scene.Selected is int shown ? [shown] : [];
         if (targets.Count == 1)
         {
-            var r = Galaxies.EnqueueBuild(G, Player, targets[0], build);
+            var r = scene.Sink.Send(new GalaxyCommand.EnqueueBuild(targets[0], build));
             if (!r.Ok) Toast(r.Reason);
         }
         else if (targets.Count > 1)
         {
-            var refused = targets.Select(id => Galaxies.EnqueueBuild(G, Player, id, build)).Where(r => !r.Ok).ToList();
+            var refused = targets.Select(id => scene.Sink.Send(new GalaxyCommand.EnqueueBuild(id, build))).Where(r => !r.Ok).ToList();
             var took = targets.Count - refused.Count;
             var name = Ships.Defs[build.Cls].Name;
             Toast(took switch
@@ -394,17 +394,17 @@ public partial class GalaxyHud : CanvasLayer
         var able = targets.Where(id => Galaxies.CanLoop(g, Player, id, cls).Ok).ToList();
         if (looping.Count > 0 && able.All(looping.Contains))
         {
-            foreach (var id in looping) Galaxies.SetLoop(g, Player, id, cls, false);
+            foreach (var id in looping) scene.Sink.Send(new GalaxyCommand.SetLoop(id, cls, false));
             Toast($"{name} : production en boucle arrêtée{(targets.Count > 1 ? $" sur {looping.Count} planète{(looping.Count > 1 ? "s" : "")}" : "")}");
         }
         else if (targets.Count == 1)
         {
-            var r = Galaxies.SetLoop(g, Player, targets[0], cls, true);
+            var r = scene.Sink.Send(new GalaxyCommand.SetLoop(targets[0], cls, true));
             Toast(r.Ok ? $"{name} : production en boucle lancée" : r.Reason);
         }
         else
         {
-            var refused = targets.Select(id => Galaxies.SetLoop(g, Player, id, cls, true)).Where(r => !r.Ok).ToList();
+            var refused = targets.Select(id => scene.Sink.Send(new GalaxyCommand.SetLoop(id, cls, true))).Where(r => !r.Ok).ToList();
             var took = targets.Count - refused.Count;
             Toast(took == 0
                 ? $"{name} : production en boucle impossible{Refusals(refused)}"
@@ -415,13 +415,13 @@ public partial class GalaxyHud : CanvasLayer
 
     void Cancel(int index, QueueSide which)
     {
-        if (scene.Selected is int planet) Galaxies.CancelBuild(G, planet, index, which);
+        if (scene.Selected is int planet) scene.Sink.Send(new GalaxyCommand.CancelBuild(planet, index, which));
         RefreshSoon();
     }
 
     void Research(TechId tech)
     {
-        var r = Galaxies.StartTech(G, Player, tech);
+        var r = scene.Sink.Send(new GalaxyCommand.StartTech(tech));
         if (!r.Ok) Toast(r.Reason);
         RefreshSoon();
     }
@@ -749,7 +749,7 @@ public partial class GalaxyHud : CanvasLayer
                 var index = i;
                 flow.AddChild(QueueButton(name, () =>
                 {
-                    Galaxies.CancelTech(G, Player, index);
+                    scene.Sink.Send(new GalaxyCommand.CancelTech(index));
                     RefreshSoon();
                 }, out var bar));
                 if (i == 0) researchBar = bar;

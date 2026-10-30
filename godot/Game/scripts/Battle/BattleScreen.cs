@@ -24,6 +24,8 @@ public partial class BattleScreen : Node
     public BattleOptions Opts { get; private set; } = null!;
     public Hud Hud { get; private set; } = null!;
     public Selection Controls { get; private set; } = null!;
+    /// <summary>Where the player's orders go (Sim/Commands.cs): applied at once here, as single player always did.</summary>
+    public ICommandSink<Command> Sink { get; private set; } = null!;
     public readonly HashSet<int> Selected = [];
     public double Speed { get; private set; } = 1;
     public bool Paused { get; private set; }
@@ -70,11 +72,14 @@ public partial class BattleScreen : Node
             Map = o.Map, Size = o.Size, Fog = !sandbox, Raid = o.Raid,
             Mode = o.Rules, ZoneTarget = o.ZoneTarget, AssaultMinutes = o.AssaultMinutes,
         }));
+        // The sandbox's tools are open in a game played alone, outside the campaign.
+        World.SandboxTools = o.Campaign is null && !o.Demo;
+        Sink = new LocalSink<Command>(c => Commands.Apply(World, Opts.Player, c));
         // A campaign battle's AI plays the side facing the player.
         if (o.Campaign is { } cb) campaignFoe = [cb.Attacker == o.Player ? cb.Defender : cb.Attacker];
         // The player's ships use their abilities by themselves if the player wants so.
         var own = o.Demo ? null : World.Factions.GetValueOrDefault(o.Player);
-        if (own is not null) own.AutoAbilities = Settings.Current.AutoAbilities;
+        if (own is not null) Sink.Send(new Command.SetAutoAbilities(Settings.Current.AutoAbilities));
         if (Dev.Skip > 0 && own is not null && o.Campaign is null)
         {
             // Checking a screen: both sides play ahead on the AI.
@@ -347,9 +352,9 @@ public partial class BattleScreen : Node
     /// <summary>The attacker can fall back: its surviving ships return to the planet they came from.</summary>
     public void Retreat()
     {
-        if (Opts.Campaign?.Attacker != Opts.Player || result is not null) return;
+        if (Opts.Campaign is not CampaignBattle c || c.Attacker != Opts.Player || result is not null) return;
         result = BattleResult.Retreat;
-        ReturnToGalaxy();
+        Main.Instance.RetreatCampaignBattle(c.BattleId);
     }
 
     void ReturnToGalaxy() => Main.Instance.FinishCampaignBattle(Opts.Campaign!.BattleId, result!.Value);

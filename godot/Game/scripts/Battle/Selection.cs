@@ -30,8 +30,6 @@ public partial class Selection : Node
     const double DoubleTapMs = 350;
     /// <summary>Time constant of the eased zoom, in milliseconds.</summary>
     const double ZoomEaseMs = 70;
-    /// <summary>Sandbox spawns stop here: past it, the game would crawl.</summary>
-    public const int MaxEntities = 2500;
 
     readonly BattleScreen scene;
     public Mode Mode { get; private set; } = new SelectMode();
@@ -54,6 +52,8 @@ public partial class Selection : Node
     /// <summary>Which idle ship I selects next.</summary>
     int idleTurn;
     readonly Random random = new();
+    /// <summary>The flown ship's controls as last sent: they go again only when they change.</summary>
+    Command.PilotInput? sentInput;
 
     public Selection(BattleScreen scene)
     {
@@ -63,6 +63,7 @@ public partial class Selection : Node
 
     World World => scene.World;
     Side Player => scene.Opts.Player;
+    ICommandSink<Command> Sink => scene.Sink;
 
     /// <summary>The entity under a point; small entities win over the big ones they overlap. Enemies the viewer cannot see are left out.</summary>
     public static Entity? PickAt(World world, double x, double y, double slop, Side? viewer = null)
@@ -81,38 +82,6 @@ public partial class Selection : Node
             }
         }
         return best;
-    }
-
-    /// <summary>Places a unit or structure of a race for the sandbox, on that race's own side; false when the battle is already full.</summary>
-    public static bool SpawnAt(World world, Faction faction, string what, double x, double y, Random random)
-    {
-        if (world.Entities.Count >= MaxEntities) return false;
-        if (!world.Factions.ContainsKey(faction)) Worlds.AddFaction(world, faction, 0);
-        if (what == "station")
-        {
-            if (Worlds.StationOf(world, faction) is null) Worlds.SpawnStation(world, faction, x, y);
-        }
-        else if (Enum.TryParse<HeroRole>(what, true, out var role))
-        {
-            Worlds.SpawnHero(world, faction, new HeroId(faction, role), x, y, random.NextDouble() * Math.Tau);
-        }
-        else if (Ids.IsShip(what))
-        {
-            Worlds.SpawnShip(world, faction, Ids.Ship(what), x, y, random.NextDouble() * Math.Tau);
-        }
-        else if (Ids.IsBuildable(what, out var type))
-        {
-            var e = Worlds.SpawnStructure(world, faction, type, x, y);
-            var field = type == BuildableType.Mine ? world.Fields.Find(f => f.MineId is null && Worlds.Dist(f, e) <= f.Radius) : null;
-            if (field is not null)
-            {
-                e.X = field.X;
-                e.Y = field.Y;
-                field.MineId = e.Id;
-                e.FieldId = field.Id;
-            }
-        }
-        return true;
     }
 
     /// <summary>What may use an ability among the selection: own ships, and own structures that have one (a star lance).</summary>
@@ -216,7 +185,7 @@ public partial class Selection : Node
         {
             if (Mode is not SelectMode) SetMode(new SelectMode());
             else if (p.CtrlPressed) AttackMove(w.X, w.Y);
-            else Command(w.X, w.Y);
+            else OrderAt(w.X, w.Y);
             return;
         }
         if (p.ButtonIndex != MouseButton.Left) return;
@@ -225,7 +194,7 @@ public partial class Selection : Node
         {
             case PlaceMode m:
             {
-                var r = Structures.PlaceStructure(World, Player, m.Type, w.X, w.Y);
+                var r = Sink.Send(new Command.PlaceStructure(m.Type, w.X, w.Y));
                 if (!r.Ok) scene.Hud.Toast(r.Reason);
                 else if (!shift) SetMode(new SelectMode());
                 break;
@@ -242,8 +211,11 @@ public partial class Selection : Node
                 break;
             }
             case SpawnMode m:
-                if (!SpawnAt(World, m.Faction, m.What, w.X, w.Y, random)) scene.Hud.Toast($"Limite de {MaxEntities} éléments atteinte");
+            {
+                var r = Sink.Send(new Command.Spawn(m.Faction, m.What, w.X, w.Y, random.NextDouble() * Math.Tau));
+                if (!r.Ok) scene.Hud.Toast(r.Reason);
                 break;
+            }
             default:
                 Box = new Rect2(w, Vector2.Zero);
                 break;
@@ -252,9 +224,9 @@ public partial class Selection : Node
 
     void AttackMove(double x, double y)
     {
-        var ids = OwnShips().Select(s => s.Id).ToList();
-        if (ids.Count == 0) return;
-        Movement.IssueMove(World, ids, x, y, true);
+        var ids = OwnShips().Select(s => s.Id).ToArray();
+        if (ids.Length == 0) return;
+        Sink.Send(new Command.Move(ids, x, y, true));
         scene.Marker(x, y, Palette.Hex(0xe8a13a));
     }
 
@@ -266,9 +238,9 @@ public partial class Selection : Node
             AttackMove(x, y);
             return;
         }
-        var ids = OwnShips().Select(s => s.Id).ToList();
-        if (ids.Count == 0) return;
-        Movement.IssueMove(World, ids, x, y);
+        var ids = OwnShips().Select(s => s.Id).ToArray();
+        if (ids.Length == 0) return;
+        Sink.Send(new Command.Move(ids, x, y));
         scene.Marker(x, y, Palette.Hex(0x6fd08c));
     }
 
@@ -363,21 +335,21 @@ public partial class Selection : Node
     }
 
     /// <summary>Right click: attack the foe under the cursor, or move there. With the station selected, sets the rally point.</summary>
-    void Command(double x, double y)
+    void OrderAt(double x, double y)
     {
         var ships = OwnShips();
         if (ships.Count > 0)
         {
             var t = PickAt(World, x, y, Slop, Player);
-            var ids = ships.Select(s => s.Id).ToList();
+            var ids = ships.Select(s => s.Id).ToArray();
             if (t is not null && Worlds.Foes(World, t.Side, Player))
             {
-                Movement.IssueAttack(World, ids, t.Id);
+                Sink.Send(new Command.Attack(ids, t.Id));
                 scene.Marker(t.X, t.Y, Palette.Hex(0xe05a4a));
             }
             else
             {
-                Movement.IssueMove(World, ids, x, y);
+                Sink.Send(new Command.Move(ids, x, y));
                 scene.Marker(x, y, Palette.Hex(0x6fd08c));
             }
             return;
@@ -385,9 +357,7 @@ public partial class Selection : Node
         var station = Worlds.StationOf(World, Player);
         if (station is not null && scene.Selected.Contains(station.Id))
         {
-            var f = World.Factions[Player];
-            f.RallyX = x;
-            f.RallyY = y;
+            Sink.Send(new Command.SetRally(x, y));
             scene.Marker(x, y, Palette.Hex(0x6fd08c));
         }
     }
@@ -470,7 +440,7 @@ public partial class Selection : Node
                 SetMode(new AttackMoveMode());
                 break;
             case Key.X:
-                Movement.IssueStop(World, OwnShips().Select(s => s.Id));
+                Sink.Send(new Command.Stop([.. OwnShips().Select(s => s.Id)]));
                 break;
             case Key.C:
                 CenterOnSelection();
@@ -531,7 +501,7 @@ public partial class Selection : Node
             return;
         }
         var aimed = ready.FindIndex(r => Abilities.Defs[r.Id].Target != AbilityTarget.Self);
-        foreach (var (s, a) in ready) if (Abilities.Defs[a].Target == AbilityTarget.Self) AbilitySystem.UseAbility(World, s, a, null);
+        foreach (var (s, a) in ready) if (Abilities.Defs[a].Target == AbilityTarget.Self) Sink.Send(new Command.UseAbility(s.Id, a));
         if (aimed < 0) return;
         var aid = ready[aimed].Id;
         var def = Abilities.Defs[aid];
@@ -554,7 +524,7 @@ public partial class Selection : Node
         var used = false;
         foreach (var s in ships)
         {
-            var r = AbilitySystem.UseAbility(World, s, id, aim);
+            var r = Sink.Send(new Command.UseAbility(s.Id, id, aim));
             if (r.Ok) used = true;
             else reason = r.Reason;
         }
@@ -577,8 +547,8 @@ public partial class Selection : Node
             return;
         }
         var s = ships[0];
-        s.Order = null;
-        s.Pilot = new Pilot { AimX = s.X, AimY = s.Y };
+        Sink.Send(new Command.StartPilot(s.Id));
+        sentInput = null;
         PilotId = s.Id;
         Box = null;
         SetMode(new SelectMode());
@@ -586,13 +556,7 @@ public partial class Selection : Node
 
     public void StopPilot()
     {
-        var s = World.Entities.Get(PilotId);
-        if (s is not null)
-        {
-            s.Pilot = null;
-            s.GuardX = s.X;
-            s.GuardY = s.Y;
-        }
+        if (PilotId is int id) Sink.Send(new Command.StopPilot(id));
         PilotId = null;
         firing = false;
         scene.Hud.RefreshModes();
@@ -600,21 +564,25 @@ public partial class Selection : Node
 
     bool Held(params Key[] codes) => codes.Any(keys.Contains);
 
+    /// <summary>The controls, sent whenever they change; the world may not show them flown yet (a host answers later).</summary>
     void UpdatePilot()
     {
         var s = World.Entities.Get(PilotId);
-        if (s?.Pilot is not Pilot p)
+        if (s is null)
         {
             StopPilot();
             scene.Hud.Toast("Vaisseau perdu");
             return;
         }
-        p.Thrust = (Held(Key.W, Key.Up) ? 1 : 0) - (Held(Key.S, Key.Down) ? 1 : 0);
-        p.Turn = (Held(Key.D, Key.Right) ? 1 : 0) - (Held(Key.A, Key.Left) ? 1 : 0);
-        p.Firing = firing;
+        var thrust = (Held(Key.W, Key.Up) ? 1 : 0) - (Held(Key.S, Key.Down) ? 1 : 0);
+        var turn = (Held(Key.D, Key.Right) ? 1 : 0) - (Held(Key.A, Key.Left) ? 1 : 0);
         var aim = scene.WorldPoint(GetViewport().GetMousePosition());
-        p.AimX = aim.X;
-        p.AimY = aim.Y;
+        var input = new Command.PilotInput(s.Id, thrust, turn, aim.X, aim.Y, firing);
+        if (input != sentInput)
+        {
+            Sink.Send(input);
+            sentInput = input;
+        }
         // The camera follows the ship, a little behind.
         scene.Center += (new Vector2((float)s.X, (float)s.Y) - scene.Center) * 0.15f;
     }
