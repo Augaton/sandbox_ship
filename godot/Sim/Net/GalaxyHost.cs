@@ -22,11 +22,14 @@ public sealed class GalaxyHost(Galaxy galaxy, Action<int, Message> send)
         public long Bytes;
         /// <summary>Seconds until this player's next snapshot.</summary>
         public double Wait;
+        /// <summary>The player got the chart, what never changes: it goes with its first snapshot.</summary>
+        public bool Charted;
     }
 
     readonly Dictionary<int, Remote> remotes = [];
     readonly MemoryStream buffer = new(), news = new();
     readonly Stopwatch clock = new();
+    byte[]? chart;
 
     /// <summary>Snapshots written so far, and the time spent writing them, in milliseconds.</summary>
     public int Snapshots { get; private set; }
@@ -112,6 +115,12 @@ public sealed class GalaxyHost(Galaxy galaxy, Action<int, Message> send)
         Snapshots++;
         r.Bytes += bytes.Length;
         r.Events.Clear();
+        // Reliably, after the Start that opened the campaign; a snapshot that passes it waits for the next.
+        if (!r.Charted)
+        {
+            send(peer, new Message.Chart(chart ??= GalaxySnapshot.Chart(galaxy)));
+            r.Charted = true;
+        }
         // A count of none is a single byte.
         if (news.Length > 1) send(peer, new Message.Tidings(news.ToArray()));
         send(peer, new Message.Map(bytes));
@@ -140,12 +149,16 @@ public sealed class GalaxyMotion
     /// <summary>The host's clock, as the last snapshot told it.</summary>
     public GalaxyClock Clock { get; private set; } = new(1, false);
 
-    /// <summary>Reads a snapshot into the replica (GalaxySnapshot.Read), arrived at `now` seconds; every fleet is still shown where it was.</summary>
-    public void Read(BinaryReader r, Galaxy replica, double now)
+    /// <summary>
+    /// Reads a snapshot into the replica (GalaxySnapshot.Read), arrived at `now` seconds; every
+    /// fleet is still shown where it was. False, and nothing changes, before the chart came.
+    /// </summary>
+    public bool Read(BinaryReader r, Galaxy replica, double now)
     {
         shown.Clear();
         foreach (var f in replica.Fleets.Values) shown[f.Id] = (f.From, f.To, f.Progress);
-        Clock = GalaxySnapshot.Read(r, replica);
+        if (GalaxySnapshot.Read(r, replica) is not { } clock) return false;
+        Clock = clock;
         glides.Clear();
         foreach (var f in replica.Fleets.Values)
         {
@@ -157,6 +170,7 @@ public sealed class GalaxyMotion
         lastAt = now;
         since = 0;
         Advance(replica, 0);
+        return true;
     }
 
     /// <summary>`dt` seconds later: each fleet that far along its glide.</summary>

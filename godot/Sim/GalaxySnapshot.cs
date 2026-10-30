@@ -1,15 +1,19 @@
 // Galaxy snapshots (not in the web version): what one side's team knows of the campaign,
 // written by the host for each player and read into the player's own copy of the galaxy, its
 // replica. No step ever runs on a replica: it only changes when a snapshot is read into it.
-// Every snapshot is whole, the map's planets and lanes included; deltas can come later. The
+// What never changes goes once, reliably, as the chart (WriteChart): the map's size, its lanes,
+// and each planet's name, place, income and mine slots. Every snapshot is whole otherwise. The
 // writer is here, the reader in GalaxySnapshotRead.cs.
 //
-// Layout, little-endian; "n" is a 7-bit encoded int (ids, counts, sides, levels):
+// Chart, little-endian; "n" is a 7-bit encoded int (ids, counts, sides, levels):
+//   u32 magic "GCHT", u16 version, f32 width, f32 height, n lanes, each: n a, n b; n planets, each:
+//   string name, f32 x, y, income, n mine slots
+//
+// Snapshot:
 //   header    u32 magic "GSNP", u16 version, n viewer
-//   galaxy    f64 time, f32 width, f32 height, f32 speed, u8 flags (paused, winner), [n winner]
+//   galaxy    f64 time, f32 speed, u8 flags (paused, winner), [n winner]
 //   humans    n count; each: n side, string name
-//   lanes     n count; each: n a, n b
-//   planets   n count; each: see WritePlanet. Ownership is known everywhere, what guards a planet
+//   planets   n count, the chart's; each: see WritePlanet. Ownership is known everywhere, what guards a planet
 //             only where the team has eyes (Galaxies.Known); queues, loops and rally points only the viewer's own
 //   fleets    n count; each: see WriteFleet. Those the team sees (Galaxies.FleetVisible), and the Errants', whose guard all know
 //   sides     n count; each: n side, u8 race, n team, u32 color, u8 flags (eliminated, AI, viewer, grudge), [f32 grudge
@@ -29,9 +33,38 @@ public readonly record struct GalaxyClock(double Speed, bool Paused);
 
 public static partial class GalaxySnapshot
 {
-    /// <summary>Bumped with any change to the layout: a reader refuses any other version.</summary>
-    public const ushort Version = 1;
-    const uint Magic = 0x504E5347;
+    /// <summary>Bumped with any change to the layout, the chart's included: a reader refuses any other version. 2: the chart apart.</summary>
+    public const ushort Version = 2;
+    const uint Magic = 0x504E5347, ChartMagic = 0x54484347;
+
+    /// <summary>What never changes in a campaign (see the layout above): sent once to each player, before its first snapshot.</summary>
+    public static byte[] Chart(Galaxy g)
+    {
+        using var ms = new MemoryStream();
+        using (var w = new BinaryWriter(ms))
+        {
+            w.Write(ChartMagic);
+            w.Write(Version);
+            w.Write((float)g.W);
+            w.Write((float)g.H);
+            w.Write7BitEncodedInt(g.Lanes.Count);
+            foreach (var (a, b) in g.Lanes)
+            {
+                w.Write7BitEncodedInt(a);
+                w.Write7BitEncodedInt(b);
+            }
+            w.Write7BitEncodedInt(g.Planets.Count);
+            foreach (var p in g.Planets)
+            {
+                w.Write(p.Name);
+                w.Write((float)p.X);
+                w.Write((float)p.Y);
+                w.Write((float)p.Income);
+                w.Write7BitEncodedInt(p.MineSlots);
+            }
+        }
+        return ms.ToArray();
+    }
 
     enum Tag : byte
     {
@@ -58,8 +91,6 @@ public static partial class GalaxySnapshot
         w.Write(Version);
         w.Write7BitEncodedInt(viewer.Id);
         w.Write(g.Time);
-        w.Write((float)g.W);
-        w.Write((float)g.H);
         w.Write((float)clock.Speed);
         w.Write((byte)((clock.Paused ? 1 : 0) | (g.Winner is not null ? 2 : 0)));
         if (g.Winner is Side winner) w.Write7BitEncodedInt(winner.Id);
@@ -68,12 +99,6 @@ public static partial class GalaxySnapshot
         {
             w.Write7BitEncodedInt(side.Id);
             w.Write(name);
-        }
-        w.Write7BitEncodedInt(g.Lanes.Count);
-        foreach (var (a, b) in g.Lanes)
-        {
-            w.Write7BitEncodedInt(a);
-            w.Write7BitEncodedInt(b);
         }
         var seen = VisiblePlanets(g, viewer);
         w.Write7BitEncodedInt(g.Planets.Count);
@@ -123,18 +148,13 @@ public static partial class GalaxySnapshot
     const int Owned = 1, Seen = 2, Occupied = 4, Own = 8, Rallied = 16;
 
     /// <summary>
-    /// string name, f32 x, y, income, n mine slots, u8 special (255: none), u8 flags, [n owner];
-    /// where the team has eyes: n station, mines, platforms, platform tier, lab, repair dock, ion
-    /// cannon, star lance, [f32 lance charge], [n occupier, f32 left]; the viewer's own: its two
-    /// queues, n loops (each u8 class), [n rally point].
+    /// u8 special (255: none: ruins explored go), u8 flags, [n owner]; where the team has eyes: n
+    /// station, mines, platforms, platform tier, lab, repair dock, ion cannon, star lance, [f32
+    /// lance charge], [n occupier, f32 left]; the viewer's own: its two queues, n loops (each u8
+    /// class), [n rally point]. The rest is the chart's.
     /// </summary>
     static void WritePlanet(Galaxy g, BinaryWriter w, Planet p, Side viewer, HashSet<int> seen)
     {
-        w.Write(p.Name);
-        w.Write((float)p.X);
-        w.Write((float)p.Y);
-        w.Write((float)p.Income);
-        w.Write7BitEncodedInt(p.MineSlots);
         w.Write(p.Special is PlanetSpecial s ? (byte)s : byte.MaxValue);
         var known = Known(g, viewer, p, seen);
         var own = p.Owner == viewer;

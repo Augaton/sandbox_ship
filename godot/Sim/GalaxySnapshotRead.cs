@@ -8,34 +8,54 @@ namespace SandboxShip.Sim;
 public static partial class GalaxySnapshot
 {
     /// <summary>
+    /// The chart (see GalaxySnapshot.Chart) into a replica: its size, lanes and planets, which
+    /// the snapshots then bring up to date. Of another version, or broken, it changes nothing.
+    /// </summary>
+    public static void ReadChart(BinaryReader r, Galaxy replica)
+    {
+        if (r.ReadUInt32() != ChartMagic) throw new InvalidDataException("Pas une carte de galaxie");
+        var version = r.ReadUInt16();
+        if (version != Version) throw new InvalidDataException($"Carte de galaxie en version {version}, version {Version} attendue");
+        var (w, h) = (r.ReadSingle(), r.ReadSingle());
+        var lanes = new List<Lane>();
+        // Lanes come before the planets they join: checked once both are read.
+        for (var n = Count(r); n > 0; n--) lanes.Add(new Lane(r.Read7BitEncodedInt(), r.Read7BitEncodedInt()));
+        var planets = new List<Planet>();
+        for (var n = Count(r); n > 0; n--)
+        {
+            planets.Add(new Planet
+            {
+                Id = planets.Count, Name = r.ReadString(), X = r.ReadSingle(), Y = r.ReadSingle(), Income = r.ReadSingle(), MineSlots = r.Read7BitEncodedInt(),
+            });
+        }
+        if (lanes.Exists(l => (uint)l.A >= (uint)planets.Count || (uint)l.B >= (uint)planets.Count)) throw new InvalidDataException("Voie vers une planète inconnue");
+        (replica.W, replica.H, replica.Lanes, replica.Planets) = (w, h, lanes, planets);
+    }
+
+    /// <summary>
     /// Brings `replica` to the snapshot: the galaxy as its viewer's team knows it, the viewer as
     /// its Player, with the events the snapshot carries added to its Events; returns the host's
-    /// clock. A snapshot of another version is refused before anything changes; one that does
-    /// not hold together (an unknown value, a planet that is not there) throws InvalidDataException.
+    /// clock. Null, and nothing changes, while the replica has no chart (it comes reliably, but
+    /// on its own channel: a first snapshot may pass it). A snapshot of another version is
+    /// refused before anything changes; one that does not hold together (an unknown value, a
+    /// planet count other than the chart's) throws InvalidDataException.
     /// </summary>
-    public static GalaxyClock Read(BinaryReader r, Galaxy replica)
+    public static GalaxyClock? Read(BinaryReader r, Galaxy replica)
     {
         if (r.ReadUInt32() != Magic) throw new InvalidDataException("Pas un instantané de galaxie");
         var version = r.ReadUInt16();
         if (version != Version) throw new InvalidDataException($"Instantané de galaxie en version {version}, version {Version} attendue");
+        if (replica.Planets.Count == 0) return null;
         var viewer = SideOf(r);
         replica.Player = viewer;
         replica.Time = r.ReadDouble();
-        replica.W = r.ReadSingle();
-        replica.H = r.ReadSingle();
         var clock = new GalaxyClock(r.ReadSingle(), false);
         var flags = r.ReadByte();
         clock = clock with { Paused = (flags & 1) != 0 };
         replica.Winner = (flags & 2) != 0 ? SideOf(r) : null;
         replica.Humans.Clear();
         for (var n = Count(r); n > 0; n--) replica.Humans[SideOf(r)] = r.ReadString();
-        var lanes = new List<Lane>();
-        // Lanes come before the planets they join: checked once both are read.
-        for (var n = Count(r); n > 0; n--) lanes.Add(new Lane(r.Read7BitEncodedInt(), r.Read7BitEncodedInt()));
-        var planets = Count(r);
-        if (replica.Planets.Count != planets) replica.Planets = [.. Enumerable.Range(0, planets).Select(id => new Planet { Id = id })];
-        if (lanes.Exists(l => (uint)l.A >= (uint)planets || (uint)l.B >= (uint)planets)) throw new InvalidDataException("Voie vers une planète inconnue");
-        replica.Lanes = lanes;
+        if (Count(r) != replica.Planets.Count) throw new InvalidDataException("Planètes autres que celles de la carte");
         foreach (var p in replica.Planets) ReadPlanet(r, replica, p);
         ReadFleets(r, replica);
         ReadSides(r, replica, viewer);
@@ -115,11 +135,6 @@ public static partial class GalaxySnapshot
 
     static void ReadPlanet(BinaryReader r, Galaxy g, Planet p)
     {
-        p.Name = r.ReadString();
-        p.X = r.ReadSingle();
-        p.Y = r.ReadSingle();
-        p.Income = r.ReadSingle();
-        p.MineSlots = r.Read7BitEncodedInt();
         p.Special = r.ReadByte() is var special && special != byte.MaxValue ? Valid<PlanetSpecial>(special) : null;
         var flags = r.ReadByte();
         p.Owner = (flags & Owned) != 0 ? SideOf(r) : null;

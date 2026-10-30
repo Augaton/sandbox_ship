@@ -285,8 +285,13 @@ public sealed partial class Session
                 map = new NetGalaxy { Session = this, Galaxy = new Galaxy(), Side = side };
                 mapping = true;
                 return true;
+            case Message.Chart chart when map is not null:
+                Read(() => GalaxySnapshot.ReadChart(Reader(chart.Bytes), map.Galaxy));
+                return true;
             case Message.Map snapshot when map is not null:
-                if (!Read(() => map.Motion.Read(Reader(snapshot.Snapshot), map.Galaxy, clock))) return true;
+                // Before the chart (on another channel), nothing to read it into: the next one will do.
+                var read = false;
+                if (!Read(() => read = map.Motion.Read(Reader(snapshot.Snapshot), map.Galaxy, clock)) || !read) return true;
                 // The galaxy is shown once there is something to show: its planets, the player's capital.
                 if (mapping)
                 {

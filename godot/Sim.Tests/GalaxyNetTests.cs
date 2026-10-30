@@ -54,10 +54,12 @@ public class GalaxyNetTests(ITestOutputHelper output)
         return ms.ToArray();
     }
 
-    static Galaxy Replica(byte[] bytes)
+    /// <summary>A replica of `g` from one of its snapshots, its chart read first.</summary>
+    static Galaxy Replica(Galaxy g, byte[] bytes)
     {
         var replica = new Galaxy();
-        GalaxySnapshot.Read(new BinaryReader(new MemoryStream(bytes)), replica);
+        GalaxySnapshot.ReadChart(new BinaryReader(new MemoryStream(GalaxySnapshot.Chart(g))), replica);
+        Assert.NotNull(GalaxySnapshot.Read(new BinaryReader(new MemoryStream(bytes)), replica));
         return replica;
     }
 
@@ -71,10 +73,38 @@ public class GalaxyNetTests(ITestOutputHelper output)
         foreach (var viewer in new[] { Alice, Bobs })
         {
             var bytes = Bytes(g, viewer, g.Events, clock);
-            var replica = Replica(bytes);
+            var replica = Replica(g, bytes);
             Assert.Equal(viewer, replica.Player);
             Assert.Equal(bytes, Bytes(replica, viewer, replica.Events, clock));
+            Assert.Equal(GalaxySnapshot.Chart(g), GalaxySnapshot.Chart(replica));
         }
+    }
+
+    [Fact]
+    public void A_snapshot_before_the_chart_changes_nothing_and_the_chart_goes_once()
+    {
+        var g = Campaign();
+        PlayAhead(g, 120);
+        var replica = new Galaxy();
+        Assert.Null(GalaxySnapshot.Read(new BinaryReader(new MemoryStream(Bytes(g, Bobs))), replica));
+        Assert.Empty(replica.Planets);
+        Assert.Empty(replica.Fleets);
+        Assert.Equal(0, replica.Time);
+        // A chart of another version or cut short changes nothing either.
+        var chart = GalaxySnapshot.Chart(g);
+        var broken = (byte[])chart.Clone();
+        broken[4]++;
+        Assert.Throws<InvalidDataException>(() => GalaxySnapshot.ReadChart(new BinaryReader(new MemoryStream(broken)), replica));
+        Assert.Throws<EndOfStreamException>(() => GalaxySnapshot.ReadChart(new BinaryReader(new MemoryStream(chart[..^2])), replica));
+        Assert.Empty(replica.Planets);
+        // Served: the chart with the first snapshot only, before it.
+        var t = new Table(g);
+        for (var i = 0; i < 120; i++) t.Frame();
+        Assert.IsType<Message.Chart>(t.Messages[0]);
+        Assert.Single(t.Messages.OfType<Message.Chart>());
+        Expect.Greater(t.Messages.OfType<Message.Map>().Count(), 5);
+        Assert.Equal(g.Planets.Select(p => (p.Name, (float)p.X, p.Owner)), t.Replica.Planets.Select(p => (p.Name, (float)p.X, p.Owner)));
+        Assert.Equal(g.Lanes, t.Replica.Lanes);
     }
 
     [Fact]
@@ -94,7 +124,7 @@ public class GalaxyNetTests(ITestOutputHelper output)
         g.Factions[Bot].AI!.Grudges[Bobs] = 120;
         g.Factions[Bot].AI!.Grudges[Alice] = 60;
 
-        var replica = Replica(Bytes(g, Bobs));
+        var replica = Replica(g, Bytes(g, Bobs));
         // Ownership everywhere; what guards a planet, only where Bob has eyes.
         Assert.Equal(g.Planets.Select(p => p.Owner), replica.Planets.Select(p => p.Owner));
         Assert.Equal(0, replica.Planets[aliceHome.Id].Station);
@@ -114,7 +144,7 @@ public class GalaxyNetTests(ITestOutputHelper output)
         Assert.Equal(g.Humans, replica.Humans);
 
         // Alice's own queues never show to Bob, even where he has eyes.
-        var aliceSees = Replica(Bytes(g, Alice));
+        var aliceSees = Replica(g, Bytes(g, Alice));
         Assert.Empty(aliceSees.Planets[bobHome.Id].Units);
         Assert.Single(aliceSees.Offers);
     }
@@ -237,8 +267,11 @@ public class GalaxyNetTests(ITestOutputHelper output)
             Messages.Add(back);
             switch (back)
             {
+                case Message.Chart c:
+                    GalaxySnapshot.ReadChart(new BinaryReader(new MemoryStream(c.Bytes)), Replica);
+                    break;
                 case Message.Map s:
-                    Motion.Read(new BinaryReader(new MemoryStream(s.Snapshot)), Replica, Now);
+                    Assert.True(Motion.Read(new BinaryReader(new MemoryStream(s.Snapshot)), Replica, Now));
                     break;
                 case Message.Tidings t:
                     GalaxySnapshot.ReadEvents(new BinaryReader(new MemoryStream(t.Events)), Replica);
@@ -362,8 +395,7 @@ public class GalaxyNetTests(ITestOutputHelper output)
         Assert.Contains(t.Heard, e => e is Captured);
         // The battle starting came with the snapshot: the battles it lists tell it anyway.
         Assert.Contains(t.Heard, e => e is BattleStarted);
-        var replica = new Galaxy();
-        GalaxySnapshot.Read(new BinaryReader(new MemoryStream(t.Messages.OfType<Message.Map>().Last().Snapshot)), replica);
+        var replica = Replica(g, t.Messages.OfType<Message.Map>().Last().Snapshot);
         Assert.DoesNotContain(replica.Events, e => e is Captured);
     }
 
@@ -479,10 +511,11 @@ public class GalaxyNetTests(ITestOutputHelper output)
             var watch = System.Diagnostics.Stopwatch.StartNew();
             for (var i = 0; i < 100; i++) Bytes(g, Bobs);
             var ms = watch.Elapsed.TotalMilliseconds / 100;
-            output.WriteLine($"{size}, {seats} camps, {g.Planets.Count} planètes, {g.Fleets.Count} flottes à 15 min : {bytes} octets, "
+            var chart = GalaxySnapshot.Chart(g).Length;
+            output.WriteLine($"{size}, {seats} camps, {g.Planets.Count} planètes, {g.Fleets.Count} flottes à 15 min : {bytes} octets (carte à part : {chart}), "
                 + $"{bytes * Protocol.GalaxyRate / 1024:0.0} Kio/s à {Protocol.GalaxyRate} instantanés/s, {ms:0.000} ms d'écriture");
-            // Well under what a battle snapshot of a duel weighs: a galaxy is cheap to send whole.
-            Assert.True(bytes < 8 * 1024, $"{bytes} octets");
+            // Well under what a battle snapshot of a duel weighs, and under ENet's MTU: never in fragments.
+            Assert.True(bytes < 1392, $"{bytes} octets");
         }
     }
 }
