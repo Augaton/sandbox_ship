@@ -24,6 +24,10 @@ public sealed record BattleOptions
     public Difficulty Difficulty { get; init; } = Difficulty.Normal;
     /// <summary>A neutral colossus guards the far side of the map, with a bounty on it.</summary>
     public bool Raid { get; init; }
+    /// <summary>The rules of a skirmish, and their settings.</summary>
+    public BattleMode Rules { get; init; } = BattleMode.Standard;
+    public int ZoneTarget { get; init; } = 100;
+    public int AssaultMinutes { get; init; } = 15;
     /// <summary>The main menu's backdrop: a showcase fight under a drifting camera, without HUD, input or sound.</summary>
     public bool Demo { get; init; }
 

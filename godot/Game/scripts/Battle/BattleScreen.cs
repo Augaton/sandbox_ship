@@ -68,6 +68,7 @@ public partial class BattleScreen : Node
             Slots = [.. o.Slots.Select(s => sandbox ? s with { AI = null } : s)],
             Credits = sandbox ? 50000 : Scenario.StartCredits, Seed = o.Seed ?? 1,
             Map = o.Map, Size = o.Size, Fog = !sandbox, Raid = o.Raid,
+            Mode = o.Rules, ZoneTarget = o.ZoneTarget, AssaultMinutes = o.AssaultMinutes,
         }));
         // A campaign battle's AI plays the side facing the player.
         if (o.Campaign is { } cb) campaignFoe = [cb.Attacker == o.Player ? cb.Defender : cb.Attacker];

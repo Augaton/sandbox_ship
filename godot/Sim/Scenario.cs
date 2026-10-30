@@ -11,8 +11,21 @@ public sealed record MapSizeDef(double W, double H, string Name);
 /// <summary>`Classic`: the hand-made, mirrored map for two. `Random`: drawn from the seed.</summary>
 public enum MapKind { Random, Classic }
 
+/// <summary>
+/// The rules of a battle (not in the web version beyond Standard): Standard, the last station
+/// standing wins; Survival, every seat together against waves of Errants; Zones, beacons score
+/// for whoever holds them; Assault, a fortress to hold against a fleet on a clock; Regicide,
+/// losing one's flagship loses the game.
+/// </summary>
+public enum BattleMode { Standard, Survival, Zones, Assault, Regicide }
+
 public sealed class SkirmishOptions
 {
+    public BattleMode Mode = BattleMode.Standard;
+    /// <summary>Zones: the score that wins.</summary>
+    public int ZoneTarget = 100;
+    /// <summary>Assault: minutes the defenders must hold out; the defenders are team 1.</summary>
+    public int AssaultMinutes = 15;
     /// <summary>
     /// Who plays, 2 to 6 seats, the local player's first; each AI plays at its own difficulty.
     /// Side 3 is the Errants' (see Raid): seats take 0 to 2, then 4 and up. Empty: the
