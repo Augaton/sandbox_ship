@@ -7,7 +7,9 @@ namespace SandboxShip.Sim.Net;
 /// Serves the remote players of a battle: their commands wait for the start of the next step,
 /// in the order they came, and those refused are answered; each player gets, Protocol.Rate
 /// times a second, a snapshot of what its team sees with the events since the last one, less
-/// often when snapshots grow past its Budget; a player who leaves hands its side to the AI.
+/// often when snapshots grow past its Budget, and the events it must not miss apart, reliably
+/// (News); a player who leaves hands its side to the AI. A campaign battle also has players
+/// who only watch it, through the eyes of one of its sides.
 /// </summary>
 public sealed class BattleHost(World world, Action<int, Message> send)
 {
@@ -19,9 +21,13 @@ public sealed class BattleHost(World world, Action<int, Message> send)
     /// </summary>
     public const double Budget = 256 * 1024;
 
-    sealed class Remote(Side side, DelayedSink<Command> sink)
+    static readonly Result Watching = Result.Fail("Tu regardes la bataille");
+
+    sealed class Remote(Side side, DelayedSink<Command> sink, bool watches)
     {
         public readonly Side Side = side;
+        /// <summary>Only watches, through the eyes of Side: its orders are refused.</summary>
+        public readonly bool Watches = watches;
         public readonly DelayedSink<Command> Sink = sink;
         public readonly List<SimEvent> Events = [];
         public long Bytes;
@@ -30,7 +36,7 @@ public sealed class BattleHost(World world, Action<int, Message> send)
     }
 
     readonly Dictionary<int, Remote> remotes = [];
-    readonly MemoryStream buffer = new();
+    readonly MemoryStream buffer = new(), news = new();
     readonly System.Diagnostics.Stopwatch clock = new();
 
     /// <summary>Snapshots written so far, and the time spent writing them, in milliseconds.</summary>
@@ -40,8 +46,9 @@ public sealed class BattleHost(World world, Action<int, Message> send)
     public World World => world;
     public IEnumerable<int> Peers => remotes.Keys;
 
-    /// <summary>A remote player, on the side its seat plays.</summary>
-    public void Add(int peer, Side side) => remotes[peer] = new Remote(side, new DelayedSink<Command>(c => Commands.Apply(world, side, c)))
+    /// <summary>A remote player, on the side its seat plays; or one who `watches` the battle as that side's team sees it.</summary>
+    public void Add(int peer, Side side, bool watches = false) =>
+        remotes[peer] = new Remote(side, new DelayedSink<Command>(c => watches ? Watching : Commands.Apply(world, side, c)), watches)
     {
         // Players take turns, a frame apart: their snapshots are not all written in the same frame.
         Wait = remotes.Count * Steps.Step % (1 / Protocol.Rate),
@@ -89,17 +96,27 @@ public sealed class BattleHost(World world, Action<int, Message> send)
         }
     }
 
-    /// <summary>A snapshot to a player now, with the events since its last one; its size.</summary>
+    /// <summary>
+    /// A snapshot to a player now, with the events since its last one, those it must not miss
+    /// sent first, apart and reliably; the snapshot's size.
+    /// </summary>
     int SendSnapshot(int peer, Remote r)
     {
         clock.Start();
         buffer.SetLength(0);
-        using (var w = new BinaryWriter(buffer, System.Text.Encoding.UTF8, true)) Snapshot.Write(world, r.Side, w, r.Events);
+        news.SetLength(0);
+        using (var w = new BinaryWriter(buffer, System.Text.Encoding.UTF8, true))
+        using (var v = new BinaryWriter(news, System.Text.Encoding.UTF8, true))
+        {
+            Snapshot.Write(world, r.Side, w, r.Events, v);
+        }
         var bytes = buffer.ToArray();
         clock.Stop();
         Snapshots++;
         r.Bytes += bytes.Length;
         r.Events.Clear();
+        // A count of none is a single byte.
+        if (news.Length > 1) send(peer, new Message.News(news.ToArray()));
         send(peer, new Message.State(bytes));
         return bytes.Length;
     }
@@ -107,9 +124,16 @@ public sealed class BattleHost(World world, Action<int, Message> send)
     /// <summary>A player left: the AI plays its side from now on, its hand-flown ship given back first.</summary>
     public void Drop(int peer)
     {
-        if (!remotes.Remove(peer, out var r) || !world.Factions.TryGetValue(r.Side, out var f)) return;
-        foreach (var e in world.Entities.Where(e => e.Side == r.Side && e.Pilot is not null).ToList()) Commands.Apply(world, r.Side, new Command.StopPilot(e.Id));
+        if (Remove(peer) is not Side side || !world.Factions.TryGetValue(side, out var f)) return;
         f.AI ??= Worlds.NewAI();
         f.AutoAbilities = true;
+    }
+
+    /// <summary>Stops serving a player, its hand-flown ship given back; the side it played, null if none or if it only watched.</summary>
+    public Side? Remove(int peer)
+    {
+        if (!remotes.Remove(peer, out var r) || r.Watches) return null;
+        foreach (var e in world.Entities.Where(e => e.Side == r.Side && e.Pilot is not null).ToList()) Commands.Apply(world, r.Side, new Command.StopPilot(e.Id));
+        return r.Side;
     }
 }

@@ -44,6 +44,7 @@ public static class LobbyRules
     /// <summary>Applies `peer`'s request if its rights allow it; false when refused or meaningless.</summary>
     public static bool Apply(Lobby l, int peer, bool leads, LobbyRequest request)
     {
+        if (l.Resumed) return Resumed(l, peer, leads, request);
         var own = l.Seats.Find(s => s.Kind == SeatKind.Human && s.Peer == peer);
         Seat? At(int id) => l.Seats.Find(s => s.Id == id);
         bool Mine(Seat seat) => leads || seat == own;
@@ -99,6 +100,29 @@ public static class LobbyRules
         }
         return false;
     }
+
+    /// <summary>
+    /// A resumed campaign keeps the save's seats, races, teams, colors and map: players only say
+    /// they are ready, and the leader gives a seat waiting for its player to a bot, or opens it
+    /// again for them. Players sit at the seats kept for them when they join (LobbyRoom.Join).
+    /// </summary>
+    static bool Resumed(Lobby l, int peer, bool leads, LobbyRequest request)
+    {
+        switch (request)
+        {
+            case LobbyRequest.SetReady r when l.Seats.Find(s => s.Kind == SeatKind.Human && s.Peer == peer) is { } own:
+                own.Ready = r.Ready;
+                return true;
+            case LobbyRequest.SetKind { Kind: SeatKind.Bot or SeatKind.Open } k when leads && Enum.IsDefined(k.Difficulty):
+            {
+                if (l.Seats.Find(s => s.Id == k.Seat) is not { Reserved: not null } seat || seat.Kind == SeatKind.Human) return false;
+                l.SetKind(seat, k.Kind);
+                if (k.Kind == SeatKind.Bot) seat.Difficulty = k.Difficulty;
+                return true;
+            }
+        }
+        return false;
+    }
 }
 
 /// <summary>Someone in a lobby played over the network: its peer (Lobby.Host for the host's own player) and its name.</summary>
@@ -129,9 +153,16 @@ public sealed class LobbyRoom(Lobby lobby)
     public string? Join(int peer, string name)
     {
         if (Members.Exists(m => m.Peer == peer)) return "Déjà dans la partie.";
-        var seat = Lobby.Seats.Find(s => s.Kind == SeatKind.Open);
-        if (seat is null) return "La partie est complète.";
         var clean = CleanName(name);
+        // A resumed campaign takes back only those who played it, each at the seat kept for them.
+        var seat = Lobby.Resumed ? Lobby.Seats.Find(s => s.Kind == SeatKind.Open && s.Reserved == clean) : Lobby.Seats.Find(s => s.Kind == SeatKind.Open);
+        if (seat is null && Lobby.Resumed)
+        {
+            var waiting = Lobby.Seats.Where(s => s.Kind == SeatKind.Open && s.Reserved is not null).Select(s => s.Reserved).ToList();
+            return waiting.Count == 0 ? "La campagne reprise n'attend plus personne."
+                : $"Cette partie reprend une campagne sauvegardée : elle attend {string.Join(", ", waiting)}. Rejoins-la sous ce nom.";
+        }
+        if (seat is null) return "La partie est complète.";
         var unique = clean;
         for (var n = 2; Members.Exists(m => m.Name == unique); n++) unique = $"{clean} {n}";
         Members.Add(new Member(peer, unique));

@@ -46,6 +46,12 @@ public static partial class Snapshot
         for (var n = Count(r); n > 0; n--) replica.Events.Add(ReadEvent(r));
     }
 
+    /// <summary>Events that came on the reliable channel (the `vital` stream of Write), added to the replica's Events.</summary>
+    public static void ReadEvents(BinaryReader r, World replica)
+    {
+        for (var n = Count(r); n > 0; n--) replica.Events.Add(ReadEvent(r));
+    }
+
     /// <summary>A count, checked: a broken snapshot must not ask for a huge list.</summary>
     static int Count(BinaryReader r)
     {

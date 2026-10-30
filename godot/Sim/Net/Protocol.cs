@@ -4,14 +4,20 @@
 // JSON. Reading never trusts the bytes: a malformed message throws InvalidDataException or
 // EndOfStreamException.
 //
-//   player -> host  Hello, Ask, Launch (leader), Order, Pause, Back (leader)
-//   host -> player  Welcome, Bye, Room, Start, State, Refused, Pause, Notice, Back
+//   player -> host  Hello, Ask, Launch (leader), Order, Pause, Back (leader), Plan, Watch
+//   host -> player  Welcome, Bye, Room, Start, State, Refused, Pause, Notice, Back, News, Map, Tidings, Engage, Over
 //
 // A player joins: Hello with its versions and name; the host answers Welcome and sends the
 // Room to everyone, or Bye with the reason and closes. Every change to the lobby (Ask, applied
 // by LobbyRules) sends the Room again. Start opens the battle: from then on the player sends its
 // Orders, and the host a State (a snapshot) twenty times a second, unreliably, and Refused for
-// an order it would not apply. Back returns everyone to the lobby.
+// an order it would not apply. The events that must not be lost (a victory, a mode's news) come
+// apart, reliably, as News. Back returns everyone to the lobby.
+//
+// A campaign starts the same way. The player sends Plans (galaxy commands), and gets a Map (a
+// galaxy snapshot) a few times a second, unreliably, with its notices as Tidings, reliably.
+// When a battle is commanded, Engage opens it on the screen of those who command it, and of
+// those who asked to Watch it; State and News follow, as in a battle, until Over.
 using System.Text;
 using System.Text.Json;
 using SandboxShip.Sim.Data;
@@ -46,6 +52,20 @@ public abstract record Message
     public sealed record Notice(string Text) : Message;
     /// <summary>The battle is over, back to the lobby: asked by the leader, then told by the host.</summary>
     public sealed record Back : Message;
+    /// <summary>A battle's events that must reach the player, as Snapshot.Write wrote them apart (`vital`): reliable, unlike State.</summary>
+    public sealed record News(byte[] Events) : Message;
+    /// <summary>One of the player's galaxy commands.</summary>
+    public sealed record Plan(GalaxyCommand Command) : Message;
+    /// <summary>The galaxy as the player's team knows it: a snapshot, as GalaxySnapshot.Write wrote it.</summary>
+    public sealed record Map(byte[] Snapshot) : Message;
+    /// <summary>The galaxy's notices for the player, as GalaxySnapshot.Write wrote them apart (`vital`): reliable, unlike Map.</summary>
+    public sealed record Tidings(byte[] Events) : Message;
+    /// <summary>A campaign battle opens for the player in the battle view: to command its side, or (Commands false) to watch it.</summary>
+    public sealed record Engage(int Battle, bool Commands) : Message;
+    /// <summary>The player asks to watch a commanded battle of the campaign, or to stop.</summary>
+    public sealed record Watch(int Battle, bool On) : Message;
+    /// <summary>The campaign battle the player commanded or watched is decided, or (no result) left to play on by itself: back to the galaxy.</summary>
+    public sealed record Over(int Battle, BattleResult? Result) : Message;
 }
 
 /// <summary>A host on the local network, as it calls out on the beacon port every second.</summary>
@@ -53,19 +73,24 @@ public sealed record LanGame(int Protocol, string Version, string Name, LobbyMod
 
 public static class Protocol
 {
-    /// <summary>Layout of the messages below: bumped with any change. Commands and snapshots have their own versions, checked as well.</summary>
-    public const int Version = 1;
+    /// <summary>
+    /// Layout of the messages below: bumped with any change. Commands and battle snapshots have
+    /// their own versions, checked as well; the galaxy snapshot's is part of this one. 2: the campaign.
+    /// </summary>
+    public const int Version = 2;
     /// <summary>Where a host listens for players, unless told otherwise.</summary>
     public const int DefaultPort = 24680;
     /// <summary>Where hosts call out to the local network, and the join screen listens.</summary>
     public const int BeaconPort = 24681;
-    /// <summary>Snapshots a second to each player.</summary>
+    /// <summary>Battle snapshots a second to each player.</summary>
     public const double Rate = 20;
+    /// <summary>Galaxy snapshots a second to each player: the map moves slowly, fleets glide in between.</summary>
+    public const double GalaxyRate = 5;
 
     const int MaxText = 200, MaxLobby = 64 * 1024, MaxMembers = 64;
     const uint BeaconMagic = 0x43425353;
 
-    enum Tag : byte { Hello = 1, Welcome, Bye, Room, Ask, Launch, Start, Order, State, Refused, Pause, Notice, Back }
+    enum Tag : byte { Hello = 1, Welcome, Bye, Room, Ask, Launch, Start, Order, State, Refused, Pause, Notice, Back, News, Plan, Map, Tidings, Engage, Watch, Over }
 
     public static byte[] Encode(Message m)
     {
@@ -119,6 +144,17 @@ public static class Protocol
             case Message.Pause p: w.Write((byte)Tag.Pause); w.Write(p.On); w.Write(p.Who); break;
             case Message.Notice n: w.Write((byte)Tag.Notice); w.Write(n.Text); break;
             case Message.Back: w.Write((byte)Tag.Back); break;
+            case Message.News n: w.Write((byte)Tag.News); w.Write(n.Events); break;
+            case Message.Plan p: w.Write((byte)Tag.Plan); Commands.Write(w, p.Command); break;
+            case Message.Map map: w.Write((byte)Tag.Map); w.Write(map.Snapshot); break;
+            case Message.Tidings t: w.Write((byte)Tag.Tidings); w.Write(t.Events); break;
+            case Message.Engage e: w.Write((byte)Tag.Engage); w.Write7BitEncodedInt(e.Battle); w.Write(e.Commands); break;
+            case Message.Watch watch: w.Write((byte)Tag.Watch); w.Write7BitEncodedInt(watch.Battle); w.Write(watch.On); break;
+            case Message.Over o:
+                w.Write((byte)Tag.Over);
+                w.Write7BitEncodedInt(o.Battle);
+                w.Write(o.Result is BattleResult result ? (byte)result : byte.MaxValue);
+                break;
             default: throw new ArgumentException($"Message sans format : {m.GetType().Name}");
         }
     }
@@ -133,13 +169,24 @@ public static class Protocol
         Tag.Launch => new Message.Launch(),
         Tag.Start => new Message.Start(ReadLobby(r)),
         Tag.Order => new Message.Order(Commands.ReadCommand(r)),
-        Tag.State => new Message.State(r.ReadBytes((int)(r.BaseStream.Length - r.BaseStream.Position))),
+        Tag.State => new Message.State(Rest(r)),
         Tag.Refused => new Message.Refused(Text(r)),
         Tag.Pause => new Message.Pause(r.ReadBoolean(), Text(r)),
         Tag.Notice => new Message.Notice(Text(r)),
         Tag.Back => new Message.Back(),
+        Tag.News => new Message.News(Rest(r)),
+        Tag.Plan => new Message.Plan(Commands.ReadGalaxyCommand(r)),
+        Tag.Map => new Message.Map(Rest(r)),
+        Tag.Tidings => new Message.Tidings(Rest(r)),
+        Tag.Engage => new Message.Engage(r.Read7BitEncodedInt(), r.ReadBoolean()),
+        Tag.Watch => new Message.Watch(r.Read7BitEncodedInt(), r.ReadBoolean()),
+        Tag.Over => new Message.Over(r.Read7BitEncodedInt(), r.ReadByte() is var o && o != byte.MaxValue
+            ? Enum.IsDefined((BattleResult)o) ? (BattleResult)o : throw new InvalidDataException($"Issue inconnue : {o}") : null),
         var tag => throw new InvalidDataException($"Message inconnu : {tag}"),
     };
+
+    /// <summary>What is left of a message: a snapshot or events, read by their own reader.</summary>
+    static byte[] Rest(BinaryReader r) => r.ReadBytes((int)(r.BaseStream.Length - r.BaseStream.Position));
 
     /// <summary>
     /// Why a player's Hello cannot join this game, in words for that player; null when it can.

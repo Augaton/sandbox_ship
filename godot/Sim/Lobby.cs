@@ -30,10 +30,12 @@ public sealed class Seat
     public uint Color { get; set; }
     /// <summary>A human seat's player is ready to start: the network's, a local game does not ask.</summary>
     public bool Ready { get; set; }
+    /// <summary>A resumed campaign's seat a person played: kept open for the player of that name, unless the host gives it to a bot.</summary>
+    public string? Reserved { get; set; }
 
-    /// <summary>Someone plays from this seat: a human or a bot.</summary>
+    /// <summary>Someone plays from this seat: a human or a bot, or in a resumed campaign the player it waits for.</summary>
     [JsonIgnore]
-    public bool Plays => Kind is SeatKind.Human or SeatKind.Bot;
+    public bool Plays => Kind is SeatKind.Human or SeatKind.Bot || Kind == SeatKind.Open && Reserved is not null;
 }
 
 public sealed class Lobby
@@ -72,6 +74,12 @@ public sealed class Lobby
     public int AssaultMinutes { get; set; } = 15;
     /// <summary>Set up on a dedicated server: nobody plays on the host, so no seat is Host's (see Sim/Net/LobbyRoom.cs).</summary>
     public bool Dedicated { get; set; }
+    /// <summary>
+    /// A saved campaign played over the network, resumed (Resume): its seats are the save's sides
+    /// in order, with their races, teams and colors, and the map is the save's; nothing of that
+    /// changes. Each player who played rejoins the seat kept for their name.
+    /// </summary>
+    public bool Resumed { get; set; }
 
     /// <summary>
     /// A new lobby of a mode: you and one bot, at war; in survival, side by side; in an assault,
@@ -254,10 +262,57 @@ public sealed class Lobby
         {
             problems.Add("Tout le monde est dans la même équipe : il faut au moins deux camps ennemis.");
         }
+        foreach (var s in playing.Where(s => s.Kind == SeatKind.Open)) problems.Add($"En attente de {s.Reserved} : il rejoint sa place, ou l'hôte la donne à un bot.");
         if (playing.Exists(s => s.Kind == SeatKind.Human && s.Peer != Host && !s.Ready)) problems.Add("Un joueur n'est pas prêt.");
         // Then the rules' own check, for whatever the lobby's checks above leave through.
         if (problems.Count == 0 && Mode != LobbyMode.Campaign && Scenario.Check(Skirmish()) is { Ok: false } r) problems.Add(r.Reason);
         return problems;
+    }
+
+    /// <summary>
+    /// The lobby that resumes a campaign saved over the network: a seat per side of the save, in
+    /// its order, that side's race, team and color; the save's player at "Toi", each other person
+    /// who played kept open for their name, every other side a bot at its own difficulty (an
+    /// eliminated one too: it only holds its place). Null when the save's sides are not a lobby's
+    /// (Lobby.SideOf in order), as in a campaign played alone before sides had seats.
+    /// </summary>
+    public static Lobby? Resume(Galaxy saved, int seed)
+    {
+        var sides = saved.Factions.Values.ToList();
+        if (sides.Count is < 2 or > MaxSeats || sides.Where((f, i) => f.Id != SideOf(i)).Any()) return null;
+        var lobby = new Lobby { Mode = LobbyMode.Campaign, Seed = seed, Resumed = true };
+        foreach (var f in sides)
+        {
+            var human = f.Id == saved.Player ? SeatKind.Human : saved.Humans.ContainsKey(f.Id) && !f.Eliminated ? SeatKind.Open : SeatKind.Bot;
+            lobby.Seats.Add(new Seat
+            {
+                Id = lobby.NextId++, Kind = human, Race = f.Race, Team = f.Team, Color = Colors.Contains(f.Color) ? f.Color : Colors[lobby.Seats.Count],
+                Difficulty = f.AI?.Difficulty ?? Difficulty.Normal, Reserved = human == SeatKind.Open ? saved.Humans[f.Id] : null,
+            });
+        }
+        return lobby;
+    }
+
+    /// <summary>
+    /// Gives a resumed galaxy its players, as the lobby seats them: the host's seat is its Player,
+    /// every human seat's side is a person's under its player's name (`nameOf` its peer), every
+    /// bot seat's side plays on the AI at the bot's difficulty.
+    /// </summary>
+    public void Seat(Galaxy g, Func<int, string> nameOf)
+    {
+        g.Humans.Clear();
+        foreach (var (s, i) in Playing.Select((s, i) => (s, i)))
+        {
+            var side = SideOf(i);
+            if (!g.Factions.TryGetValue(side, out var f)) continue;
+            if (s.Kind == SeatKind.Human)
+            {
+                if (s.Peer == Host) g.Player = side;
+                g.Humans[side] = nameOf(s.Peer);
+                f.AI = null;
+            }
+            else f.AI = new GalaxyAIState { Difficulty = s.Difficulty, Grudges = f.AI?.Grudges ?? [], OfferWait = f.AI?.OfferWait ?? 0 };
+        }
     }
 
     /// <summary>
