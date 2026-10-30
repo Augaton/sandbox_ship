@@ -58,8 +58,32 @@ public class SnapshotDeltaTests(ITestOutputHelper output)
             return read;
         }
 
-        /// <summary>Written whole, the replica is the host written whole: it holds the very snapshot, every entity's record to the byte.</summary>
-        public void Same() => Assert.Equal(Whole(Host, viewer), Whole(Replica, viewer));
+        /// <summary>
+        /// Written whole, the replica is the host written whole: it holds the very snapshot, every
+        /// entity's record to the byte. Shots it carried along their speed are within a hair of the host's.
+        /// </summary>
+        public void Same()
+        {
+            var whole = new World();
+            Snapshot.Read(new BinaryReader(new MemoryStream(Whole(Host, viewer))), whole);
+            Assert.Equal(whole.Projectiles.Select(p => (p.Id, p.Side, p.Kind, p.Vx, p.Vy)), Replica.Projectiles.Select(p => (p.Id, p.Side, p.Kind, p.Vx, p.Vy)));
+            foreach (var (a, b) in whole.Projectiles.Zip(Replica.Projectiles)) Assert.True(Math.Abs(a.X - b.X) < 0.01 && Math.Abs(a.Y - b.Y) < 0.01, $"shot {a.Id}");
+            Assert.Equal(Shotless(Host), Shotless(Replica));
+        }
+
+        byte[] Shotless(World w)
+        {
+            var shots = w.Projectiles;
+            w.Projectiles = [];
+            try
+            {
+                return Whole(w, viewer);
+            }
+            finally
+            {
+                w.Projectiles = shots;
+            }
+        }
     }
 
     /// <summary>The stress battle, fleets engaged: ships and parts dying, craft launched, foes coming in and out of sight.</summary>

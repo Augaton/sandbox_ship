@@ -17,9 +17,24 @@ public sealed class SnapshotFrames
     /// <summary>Parts of an entity's record (see Snapshot.WriteEntity): who it is, where, its health, the rest.</summary>
     internal const int Segments = 4;
 
+    /// <summary>A shot as a snapshot gives it.</summary>
+    internal readonly record struct Shot(int Id, int Side, byte Kind, float X, float Y, float Vx, float Vy)
+    {
+        /// <summary>
+        /// Where it is `dt` seconds later, flying straight: a shot whose speed did not change since
+        /// the baseline is left out, and both ends carry it this way, to the same bits.
+        /// </summary>
+        public Shot After(double dt) => this with { X = (float)(X + Vx * dt), Y = (float)(Y + Vy * dt) };
+
+        public bool Flies(Shot later) => Side == later.Side && Kind == later.Kind && Vx == later.Vx && Vy == later.Vy;
+    }
+
     internal sealed class Frame
     {
         public int Seq;
+        /// <summary>The battle's time, and its shots by increasing ids.</summary>
+        public double Time;
+        public readonly List<Shot> Shots = [];
         public readonly MemoryStream Data = new();
         public readonly BinaryWriter Writer;
         public readonly BinaryReader Reader;
@@ -36,6 +51,7 @@ public sealed class SnapshotFrames
         public void Clear(int seq)
         {
             Seq = seq;
+            Shots.Clear();
             Data.SetLength(0);
             Ids.Clear();
             Starts.Clear();

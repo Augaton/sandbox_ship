@@ -6,8 +6,9 @@ namespace SandboxShip.Sim.Net;
 /// <summary>
 /// Serves the remote players of a battle: their commands wait for the start of the next step,
 /// in the order they came, and those refused are answered; each player gets, Protocol.Rate
-/// times a second, a snapshot of what its team sees with the events since the last one, less
-/// often when snapshots grow past its Budget, and the events it must not miss apart, reliably
+/// times a second, a snapshot of what its team sees with the events since the last one, written
+/// against the last one it acknowledged (Acked), less often when snapshots grow past its
+/// Budget, and the events it must not miss apart, reliably
 /// (News); a player who leaves hands its side to the AI. A campaign battle also has players
 /// who only watch it, through the eyes of one of its sides.
 /// </summary>
@@ -15,9 +16,9 @@ public sealed class BattleHost(World world, Action<int, Message> send)
 {
     /// <summary>
     /// Bytes a second a player gets at most, before compression. A duel stays far below it at
-    /// every snapshot; a huge battle (50 KB a snapshot) comes five times a second instead of
-    /// twenty, which a home connection can carry for several players, and which costs the host
-    /// a quarter of the writing.
+    /// every snapshot (deltas of a few hundred bytes); so nearly does a huge battle, 13 KB a delta
+    /// against 46 KB whole, which a home connection can carry for several players. A whole
+    /// snapshot (the first, or after a long loss) waits its share of the budget.
     /// </summary>
     public const double Budget = 256 * 1024;
 

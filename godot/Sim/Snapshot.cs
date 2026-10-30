@@ -18,7 +18,9 @@
 //             record (see WriteRecord). Foes the viewer's team does not see are left out, but for structures
 //             seen before (remembered), sent with only their place and level, and in regicide the flagships,
 //             whose place and hull everyone knows (sent the same way, with their hull, without their parts)
-//   shots     n count; each: n id, n side, u8 kind, f32 x, y, vx, vy. Those far from any eye of the team are left out
+//   shots     n count in this snapshot; n left out since the baseline, each its id as a gap; n new or turned, each:
+//             its id as a gap, n side, u8 kind, f32 x, y, vx, vy. One that flies on as it did is not written: the
+//             reader carries it along its speed. Those far from any eye of the team are left out
 //   zones     n count; each: u8 kind, n side, f32 x, y, r
 //   strikes   n count; each: see WriteStrike. All of them: every side sees a blow coming
 //   events    n count; each: u8 tag and its fields (see WriteEvent), those the viewer may know of
@@ -132,9 +134,9 @@ public static partial class Snapshot
             w.Write7BitEncodedInt(f.MineId ?? -1);
         }
         var shown = WriteEntities(world, viewer, w, frame, baseline, frames);
-        frames?.Keep(frame);
         var sight = new Sight(world, viewer);
-        WriteShots(world, viewer, sight, w);
+        WriteShots(world, viewer, sight, w, frame, baseline, frames);
+        frames?.Keep(frame);
         var zones = world.Zones.Where(z => Allies(world, z.Side, viewer) || sight.Sees(z.X, z.Y)).ToList();
         w.Write7BitEncodedInt(zones.Count);
         foreach (var z in zones)
@@ -362,15 +364,9 @@ public static partial class Snapshot
         }
         while (j < old.Count) removed.Add(old[j++]);
         w.Write7BitEncodedInt(frame.Ids.Count);
-        w.Write7BitEncodedInt(removed.Count);
-        var last = 0;
-        foreach (var id in removed)
-        {
-            w.Write7BitEncodedInt(id - last);
-            last = id;
-        }
+        WriteIds(w, removed);
         w.Write7BitEncodedInt(changed);
-        last = 0;
+        var last = 0;
         for (var i = 0; i < frame.Ids.Count; i++)
         {
             if (masks[i] == 0) continue;
@@ -523,19 +519,68 @@ public static partial class Snapshot
 
     static ushort Angle(double a) => (ushort)((long)Math.Round(a / AngleUnit) & 0xFFFF);
 
-    static void WriteShots(World world, Side viewer, Sight sight, BinaryWriter w)
+    /// <summary>
+    /// The shots the team sees, into the frame, then against the baseline's: n count, the ids of
+    /// the baseline left out, then each shot new or turned (a homing one), as n id gap, n side,
+    /// u8 kind, f32 x, y, vx, vy. One that flies on as it did is left out: the reader carries it
+    /// along its speed, and so does the frame here (Shot.After).
+    /// </summary>
+    static void WriteShots(World world, Side viewer, Sight sight, BinaryWriter w, SnapshotFrames.Frame frame, SnapshotFrames.Frame? baseline,
+        SnapshotFrames? frames)
     {
-        var shots = world.Projectiles.Where(p => Allies(world, p.Side, viewer) || sight.Sees(p.X, p.Y)).ToList();
-        w.Write7BitEncodedInt(shots.Count);
-        foreach (var p in shots)
+        var shots = frame.Shots;
+        frame.Time = world.Time;
+        foreach (var p in world.Projectiles)
         {
-            w.Write7BitEncodedInt(p.Id);
-            w.Write7BitEncodedInt(p.Side.Id);
-            w.Write((byte)p.Kind);
-            w.Write((float)p.X);
-            w.Write((float)p.Y);
-            w.Write((float)p.Vx);
-            w.Write((float)p.Vy);
+            if (!Allies(world, p.Side, viewer) && !sight.Sees(p.X, p.Y)) continue;
+            if (shots.Count > 0 && shots[^1].Id >= p.Id) throw new InvalidOperationException("Shots out of order");
+            shots.Add(new(p.Id, p.Side.Id, (byte)p.Kind, (float)p.X, (float)p.Y, (float)p.Vx, (float)p.Vy));
+        }
+        var masks = frames?.Masks ?? [];
+        var removed = frames?.Removed ?? [];
+        masks.Clear();
+        removed.Clear();
+        var old = baseline?.Shots ?? [];
+        var dt = world.Time - (baseline?.Time ?? 0);
+        var (j, changed) = (0, 0);
+        for (var i = 0; i < shots.Count; i++)
+        {
+            while (j < old.Count && old[j].Id < shots[i].Id) removed.Add(old[j++].Id);
+            var flies = j < old.Count && old[j].Id == shots[i].Id && old[j].Flies(shots[i]);
+            if (flies) shots[i] = old[j].After(dt);
+            else changed++;
+            if (j < old.Count && old[j].Id == shots[i].Id) j++;
+            masks.Add(flies ? (byte)0 : (byte)1);
+        }
+        while (j < old.Count) removed.Add(old[j++].Id);
+        w.Write7BitEncodedInt(shots.Count);
+        WriteIds(w, removed);
+        w.Write7BitEncodedInt(changed);
+        var last = 0;
+        for (var i = 0; i < shots.Count; i++)
+        {
+            if (masks[i] == 0) continue;
+            var s = shots[i];
+            w.Write7BitEncodedInt(s.Id - last);
+            last = s.Id;
+            w.Write7BitEncodedInt(s.Side);
+            w.Write(s.Kind);
+            w.Write(s.X);
+            w.Write(s.Y);
+            w.Write(s.Vx);
+            w.Write(s.Vy);
+        }
+    }
+
+    /// <summary>n count, then increasing ids, each as the gap from the one before.</summary>
+    static void WriteIds(BinaryWriter w, List<int> ids)
+    {
+        w.Write7BitEncodedInt(ids.Count);
+        var last = 0;
+        foreach (var id in ids)
+        {
+            w.Write7BitEncodedInt(id - last);
+            last = id;
         }
     }
 

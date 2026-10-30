@@ -60,7 +60,7 @@ public static partial class Snapshot
         ReadSides(r, replica, viewer);
         ReadFields(r, replica);
         ReadEntities(r, replica, viewer, frame, baseline, frames);
-        ReadShots(r, replica);
+        ReadShots(r, replica, frame, baseline, frames);
         var zones = new List<Zone>();
         for (var n = Count(r); n > 0; n--)
         {
@@ -230,10 +230,7 @@ public static partial class Snapshot
         SnapshotFrames? frames)
     {
         var count = Count(r);
-        var removed = frames?.Removed ?? [];
-        removed.Clear();
-        var last = 0;
-        for (var n = Count(r); n > 0; n--) removed.Add(last = NextId(r, last));
+        var removed = ReadIds(r, frames?.Removed ?? []);
         var changes = Count(r);
         // Only the viewer's sight is known here: Vision.IsVisible and WasSeen answer for it as on the host.
         var visible = SightOf(replica.Visible, viewer);
@@ -482,25 +479,53 @@ public static partial class Snapshot
     }
 
     /// <summary>Shots are listed by id, as fired: those still flying keep their object, for the view that follows them.</summary>
-    static void ReadShots(BinaryReader r, World replica)
+    static void ReadShots(BinaryReader r, World replica, SnapshotFrames.Frame frame, SnapshotFrames.Frame? baseline, SnapshotFrames? frames)
     {
-        var old = replica.Projectiles;
-        var shots = new List<Projectile>();
-        var j = 0;
-        for (var n = Count(r); n > 0; n--)
+        frame.Time = replica.Time;
+        var count = Count(r);
+        var removed = ReadIds(r, frames?.Removed ?? []);
+        var changes = Count(r);
+        var old = baseline?.Shots ?? [];
+        var dt = replica.Time - (baseline?.Time ?? 0);
+        var shots = frame.Shots;
+        var change = changes > 0 ? NextId(r, 0) : int.MaxValue;
+        int b = 0, gone = 0;
+        while (b < old.Count || change != int.MaxValue)
         {
-            var id = r.Read7BitEncodedInt();
-            while (j < old.Count && old[j].Id < id) j++;
-            var p = j < old.Count && old[j].Id == id ? old[j] : new Projectile { Id = id };
-            p.Side = new Side(r.Read7BitEncodedInt());
-            p.Kind = (WeaponKind)r.ReadByte();
-            p.X = r.ReadSingle();
-            p.Y = r.ReadSingle();
-            p.Vx = r.ReadSingle();
-            p.Vy = r.ReadSingle();
-            shots.Add(p);
+            var id = b < old.Count ? old[b].Id : int.MaxValue;
+            if (id < change)
+            {
+                if (gone < removed.Count && removed[gone] == id) gone++;
+                else shots.Add(old[b].After(dt));
+                b++;
+                continue;
+            }
+            if (id == change) b++;
+            shots.Add(new(change, r.Read7BitEncodedInt(), r.ReadByte(), r.ReadSingle(), r.ReadSingle(), r.ReadSingle(), r.ReadSingle()));
+            change = --changes > 0 ? NextId(r, change) : int.MaxValue;
         }
-        replica.Projectiles = shots;
+        if (gone != removed.Count || shots.Count != count) throw new InvalidDataException("Tirs mal formés");
+        // Shots still flying keep their object, for the view that follows them.
+        var was = replica.Projectiles;
+        var list = new List<Projectile>(shots.Count);
+        var j = 0;
+        foreach (var s in shots)
+        {
+            while (j < was.Count && was[j].Id < s.Id) j++;
+            var p = j < was.Count && was[j].Id == s.Id ? was[j] : new Projectile { Id = s.Id };
+            (p.Side, p.Kind, p.X, p.Y, p.Vx, p.Vy) = (new Side(s.Side), (WeaponKind)s.Kind, s.X, s.Y, s.Vx, s.Vy);
+            list.Add(p);
+        }
+        replica.Projectiles = list;
+    }
+
+    /// <summary>Ids written by WriteIds, into a list emptied first.</summary>
+    static List<int> ReadIds(BinaryReader r, List<int> into)
+    {
+        into.Clear();
+        var last = 0;
+        for (var n = Count(r); n > 0; n--) into.Add(last = NextId(r, last));
+        return into;
     }
 
     static Strike ReadStrike(BinaryReader r) => new()
