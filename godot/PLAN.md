@@ -246,6 +246,28 @@ tests de `FixtureTests` et `CrossTests` les listent.
   perdu le perdait avec ses événements, une victoire comprise. Les événements qui décident (victoire, fin d'un mode, station
   détruite, vaisseau amiral abattu, raid, vagues, balises, lance stellaire) partent à part sur le canal fiable (`News`), comme tous
   les avis de la galaxie (`Tidings`) et la fin d'une bataille de campagne (`Over`) ; les instantanés restent non fiables.
+- Multijoueur, écran unique et serveur en ligne : « Multijoueur » remplace « Héberger une partie » et « Rejoindre ». Une liste de
+  toutes les parties à portée (nom, mode, joueurs, type, ping), chaque type dans sa couleur avec une légende : réseau local (annonces
+  UDP, qui disent désormais si elles viennent d'un serveur dédié), parties hébergées en ligne, serveurs dédiés (inscrits au serveur en
+  ligne avec `--public`, ou trouvés sur le réseau local ; un serveur trouvé des deux façons n'apparaît qu'une fois). Elle se met à jour
+  seule (liste redemandée toutes les 4 s) et par « Actualiser » ; on choisit une ligne puis « Rejoindre la partie », ou double clic ;
+  « Par adresse » reste, en une ligne ; « Héberger en local » (comme avant) et « Héberger en ligne », allumé quand le serveur en ligne
+  répond, ce que dit la ligne du haut. Le serveur en ligne (`--relay`, même exécutable, sans fenêtre ni chargement des sprites) est le
+  pont entre ceux qui hébergent et les autres : un hôte y ouvre sa partie et garde la connexion (sa fin la retire de la liste) ; un
+  joueur la rejoint par lui, qui relaie chaque message dans les deux sens avec sa fiabilité et son canal ; personne n'ouvre de port.
+  Côté jeu, c'est un transport de plus (`RelayTransport`, à côté de `Transport`, sous une interface `ITransport`) : le serveur numérote
+  les joueurs de chaque hôte comme ENet (2 et plus), la session ne change pas, batailles et campagne passent telles quelles. Sa logique
+  est en C# pur et testée sans réseau (`Sim/Net/Relay.cs` : trames, `Sim/Net/RelayHub.cs` : liste et aiguillage) : un joueur n'atteint
+  que l'hôte de sa partie et un hôte que ses joueurs ; limites de parties (32), de joueurs par partie (8), de connexions (512) et de
+  débit par partie (2 Mio/s avant compression : au-delà, les instantanés sont écartés, et une partie très au-delà en messages fiables
+  est fermée) ; 5 s pour se présenter, 30 s pour une liste inactive ; taille et numéros des messages vérifiés ; une autre version du
+  jeu ou du relais est refusée avec la raison. Le serveur en ligne sert sur son propre fil (ENet ne dort pas dans Godot : il regarde
+  chaque milliseconde quand des paquets passent, toutes les dix sinon), écrit ouvertures, entrées et départs, et toutes les dix
+  secondes sa charge ; Ctrl+C le ferme en prévenant chacun. Un hôte en ligne qui le perd revient au menu en le disant. Quitter le jeu
+  quitte proprement la partie en réseau : les autres le savent tout de suite. Adresse par défaut `51.91.214.135:27029`, réglable dans
+  les options (« Serveur en ligne ») ou par `--master`. Mesures en boucle locale (`--probe`) : aller-retour médian 0,04 ms en direct,
+  2,4 à 3,4 ms par le relais (95 % sous 7 à 14 ms) ; pour une partie en bataille (un hôte, un joueur, 20 à 30 Kio/s par sens), le
+  relais prend 5 à 8 % d'un cœur (2 % au repos) et 180 Mo de mémoire. Le reste du chemin est celui du réseau jusqu'au serveur.
 
 ## Ce qui change de technique
 

@@ -45,20 +45,28 @@ Pour une capture sans aucune fenêtre à l'écran (gamescope, déjà installé) 
 
 ## Jouer en réseau
 
-Les batailles et la campagne se jouent à plusieurs, en réseau local ou par Internet.
+Les batailles et la campagne se jouent à plusieurs, en réseau local ou par Internet. Tout passe par l'écran
+« Multijoueur » du menu principal.
 
-- **Héberger** : menu principal, « Héberger une partie », puis le mode. Le salon s'ouvre avec toi et une
-  place « Joueur distant · libre » ; il donne l'adresse à communiquer. Tu règles tout ; chaque joueur règle sa
-  place et se dit prêt ; « Lancer la partie » s'allume quand tout le monde l'est.
-- **Rejoindre** : menu principal, « Rejoindre ». Les parties du réseau local s'affichent d'elles-mêmes ;
-  sinon, saisir `adresse:port` (port 24680 par défaut). Ton nom se change dans les options.
-- **Campagne** : « Héberger une partie », puis « Campagne galactique ». L'hôte règle la vitesse pour tous, chacun peut mettre en
-  pause. Elle se sauvegarde chez l'hôte (`user://campaign-net.json`) ; pour la reprendre, « Héberger une partie », puis « Reprendre
-  la campagne » : chaque joueur retrouve sa place en rejoignant sous le même nom (son nom se règle dans les options), ou l'hôte la
-  donne à un bot. Pas de campagne sur serveur dédié.
-- Sur Internet, l'hôte ouvre le port **24680 en UDP** vers sa machine (box, pare-feu). Les annonces du réseau
-  local passent par le port 24681 en UDP (diffusion) : si un pare-feu les bloque, rejoindre par adresse marche
-  toujours.
+- **La liste** : toutes les parties à portée, une ligne chacune (nom, mode, joueurs, type, ping), dans la couleur
+  de son type : vert pour le réseau local (annonces UDP), bleu pour les parties hébergées en ligne (par le serveur
+  en ligne), violet pour les serveurs dédiés (inscrits au serveur en ligne ou trouvés sur le réseau local). Elle se
+  met à jour d'elle-même ; « Actualiser » redemande la liste au serveur en ligne. La ligne du haut dit s'il répond.
+- **Rejoindre** : choisir une ligne, puis « Rejoindre la partie » (ou double clic, ou Entrée sur la ligne choisie).
+  « Par adresse » rejoint un hôte à son `adresse:port` (port 24680 par défaut). Ton nom se change dans les options.
+- **Héberger en local** : puis le mode. Le salon s'ouvre avec toi et une place « Joueur distant · libre » ; il
+  donne l'adresse à communiquer. Tu règles tout ; chaque joueur règle sa place et se dit prêt ; « Lancer la partie »
+  s'allume quand tout le monde l'est. Sur Internet, l'hôte ouvre le port **24680 en UDP** vers sa machine (box,
+  pare-feu). Les annonces du réseau local passent par le port 24681 en UDP (diffusion) : si un pare-feu les bloque,
+  rejoindre par adresse marche toujours.
+- **Héberger en ligne** (allumé quand le serveur en ligne répond) : la même chose, mais la partie s'inscrit au
+  serveur en ligne et tout passe par lui ; personne n'ouvre de port. Elle s'affiche dans la liste de chacun tant
+  que l'hôte reste, et disparaît quand il part.
+- **Campagne** : héberger, puis « Campagne galactique ». L'hôte règle la vitesse pour tous, chacun peut mettre en
+  pause. Elle se sauvegarde chez l'hôte (`user://campaign-net.json`) ; pour la reprendre, héberger (en local ou en
+  ligne), puis « Reprendre la campagne » : chaque joueur retrouve sa place en rejoignant sous le même nom (son nom se
+  règle dans les options), ou l'hôte la donne à un bot. Pas de campagne sur serveur dédié.
+- **Serveur en ligne** : `51.91.214.135:27029` par défaut, à changer dans les options (« Serveur en ligne »).
 
 **Serveur dédié**, sans fenêtre ni joueur à lui ; le premier joueur arrivé mène le salon (réglages, places,
 lancement), le suivant s'il part :
@@ -70,13 +78,36 @@ godot --headless --path godot/Game -- --server --port=24680 --name="Mon serveur"
 `--mode` (`survival`, `zones`, `assault`, `regicide` ; une escarmouche sans lui) fixe le mode du salon. La campagne n'y est pas.
 Le serveur écrit dans la console qui arrive et part, les lancements, et toutes les dix secondes ce que coûte
 la bataille (instantanés par seconde et par joueur, temps d'écriture, débit avant et après compression).
-Ctrl+C l'arrête.
+Ctrl+C l'arrête. Avec `--public`, il s'inscrit aussi au serveur en ligne (`--master`, sinon celui des options) et
+s'affiche dans la liste de tous, à l'adresse d'où le serveur en ligne le voit et sur son `--port`
+(`--public=ADRESSE` pour en donner une autre) ; les joueurs le rejoignent directement : son port doit être ouvert.
+
+**Serveur en ligne** (le pont entre ceux qui hébergent et ceux qui rejoignent) : il tient la liste des parties et
+relaie celles hébergées en ligne, entre chaque joueur et son hôte, avec la fiabilité et le canal de chaque
+message. Ce n'est pas un serveur de jeu : il ne simule rien. Même exécutable que le jeu, sans fenêtre :
+
+```bash
+godot --headless --path godot/Game -- --relay --port=27029
+# exporté : ./SandboxShip.x86_64 --headless -- --relay --port=27029
+```
+
+Il n'ouvre que ce port (UDP). Sa ligne « à l'écoute sur le port » dit qu'il est prêt ; il écrit chaque partie ouverte
+ou fermée, chaque joueur qui entre ou part, et toutes les dix secondes sa charge : parties, joueurs, débit avant et
+après compression, paquets écartés, processeur. Limites : 32 parties, 8 joueurs par partie, 2 Mio/s par partie avant
+compression (au-delà, les instantanés sont écartés ; une partie qui dépasse de loin en messages fiables est fermée),
+512 connexions, 5 s pour se présenter, messages d'1 Mio au plus. Un joueur n'atteint que l'hôte de sa partie, un
+hôte que ses joueurs ; une autre version du jeu est refusée avec la raison. Ctrl+C l'arrête après avoir prévenu
+chacun. Sur Pelican, l'egg `hosting/pelican/egg-sandbox-ship.yaml` le lance avec le rôle `relay`.
 
 Pour vérifier sans clic, après `--` : `--host` (héberge un salon de `--mode` avec une place libre, et lance
 trois secondes après que tout le monde est prêt), `--join=ADRESSE:PORT` (rejoint, et se dit prêt une fois
 assis), `--name=NOM`, `--port=N`, `--order=SECONDES` (les vaisseaux du joueur, construits au départ, partent en
 attaque-mouvement vers le centre à cet âge de la bataille), `--pause=SECONDES` (le joueur met alors la partie
-en pause pour tous), `--menu=join` (l'écran « Rejoindre »). En campagne (`--host --mode=campaign`) : `--speed=N` (vitesse de la galaxie,
+en pause pour tous), `--menu=multiplayer` (l'écran « Multijoueur »), `--master=ADRESSE:PORT` (le serveur en ligne, à la
+place de celui des options), `--online` (avec `--host` : héberge en ligne), `--join=online` (choisit dans la liste la
+première partie hébergée en ligne, puis la rejoint par le serveur en ligne), `--beacon=PORT` (les annonces du réseau
+local sur un autre port que 24681), `--probe` (mesure l'aller-retour d'un message, directement sur `--port` puis par
+`--master`, et s'arrête). En campagne (`--host --mode=campaign`) : `--speed=N` (vitesse de la galaxie,
 chez l'hôte), `--attack=S,…` et `--raid=S,…` (à ces âges de la galaxie, les flottes du joueur partent vers la planète la plus proche
 d'un autre joueur, ou vers celle des Errants), `--build=S,…` (des frégates à chaque planète, autant que les crédits le permettent),
 `--choose=command|auto,…` (réponses aux invites de bataille, dans l'ordre, la dernière répétée), `--truce=S` (une trêve proposée à
@@ -97,6 +128,15 @@ sauvegarde dans `/tmp/net.json`, que `--resume` reprend ensuite, Bob rejoignant 
 ```bash
 gamescope --backend headless -W 1280 -H 800 -w 1280 -h 800 -- godot --path . --disable-vsync --max-fps 60 -- --host --mode=campaign --size=small --name=Alice --speed=4 --choose=command --answer=yes --order=5 --save=/tmp/net.json --snap=/tmp/alice --frames=13000 --shot=alice.png &
 gamescope --backend headless -W 1280 -H 800 -w 1280 -h 800 -- godot --path . --disable-vsync --max-fps 60 -- --join=127.0.0.1:24680 --name=Bob --attack=20 --truce=90 --choose=command --order=5 --snap=/tmp/bob --frames=12800 --shot=bob.png
+```
+
+Par un serveur en ligne local, sur un port d'essai : Alice héberge en ligne, Bob la trouve dans la liste et la rejoint
+par le relais, sans aucun port de jeu ouvert entre eux (`--mode=campaign` chez Alice pour une campagne) :
+
+```bash
+godot --headless --path . -- --relay --port=27129 &
+gamescope --backend headless -W 1280 -H 800 -w 1280 -h 800 -- godot --path . --disable-vsync --max-fps 60 -- --host --online --master=127.0.0.1:27129 --name=Alice --order=30 --frames=5400 --shot=alice.png &
+gamescope --backend headless -W 1280 -H 800 -w 1280 -h 800 -- godot --path . --disable-vsync --max-fps 60 -- --join=online --master=127.0.0.1:27129 --name=Bob --order=30 --snap=/tmp/bob --frames=6600 --shot=bob.png
 ```
 
 ## Exporter
