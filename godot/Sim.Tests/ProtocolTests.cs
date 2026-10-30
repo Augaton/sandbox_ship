@@ -110,7 +110,8 @@ public class ProtocolTests
         Assert.Null(Protocol.DecodeLanGame([1, 2, 3, 4, 5, 6]));
         var bytes = Protocol.Encode(b);
         Assert.Null(Protocol.DecodeLanGame(bytes[..^3]));
-        bytes[^5] = 200;
+        // The mode: before taken, seats, port and the dedicated flag.
+        bytes[^6] = 200;
         Assert.Null(Protocol.DecodeLanGame(bytes));
     }
 }
