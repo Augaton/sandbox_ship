@@ -165,6 +165,8 @@ public sealed partial class Session : Node
 
     public override void _Process(double delta)
     {
+        // Left this frame (the game quitting before this node's turn): its connection is closed.
+        if (Current != this) return;
         clock += delta;
         net.Poll(Came, Went, Received, Broken);
         if (Current != this) return;

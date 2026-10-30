@@ -1,8 +1,9 @@
-// The entity records of recent battle snapshots (not in the web version), for deltas: a host
-// keeps those it sent a player, the player those it read. A snapshot is written against the
-// newest one the player acknowledged (its baseline): an entity whose record did not change
-// since is left out, and only the parts of a record that changed go (see Snapshot.cs). Both
-// ends hold the same bytes for the same snapshot, so the player rebuilds every record.
+// The entity records and shots of recent battle snapshots (not in the web version), for deltas:
+// a host keeps those it sent a player, the player those it read. A snapshot is written against
+// the newest one the player acknowledged (its baseline): an entity whose record did not change
+// since is left out, and only the parts of a record that changed go; so is a shot that flies on
+// (see Snapshot.cs). Both ends hold the same bytes for the same snapshot, so the player rebuilds
+// every record.
 namespace SandboxShip.Sim;
 
 public sealed class SnapshotFrames
@@ -14,7 +15,7 @@ public sealed class SnapshotFrames
     /// </summary>
     public const int Kept = 32;
 
-    /// <summary>Parts of an entity's record (see Snapshot.WriteEntity): who it is, where, its health, the rest.</summary>
+    /// <summary>Parts of an entity's record (see Snapshot.WriteRecord): who it is, where, its health, the rest.</summary>
     internal const int Segments = 4;
 
     /// <summary>A shot as a snapshot gives it.</summary>
