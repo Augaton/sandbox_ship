@@ -7,13 +7,14 @@
 // Layout, little-endian; "n" is a 7-bit encoded int (ids, counts, sides, levels):
 //   header    u32 magic "SSNP", u16 version, n viewer
 //   world     f64 time, f64 width, f64 height, u8 flags (fog, sandbox tools, winner), [n winner], f64 last damage
-//   mode      n length, then the battle mode's own state: empty in version 1
+//   mode      n length, then the battle mode's state (see WriteMode): u8 kind and that mode's own fields
 //   sides     n count; each: n side, u8 race, n team, u32 color, u8 flags (had a station, has one, viewer),
 //             [n station id], n built, n lost, n kills, f32 damage, f32 earned; the viewer's own also
 //             its economy (credits, queues, research, loops, hero delays, rally point)
 //   fields    n count; each: n id, f32 x, f32 y, f32 radius, n mine id (-1: none)
 //   entities  n count; each: see WriteEntity. Foes the viewer's team does not see are left out,
-//             but for structures seen before (remembered), sent with only their place and level
+//             but for structures seen before (remembered), sent with only their place and level, and
+//             in regicide the flagships, whose place everyone knows (sent the same way, without their parts)
 //   shots     n count; each: n id, n side, u8 kind, f32 x, y, vx, vy. Those far from any eye of the team are left out
 //   zones     n count; each: u8 kind, n side, f32 x, y, r
 //   strikes   n count; each: see WriteStrike. All of them: every side sees a blow coming
@@ -30,9 +31,9 @@ public static partial class Snapshot
 {
     /// <summary>
     /// Bumped with any change to the layout, the type table (a new ship class, structure or part)
-    /// included: a reader refuses any other version. 2 is meant for the battle modes' section.
+    /// included: a reader refuses any other version. 2: the battle modes' state and events.
     /// </summary>
-    public const ushort Version = 1;
+    public const ushort Version = 2;
     const uint Magic = 0x504E5353;
 
     /// <summary>Room around the team's sight within which shots and blows still show: they fly in from the dark.</summary>
@@ -60,7 +61,11 @@ public static partial class Snapshot
         Pilot = 1 << 13, Order = 1 << 14, Range = 1 << 15,
     }
 
-    enum Tag : byte { Destroyed = 1, Hit, Built, Delivered, Researched, AbilityUsed, StrikeLanded, Rebuilt, Victory, RaidWon, LanceOnline }
+    enum Tag : byte
+    {
+        Destroyed = 1, Hit, Built, Delivered, Researched, AbilityUsed, StrikeLanded, Rebuilt, Victory, RaidWon, LanceOnline,
+        WaveIncoming, WaveCleared, BeaconTaken, BeaconLost, FlagshipLost, ClockWarning,
+    }
 
     /// <summary>
     /// Writes what `viewer`'s team may see of the battle. `events` are those since the previous
@@ -77,8 +82,10 @@ public static partial class Snapshot
         w.Write((byte)((world.Fog ? 1 : 0) | (world.SandboxTools ? 2 : 0) | (world.Winner is not null ? 4 : 0)));
         if (world.Winner is Side winner) w.Write7BitEncodedInt(winner.Id);
         w.Write(world.LastDamage);
-        // The battle mode's state goes here, its length first, so that it stays in one place.
-        w.Write7BitEncodedInt(0);
+        // The battle mode's state, its length first: a reader checks it took all of it.
+        var mode = ModeBytes(world.Mode);
+        w.Write7BitEncodedInt(mode.Length);
+        w.Write(mode);
         WriteSides(world, viewer, w);
         w.Write7BitEncodedInt(world.Fields.Count);
         foreach (var f in world.Fields)
@@ -107,6 +114,63 @@ public static partial class Snapshot
         var told = (events ?? world.Events).Where(ev => Tells(world, viewer, ev, shown, sight)).ToList();
         w.Write7BitEncodedInt(told.Count);
         foreach (var ev in told) WriteEvent(world, w, ev, shown);
+    }
+
+    /// <summary>
+    /// u8 kind, then that mode's fields; the others keep their defaults on the replica (the
+    /// escorts of regicide stay the host's: only its AI needs them).
+    ///   survival  n wave, n cleared, f64 next wave (infinite after the last one)
+    ///   zones     n target; n beacons, each: f32 x, y, n holder + 1 (0: nobody), n claim + 1, f32 progress, u8 contested;
+    ///             n scores, each: n side, f64 points
+    ///   assault   f64 deadline
+    ///   regicide  n flagships, each: n side, n entity id
+    /// </summary>
+    static byte[] ModeBytes(ModeState m)
+    {
+        using var ms = new MemoryStream();
+        using (var w = new BinaryWriter(ms))
+        {
+            w.Write((byte)m.Kind);
+            switch (m.Kind)
+            {
+                case BattleMode.Survival:
+                    w.Write7BitEncodedInt(m.Wave);
+                    w.Write7BitEncodedInt(m.Cleared);
+                    w.Write(m.NextWave);
+                    break;
+                case BattleMode.Zones:
+                    w.Write7BitEncodedInt(m.ZoneTarget);
+                    w.Write7BitEncodedInt(m.Beacons.Count);
+                    foreach (var b in m.Beacons)
+                    {
+                        w.Write((float)b.X);
+                        w.Write((float)b.Y);
+                        w.Write7BitEncodedInt(b.Holder is Side h ? h.Id + 1 : 0);
+                        w.Write7BitEncodedInt(b.Claim is Side c ? c.Id + 1 : 0);
+                        w.Write((float)b.Progress);
+                        w.Write(b.Contested);
+                    }
+                    w.Write7BitEncodedInt(m.Scores.Count);
+                    foreach (var (side, points) in m.Scores)
+                    {
+                        w.Write7BitEncodedInt(side.Id);
+                        w.Write(points);
+                    }
+                    break;
+                case BattleMode.Assault:
+                    w.Write(m.Deadline);
+                    break;
+                case BattleMode.Regicide:
+                    w.Write7BitEncodedInt(m.Flagships.Count);
+                    foreach (var (side, id) in m.Flagships)
+                    {
+                        w.Write7BitEncodedInt(side.Id);
+                        w.Write7BitEncodedInt(id);
+                    }
+                    break;
+            }
+        }
+        return ms.ToArray();
     }
 
     static void WriteSides(World world, Side viewer, BinaryWriter w)
@@ -189,24 +253,34 @@ public static partial class Snapshot
     /// <summary>
     /// What the viewer's team sees, as the view shows it: its own and its allies' entities, the
     /// foes it sees, and the foes' structures it saw once (remembered). A part goes with what
-    /// it is attached to: never the turrets of a ship that is hidden or cloaked. Returns the ids written.
+    /// it is attached to: never the turrets of a ship that is hidden or cloaked. In regicide, a
+    /// foe flagship out of sight goes as a remembered structure does, its place only, for the
+    /// minimap that shows every flagship. Returns the ids written.
     /// </summary>
     static HashSet<int> WriteEntities(World world, Side viewer, BinaryWriter w)
     {
         var shown = new HashSet<int>();
+        HashSet<int>? placed = null;
         var list = new List<(Entity E, bool Remembered)>();
         foreach (var e in world.Entities)
         {
-            if (e.ParentId is int parent && !shown.Contains(parent)) continue;
+            if (e.ParentId is int parent && (!shown.Contains(parent) || placed?.Contains(parent) == true)) continue;
             bool remembered;
             if (Vision.IsVisible(world, viewer, e)) remembered = false;
             else if (e.Kind != EntityKind.Ship && Vision.WasSeen(world, viewer, e)) remembered = true;
+            else if (e.Kind == EntityKind.Ship && world.Mode.Flagships.ContainsValue(e.Id))
+            {
+                remembered = true;
+                (placed ??= []).Add(e.Id);
+            }
             else continue;
             shown.Add(e.Id);
             list.Add((e, remembered));
         }
         w.Write7BitEncodedInt(list.Count);
         foreach (var (e, remembered) in list) WriteEntity(w, e, viewer, remembered);
+        // A flagship known only by its place tells nothing of what it does.
+        if (placed is not null) shown.ExceptWith(placed);
         return shown;
     }
 
@@ -366,6 +440,8 @@ public static partial class Snapshot
         Researched r => Allies(world, r.Side, viewer),
         AbilityUsed a => a.Id == AbilityId.StarLance || Allies(world, a.Side, viewer) || shown.Contains(a.EntityId),
         StrikeLanded or Victory or RaidWon => true,
+        // The battle modes' news: waves, beacons, flagships and the assault's clock are everyone's.
+        WaveIncoming or WaveCleared or BeaconTaken or BeaconLost or FlagshipLost or ClockWarning => true,
         Rebuilt r => Allies(world, r.Side, viewer),
         _ => false,
     };
@@ -447,6 +523,37 @@ public static partial class Snapshot
                 w.Write7BitEncodedInt(rw.Side.Id);
                 w.Write(rw.Credits);
                 w.Write(rw.Tech is TechId t ? (byte)t : byte.MaxValue);
+                break;
+            case WaveIncoming wi:
+                w.Write((byte)Tag.WaveIncoming);
+                w.Write7BitEncodedInt(wi.Wave);
+                w.Write((float)wi.X);
+                w.Write((float)wi.Y);
+                w.Write(wi.Boss is ShipClass boss ? (byte)boss : byte.MaxValue);
+                break;
+            case WaveCleared wc:
+                w.Write((byte)Tag.WaveCleared);
+                w.Write7BitEncodedInt(wc.Wave);
+                break;
+            case BeaconTaken bt:
+                w.Write((byte)Tag.BeaconTaken);
+                w.Write7BitEncodedInt(bt.Beacon);
+                w.Write7BitEncodedInt(bt.Side.Id);
+                break;
+            case BeaconLost bl:
+                w.Write((byte)Tag.BeaconLost);
+                w.Write7BitEncodedInt(bl.Beacon);
+                w.Write7BitEncodedInt(bl.Side.Id);
+                break;
+            case FlagshipLost fl:
+                w.Write((byte)Tag.FlagshipLost);
+                w.Write7BitEncodedInt(fl.Side.Id);
+                w.Write((float)fl.X);
+                w.Write((float)fl.Y);
+                break;
+            case ClockWarning cw:
+                w.Write((byte)Tag.ClockWarning);
+                w.Write((float)cw.Left);
                 break;
         }
     }

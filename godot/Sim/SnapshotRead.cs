@@ -29,7 +29,7 @@ public static partial class Snapshot
         replica.SandboxTools = (flags & 2) != 0;
         replica.Winner = (flags & 4) != 0 ? new Side(r.Read7BitEncodedInt()) : null;
         replica.LastDamage = r.ReadDouble();
-        r.ReadBytes(Count(r));
+        ReadMode(r, replica.Mode);
         ReadSides(r, replica, viewer);
         ReadFields(r, replica);
         ReadEntities(r, replica, viewer);
@@ -54,6 +54,51 @@ public static partial class Snapshot
     }
 
     static int? Optional(BinaryReader r) => r.Read7BitEncodedInt() is var id && id >= 0 ? id : null;
+
+    /// <summary>The battle mode's state (see ModeBytes), into the replica's own, beacons in place; it must take the whole length announced.</summary>
+    static void ReadMode(BinaryReader r, ModeState mode)
+    {
+        var length = Count(r);
+        var bytes = r.ReadBytes(length);
+        if (bytes.Length != length) throw new EndOfStreamException();
+        using var m = new BinaryReader(new MemoryStream(bytes));
+        mode.Kind = (BattleMode)m.ReadByte();
+        Side? SideOrNone() => m.Read7BitEncodedInt() is var id && id > 0 ? new Side(id - 1) : null;
+        switch (mode.Kind)
+        {
+            case BattleMode.Standard: break;
+            case BattleMode.Survival:
+                mode.Wave = m.Read7BitEncodedInt();
+                mode.Cleared = m.Read7BitEncodedInt();
+                mode.NextWave = m.ReadDouble();
+                break;
+            case BattleMode.Zones:
+                mode.ZoneTarget = m.Read7BitEncodedInt();
+                var n = Count(m);
+                if (mode.Beacons.Count != n) mode.Beacons = [.. Enumerable.Range(0, n).Select(_ => new Beacon(0, 0))];
+                foreach (var b in mode.Beacons)
+                {
+                    b.X = m.ReadSingle();
+                    b.Y = m.ReadSingle();
+                    b.Holder = SideOrNone();
+                    b.Claim = SideOrNone();
+                    b.Progress = m.ReadSingle();
+                    b.Contested = m.ReadBoolean();
+                }
+                mode.Scores.Clear();
+                for (var i = Count(m); i > 0; i--) mode.Scores[new Side(m.Read7BitEncodedInt())] = m.ReadDouble();
+                break;
+            case BattleMode.Assault:
+                mode.Deadline = m.ReadDouble();
+                break;
+            case BattleMode.Regicide:
+                mode.Flagships.Clear();
+                for (var i = Count(m); i > 0; i--) mode.Flagships[new Side(m.Read7BitEncodedInt())] = m.Read7BitEncodedInt();
+                break;
+            default: throw new InvalidDataException($"Mode de bataille inconnu : {mode.Kind}");
+        }
+        if (m.BaseStream.Position != length) throw new InvalidDataException("État du mode mal formé");
+    }
 
     static void ReadSides(BinaryReader r, World replica, Side viewer)
     {
@@ -326,6 +371,12 @@ public static partial class Snapshot
         Tag.Rebuilt => new Rebuilt(r.Read7BitEncodedInt(), new Side(r.Read7BitEncodedInt()), (HardpointRole)r.ReadByte()),
         Tag.Victory => new Victory(new Side(r.Read7BitEncodedInt()), r.Read7BitEncodedInt()),
         Tag.RaidWon => new RaidWon(new Side(r.Read7BitEncodedInt()), r.ReadDouble(), r.ReadByte() is var t && t != byte.MaxValue ? (TechId)t : null),
+        Tag.WaveIncoming => new WaveIncoming(r.Read7BitEncodedInt(), r.ReadSingle(), r.ReadSingle(), r.ReadByte() is var boss && boss != byte.MaxValue ? (ShipClass)boss : null),
+        Tag.WaveCleared => new WaveCleared(r.Read7BitEncodedInt()),
+        Tag.BeaconTaken => new BeaconTaken(r.Read7BitEncodedInt(), new Side(r.Read7BitEncodedInt())),
+        Tag.BeaconLost => new BeaconLost(r.Read7BitEncodedInt(), new Side(r.Read7BitEncodedInt())),
+        Tag.FlagshipLost => new FlagshipLost(new Side(r.Read7BitEncodedInt()), r.ReadSingle(), r.ReadSingle()),
+        Tag.ClockWarning => new ClockWarning(r.ReadSingle()),
         var tag => throw new InvalidDataException($"Événement inconnu : {tag}"),
     };
 }

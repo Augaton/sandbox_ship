@@ -280,8 +280,8 @@ public class SnapshotTests(ITestOutputHelper output)
             Assert.Empty(replica.Factions);
             Assert.Equal(0, replica.Time);
         }
-        // Version 1 reads.
-        Assert.Equal(1, BitConverter.ToUInt16(bytes, 4));
+        // Its version reads.
+        Assert.Equal(Snapshot.Version, BitConverter.ToUInt16(bytes, 4));
         Read(bytes, replica);
         Assert.NotEmpty(replica.Entities);
     }
