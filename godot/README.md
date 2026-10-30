@@ -34,7 +34,8 @@ niveau de plateforme, en pause), `--skip=SECONDES` (partie jouée d'avance par l
 `--at=X,Y` (centre la vue de bataille), `--menu=home|new|controls|credits|options|lobby-MODE` (`new` : les
 modes ; `lobby-skirmish`, `lobby-campaign`, `lobby-assault`… : le salon de ce mode, que `--seats=N` remplit
 d'IA et où `--teams=1,2,…` place les équipes dans l'ordre des places),
-`--size=small|medium|large` (carte ou galaxie de `--start`), `--shot=image.png --frames=N`
+`--size=small|medium|large` (carte ou galaxie de `--start`), `--mode=survival|zones|assault|regicide`
+(règles de `--start=battle` ; en assaut, le joueur défend), `--shot=image.png --frames=N`
 (capture puis quitte ; les images se comptent une fois le chargement fini), `--dump=dossier`
 (sprites composés, et `boot.png`, le logo de l'écran de démarrage). Ajouter `--disable-vsync`
 avant `--` si la fenêtre est cachée : sinon le compositeur la ralentit. Avec `--shot`, la

@@ -36,11 +36,12 @@ public sealed record MenuChoice
 /// --menu=home|new|controls|credits|options|lobby-MODE (the menu screen opened first; new: the
 /// modes; lobby-skirmish, lobby-campaign...: that mode's lobby, see LobbyMode; skirmish: lobby-skirmish),
 /// --seats=N and --teams=T,T... (that lobby's bots added up to N seats, then its teams in seat order),
-/// --size=small|medium|large (the map, or the galaxy, of --start).
+/// --size=small|medium|large (the map, or the galaxy, of --start),
+/// --mode=survival|zones|assault|regicide (the rules of --start=battle; in an assault, the player defends).
 /// Network (Network.Session): --host (hosts a lobby of --mode, a skirmish by default, with a seat open to a player, and launches
-/// once everyone is ready), --join=ADDRESS:PORT (joins it, and is ready once seated), --server (a dedicated server, with Godot's
-/// --headless), --port=N, --name=X (the player's, or the server's game), --order=SECONDS (the player's ships attack-move to the
-/// middle of the map once the battle is that old).
+/// once everyone is ready), --join=ADDRESS:PORT (joins it, and is ready once seated), --server (a dedicated server of --mode, with
+/// Godot's --headless), --port=N, --name=X (the player's, or the server's game), --order=SECONDS (the player's ships attack-move to
+/// the middle of the map once the battle is that old).
 /// </summary>
 public static class Dev
 {
@@ -55,10 +56,10 @@ public static class Dev
     public static MapSize Size = MapSize.Medium;
     public static int Seats;
     public static int[] Teams = [];
+    public static BattleMode Mode = BattleMode.Standard;
     public static bool Host, Server;
     public static string? Join, Name;
     public static int Port = Sim.Net.Protocol.DefaultPort;
-    public static LobbyMode Mode = LobbyMode.Skirmish;
     public static double Order;
 
     public static void Parse(IEnumerable<string> args)
@@ -81,12 +82,12 @@ public static class Dev
                 case "--size": Size = Enum.Parse<MapSize>(value, true); break;
                 case "--seats": Seats = int.Parse(value); break;
                 case "--teams": Teams = [.. value.Split(',').Select(int.Parse)]; break;
+                case "--mode": Mode = Enum.Parse<BattleMode>(value, true); break;
                 case "--host": Host = true; break;
                 case "--server": Server = true; break;
                 case "--join": Join = value; break;
                 case "--name": Name = value; break;
                 case "--port": Port = int.Parse(value); break;
-                case "--mode": Mode = Enum.Parse<LobbyMode>(value, true); break;
                 case "--order": Order = double.Parse(value, System.Globalization.CultureInfo.InvariantCulture); break;
             }
         }

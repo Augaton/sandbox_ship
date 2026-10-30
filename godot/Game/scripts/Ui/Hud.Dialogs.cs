@@ -183,7 +183,7 @@ public partial class Hud
         var menu = Button("Menu", scene.ToMenu);
         var close = Button("Continuer à regarder", CloseModal);
         OpenModal(Dialog(won ? "Victoire" : "Défaite",
-            Para(won ? "La station ennemie est détruite." : "Ta station est détruite.", max: 672), StatsTable(), Actions(again, reroll, menu, close)));
+            Para(EndText(won), max: 672), StatsTable(), Actions(again, reroll, menu, close)));
     }
 
     /// <summary>End of a campaign battle: the only way on is back to the galaxy map.</summary>

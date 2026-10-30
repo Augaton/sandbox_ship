@@ -414,6 +414,8 @@ public sealed class World
     public readonly SpatialGrid Grid = new();
     /// <summary>Separation's own grids: ships and structures, and what small craft are pushed by (see Movement.Separate).</summary>
     public readonly SpatialGrid Bodies = new(), Heavies = new();
+    /// <summary>The battle mode and what it keeps track of (see Modes).</summary>
+    public ModeState Mode = new();
 }
 
 /// <summary>The web version's names of ship classes, structures and parts.</summary>

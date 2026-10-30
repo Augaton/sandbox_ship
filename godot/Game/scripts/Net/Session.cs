@@ -74,11 +74,21 @@ public sealed partial class Session : Node
     {
         // Sixty frames a second are plenty for steps of 1/60 s; without a cap, an idle server spins a core.
         Engine.MaxFps = 60;
-        var error = Serve(Dev.Mode, Dev.Name ?? "Serveur Sandbox Ship", Dev.Port);
+        var error = Serve(DevMode, Dev.Name ?? "Serveur Sandbox Ship", Dev.Port);
         if (error is null) return;
         GD.PrintErr(error);
-        Main.Instance.GetTree().Quit(1);
+        Main.Instance.QuitGame();
     }
+
+    /// <summary>The lobby of --mode, for --host and --server: a skirmish by default.</summary>
+    public static LobbyMode DevMode => Dev.Mode switch
+    {
+        BattleMode.Survival => LobbyMode.Survival,
+        BattleMode.Zones => LobbyMode.Zones,
+        BattleMode.Assault => LobbyMode.Assault,
+        BattleMode.Regicide => LobbyMode.Regicide,
+        _ => LobbyMode.Skirmish,
+    };
 
     string? Listen()
     {
@@ -121,17 +131,17 @@ public sealed partial class Session : Node
         }
         else
         {
-            if (battle is null && Room is { } room) caller?.Tick(delta, () => Beacon(room));
+            if (battle is null && Room is { } room) caller?.Tick(delta, () => Announce(room));
             foreach (var (peer, since) in strangers.ToList()) if (clock - since > HelloWait) Refuse(peer, "Pas de réponse.");
         }
         BattleFrame(delta);
         DevAuto();
     }
 
-    Beacon Beacon(LobbyRoom room)
+    LanGame Announce(LobbyRoom room)
     {
         var seats = room.Lobby.Seats;
-        return new Beacon(Protocol.Version, Ui.Menu.Version, Game, room.Lobby.Mode, seats.Count(s => s.Kind == SeatKind.Human),
+        return new LanGame(Protocol.Version, Ui.Menu.Version, Game, room.Lobby.Mode, seats.Count(s => s.Kind == SeatKind.Human),
             seats.Count(s => s.Kind is SeatKind.Human or SeatKind.Open), Port);
     }
 

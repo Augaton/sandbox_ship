@@ -18,7 +18,7 @@ public partial class Menu
     /// <summary>The lobby shown is a host's this machine joined: when that game ends, the join screen says why.</summary>
     bool joined;
     BeaconListener? listener;
-    IReadOnlyList<(string Address, Beacon Beacon)> heard = [];
+    IReadOnlyList<(string Address, LanGame Game)> heard = [];
     VBoxContainer? gamesBox;
     int seenChanges = -1;
     /// <summary>The dev runs (--host, --join) start their game once, not each time the menu comes back.</summary>
@@ -88,8 +88,8 @@ public partial class Menu
         if (Dev.Host)
         {
             (hosting, opener) = (true, "host");
-            if (!HostLobby(Dev.Mode)) return Screen.Modes;
-            mode = Dev.Mode;
+            if (!HostLobby(Session.DevMode)) return Screen.Modes;
+            mode = Session.DevMode;
             return Screen.Lobby;
         }
         opener = "join";

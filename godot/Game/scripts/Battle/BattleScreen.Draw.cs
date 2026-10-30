@@ -133,6 +133,7 @@ public partial class BattleScreen
         transientsFx = Layer(Depth.Fx, "transients", g => PaintTransients(g, fxList));
         transientsTop = Layer(Depth.Overlay, "transients", g => PaintTransients(g, topList));
         overlay = Layer(Depth.Overlay, "overlay", DrawOverlay);
+        BuildModeView();
         debris = new Puffs
         {
             Texture = Assets.Frame("ph-debris"), LifeMin = 0.5, LifeMax = 1.4, SpeedMin = 60, SpeedMax = 320, ScaleStart = 1.1, ScaleEnd = 0.3, Spin = true,
@@ -182,6 +183,7 @@ public partial class BattleScreen
         transientsFx.QueueRedraw();
         transientsTop.QueueRedraw();
         overlay.QueueRedraw();
+        modeMarks?.QueueRedraw();
         fogVeil.Visible = World.Fog;
         // Units move a few pixels a frame under 16-pixel fog texels, blurred: redrawing the mask
         // every other frame looks the same and halves its cost. In between it keeps its picture.
@@ -772,6 +774,7 @@ public partial class BattleScreen
         var amber = Palette.Hex(0xe8a13a);
         // Green for the player's own, red for a foe, grey for an ally: neither to command nor to strike.
         Color Whose(Entity e) => e.Side == player ? green : Worlds.Foes(World, e.Side, player) ? red : Palette.Muted;
+        DrawFlagships(g, rect, z);
         foreach (var e in World.Entities)
         {
             var r = e.Radius + 12 / z;

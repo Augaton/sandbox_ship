@@ -54,12 +54,51 @@ public partial class Main : Node
         if (Dev.Dump is string dir) Ui.Logos.LogoImage(Ui.Loading.LogoScale).SavePng($"{dir}/boot.png");
         switch (Dev.Start)
         {
-            case "battle" or "raid": StartBattle(new BattleOptions { Player = Faction.Klaed, Slots = BattleOptions.Versus(Faction.Klaed, [Faction.Nairan]), Raid = true, Size = Dev.Size }); break;
+            case "battle" or "raid":
+                StartBattle(new BattleOptions
+                {
+                    Player = Faction.Klaed, Raid = true, Size = Dev.Size, Rules = Dev.Mode,
+                    // An assault needs its two teams: the player defends.
+                    Slots = Dev.Mode == BattleMode.Assault ? [new Slot(Faction.Klaed, Faction.Klaed, 1), new Slot(Faction.Nairan, Faction.Nairan, 2, Difficulty.Normal)]
+                        : BattleOptions.Versus(Faction.Klaed, [Faction.Nairan]),
+                });
+                break;
             case "sandbox" or "gallery": StartBattle(new BattleOptions { Player = Faction.Klaed, Slots = BattleOptions.Versus(Faction.Klaed, [Faction.Nairan]), Mode = GameMode.Sandbox, Size = Dev.Size }); break;
             case "campaign": StartCampaign(new MenuChoice { Size = Dev.Size }); break;
             case "stress": StartBattle(new BattleOptions { Player = Faction.Klaed, Slots = BattleOptions.Versus(Faction.Klaed, [Faction.Nairan, Faction.Nautolan]), Size = MapSize.Large, Seed = 7 }); break;
             default: ShowMenu(); break;
         }
+    }
+
+    /// <summary>Leaves the game: the "Quitter" entry of the menu, and the end of a capture.</summary>
+    public void QuitGame()
+    {
+        EnsureExit();
+        GetTree().Quit();
+    }
+
+    /// <summary>Closing the window quits too (Godot accepts it by itself): the same guarantee.</summary>
+    public override void _Notification(int what)
+    {
+        if (what == NotificationWMCloseRequest) EnsureExit();
+    }
+
+    bool exiting;
+
+    /// <summary>
+    /// Once the game is asked to quit, the process ends within a few seconds whatever happens
+    /// in the engine's shutdown, so that a terminal never has to interrupt it. Nothing is lost:
+    /// the settings and the campaign are saved as they change.
+    /// </summary>
+    void EnsureExit()
+    {
+        if (exiting) return;
+        exiting = true;
+        new System.Threading.Thread(() =>
+        {
+            System.Threading.Thread.Sleep(3000);
+            System.Diagnostics.Process.GetCurrentProcess().Kill();
+        }) { IsBackground = true }.Start();
     }
 
     public override void _Process(double delta)
@@ -69,7 +108,7 @@ public partial class Main : Node
         var image = GetViewport().GetTexture()?.GetImage();
         var err = image?.SavePng(Dev.Shot) ?? Error.Unavailable;
         GD.Print($"Capture {Dev.Shot} : {err}, {Engine.GetFramesPerSecond()} images/s");
-        GetTree().Quit();
+        QuitGame();
     }
 
     /// <summary>

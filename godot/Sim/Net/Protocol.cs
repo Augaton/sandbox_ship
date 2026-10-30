@@ -49,7 +49,7 @@ public abstract record Message
 }
 
 /// <summary>A host on the local network, as it calls out on the beacon port every second.</summary>
-public sealed record Beacon(int Protocol, string Version, string Name, LobbyMode Mode, int Taken, int Seats, int Port);
+public sealed record LanGame(int Protocol, string Version, string Name, LobbyMode Mode, int Taken, int Seats, int Port);
 
 public static class Protocol
 {
@@ -236,7 +236,7 @@ public static class Protocol
         return Encoding.UTF8.GetString(bytes);
     }
 
-    public static byte[] Encode(Beacon b)
+    public static byte[] Encode(LanGame b)
     {
         using var ms = new MemoryStream();
         using (var w = new BinaryWriter(ms))
@@ -254,13 +254,13 @@ public static class Protocol
     }
 
     /// <summary>A beacon heard on the local network; null for anything else that came on that port.</summary>
-    public static Beacon? DecodeBeacon(byte[] bytes)
+    public static LanGame? DecodeLanGame(byte[] bytes)
     {
         try
         {
             using var r = new BinaryReader(new MemoryStream(bytes));
             if (r.ReadUInt32() != BeaconMagic) return null;
-            var b = new Beacon(r.Read7BitEncodedInt(), Text(r), Text(r), (LobbyMode)r.ReadByte(), r.ReadByte(), r.ReadByte(), r.ReadUInt16());
+            var b = new LanGame(r.Read7BitEncodedInt(), Text(r), Text(r), (LobbyMode)r.ReadByte(), r.ReadByte(), r.ReadByte(), r.ReadUInt16());
             return Enum.IsDefined(b.Mode) ? b : null;
         }
         catch (Exception e) when (e is InvalidDataException or EndOfStreamException or FormatException)

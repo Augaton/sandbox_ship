@@ -46,7 +46,7 @@ public partial class Hud
     {
         var session = scene.Opts.Net!.Session;
         var watch = Button("Continuer à regarder", CloseModal);
-        var parts = new List<Control> { Para(won ? "La station ennemie est détruite." : "Ta station est détruite.", max: 672), StatsTable() };
+        var parts = new List<Control> { Para(EndText(won), max: 672), StatsTable() };
         if (session.Leads) parts.Add(Actions(Primary(Button("Retour au salon", session.BackToLobby)), watch));
         else
         {

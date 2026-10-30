@@ -18,12 +18,12 @@ public sealed class BeaconCaller
         udp.SetDestAddress("255.255.255.255", Protocol.BeaconPort);
     }
 
-    public void Tick(double dt, Func<Beacon> beacon)
+    public void Tick(double dt, Func<LanGame> game)
     {
         wait -= dt;
         if (wait > 0) return;
         wait = 1;
-        udp.PutPacket(Protocol.Encode(beacon()));
+        udp.PutPacket(Protocol.Encode(game()));
     }
 
     public void Close() => udp.Close();
@@ -36,7 +36,7 @@ public sealed class BeaconListener
     const double Forget = 3.5;
 
     readonly PacketPeerUdp udp = new();
-    readonly Dictionary<string, (Beacon Beacon, double Heard)> games = [];
+    readonly Dictionary<string, (LanGame Game, double Heard)> games = [];
 
     /// <summary>Why nothing can be heard (the port taken by another game on this machine), or null.</summary>
     public string? Problem { get; }
@@ -47,15 +47,15 @@ public sealed class BeaconListener
     }
 
     /// <summary>The games heard of lately, by address ("ip:port"); true when the list changed.</summary>
-    public bool Poll(double now, out IReadOnlyList<(string Address, Beacon Beacon)> found)
+    public bool Poll(double now, out IReadOnlyList<(string Address, LanGame Game)> found)
     {
         var changed = false;
         while (udp.GetAvailablePacketCount() > 0)
         {
             var bytes = udp.GetPacket();
-            if (Protocol.DecodeBeacon(bytes) is not { } b) continue;
+            if (Protocol.DecodeLanGame(bytes) is not { } b) continue;
             var address = $"{udp.GetPacketIP()}:{b.Port}";
-            changed |= !games.TryGetValue(address, out var was) || was.Beacon != b;
+            changed |= !games.TryGetValue(address, out var was) || was.Game != b;
             games[address] = (b, now);
         }
         foreach (var (address, g) in games.ToList())
@@ -64,7 +64,7 @@ public sealed class BeaconListener
             games.Remove(address);
             changed = true;
         }
-        found = [.. games.OrderBy(g => g.Key).Select(g => (g.Key, g.Value.Beacon))];
+        found = [.. games.OrderBy(g => g.Key).Select(g => (g.Key, g.Value.Game))];
         return changed;
     }
 

@@ -104,13 +104,13 @@ public class ProtocolTests
     [Fact]
     public void Beacons_read_back_and_anything_else_on_their_port_is_ignored()
     {
-        var b = new Beacon(Protocol.Version, "0.3.0", "Partie de Bob", LobbyMode.Assault, 2, 4, 24690);
-        Assert.Equal(b, Protocol.DecodeBeacon(Protocol.Encode(b)));
-        Assert.Null(Protocol.DecodeBeacon([]));
-        Assert.Null(Protocol.DecodeBeacon([1, 2, 3, 4, 5, 6]));
+        var b = new LanGame(Protocol.Version, "0.3.0", "Partie de Bob", LobbyMode.Assault, 2, 4, 24690);
+        Assert.Equal(b, Protocol.DecodeLanGame(Protocol.Encode(b)));
+        Assert.Null(Protocol.DecodeLanGame([]));
+        Assert.Null(Protocol.DecodeLanGame([1, 2, 3, 4, 5, 6]));
         var bytes = Protocol.Encode(b);
-        Assert.Null(Protocol.DecodeBeacon(bytes[..^3]));
+        Assert.Null(Protocol.DecodeLanGame(bytes[..^3]));
         bytes[^5] = 200;
-        Assert.Null(Protocol.DecodeBeacon(bytes));
+        Assert.Null(Protocol.DecodeLanGame(bytes));
     }
 }
