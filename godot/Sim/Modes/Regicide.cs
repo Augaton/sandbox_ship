@@ -25,6 +25,12 @@ public static class Regicide
     /// without it two AIs would watch each other for an hour.
     /// </summary>
     public const double AllIn = 1200;
+    /// <summary>
+    /// Sudden death, after this many seconds: flagships lose their shields and nothing mends their
+    /// hull any more, so that a battle between flagships that heal faster than they are hurt still ends.
+    /// A warning comes two minutes before.
+    /// </summary>
+    public const double SuddenDeath = 1500, Warning = 120;
 
     public static void Setup(World world)
     {
@@ -40,9 +46,23 @@ public static class Regicide
     /// A flagship gone takes its side out: all it owns self-destructs, and no one is paid for
     /// it. Should the last ones fall together, the first of them to have joined wins.
     /// </summary>
-    public static void Update(World world)
+    public static void Update(World world, double dt)
     {
         var m = world.Mode;
+        foreach (var at in new[] { SuddenDeath - Warning, SuddenDeath })
+        {
+            if (world.Time >= at && world.Time - dt < at) world.Events.Add(new ClockWarning(SuddenDeath - at));
+        }
+        // Run last in the step, after every repair and regeneration: what they gave back is taken again.
+        if (world.Time >= SuddenDeath)
+        {
+            foreach (var id in m.Flagships.Values)
+            {
+                if (world.Entities.Get(id) is not { } e) continue;
+                e.Shield = 0;
+                e.Hull = m.Worn[id] = Math.Min(e.Hull, m.Worn.GetValueOrDefault(id, e.Hull));
+            }
+        }
         List<Side>? fallen = null;
         foreach (var (side, id) in m.Flagships) if (!world.Entities.Has(id)) (fallen ??= []).Add(side);
         if (fallen is null) return;
