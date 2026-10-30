@@ -199,6 +199,26 @@ tests de `FixtureTests` et `CrossTests` les listent.
   contre 9 avant tir concentré et mort subite ; les nulles restantes opposent Kla'ed et Nautolan.
 - Tir concentré (tous modes) : les tourelles d'un vaisseau tirent sur la cible qu'on lui a ordonné d'attaquer dès
   qu'elle est à leur portée, et non plus sur l'ennemi le plus proche.
+- Multijoueur en réseau, batailles (la campagne viendra) : ENet de Godot en simple tuyau à paquets (`Game/scripts/Net/`),
+  messages en C# pur et testés (`Sim/Net/Protocol.cs` : poignée de main avec versions du jeu, des commandes et des
+  instantanés ; salon entier en JSON à chaque changement ; demandes de place ; lancement ; ordres ; instantanés ; refus ;
+  pause ; avis ; retour au salon ; départ et renvoi). Trois rôles : l'hôte qui joue (« Héberger une partie »), le
+  joueur (« Rejoindre » : parties du réseau local annoncées par diffusion UDP sur le port 24681, ou adresse:port) et le
+  serveur dédié (`--server`, sans fenêtre ni place ; le premier arrivé mène le salon avec les droits de l'hôte). Port
+  24680 par défaut, paquets compressés (zstd). Toute retouche du salon, même seul, est une demande que
+  `Sim/Net/LobbyRoom.cs` applique selon les droits : celui qui mène règle tout, les autres leur place (race, équipe,
+  couleur, prêt, ou une place libre) ; « Toi » sur une autre place y déplace le joueur ; un joueur qui part libère sa
+  place, celui qu'on en retire est renvoyé. « Toi » est la place de la machine, chez chacun. Le nom du joueur est une
+  option (au départ, le nom d'utilisateur du système). En bataille, l'hôte applique les ordres de chaque joueur au
+  début du pas suivant et lui renvoie ceux qu'il refuse ; il envoie à chacun 20 instantanés par seconde de ce que voit
+  son équipe, moins souvent au-delà de 256 Kio/s par joueur, en alternance d'une image à l'autre. Le joueur ne simule
+  rien : sa copie du monde glisse d'un instantané au suivant (50 ms de retard), les tirs filent sur leur vitesse. Vitesse
+  ×1 seulement ; la pause est celle de tous, avec qui l'a demandée ; un joueur qui part laisse son camp à l'IA ; si l'hôte
+  part, les joueurs reviennent au menu ; la fin ramène tout le monde au salon. Instantanés en version 2 : l'état du mode
+  (vagues, balises et scores, échéance de l'assaut, vaisseaux amiraux ; escortes et coques usées restent à l'hôte), ses
+  événements, et les vaisseaux amiraux hors de vue par leur place et leur coque. Mesures (tests et parties réelles) :
+  duel à 5 min, 20 instantanés/s, 29 Kio/s par joueur (environ 20 compressés), 0,1 ms d'écriture chacun ; bataille de
+  mesure (1 180 entités), 5 instantanés/s, 248 Kio/s, 1,9 ms chacun.
 
 ## Ce qui change de technique
 

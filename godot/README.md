@@ -43,6 +43,43 @@ fenêtre ne prend pas le clavier, et ni les réglages ni la sauvegarde de campag
 Pour une capture sans aucune fenêtre à l'écran (gamescope, déjà installé) :
 `gamescope --backend headless -W 1280 -H 800 -w 1280 -h 800 -- godot --path godot/Game --disable-vsync -- --shot=image.png`.
 
+## Jouer en réseau
+
+Les batailles se jouent à plusieurs (la campagne pas encore), en réseau local ou par Internet.
+
+- **Héberger** : menu principal, « Héberger une partie », puis le mode. Le salon s'ouvre avec toi et une
+  place « Joueur distant · libre » ; il donne l'adresse à communiquer. Tu règles tout ; chaque joueur règle sa
+  place et se dit prêt ; « Lancer la partie » s'allume quand tout le monde l'est.
+- **Rejoindre** : menu principal, « Rejoindre ». Les parties du réseau local s'affichent d'elles-mêmes ;
+  sinon, saisir `adresse:port` (port 24680 par défaut). Ton nom se change dans les options.
+- Sur Internet, l'hôte ouvre le port **24680 en UDP** vers sa machine (box, pare-feu). Les annonces du réseau
+  local passent par le port 24681 en UDP (diffusion) : si un pare-feu les bloque, rejoindre par adresse marche
+  toujours.
+
+**Serveur dédié**, sans fenêtre ni joueur à lui ; le premier joueur arrivé mène le salon (réglages, places,
+lancement), le suivant s'il part :
+
+```bash
+godot --headless --path godot/Game -- --server --port=24680 --name="Mon serveur" --mode=zones
+```
+
+`--mode` (`survival`, `zones`, `assault`, `regicide` ; une escarmouche sans lui) fixe le mode du salon.
+Le serveur écrit dans la console qui arrive et part, les lancements, et toutes les dix secondes ce que coûte
+la bataille (instantanés par seconde et par joueur, temps d'écriture, débit avant et après compression).
+Ctrl+C l'arrête.
+
+Pour vérifier sans clic, après `--` : `--host` (héberge un salon de `--mode` avec une place libre, et lance
+trois secondes après que tout le monde est prêt), `--join=ADRESSE:PORT` (rejoint, et se dit prêt une fois
+assis), `--name=NOM`, `--port=N`, `--order=SECONDES` (les vaisseaux du joueur, construits au départ, partent en
+attaque-mouvement vers le centre à cet âge de la bataille), `--pause=SECONDES` (le joueur met alors la partie
+en pause pour tous), `--menu=join` (l'écran « Rejoindre »). Par exemple, un hôte et un joueur sans fenêtre :
+
+```bash
+cd godot/Game
+gamescope --backend headless -W 1280 -H 800 -w 1280 -h 800 -- godot --path . --disable-vsync --max-fps 60 -- --host --order=30 --frames=3000 --shot=hote.png &
+gamescope --backend headless -W 1280 -H 800 -w 1280 -h 800 -- godot --path . --disable-vsync --max-fps 60 -- --join=127.0.0.1:24680 --name=Bob --order=30 --frames=2400 --shot=joueur.png
+```
+
 ## Exporter
 
 Les modèles d'export 4.7.2 .NET sont dans `~/.local/share/godot/export_templates`.

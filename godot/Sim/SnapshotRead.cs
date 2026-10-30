@@ -235,7 +235,13 @@ public static partial class Snapshot
         e.ParentId = (head & HasParent) != 0 ? r.Read7BitEncodedInt() : null;
         e.Hero = (head & HasHero) != 0 ? ReadHero(r) : null;
         e.Build = (head & Building) != 0 ? r.ReadSingle() : 1;
-        if ((head & Remembered) != 0) return true;
+        if ((head & Remembered) != 0)
+        {
+            if (e.Kind != EntityKind.Ship) return true;
+            e.Hull = r.ReadSingle();
+            e.MaxHull = r.ReadSingle();
+            return true;
+        }
         e.Angle = r.ReadUInt16() * AngleUnit;
         var has = (Has)r.ReadUInt16();
         e.Speed = has.HasFlag(Has.Speed) ? (double)r.ReadHalf() : 0;

@@ -1,7 +1,7 @@
 // The battle modes in snapshots (not in the web version): each mode's state reads back to the
 // very bytes and into the replica's own, the escorts excepted; the modes' news reach every
 // player; a replica of a zone control game shows the host's scores and beacons all along; in
-// regicide, a foe flagship out of sight comes by its place only, for the minimap.
+// regicide, a foe flagship out of sight comes by its place and its hull only, for the minimap and the mode panel.
 using SandboxShip.Sim.Data;
 using Xunit;
 using static SandboxShip.Sim.Worlds;
@@ -38,8 +38,9 @@ public class SnapshotModesTests
             r.Beacons.Select(b => ((float)b.X, (float)b.Y, b.Holder, b.Claim, (float)b.Progress, b.Contested)));
         Assert.Equal(h.Scores.OrderBy(s => s.Key.Id), r.Scores.OrderBy(s => s.Key.Id));
         Assert.Equal(h.Flagships.OrderBy(s => s.Key.Id), r.Flagships.OrderBy(s => s.Key.Id));
-        // The escorts are the host AI's business.
+        // The escorts and the worn hulls are the host's business.
         Assert.Empty(r.Escorts);
+        Assert.Empty(r.Worn);
     }
 
     [Theory]
@@ -122,7 +123,7 @@ public class SnapshotModesTests
     }
 
     [Fact]
-    public void In_regicide_a_foe_flagship_out_of_sight_comes_by_its_place_only()
+    public void In_regicide_a_foe_flagship_out_of_sight_comes_by_its_place_and_hull_only()
     {
         var w = Battle(BattleMode.Regicide, null);
         Steps.Run(w, 1);
@@ -135,6 +136,10 @@ public class SnapshotModesTests
         Assert.False(Vision.IsVisible(replica, Klaed, shown));
         Assert.False(Vision.WasSeen(replica, Klaed, shown));
         Assert.DoesNotContain(replica.Entities, e => e.ParentId == foe.Id);
+        // Its hull, as every flagship's, is known to all.
+        foe.Hull = foe.MaxHull * 0.6;
+        Read(Write(w, Klaed), replica);
+        Assert.Equal(((float)foe.Hull, (float)foe.MaxHull), ((float)shown.Hull, (float)shown.MaxHull));
         // It moves: the replica follows; once in sight, it comes whole, parts and all.
         foe.X += 200;
         Read(Write(w, Klaed), replica);

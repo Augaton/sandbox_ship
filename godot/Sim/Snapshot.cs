@@ -14,7 +14,8 @@
 //   fields    n count; each: n id, f32 x, f32 y, f32 radius, n mine id (-1: none)
 //   entities  n count; each: see WriteEntity. Foes the viewer's team does not see are left out,
 //             but for structures seen before (remembered), sent with only their place and level, and
-//             in regicide the flagships, whose place everyone knows (sent the same way, without their parts)
+//             in regicide the flagships, whose place and hull everyone knows (sent the same way, with their
+//             hull, without their parts)
 //   shots     n count; each: n id, n side, u8 kind, f32 x, y, vx, vy. Those far from any eye of the team are left out
 //   zones     n count; each: u8 kind, n side, f32 x, y, r
 //   strikes   n count; each: see WriteStrike. All of them: every side sees a blow coming
@@ -118,7 +119,7 @@ public static partial class Snapshot
 
     /// <summary>
     /// u8 kind, then that mode's fields; the others keep their defaults on the replica (the
-    /// escorts of regicide stay the host's: only its AI needs them).
+    /// escorts and worn hulls of regicide stay the host's: only its AI and its sudden death need them).
     ///   survival  n wave, n cleared, f64 next wave (infinite after the last one)
     ///   zones     n target; n beacons, each: f32 x, y, n holder + 1 (0: nobody), n claim + 1, f32 progress, u8 contested;
     ///             n scores, each: n side, f64 points
@@ -254,8 +255,8 @@ public static partial class Snapshot
     /// What the viewer's team sees, as the view shows it: its own and its allies' entities, the
     /// foes it sees, and the foes' structures it saw once (remembered). A part goes with what
     /// it is attached to: never the turrets of a ship that is hidden or cloaked. In regicide, a
-    /// foe flagship out of sight goes as a remembered structure does, its place only, for the
-    /// minimap that shows every flagship. Returns the ids written.
+    /// foe flagship out of sight goes as a remembered structure does, by its place and its hull,
+    /// for the minimap and the mode panel that show every flagship. Returns the ids written.
     /// </summary>
     static HashSet<int> WriteEntities(World world, Side viewer, BinaryWriter w)
     {
@@ -287,8 +288,8 @@ public static partial class Snapshot
     /// <summary>
     /// n id, u8 head (kind, size, remembered, hero, parent, building), u8 type (255: then its name),
     /// n side, u8 race, f32 x, y, f16 radius, n level, [n parent], [u8 hero race, u8 role], [f32 build];
-    /// a remembered structure stops there. Then u16 angle, u16 flags (Has) and what they announce,
-    /// and f32 hull, max hull.
+    /// a remembered structure stops there, a remembered ship (a flagship out of sight) after its f32 hull,
+    /// max hull. Then u16 angle, u16 flags (Has) and what they announce, and f32 hull, max hull.
     /// </summary>
     static void WriteEntity(BinaryWriter w, Entity e, Side viewer, bool remembered)
     {
@@ -306,7 +307,13 @@ public static partial class Snapshot
         if (e.ParentId is int parent) w.Write7BitEncodedInt(parent);
         if (e.Hero is HeroId hero) WriteHero(w, hero);
         if (e.Build < 1) w.Write((float)e.Build);
-        if (remembered) return;
+        if (remembered)
+        {
+            if (e.Kind != EntityKind.Ship) return;
+            w.Write((float)e.Hull);
+            w.Write((float)e.MaxHull);
+            return;
+        }
         w.Write(Angle(e.Angle));
         var own = e.Side == viewer;
         var fx = e.Effects;
