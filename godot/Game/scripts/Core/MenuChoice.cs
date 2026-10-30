@@ -41,7 +41,7 @@ public sealed record MenuChoice
 /// Network (Network.Session): --host (hosts a lobby of --mode, a skirmish by default, with a seat open to a player, and launches
 /// once everyone is ready), --join=ADDRESS:PORT (joins it, and is ready once seated), --server (a dedicated server of --mode, with
 /// Godot's --headless), --port=N, --name=X (the player's, or the server's game), --order=SECONDS (the player's ships attack-move to
-/// the middle of the map once the battle is that old).
+/// the middle of the map once the battle is that old), --pause=SECONDS (then the player pauses the game for everyone).
 /// </summary>
 public static class Dev
 {
@@ -60,7 +60,7 @@ public static class Dev
     public static bool Host, Server;
     public static string? Join, Name;
     public static int Port = Sim.Net.Protocol.DefaultPort;
-    public static double Order;
+    public static double Order, Pause;
 
     public static void Parse(IEnumerable<string> args)
     {
@@ -89,6 +89,7 @@ public static class Dev
                 case "--name": Name = value; break;
                 case "--port": Port = int.Parse(value); break;
                 case "--order": Order = double.Parse(value, System.Globalization.CultureInfo.InvariantCulture); break;
+                case "--pause": Pause = double.Parse(value, System.Globalization.CultureInfo.InvariantCulture); break;
             }
         }
     }

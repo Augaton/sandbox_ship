@@ -170,7 +170,10 @@ public partial class Menu
     {
         if (Session.Current is not { Room: not null } s) return null;
         if (!s.Hosting) return $"{s.Game}{(s.Leads ? " : tu as la main sur le salon" : ", réglée par l'hôte")}. Échap : quitter";
-        var ips = IP.GetLocalAddresses().Where(a => a.Contains('.') && !a.StartsWith("127.", StringComparison.Ordinal) && !a.StartsWith("169.254.", StringComparison.Ordinal)).Take(2).ToList();
+        // The home network's addresses first: 172.16 to 172.31 are as often a container's bridge.
+        static int Rank(string a) => a.StartsWith("192.168.", StringComparison.Ordinal) ? 0 : a.StartsWith("10.", StringComparison.Ordinal) ? 1 : a.StartsWith("172.", StringComparison.Ordinal) ? 3 : 2;
+        var ips = IP.GetLocalAddresses().Where(a => a.Contains('.') && !a.StartsWith("127.", StringComparison.Ordinal) && !a.StartsWith("169.254.", StringComparison.Ordinal))
+            .OrderBy(Rank).Take(2).ToList();
         var at = ips.Count > 0 ? $" à l'adresse {string.Join(" ou ", ips.Select(ip => $"{ip}:{s.Port}"))}" : $" sur le port {s.Port}";
         return $"Partie hébergée{at} : les joueurs la trouvent dans « Rejoindre ». Échap : fermer la partie";
     }
@@ -185,15 +188,26 @@ public partial class Menu
         return b;
     }
 
-    /// <summary>Without the host's rights, a section shows its settings, none of which can be changed.</summary>
+    /// <summary>
+    /// Without the host's rights, a section shows its settings, none of which can be changed:
+    /// its buttons take no pointer nor focus, but keep their look, so that the choices made show.
+    /// </summary>
     Control Locked(Control section)
     {
         if (!Leads) Lock(section);
         return section;
         static void Lock(Node n)
         {
-            if (n is BaseButton b) b.Disabled = true;
-            if (n is LineEdit e) e.Editable = false;
+            if (n is BaseButton b)
+            {
+                b.MouseFilter = Control.MouseFilterEnum.Ignore;
+                b.FocusMode = Control.FocusModeEnum.None;
+            }
+            if (n is LineEdit e)
+            {
+                e.Editable = false;
+                e.FocusMode = Control.FocusModeEnum.None;
+            }
             foreach (var child in n.GetChildren()) Lock(child);
         }
     }

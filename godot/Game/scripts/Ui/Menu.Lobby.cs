@@ -498,7 +498,15 @@ public partial class Menu
         }
         else
         {
-            var world = Scenario.CreateSkirmish(l.Skirmish());
+            // A mode's rules refuse to make a battle that does not hold together yet (a hosted lobby
+            // waiting for its second player): no map until it does, as CreateSkirmish would throw.
+            var o = l.Skirmish();
+            if (o.Mode != BattleMode.Standard && !Scenario.Check(o).Ok)
+            {
+                g.DrawRect(new Rect2(0.5f, 0.5f, w - 1, h - 1), Palette.Line, false, 1);
+                return;
+            }
+            var world = Scenario.CreateSkirmish(o);
             var (sx, sy) = (w / world.Width, h / world.Height);
             foreach (var f in world.Fields)
             {

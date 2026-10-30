@@ -13,7 +13,7 @@ public partial class BattleScreen
 {
     /// <summary>Over the network: who paused the game; null while it runs.</summary>
     public string? PausedBy { get; private set; }
-    bool devOrdered;
+    bool devOrdered, devPaused;
 
     void NetReady()
     {
@@ -52,9 +52,17 @@ public partial class BattleScreen
         Hud.Toast(on ? $"Pause demandée par {who}" : $"{who} relance la partie");
     }
 
-    /// <summary>--order=SECONDS: once the battle is that old, this player's ships attack-move to the middle of the map.</summary>
+    /// <summary>
+    /// --order=SECONDS: once the battle is that old, this player's ships attack-move to the middle
+    /// of the map. --pause=SECONDS: then, it pauses the game for everyone.
+    /// </summary>
     void DevOrder()
     {
+        if (Dev.Pause > 0 && !devPaused && World.Time >= Dev.Pause)
+        {
+            devPaused = true;
+            TogglePause();
+        }
         if (Dev.Order <= 0 || devOrdered || World.Time < Dev.Order) return;
         devOrdered = true;
         var ships = World.Entities.Where(e => e.Side == Opts.Player && e.Kind == EntityKind.Ship).Select(e => e.Id).ToArray();

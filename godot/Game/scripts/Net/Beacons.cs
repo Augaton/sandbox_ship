@@ -37,19 +37,30 @@ public sealed class BeaconListener
 
     readonly PacketPeerUdp udp = new();
     readonly Dictionary<string, (LanGame Game, double Heard)> games = [];
+    /// <summary>When to try the port again, while another game on this machine holds it.</summary>
+    double retry;
 
     /// <summary>Why nothing can be heard (the port taken by another game on this machine), or null.</summary>
-    public string? Problem { get; }
+    public string? Problem { get; private set; }
 
-    public BeaconListener()
+    public BeaconListener() => Listen(0);
+
+    void Listen(double now)
     {
-        if (udp.Bind(Protocol.BeaconPort, "0.0.0.0") != Error.Ok) Problem = $"Recherche impossible : le port {Protocol.BeaconPort} est pris.";
+        var ok = udp.Bind(Protocol.BeaconPort, "0.0.0.0") == Error.Ok;
+        Problem = ok ? null : $"Recherche impossible pour l'instant : le port {Protocol.BeaconPort} est pris par un autre jeu de cette machine.";
+        retry = now + 1;
     }
 
-    /// <summary>The games heard of lately, by address ("ip:port"); true when the list changed.</summary>
+    /// <summary>The games heard of lately, by address ("ip:port"); true when the list changed (or the port came free).</summary>
     public bool Poll(double now, out IReadOnlyList<(string Address, LanGame Game)> found)
     {
         var changed = false;
+        if (!udp.IsBound() && now >= retry)
+        {
+            Listen(now);
+            changed = Problem is null;
+        }
         while (udp.GetAvailablePacketCount() > 0)
         {
             var bytes = udp.GetPacket();

@@ -178,7 +178,7 @@ public sealed partial class Session : Node
         strangers.Remove(peer);
         if (Room?.Members.Find(m => m.Peer == peer) is not { } member) return;
         Room.Leave(peer);
-        Log($"{member.Name} est parti");
+        Log($"{member.Name} a quitté la partie");
         PlayerLeft(peer, member.Name);
         Broadcast(new Message.Room(Room.Lobby, Room.Members));
         Changes++;
@@ -324,8 +324,12 @@ public sealed partial class Session : Node
 
     static void Log(string text) => GD.Print($"[réseau] {text}");
 
-    /// <summary>The dev runs (--host, --join): the player is ready once seated, the leader launches once everyone is.</summary>
+    /// <summary>
+    /// The dev runs (--host, --join): the player is ready once seated; the leader launches once
+    /// everyone has been ready for three seconds, time for a capture of the full lobby.
+    /// </summary>
     bool devReady, devLaunched;
+    double devAllReady = double.NaN;
 
     void DevAuto()
     {
@@ -336,7 +340,11 @@ public sealed partial class Session : Node
             devReady = true;
             Edit(new LobbyRequest.SetReady(true));
         }
-        if (Leads && !devLaunched && Room.Members.Exists(m => m.Peer != Lobby.Host && m.Peer != Me) && Room.Lobby.Problems().Count == 0)
+        if (!Leads || devLaunched) return;
+        var all = Room.Members.Exists(m => m.Peer != Lobby.Host && m.Peer != Me) && Room.Lobby.Problems().Count == 0;
+        if (!all) devAllReady = double.NaN;
+        else if (double.IsNaN(devAllReady)) devAllReady = clock;
+        else if (clock - devAllReady >= 3)
         {
             devLaunched = true;
             Launch();
