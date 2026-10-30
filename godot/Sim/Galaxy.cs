@@ -117,7 +117,16 @@ public sealed class GalaxyBattle
     public Dictionary<Side, List<HeroId>> Heroes = [];
     /// <summary>Research each galaxy side came with, to know what the battle taught it: a fallen colossus' free level.</summary>
     public Dictionary<Side, ResearchLevels> Research = [];
+    /// <summary>How each human side of a pending battle chose to fight it, Tactical or Auto (Galaxies.Choose).</summary>
+    public Dictionary<Side, BattleStatus> Choices = [];
+    /// <summary>The human sides commanding a Tactical battle in the battle view; the AI plays the other one.</summary>
+    public List<Side> Commanders = [];
+    /// <summary>On a replica, what each side brings, as the snapshot told: its World stays empty (Galaxies.ForceOf).</summary>
+    public Dictionary<Side, BattleForce>? Forces;
 }
+
+/// <summary>What a side brings to a battle, as its prompt shows it: ships and heroes, hull and shields, and the defenses it holds.</summary>
+public sealed record BattleForce(ShipCounts Ships, IReadOnlyList<HeroId> Heroes, double Strength, PlanetDefense Defense);
 
 public sealed partial class GalaxyAIState
 {
@@ -163,6 +172,11 @@ public sealed partial class Galaxy
     public double Time;
     /// <summary>The local player's side: its battles wait for its choice.</summary>
     public Side Player;
+    /// <summary>
+    /// Over the network, every side a person plays, Player's included, with that player's name:
+    /// their battles wait for their choice too (Galaxies.Choose). Empty in a game played alone.
+    /// </summary>
+    public Dictionary<Side, string> Humans = [];
     /// <summary>Extent of the map the planets lie in.</summary>
     public double W = GalaxyMap.W, H = GalaxyMap.H;
     public List<Planet> Planets = [];
@@ -732,7 +746,7 @@ public static partial class Galaxies
         var att = SideOf(attacker, attackers);
         var def = SideOf(defender, defenders);
         var world = Battle.CreatePlanetBattle(att, def, defense, (int)Math.Floor(GalaxyRand(g) * 2147483646) + 1);
-        var status = attacker == g.Player || defender == g.Player ? BattleStatus.Pending : BattleStatus.Auto;
+        var status = Human(g, attacker) || Human(g, defender) ? BattleStatus.Pending : BattleStatus.Auto;
         g.Battles.Add(new GalaxyBattle
         {
             Id = id, PlanetId = planetId, Lane = lane, Attacker = attacker, Defender = defender, From = from, World = world, Status = status,
@@ -875,17 +889,98 @@ public static partial class Galaxies
         }
     }
 
-    /// <summary>The player leaves a battle they were commanding: it plays on by itself.</summary>
+    /// <summary>Whether a person plays this side: the local player, or over the network any human seat's.</summary>
+    public static bool Human(Galaxy g, Side side) => side == g.Player || g.Humans.ContainsKey(side);
+
+    /// <summary>The human sides of a battle, attacker first: those it waits for.</summary>
+    public static List<Side> HumansIn(Galaxy g, GalaxyBattle b)
+    {
+        var humans = new List<Side>(2);
+        if (Human(g, b.Attacker)) humans.Add(b.Attacker);
+        if (Human(g, b.Defender)) humans.Add(b.Defender);
+        return humans;
+    }
+
+    /// <summary>
+    /// Through whose eyes `side` sees a battle in the battle view: its own side's if it fights
+    /// there, or an ally's; else the defender's, who holds the ground (a battle stays two-sided).
+    /// </summary>
+    public static Side Viewpoint(Galaxy g, GalaxyBattle b, Side side) => Allies(g, b.Attacker, side) ? b.Attacker : b.Defender;
+
+    /// <summary>What a side brings to a battle: from its world, or on a replica as the snapshot told.</summary>
+    public static BattleForce ForceOf(GalaxyBattle b, Side side) =>
+        b.Forces?.GetValueOrDefault(side) ?? new BattleForce(Battle.Survivors(b.World, side), Battle.HeroSurvivors(b.World, side),
+            Battle.SideStrength(b.World, side), Battle.DefenseLeft(b.World, side));
+
+    /// <summary>The battles nobody commands any more play on by themselves: the commander left them all.</summary>
     public static void DelegateBattle(Galaxy g, int battleId)
     {
         var b = g.Battles.Find(x => x.Id == battleId);
-        if (b?.Status == BattleStatus.Tactical) b.Status = BattleStatus.Auto;
+        if (b?.Status != BattleStatus.Tactical) return;
+        b.Status = BattleStatus.Auto;
+        b.Commanders.Clear();
     }
 
+    /// <summary>A commander leaves a battle (not in the web version): the AI plays its side; with nobody left commanding it, it plays on by itself.</summary>
+    public static void Delegate(Galaxy g, Side side, int battleId)
+    {
+        var b = g.Battles.Find(x => x.Id == battleId);
+        if (b?.Status != BattleStatus.Tactical || !b.Commanders.Remove(side)) return;
+        if (b.Commanders.Count == 0) b.Status = BattleStatus.Auto;
+    }
+
+    /// <summary>Decides a pending battle for all its sides at once: commanded by every human side in it, or resolved on its own.</summary>
     public static void ChooseBattle(Galaxy g, int battleId, BattleStatus mode)
     {
         var b = g.Battles.Find(x => x.Id == battleId);
-        if (b?.Status == BattleStatus.Pending) b.Status = mode;
+        if (b?.Status != BattleStatus.Pending) return;
+        b.Status = mode;
+        b.Commanders = mode == BattleStatus.Tactical ? HumansIn(g, b) : [];
+    }
+
+    /// <summary>
+    /// A human side chooses how a battle waiting for it is fought (not in the web version). Once
+    /// every human side in it has chosen, the battle is commanded in the battle view (Tactical)
+    /// by those who chose to, the AI playing the other side; or, if none did, resolved on its own.
+    /// </summary>
+    public static void Choose(Galaxy g, Side side, int battleId, BattleStatus mode)
+    {
+        var b = g.Battles.Find(x => x.Id == battleId);
+        if (b?.Status != BattleStatus.Pending || mode is not (BattleStatus.Auto or BattleStatus.Tactical)) return;
+        b.Choices[side] = mode;
+        Decide(g, b);
+    }
+
+    /// <summary>A pending battle starts once every human side in it has chosen; one that no human waits for any more resolves on its own.</summary>
+    static void Decide(Galaxy g, GalaxyBattle b)
+    {
+        if (!HumansIn(g, b).TrueForAll(b.Choices.ContainsKey)) return;
+        b.Commanders = [.. new[] { b.Attacker, b.Defender }.Where(s => b.Choices.GetValueOrDefault(s) == BattleStatus.Tactical)];
+        b.Status = b.Commanders.Count > 0 ? BattleStatus.Tactical : BattleStatus.Auto;
+    }
+
+    /// <summary>A battle commanded from a view that closed: it waits for its sides' choice again.</summary>
+    public static void Reopen(GalaxyBattle b)
+    {
+        b.Status = BattleStatus.Pending;
+        b.Choices.Clear();
+        b.Commanders.Clear();
+    }
+
+    /// <summary>
+    /// A player left (not in the web version): the AI plays its side from now on, and the battles
+    /// that waited for it, or that it commanded, go on without it.
+    /// </summary>
+    public static void HandToAI(Galaxy g, Side side, Difficulty difficulty = Difficulty.Normal)
+    {
+        g.Humans.Remove(side);
+        if (g.Factions.TryGetValue(side, out var f)) f.AI ??= new GalaxyAIState { Difficulty = difficulty };
+        foreach (var b in g.Battles)
+        {
+            b.Choices.Remove(side);
+            if (b.Status == BattleStatus.Tactical && b.Commanders.Remove(side) && b.Commanders.Count == 0) b.Status = BattleStatus.Auto;
+            else if (b.Status == BattleStatus.Pending) Decide(g, b);
+        }
     }
 
     static void AdvanceAutoBattles(Galaxy g, double dt)

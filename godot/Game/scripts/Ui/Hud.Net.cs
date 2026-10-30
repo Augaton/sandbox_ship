@@ -1,7 +1,8 @@
 // The battle HUD over the network: no speed but ×1 and no sandbox; Esc opens a menu while the
 // game goes on (Space pauses it for everyone); leaving means leaving the game, a player's side
 // to the AI, or for a host, the game closed for all. The end of a battle brings everyone back
-// to the lobby when the host, or a dedicated server's leader, says so.
+// to the lobby when the host, or a dedicated server's leader, says so. In a campaign battle,
+// its commander may retreat or leave it to the AI, and one who watches goes back to the map.
 using Godot;
 using SandboxShip.Core;
 using static SandboxShip.Ui.HudKit;
@@ -37,6 +38,12 @@ public partial class Hud
         if (session.Leads && World.Winner is not null) Item("Retour au salon", session.BackToLobby);
         Item("Options", () => OpenModal(Options.Panel(CloseModal), back));
         Item("Commandes", () => ShowHelp(back));
+        if (campaign is not null && scene.Opts.Net!.Watching) Item("Retour à la carte", scene.StopWatching);
+        else if (campaign is not null)
+        {
+            if (scene.Opts.Campaign?.Attacker == Player) Item("Retraite", scene.Retreat);
+            Item("Laisser l'IA finir", scene.Delegate);
+        }
         Item("Quitter la partie", () => ConfirmLeave(back));
         OpenModal(Dialog("Menu", Para("La partie continue pendant ce menu : Espace la met en pause pour tous.", Palette.Muted, max: 320), list));
     }

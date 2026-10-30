@@ -3,7 +3,8 @@
 // plays (its lobby in the menu, its battle in the battle screen), a dedicated server (the
 // same, with no seat, no screen and no window: `--server`), and a player who joined either.
 // The host keeps the lobby (LobbyRoom) and the battle (BattleHost); a player keeps copies.
-// The battle half is in Session.Battle.cs; the messages in Sim/Net/Protocol.cs.
+// The battle half is in Session.Battle.cs, the campaign half (a host who plays only) in
+// Session.Campaign.cs; the messages in Sim/Net/Protocol.cs.
 using Godot;
 using SandboxShip.Core;
 using SandboxShip.Sim;
@@ -74,14 +75,16 @@ public sealed partial class Session : Node
     {
         // Sixty frames a second are plenty for steps of 1/60 s; without a cap, an idle server spins a core.
         Engine.MaxFps = 60;
-        var error = Serve(DevMode, Dev.Name ?? "Serveur Sandbox Ship", Dev.Port);
+        // The campaign needs a host who plays: its galaxy waits for its players' choices.
+        var error = Dev.Campaign ? "La campagne se joue sur la machine d'un joueur : « Héberger une partie »."
+            : Serve(DevMode, Dev.Name ?? "Serveur Sandbox Ship", Dev.Port);
         if (error is null) return;
         GD.PrintErr(error);
         Main.Instance.QuitGame();
     }
 
     /// <summary>The lobby of --mode, for --host and --server: a skirmish by default.</summary>
-    public static LobbyMode DevMode => Dev.Mode switch
+    public static LobbyMode DevMode => Dev.Campaign ? LobbyMode.Campaign : Dev.Mode switch
     {
         BattleMode.Survival => LobbyMode.Survival,
         BattleMode.Zones => LobbyMode.Zones,
@@ -131,10 +134,11 @@ public sealed partial class Session : Node
         }
         else
         {
-            if (battle is null && Room is { } room) caller?.Tick(delta, () => Announce(room));
+            if (battle is null && campaign is null && Room is { } room) caller?.Tick(delta, () => Announce(room));
             foreach (var (peer, since) in strangers.ToList()) if (clock - since > HelloWait) Refuse(peer, "Pas de réponse.");
         }
         BattleFrame(delta);
+        CampaignFrame(delta);
         DevAuto();
     }
 
@@ -202,7 +206,8 @@ public sealed partial class Session : Node
         if (m is Message.Hello hello)
         {
             if (!strangers.Remove(from)) return;
-            var why = Protocol.Mismatch(hello, Ui.Menu.Version) ?? (battle is not null ? "Une bataille est en cours : reviens à la fin." : room.Join(from, hello.Name));
+            var why = Protocol.Mismatch(hello, Ui.Menu.Version) ?? (battle is not null ? "Une bataille est en cours : reviens à la fin."
+                : campaign is not null ? "Une campagne est en cours : elle ne se rejoint pas en route." : room.Join(from, hello.Name));
             if (why is not null)
             {
                 Refuse(from, why);
@@ -230,6 +235,8 @@ public sealed partial class Session : Node
             case Message.Back when from == room.Leader: BackToLobby(); break;
             case Message.Order order: Ordered(from, order.Command); break;
             case Message.Pause pause: SetPause(pause.On, room.NameOf(from)); break;
+            case Message.Plan plan: Planned(from, plan.Command); break;
+            case Message.Watch watch: Watched(from, watch); break;
         }
     }
 
@@ -250,7 +257,7 @@ public sealed partial class Session : Node
                 if (!same) Changes++;
                 break;
             default:
-                FromHostInBattle(m);
+                if (!FromHostInCampaign(m)) FromHostInBattle(m);
                 break;
         }
     }
@@ -300,14 +307,15 @@ public sealed partial class Session : Node
         End();
     }
 
-    /// <summary>The game is over for this machine: shown on the menu, back from a battle if one was up.</summary>
+    /// <summary>The game is over for this machine: shown on the menu, back from a battle or the galaxy if one was up.</summary>
     void Close(string why)
     {
         Farewell = why;
         Log(why);
-        var inBattle = link is not null;
+        Main.Instance.Snap("depart", 90);
+        var inGame = link is not null || map is not null;
         End();
-        if (inBattle) Main.Instance.ShowMenu();
+        if (inGame) Main.Instance.ShowMenu();
     }
 
     void End()
@@ -316,6 +324,7 @@ public sealed partial class Session : Node
         Current = null;
         link = null;
         battle = null;
+        (campaign, map, fight, fought, front, frontOpts) = (null, null, null, null, null, null);
         net.Close();
         caller?.Close();
         Changes++;
@@ -328,22 +337,33 @@ public sealed partial class Session : Node
     /// The dev runs (--host, --join): the player is ready once seated; the leader launches once
     /// everyone has been ready for three seconds, time for a capture of the full lobby.
     /// </summary>
-    bool devReady, devLaunched;
+    bool devReady, devLaunched, devWaiting;
     double devAllReady = double.NaN;
 
     void DevAuto()
     {
-        if (Room is null || link is not null || battle is not null || (!Dev.Host && Dev.Join is null)) return;
+        if (Room is null || link is not null || battle is not null || InCampaign || (!Dev.Host && Dev.Join is null)) return;
         var own = Room.Lobby.Seats.Find(s => s.Kind == SeatKind.Human && s.Peer == Me);
+        // A resumed campaign's lobby, its players' seats still waiting for them.
+        if (Hosting && Room.Lobby.Resumed && !devWaiting)
+        {
+            devWaiting = true;
+            Main.Instance.Snap("salon-repris", 60);
+        }
         if (!Hosting && own is { Ready: false } && !devReady)
         {
             devReady = true;
             Edit(new LobbyRequest.SetReady(true));
+            Main.Instance.Snap("salon", 60);
         }
         if (!Leads || devLaunched) return;
         var all = Room.Members.Exists(m => m.Peer != Lobby.Host && m.Peer != Me) && Room.Lobby.Problems().Count == 0;
         if (!all) devAllReady = double.NaN;
-        else if (double.IsNaN(devAllReady)) devAllReady = clock;
+        else if (double.IsNaN(devAllReady))
+        {
+            devAllReady = clock;
+            Main.Instance.Snap("salon", 60);
+        }
         else if (clock - devAllReady >= 3)
         {
             devLaunched = true;

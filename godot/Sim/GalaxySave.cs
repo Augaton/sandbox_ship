@@ -7,8 +7,11 @@ using SandboxShip.Sim.Data;
 
 namespace SandboxShip.Sim;
 
-/// <summary>What the menu shows of a save: when, whose (its side and race), how many planets it holds.</summary>
-public sealed record SaveInfo(long SavedAt, Side Player, Faction Race, int Planets);
+/// <summary>
+/// What the menu shows of a save: when, whose (its side and race), how many planets it holds;
+/// for a campaign played over the network, the names of the other players, "Bob, Eve".
+/// </summary>
+public sealed record SaveInfo(long SavedAt, Side Player, Faction Race, int Planets, string Others = "");
 
 public static class GalaxySave
 {
@@ -47,6 +50,8 @@ public static class GalaxySave
         public double NextIncident;
         public long IncidentSeed;
         public List<Incident> Ongoing = [];
+        /// <summary>A campaign played over the network: the sides people played, by the name of each (none in older saves).</summary>
+        public Dictionary<Side, string> Humans = [];
     }
 
     static readonly JsonSerializerOptions Options = new()
@@ -70,6 +75,7 @@ public static class GalaxySave
             }).ToList(),
             Factions = [.. g.Factions.Values], NextId = g.NextId, Seed = g.Seed, Winner = g.Winner, Sides = true,
             Truces = g.Truces, Offers = g.Offers, Incidents = g.Incidents, NextIncident = g.NextIncident, IncidentSeed = g.IncidentSeed, Ongoing = g.Ongoing,
+            Humans = g.Humans,
         };
         return JsonSerializer.Serialize(save, Options);
     }
@@ -95,6 +101,7 @@ public static class GalaxySave
         {
             Time = s.Time, Player = s.Player, W = s.W, H = s.H, Planets = s.Planets, Lanes = s.Lanes, NextId = s.NextId, Seed = s.Seed, Winner = s.Winner,
             Truces = s.Truces, Offers = s.Offers, Incidents = s.Incidents, NextIncident = s.NextIncident, IncidentSeed = s.IncidentSeed, Ongoing = s.Ongoing,
+            Humans = s.Humans,
         };
         foreach (var f in s.Fleets) g.Fleets[f.Id] = f;
         foreach (var f in s.Factions)
@@ -145,7 +152,8 @@ public static class GalaxySave
         var s = Read(path) is string text ? Parse(text) : null;
         if (s is null || s.Version != Version) return null;
         var race = s.Sides ? s.Factions.Find(f => f.Id == s.Player)?.Race ?? (Faction)s.Player.Id : (Faction)s.Player.Id;
-        return new SaveInfo(s.SavedAt, s.Player, race, s.Planets.Count(p => p.Owner == s.Player));
+        var others = string.Join(", ", s.Humans.Where(h => h.Key != s.Player).Select(h => h.Value));
+        return new SaveInfo(s.SavedAt, s.Player, race, s.Planets.Count(p => p.Owner == s.Player), others);
     }
 
     public static void Clear(string path)

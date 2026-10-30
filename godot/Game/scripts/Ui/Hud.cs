@@ -132,7 +132,7 @@ public partial class Hud : CanvasLayer
             credits.Text = campaign;
             group.AddChild(Button("Aide", () => ShowHelp()));
             group.AddChild(Button("Options", ShowOptions));
-            if (scene.Opts.Campaign?.Attacker == Player)
+            if (scene.Opts.Campaign?.Attacker == Player && scene.Opts.Net is not { Watching: true })
             {
                 group.AddChild(Button("Retraite", scene.Retreat, "Les survivants regagnent la planète d'où ils venaient"));
             }

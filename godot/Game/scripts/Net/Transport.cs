@@ -1,7 +1,8 @@
 // The connection under a game played over the network: Godot's ENet, used as a plain packet
 // peer (no RPC), polled by its Session every frame. A host listens for players; a player joins
 // a host, which is its peer 1. Every message goes whole (Sim/Net/Protocol.cs): reliable and in
-// order, but for snapshots, which the next one replaces. Packets are compressed (zstd) by ENet.
+// order, but for snapshots, which the next one replaces; the events a snapshot must not lose go
+// apart, reliably (News, Tidings). Packets are compressed (zstd) by ENet.
 using Godot;
 using SandboxShip.Sim.Net;
 
@@ -90,7 +91,8 @@ public sealed class Transport
     {
         var bytes = Protocol.Encode(m);
         peer.SetTargetPeer(to);
-        peer.TransferMode = m is Message.State ? MultiplayerPeer.TransferModeEnum.UnreliableOrdered : MultiplayerPeer.TransferModeEnum.Reliable;
+        // Snapshots, battle and galaxy, are replaced by the next one: unreliable. Everything else, the events that must not be lost included, is reliable.
+        peer.TransferMode = m is Message.State or Message.Map ? MultiplayerPeer.TransferModeEnum.UnreliableOrdered : MultiplayerPeer.TransferModeEnum.Reliable;
         peer.PutPacket(bytes);
         Sent[to] = Sent.GetValueOrDefault(to) + bytes.Length;
     }

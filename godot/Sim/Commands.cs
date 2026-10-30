@@ -78,9 +78,12 @@ public abstract record GalaxyCommand
     /// <summary>Accepts or refuses the truce `From` offered.</summary>
     public sealed record AnswerTruce(Side From, bool Accept) : GalaxyCommand;
     public sealed record BreakTruce(Side Other) : GalaxyCommand;
-    /// <summary>A battle waiting for its sides: commanded in the battle view (Tactical) or resolved on its own (Auto).</summary>
+    /// <summary>
+    /// How the issuer wants a battle waiting for it fought: commanded in the battle view (Tactical)
+    /// or resolved on its own (Auto). It starts once every human side in it has chosen.
+    /// </summary>
     public sealed record ChooseBattle(int Battle, BattleStatus Mode) : GalaxyCommand;
-    /// <summary>Leaves a battle being commanded: it plays on by itself.</summary>
+    /// <summary>Leaves a battle being commanded: the AI plays the issuer's side; with nobody commanding it, it plays on by itself.</summary>
     public sealed record DelegateBattle(int Battle) : GalaxyCommand;
     /// <summary>The attacker falls back: its survivors return where they came from.</summary>
     public sealed record Retreat(int Battle) : GalaxyCommand;
@@ -341,11 +344,11 @@ public static partial class Commands
             case GalaxyCommand.ChooseBattle b:
                 if (b.Mode is not (BattleStatus.Auto or BattleStatus.Tactical)) return Invalid;
                 if (OwnBattle(g, issuer, b.Battle) is not { } choosing) return NotYours;
-                Galaxies.ChooseBattle(g, choosing.Id, b.Mode);
+                Galaxies.Choose(g, issuer, choosing.Id, b.Mode);
                 return Result.OK;
             case GalaxyCommand.DelegateBattle b:
                 if (OwnBattle(g, issuer, b.Battle) is not { } delegated) return NotYours;
-                Galaxies.DelegateBattle(g, delegated.Id);
+                Galaxies.Delegate(g, issuer, delegated.Id);
                 return Result.OK;
             case GalaxyCommand.Retreat b:
                 if (g.Battles.Find(x => x.Id == b.Battle) is not { } battle || battle.Attacker != issuer) return NotYours;

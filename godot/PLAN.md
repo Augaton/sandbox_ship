@@ -219,6 +219,33 @@ tests de `FixtureTests` et `CrossTests` les listent.
   événements, et les vaisseaux amiraux hors de vue par leur place et leur coque. Mesures (tests et parties réelles) :
   duel à 5 min, 20 instantanés/s, 29 Kio/s par joueur (environ 20 compressés), 0,1 ms d'écriture chacun ; bataille de
   mesure (1 180 entités), 5 instantanés/s, 248 Kio/s, 1,9 ms chacun.
+- Multijoueur en réseau, campagne galactique (« Héberger une partie », puis la campagne ; protocole en version 2) : l'hôte joue et
+  simule tout, la galaxie comme ses batailles commandées ; chaque joueur suit une copie de la galaxie qu'il ne simule jamais.
+  Instantanés de galaxie (`Sim/GalaxySnapshot*.cs`, binaire versionné, entiers à chaque fois) de ce que sait l'équipe du joueur : le
+  propriétaire de chaque planète partout, ses défenses et ses flottes seulement là où l'équipe a des yeux (et la garde des Errants,
+  connue de tous) ; l'économie du joueur entière (crédits, recherche, files et boucles de ses planètes, ralliements, charge de lance),
+  rien de celle des autres ; les batailles qui tiennent la galaxie et celles qu'il connaît, avec ses forces et celles d'en face pour les
+  siennes ; les trêves, les offres qui le concernent, les événements aléatoires. Cinq par seconde (`GalaxyHost`), les flottes glissent
+  entre deux ; 0,9 Ko pour une galaxie moyenne ou grande à 15 min, 1,3 Ko à six camps, 0,1 ms d'écriture. Ses ordres galactiques
+  partent à l'hôte, qui les applique au pas suivant (un puits différé par joueur) et renvoie ceux qu'il refuse. La vitesse est celle
+  que règle l'hôte, pour tous ; la pause est celle de tous, avec qui l'a demandée ; la galaxie tourne pendant que chacun parcourt ses
+  panneaux. Une bataille où se trouve un humain lui pose la question, à chacun s'il y en a deux, et attend leurs deux choix (la
+  galaxie aussi, pour tous ; une ligne sous la barre dit qui elle attend). Si l'un la commande, elle se joue dans la vue tactique,
+  comme une bataille en réseau servie par l'hôte (à ×1), avec pour joueurs ceux qui l'ont commandée ; l'IA prend le camp de celui
+  qui l'a laissée se résoudre seule ; si tous l'ont laissée, elle se résout seule comme avant. Les alliés n'y prennent pas part : une
+  bataille reste à deux camps. Une seule à la fois ; pendant ce temps la galaxie attend, une ligne dit laquelle et qui la commande,
+  et les autres peuvent la regarder, par les yeux de leur camp, d'un allié qui s'y bat, sinon du défenseur, sans rien ordonner. Chacun
+  a sa retraite (l'attaquant) et son « Laisser l'IA finir » (l'IA prend son camp ; la bataille se résout seule quand personne ne la
+  commande plus) ; la fin donne à chacun sa victoire ou sa défaite, puis la carte, et la galaxie repart. Une trêve proposée à un
+  autre joueur lui arrive en dialogue. Un joueur qui part laisse son camp à l'IA ; si l'hôte part, tous reviennent au menu. L'hôte
+  sauvegarde à part (`user://campaign-net.json`), avec le nom de chaque joueur ; « Héberger une partie », puis « Reprendre la
+  campagne » rouvre un salon où chacun retrouve sa place en rejoignant sous son nom, à moins que l'hôte ne la donne à un bot ; rien
+  d'autre n'y change. La campagne seule et sa sauvegarde restent les mêmes. Pas de campagne sur serveur dédié, ni de campagne
+  rejointe en route.
+- Fiabilité (batailles et campagne) : un instantané plus gros que le MTU d'ENet part en fragments non fiables, et un seul fragment
+  perdu le perdait avec ses événements, une victoire comprise. Les événements qui décident (victoire, fin d'un mode, station
+  détruite, vaisseau amiral abattu, raid, vagues, balises, lance stellaire) partent à part sur le canal fiable (`News`), comme tous
+  les avis de la galaxie (`Tidings`) et la fin d'une bataille de campagne (`Over`) ; les instantanés restent non fiables.
 
 ## Ce qui change de technique
 

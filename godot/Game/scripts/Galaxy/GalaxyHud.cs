@@ -40,6 +40,9 @@ public partial class GalaxyHud : CanvasLayer
     Button? modalFirst;
     PanelContainer tip = null!;
     VBoxContainer tipBox = null!;
+    /// <summary>Over the network, what holds the galaxy for everyone, under the top bar.</summary>
+    PanelContainer banner = null!;
+    Label bannerText = null!;
     Tab tab = Tab.Planet;
     double timer;
     string lastPanel = "";
@@ -60,8 +63,12 @@ public partial class GalaxyHud : CanvasLayer
     /// <summary>The player's race: its ship prices and heroes.</summary>
     Faction Race => G.Factions[Player].Race;
 
-    /// <summary>A side as the panels name it: by its race.</summary>
-    string NameOf(Side side) => Factions.Defs[Galaxies.RaceOf(G, side)].Name;
+    /// <summary>A side as the panels name it: by its race; over the network, another player's by its name too, "Bob (Nairan)".</summary>
+    string NameOf(Side side)
+    {
+        var race = Factions.Defs[Galaxies.RaceOf(G, side)].Name;
+        return side != Player && G.Humans.TryGetValue(side, out var name) ? $"{name} ({race})" : race;
+    }
 
     static string DescribeShips(ShipCounts ships, IEnumerable<HeroId>? heroes = null)
     {
@@ -291,6 +298,15 @@ public partial class GalaxyHud : CanvasLayer
         scroll.AddChild(body);
         BuildDrawer();
 
+        banner = HudKit.Ignore(HudKit.Panel(12, 6));
+        banner.SetAnchorsPreset(Control.LayoutPreset.CenterTop);
+        banner.GrowHorizontal = Control.GrowDirection.Both;
+        banner.OffsetTop = 64;
+        bannerText = Text("", Palette.Accent, bold: true);
+        banner.AddChild(bannerText);
+        banner.Visible = false;
+        root.AddChild(banner);
+
         toasts = HudKit.Column(4);
         toasts.SetAnchorsPreset(Control.LayoutPreset.CenterTop);
         toasts.GrowHorizontal = Control.GrowDirection.Both;
@@ -324,7 +340,22 @@ public partial class GalaxyHud : CanvasLayer
 
     public void RefreshModes()
     {
-        foreach (var (b, s) in speedButtons) HudKit.Outline(b, (s == 0 ? scene.Paused : !scene.Paused && scene.Speed == s) ? Palette.Accent : null);
+        // Over the network, the host sets the speed for everyone; anyone pauses.
+        var host = scene.Opts.Net is not { Replica: true };
+        foreach (var (b, s) in speedButtons)
+        {
+            HudKit.Outline(b, (s == 0 ? scene.Paused : !scene.Paused && scene.Speed == s) ? Palette.Accent : null);
+            if (s != 0) b.Disabled = !host;
+            b.TooltipText = s == 0 ? scene.PausedBy is { } who ? $"En pause, demandée par {who} (Espace)" : "Pause (Espace)"
+                : host ? $"Vitesse ×{s}" : "L'hôte règle la vitesse pour tous";
+        }
+    }
+
+    /// <summary>Over the network, a line under the top bar while something holds the galaxy for everyone; none hides it.</summary>
+    public void Banner(string? text)
+    {
+        banner.Visible = text is not null;
+        if (text is not null && bannerText.Text != text) bannerText.Text = text;
     }
 
     public void Tick(double delta)
@@ -889,9 +920,13 @@ public partial class GalaxyHud : CanvasLayer
     void ConfirmMenu()
     {
         var (p, box) = Dialog();
-        box.AddChild(Heading("Retour au menu ?", null, 22));
-        box.AddChild(HudKit.Para("La campagne est sauvegardée : « Continuer la campagne » la reprend où tu l'as laissée."));
-        box.AddChild(Actions(Btn("Annuler", CloseModal), Btn("Menu", scene.ToMenu, primary: true)));
+        var net = scene.Opts.Net;
+        box.AddChild(Heading(net is null ? "Retour au menu ?" : "Quitter la partie ?", null, 22));
+        box.AddChild(HudKit.Para(net is null ? "La campagne est sauvegardée : « Continuer la campagne » la reprend où tu l'as laissée."
+            : !net.Replica ? "La partie s'arrête pour tous les joueurs. Elle est sauvegardée : « Héberger une partie », puis « Reprendre la campagne », "
+                + "la rouvre, chacun reprenant sa place."
+            : "L'IA prend ta place jusqu'à la fin."));
+        box.AddChild(Actions(Btn("Annuler", CloseModal), Btn(net is null ? "Menu" : "Quitter", scene.ToMenu, primary: true)));
         OpenModal(p);
     }
 
@@ -1008,6 +1043,24 @@ public partial class GalaxyHud : CanvasLayer
         modalFirst = null;
     }
 
+    /// <summary>Closes the dialog open, if any: a dev run answering it.</summary>
+    public void CloseDialog() => CloseModal();
+
+    /// <summary>Over the network, a battle others command in the battle view: watch it, or stay on the map.</summary>
+    public void ShowFight(string title, string text, Action watch)
+    {
+        Sfx.Play(Sound.Alert);
+        var (p, box) = Dialog();
+        box.AddChild(Heading(title, null, 22));
+        box.AddChild(HudKit.Para(text));
+        box.AddChild(Actions(Btn("Regarder", () =>
+        {
+            CloseModal();
+            watch();
+        }, primary: true), Btn("Rester sur la carte", CloseModal)));
+        OpenModal(p);
+    }
+
     /// <summary>The galaxy is on hold until the player picks how to fight.</summary>
     public void PromptBattle(GalaxyBattle b)
     {
@@ -1015,8 +1068,10 @@ public partial class GalaxyHud : CanvasLayer
         var g = G;
         var player = Player;
         var enemy = b.Attacker == player ? b.Defender : b.Attacker;
-        var def = Sim.Battle.DefenseLeft(b.World, enemy);
-        var theirs = new List<string> { DescribeShips(Sim.Battle.Survivors(b.World, enemy), Sim.Battle.HeroSurvivors(b.World, enemy)) };
+        // Over the network, a replica's battle has no world: what each side brings came with the snapshot.
+        var (mine, foe) = (Galaxies.ForceOf(b, player), Galaxies.ForceOf(b, enemy));
+        var def = foe.Defense;
+        var theirs = new List<string> { DescribeShips(foe.Ships, foe.Heroes) };
         if (def.IonCannon > 0) theirs.Insert(0, "canon ionique");
         if (def.Station > 0) theirs.Insert(0, $"station niveau {def.Station}");
         if (def.Platforms > 0) theirs.Insert(0, $"{def.Platforms} plateforme{(def.Platforms > 1 ? "s" : "")}");
@@ -1025,7 +1080,13 @@ public partial class GalaxyHud : CanvasLayer
         var them = enemy == Faction.Errant ? "les Errants" : NameOf(enemy);
         box.AddChild(HudKit.Para(b.Lane is not null ? $"Ta flotte croise une flotte {NameOf(enemy)} en chemin : impossible de passer sans combattre."
             : $"{(b.Attacker == player ? "Tu attaques" : "Tu es attaqué par")} {them}."));
-        if (enemy == Faction.Errant) box.AddChild(HudKit.Para(RaidBounty(Sim.Battle.Survivors(b.World, enemy).Of(ShipClass.Colossus) > 0), Palette.Muted));
+        if (enemy == Faction.Errant) box.AddChild(HudKit.Para(RaidBounty(foe.Ships.Of(ShipClass.Colossus) > 0), Palette.Muted));
+        // Over the network, the other side may be a player too: the battle starts once both have chosen.
+        if (enemy != player && g.Humans.TryGetValue(enemy, out var rival))
+        {
+            box.AddChild(HudKit.Para($"{rival} joue en face : la bataille commence quand vous avez choisi tous les deux. Si l'un de vous la commande, "
+                + "l'IA prend le camp de celui qui la laisse se résoudre seule.", Palette.Muted));
+        }
         var dl = HudKit.Ignore(new GridContainer { Columns = 2 });
         dl.AddThemeConstantOverride("h_separation", 16);
         dl.AddThemeConstantOverride("v_separation", 4);
@@ -1034,9 +1095,9 @@ public partial class GalaxyHud : CanvasLayer
             dl.AddChild(Text(term, Palette.Accent));
             dl.AddChild(HudKit.Para(value, max: 340));
         }
-        Item("Tes forces", DescribeShips(Sim.Battle.Survivors(b.World, player), Sim.Battle.HeroSurvivors(b.World, player)));
+        Item("Tes forces", DescribeShips(mine.Ships, mine.Heroes));
         Item("En face", string.Join(", ", theirs));
-        Item("Coque et boucliers", $"{N(Sim.Battle.SideStrength(b.World, player))} contre {N(Sim.Battle.SideStrength(b.World, enemy))}");
+        Item("Coque et boucliers", $"{N(mine.Strength)} contre {N(foe.Strength)}");
         box.AddChild(dl);
         box.AddChild(Actions(
             Btn("Commander la bataille", () =>
@@ -1057,6 +1118,7 @@ public partial class GalaxyHud : CanvasLayer
         var (p, box) = Dialog();
         box.AddChild(Heading(won ? "Victoire" : "Défaite", Player, 22));
         box.AddChild(HudKit.Para(won ? "Plus aucune faction rivale n'a de planète." : "Tu n'as plus aucune planète."));
+        if (scene.Opts.Net is { Replica: false }) box.AddChild(HudKit.Para("Retourner au menu termine la partie pour tous les joueurs.", Palette.Muted));
         box.AddChild(Actions(Btn("Menu", scene.ToMenu, primary: true)));
         OpenModal(p);
     }

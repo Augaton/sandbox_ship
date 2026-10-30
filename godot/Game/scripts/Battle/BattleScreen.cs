@@ -123,7 +123,14 @@ public partial class BattleScreen : Node
         if (Dev.At is Vector2 at) CenterOn(at.X, at.Y);
     }
 
-    public override void _ExitTree() => StressProbe.Detach();
+    public override void _ExitTree()
+    {
+        StressProbe.Detach();
+        if (Opts.Net is not { } net || net.Screen != this) return;
+        net.Screen = null;
+        // A campaign battle over the network: the session stops showing it here.
+        if (Opts.Campaign is not null) net.Session.LeftFront(net);
+    }
 
     /// <summary>Checking the looks: one ship of each class per faction, the neutral Errants last, platforms at each level, a lab, a star lance charging; paused.</summary>
     void Gallery()
@@ -167,8 +174,9 @@ public partial class BattleScreen : Node
         probe?.Frame();
         var whole = StressProbe.Start();
         var t = StressProbe.Start();
-        // A player's replica of a battle over the network is never stepped: snapshots bring it up to date.
-        if (!Paused && Opts.Net is not { Replica: true })
+        // A player's replica of a battle over the network is never stepped: snapshots bring it up
+        // to date; nor is a campaign battle on its host, which the session steps.
+        if (!Paused && (Opts.Net is null || Opts.Net.Host is not null))
         {
             // Measuring: one step a frame whatever the frame rate, so that every run shows the same battle.
             acc += probe is not null ? Steps.Step : Math.Min(delta, 0.1) * Speed;
@@ -353,7 +361,8 @@ public partial class BattleScreen : Node
             Hud.Toast("Aucun tir depuis longtemps : dans 30 s, l'attaquant se replie");
         }
         else if (quiet < Sim.Battle.Stalemate - 30) stalemateWarned = false;
-        if (Sim.Battle.Outcome(World, c.Attacker, c.Defender) is not BattleResult r) return;
+        // Over the network, the host decides, and says so (CampaignOver): a replica does not hold enough to judge.
+        if (Opts.Net is not null || Sim.Battle.Outcome(World, c.Attacker, c.Defender) is not BattleResult r) return;
         result = r;
         var winner = r == BattleResult.Attacker ? c.Attacker : c.Defender;
         Hud.ShowBattleEnd(winner == Opts.Player, ReturnToGalaxy);

@@ -101,8 +101,34 @@ public partial class Main : Node
         }) { IsBackground = true }.Start();
     }
 
+    /// <summary>--snap: captures asked for, at the frame they are due, and how many were taken.</summary>
+    readonly List<(ulong Frame, string Name)> snaps = [];
+    int snapped;
+
+    /// <summary>
+    /// --snap: a capture of the screen `after` frames from now (a dialog has faded in), into the
+    /// --snap folder, numbered in turn: "03-invite.png". Nothing without --snap.
+    /// </summary>
+    public void Snap(string name, int after = 20)
+    {
+        if (Dev.Snap is not null) snaps.Add((Engine.GetProcessFrames() + (ulong)after, name));
+    }
+
+    void TakeSnaps()
+    {
+        for (var i = snaps.Count - 1; i >= 0; i--)
+        {
+            if (Engine.GetProcessFrames() < snaps[i].Frame) continue;
+            var path = $"{Dev.Snap}/{++snapped:00}-{snaps[i].Name}.png";
+            var err = GetViewport().GetTexture()?.GetImage()?.SavePng(path) ?? Error.Unavailable;
+            GD.Print($"Capture {path} : {err}");
+            snaps.RemoveAt(i);
+        }
+    }
+
     public override void _Process(double delta)
     {
+        if (snaps.Count > 0) TakeSnaps();
         if (Dev.Shot is null || !started || ++frames < Dev.Frames) return;
         // Without a window (--headless) there is nothing to capture: just quit.
         var image = GetViewport().GetTexture()?.GetImage();
@@ -231,6 +257,13 @@ public partial class Main : Node
         }
         galaxy.Retreat(battleId);
         Show(galaxy);
+    }
+
+    /// <summary>Back to the galaxy from one of its battles, nothing decided here: over the network, the host decides.</summary>
+    public void ShowGalaxy()
+    {
+        if (galaxy is null) ShowMenu();
+        else Show(galaxy);
     }
 
     /// <summary>The player leaves a campaign battle, which plays on by itself.</summary>

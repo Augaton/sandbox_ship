@@ -186,12 +186,12 @@ public partial class Hud
             Para(EndText(won), max: 672), StatsTable(), Actions(again, reroll, menu, close)));
     }
 
-    /// <summary>End of a campaign battle: the only way on is back to the galaxy map.</summary>
-    public void ShowBattleEnd(bool won, Action onBack)
+    /// <summary>End of a campaign battle: the only way on is back to the galaxy map. `watched`: who won, for one who only watched it.</summary>
+    public void ShowBattleEnd(bool won, Action onBack, string? watched = null)
     {
         var back = Primary(Button("Retour à la carte", onBack));
-        OpenModal(Dialog(won ? "Victoire" : "Défaite",
-            Para($"{(won ? "La bataille est gagnée." : "La bataille est perdue.")} Les survivants regagnent la carte galactique.", max: 672),
+        OpenModal(Dialog(watched is not null ? "Bataille terminée" : won ? "Victoire" : "Défaite",
+            Para($"{watched ?? (won ? "La bataille est gagnée." : "La bataille est perdue.")} Les survivants regagnent la carte galactique.", max: 672),
             StatsTable(), Actions(back)));
     }
 

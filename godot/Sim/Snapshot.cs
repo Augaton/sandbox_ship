@@ -69,10 +69,28 @@ public static partial class Snapshot
     }
 
     /// <summary>
+    /// Events whose loss would leave the player without the end of the game or a notice it must
+    /// see: victory (a battle mode's end included), the raid, the modes' news, a station falling
+    /// (a defeat in a free-for-all), a star lance coming online or firing. Over the network they go
+    /// on the reliable channel (`vital` in Write), not in the snapshot: one lost fragment of a
+    /// snapshot past ENet's MTU drops it whole.
+    /// </summary>
+    public static bool Vital(World world, SimEvent ev) => ev switch
+    {
+        Victory or RaidWon or WaveIncoming or WaveCleared or BeaconTaken or BeaconLost or FlagshipLost or ClockWarning or LanceOnline => true,
+        Destroyed d => d.EntityType == "station",
+        AbilityUsed a => a.Id == AbilityId.StarLance,
+        Built b => world.Entities.Get(b.Id) is { Type: "starLance" },
+        _ => false,
+    };
+
+    /// <summary>
     /// Writes what `viewer`'s team may see of the battle. `events` are those since the previous
     /// snapshot to this viewer; by default the world's own, which the view clears every frame.
+    /// With `vital`, the events that must reach the player (Vital) go there instead, a count then
+    /// the events, for the reliable channel; ReadEvents reads them.
     /// </summary>
-    public static void Write(World world, Side viewer, BinaryWriter w, IReadOnlyList<SimEvent>? events = null)
+    public static void Write(World world, Side viewer, BinaryWriter w, IReadOnlyList<SimEvent>? events = null, BinaryWriter? vital = null)
     {
         w.Write(Magic);
         w.Write(Version);
@@ -113,8 +131,13 @@ public static partial class Snapshot
         w.Write7BitEncodedInt(world.Strikes.Count);
         foreach (var s in world.Strikes) WriteStrike(w, s);
         var told = (events ?? world.Events).Where(ev => Tells(world, viewer, ev, shown, sight)).ToList();
-        w.Write7BitEncodedInt(told.Count);
-        foreach (var ev in told) WriteEvent(world, w, ev, shown);
+        var kept = vital is null ? told : told.Where(ev => !Vital(world, ev)).ToList();
+        w.Write7BitEncodedInt(kept.Count);
+        foreach (var ev in kept) WriteEvent(world, w, ev, shown);
+        if (vital is null) return;
+        var sent = told.Where(ev => Vital(world, ev)).ToList();
+        vital.Write7BitEncodedInt(sent.Count);
+        foreach (var ev in sent) WriteEvent(world, vital, ev, shown);
     }
 
     /// <summary>

@@ -1,6 +1,7 @@
 // The galaxy campaign: planets, lanes and fleets on the move, the clock, saving, and the way
 // to and from the battle view. Port of src/scenes/GalaxyScene.ts; the panels are in
-// GalaxyHud.cs. The namespace is not "Galaxy", which would hide the simulation's Galaxy type.
+// GalaxyHud.cs, the campaign over the network in GalaxyScreen.Net.cs. The namespace is not
+// "Galaxy", which would hide the simulation's Galaxy type.
 using Godot;
 using SandboxShip.Battle;
 using SandboxShip.Core;
@@ -27,6 +28,8 @@ public partial class GalaxyScreen : Node
 
     /// <summary>Where the campaign is saved: what the menu's "Continuer la campagne" reads.</summary>
     public static string SavePath => ProjectSettings.GlobalizePath("user://campaign.json");
+    /// <summary>Where the host saves a campaign played over the network, apart: what "Reprendre la campagne" hosts again.</summary>
+    public static string NetSavePath => Dev.SavePath ?? ProjectSettings.GlobalizePath("user://campaign-net.json");
 
     public Galaxy Galaxy { get; private set; } = null!;
     public MenuChoice Opts { get; private set; } = null!;
@@ -71,6 +74,23 @@ public partial class GalaxyScreen : Node
     public override void _Ready()
     {
         var opts = Opts;
+        if (opts.Net is { } net)
+        {
+            // Over the network, the galaxy is the session's: the host's own, or a replica.
+            Galaxy = net.Galaxy;
+            Sink = net.Sink;
+            net.Screen = this;
+            NetReady();
+        }
+        else Begin(opts);
+        var home = Galaxy.Planets.FindIndex(p => p.Owner == Galaxy.Player);
+        Click(home >= 0 ? home : null, false);
+        Build();
+    }
+
+    /// <summary>A galaxy of its own: new, resumed from the save, or played ahead (--skip).</summary>
+    void Begin(MenuChoice opts)
+    {
         var saved = opts.Resume ? GalaxySave.Load(SavePath) : null;
         var slots = opts.Slots;
         var layout = opts.Map == MapKind.Classic && slots.Count == 2
@@ -80,11 +100,12 @@ public partial class GalaxyScreen : Node
         // The player may sit at any seat of the lobby, not only the first.
         if (saved is null && opts.Me is Side me) Galaxy.Player = me;
         Sink = new LocalSink<GalaxyCommand>(c => Commands.Apply(Galaxy, Player, c));
-        var player = Galaxy.Player;
         if (Dev.Skip > 0 && saved is null) PlayAhead(Dev.Skip);
-        var home = Galaxy.Planets.FindIndex(p => p.Owner == player);
-        Click(home >= 0 ? home : null, false);
+    }
 
+    /// <summary>The map's layers: the stars behind, the planets, what is drawn under and over them; then the HUD.</summary>
+    void Build()
+    {
         var back = new CanvasLayer { Layer = -1 };
         AddChild(back);
         foreach (var (key, _) in Assets.BackdropTiles)
@@ -407,42 +428,64 @@ public partial class GalaxyScreen : Node
 
     public void TogglePause()
     {
+        // Over the network, for everyone: the host decides, then tells this screen (NetPaused).
+        if (Opts.Net is { } net)
+        {
+            net.Session.AskPause(!Paused);
+            return;
+        }
         Paused = !Paused;
         Hud.RefreshModes();
     }
 
     public void SetSpeed(double speed)
     {
+        // Over the network, the host sets it for everyone.
+        if (Opts.Net is { } net)
+        {
+            net.Session.SetGalaxySpeed(speed);
+            return;
+        }
         Speed = speed;
         Paused = false;
         Hud.RefreshModes();
     }
 
     /// <summary>
-    /// A capture run (--shot) leaves the player's campaign save as it was: it neither writes
-    /// over it nor clears it when its own galaxy is won.
+    /// Where this campaign is saved, if anywhere: alone, the save "Continuer la campagne" reads;
+    /// over the network, the host's own (a player keeps none). A capture run (--shot) leaves the
+    /// player's saves as they were, unless --save names a file of its own.
     /// </summary>
-    static bool Saving => Dev.Shot is null;
+    string? SaveFile => Opts.Net is { Replica: true } ? null
+        : Opts.Net is not null ? Dev.Shot is null || Dev.SavePath is not null ? NetSavePath : null
+        : Dev.Shot is null ? SavePath : null;
 
     /// <summary>Saves the campaign, unless it is over.</summary>
     public void Save()
     {
-        if (Saving && Galaxy.Winner is null && !GalaxySave.Save(Galaxy, SavePath)) Hud.Toast("Sauvegarde impossible");
+        if (SaveFile is string file && Galaxy.Winner is null && !GalaxySave.Save(Galaxy, file)) Hud.Toast("Sauvegarde impossible");
         saveTimer = 0;
     }
 
+    /// <summary>Back to the menu; over the network, out of the game (a player's side goes to the AI, a host closes it for all).</summary>
     public void ToMenu()
     {
         Save();
+        Opts.Net?.Session.Leave();
         Main.Instance.ShowMenu();
     }
 
-    /// <summary>Plays a battle in the tactical view; the galaxy sleeps until it ends.</summary>
+    /// <summary>
+    /// Plays a battle in the tactical view; the galaxy sleeps until it ends. Over the network, the
+    /// choice goes to the host, which opens the battle view once every human side in it has chosen.
+    /// </summary>
     public void Fight(int battleId)
     {
         var b = Galaxy.Battles.Find(x => x.Id == battleId);
         if (b is null) return;
         Sink.Send(new GalaxyCommand.ChooseBattle(battleId, BattleStatus.Tactical));
+        Answered(battleId);
+        if (Opts.Net is not null) return;
         var player = Player;
         var opts = new BattleOptions
         {
@@ -454,7 +497,11 @@ public partial class GalaxyScreen : Node
         Main.Instance.StartBattle(opts);
     }
 
-    public void AutoResolve(int battleId) => Sink.Send(new GalaxyCommand.ChooseBattle(battleId, BattleStatus.Auto));
+    public void AutoResolve(int battleId)
+    {
+        Sink.Send(new GalaxyCommand.ChooseBattle(battleId, BattleStatus.Auto));
+        Answered(battleId);
+    }
 
     /// <summary>The player left a battle they were commanding: it plays on by itself.</summary>
     public void DelegateBattle(int battleId)
@@ -470,10 +517,10 @@ public partial class GalaxyScreen : Node
         Save();
     }
 
-    /// <summary>Called when a tactical battle ends in the battle view.</summary>
+    /// <summary>Called when a tactical battle ends in the battle view; over the network, the host concluded it already.</summary>
     public void FinishBattle(int battleId, BattleResult result)
     {
-        Galaxies.ConcludeBattle(Galaxy, battleId, result);
+        if (Opts.Net is null) Galaxies.ConcludeBattle(Galaxy, battleId, result);
         Save();
     }
 
@@ -483,7 +530,9 @@ public partial class GalaxyScreen : Node
         if (size != laidOut) Layout(size);
         TickView(delta);
         var g = Galaxy;
-        if (!Paused)
+        // Over the network, the session steps the host's galaxy, and a player's replica follows snapshots.
+        if (Opts.Net is not null) NetFrame(delta);
+        else if (!Paused)
         {
             acc += Math.Min(delta, 0.25) * Speed;
             // A big battle resolving on its own can make a step slow: past the budget, the rest
@@ -505,18 +554,20 @@ public partial class GalaxyScreen : Node
             Selected = Selection[0];
         }
         FollowFleet();
-        // A battle commanded from a view that is no longer running has nobody to finish it.
-        foreach (var b in g.Battles) if (b.Status == BattleStatus.Tactical) b.Status = BattleStatus.Pending;
+        // A battle commanded from a view that is no longer running has nobody to finish it (alone:
+        // over the network, it runs in the session).
+        if (Opts.Net is null) foreach (var b in g.Battles) if (b.Status == BattleStatus.Tactical) Galaxies.Reopen(b);
         // A battle waiting for the player is asked about whenever no other dialog is open: a
         // prompt pushed aside (by the help, or by a second battle at once) comes back, rather
-        // than leaving the galaxy waiting forever.
-        var pending = g.Battles.Find(b => b.Status == BattleStatus.Pending);
-        if (pending is not null && g.Winner is null && !Hud.DialogOpen) Hud.PromptBattle(pending);
+        // than leaving the galaxy waiting forever. Over the network, until the player has chosen.
+        var pending = g.Battles.Find(b => b.Status == BattleStatus.Pending && Galaxies.HumansIn(g, b).Contains(Player) && !b.Choices.ContainsKey(Player)
+            && !answered.Contains(b.Id));
+        if (pending is not null && g.Winner is null && !Hud.DialogOpen) Prompt(pending);
         if (g.Winner is not null && !ended)
         {
             ended = true;
             Hud.ShowEnd(Galaxies.Won(g, Player));
-            if (Saving) GalaxySave.Clear(SavePath);
+            if (SaveFile is string file) GalaxySave.Clear(file);
         }
         saveTimer += delta * 1000;
         if (saveTimer >= AutosaveMs) Save();
