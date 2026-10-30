@@ -18,6 +18,8 @@ public sealed partial class Session : Node
 
     /// <summary>A peer that does not say Hello in this many seconds is let go.</summary>
     const double HelloWait = 5;
+    /// <summary>A dedicated server's frames a second: in battle, one step each; between battles, enough for the lobby and the beacon.</summary>
+    const int BattleFps = 60, IdleFps = 15;
 
     public static Session? Current { get; private set; }
     /// <summary>Bumped at every change from the network that the menu shows: it rebuilds when it sees a new one.</summary>
@@ -74,7 +76,7 @@ public sealed partial class Session : Node
     public static void RunServer()
     {
         // Sixty frames a second are plenty for steps of 1/60 s; without a cap, an idle server spins a core.
-        Engine.MaxFps = 60;
+        Engine.MaxFps = BattleFps;
         // The campaign needs a host who plays: its galaxy waits for its players' choices.
         var error = Dev.Campaign ? "La campagne se joue sur la machine d'un joueur : « Héberger une partie »."
             : Serve(DevMode, Dev.Name ?? "Serveur Sandbox Ship", Dev.Port);
@@ -128,6 +130,7 @@ public sealed partial class Session : Node
         clock += delta;
         net.Poll(Came, Went, Received, Broken);
         if (Current != this) return;
+        if (As == Role.Server) Engine.MaxFps = battle is null ? IdleFps : BattleFps;
         if (As == Role.Client)
         {
             if (Room is null && net.Status == MultiplayerPeer.ConnectionStatus.Disconnected) Close($"Impossible de joindre {target}.");

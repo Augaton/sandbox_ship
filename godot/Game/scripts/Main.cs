@@ -26,8 +26,8 @@ public partial class Main : Node
         Instance = this;
         RenderingServer.SetDefaultClearColor(Palette.Bg);
         Dev.Parse(OS.GetCmdlineUserArgs());
-        // A dedicated server: no window needed, nothing to draw, only the network.
-        if (Dev.Server)
+        // A headless service (a dedicated server): no window needed, nothing to forge, draw or warm up, only the network.
+        if (Dev.Service)
         {
             Network.Session.RunServer();
             return;
@@ -65,7 +65,8 @@ public partial class Main : Node
                 break;
             case "sandbox" or "gallery": StartBattle(new BattleOptions { Player = Faction.Klaed, Slots = BattleOptions.Versus(Faction.Klaed, [Faction.Nairan]), Mode = GameMode.Sandbox, Size = Dev.Size }); break;
             case "campaign": StartCampaign(new MenuChoice { Size = Dev.Size }); break;
-            case "stress": StartBattle(new BattleOptions { Player = Faction.Klaed, Slots = BattleOptions.Versus(Faction.Klaed, [Faction.Nairan, Faction.Nautolan]), Size = MapSize.Large, Seed = 7 }); break;
+            // With --host, the lobby first: the battle is served (Session.Launch).
+            case "stress" when !Dev.Host: StartBattle(new BattleOptions { Player = Faction.Klaed, Slots = BattleOptions.Versus(Faction.Klaed, [Faction.Nairan, Faction.Nautolan]), Size = MapSize.Large, Seed = 7 }); break;
             default: ShowMenu(); break;
         }
     }

@@ -67,6 +67,11 @@ public static class Dev
     public static int[] Teams = [];
     public static BattleMode Mode = BattleMode.Standard;
     public static bool Host, Server;
+    /// <summary>
+    /// A headless service, with no player at this machine (--server): no window, no sprite forged,
+    /// no warm-up, no sound, only the network. Any other such mode is one as well.
+    /// </summary>
+    public static bool Service => Server;
     public static string? Join, Name;
     public static int Port = Sim.Net.Protocol.DefaultPort;
     public static double Order, Pause;

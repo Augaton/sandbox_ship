@@ -45,7 +45,8 @@ public sealed partial class Session
             LaunchCampaign();
             return;
         }
-        var world = Scenario.CreateSkirmish(lobby.Skirmish());
+        // --start=stress: the measuring battle (Sim/Stress.cs), its first seats playing Kla'ed and Nairan.
+        var world = Dev.Start == "stress" ? Stress.Create(lobby.Seed) : Scenario.CreateSkirmish(lobby.Skirmish());
         battle = new BattleHost(world, net.Send);
         foreach (var m in room.Members) if (m.Peer != Lobby.Host && lobby.SideOfPeer(m.Peer) is { } side) battle.Add(m.Peer, side);
         (paused, acc, over) = (false, 0, -1);
