@@ -126,5 +126,6 @@ public partial class BattleScreen
         Sink.Send(new Command.Move(ships, x, y, true));
         GD.Print($"[réseau] Ordre envoyé à {World.Time:0} s : {ships.Length} vaisseaux en attaque-mouvement vers ({x:0}, {y:0})");
         if (Opts.Campaign is not null) Main.Instance.Snap("combat", 900);
+        else Main.Instance.Snap("ordre", 600);
     }
 }

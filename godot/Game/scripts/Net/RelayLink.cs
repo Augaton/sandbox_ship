@@ -21,8 +21,16 @@ public sealed class RelayLink
     public bool Down { get; private set; }
     /// <summary>What the server said last on closing it, or why its words could not be read.</summary>
     public string? Problem { get; private set; }
-    /// <summary>The round trip to the server, in ms, as ENet measures it.</summary>
-    public int Ping => Up ? (int)server.GetStatistic(ENetPacketPeer.PeerStatistic.RoundTripTime) : -1;
+    /// <summary>
+    /// Seconds before a link's round trip means something: ENet starts it at 500 ms and brings it
+    /// down an eighth of the way each ping; at one ping every 100 ms, it is within a few ms by then.
+    /// </summary>
+    public const double Settle = 4;
+
+    ulong upAt;
+
+    /// <summary>The round trip to the server, in ms, as ENet measures it; -1 until it settles.</summary>
+    public int Ping => Up && Time.GetTicksMsec() - upAt >= Settle * 1000 ? (int)server.GetStatistic(ENetPacketPeer.PeerStatistic.RoundTripTime) : -1;
 
     RelayLink(ENetConnection host, ENetPacketPeer server, string address, RelayFrame hello) => (this.host, this.server, Address, this.hello) = (host, server, address, hello);
 
@@ -64,7 +72,7 @@ public sealed class RelayLink
             {
                 case ENetConnection.EventType.None: return;
                 case ENetConnection.EventType.Connect:
-                    Up = true;
+                    (Up, upAt) = (true, Time.GetTicksMsec());
                     Send(hello);
                     break;
                 case ENetConnection.EventType.Receive:

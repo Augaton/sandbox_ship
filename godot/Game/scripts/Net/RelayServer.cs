@@ -20,6 +20,9 @@ public sealed partial class RelayServer : Node
     readonly ENetConnection host = new();
     readonly Dictionary<ulong, int> ids = [];
     readonly Dictionary<int, ENetPacketPeer> peers = [];
+    /// <summary>When each peer came, on the server's clock: its round trip is listed once settled.</summary>
+    readonly Dictionary<int, double> came = [];
+    readonly Stopwatch clock = Stopwatch.StartNew();
     RelayHub hub = null!;
     System.Threading.Thread? thread;
     volatile bool stop;
@@ -56,7 +59,6 @@ public sealed partial class RelayServer : Node
 
     void Serve()
     {
-        var clock = Stopwatch.StartNew();
         var (loadAt, cpuAt, bytesIn, bytesOut, dropped) = (0.0, Process.GetCurrentProcess().TotalProcessorTime, 0L, 0L, 0L);
         var (heard, ticked) = (double.NegativeInfinity, 0.0);
         while (!stop)
@@ -106,7 +108,7 @@ public sealed partial class RelayServer : Node
         {
             case ENetConnection.EventType.Connect:
                 var id = ++next;
-                (ids[peer.GetInstanceId()], peers[id]) = (id, peer);
+                (ids[peer.GetInstanceId()], peers[id], came[id]) = (id, peer, now);
                 // A peer that stops answering is let go within 15 s; a host's round trip, listed, settles in seconds.
                 peer.SetTimeout(32, 5000, 15000);
                 peer.PingInterval(100);
@@ -115,6 +117,7 @@ public sealed partial class RelayServer : Node
             case ENetConnection.EventType.Disconnect:
                 if (!ids.Remove(peer.GetInstanceId(), out var gone)) return;
                 peers.Remove(gone);
+                came.Remove(gone);
                 hub.Disconnected(gone);
                 break;
             case ENetConnection.EventType.Receive:
@@ -134,7 +137,8 @@ public sealed partial class RelayServer : Node
     /// <summary>Lets a peer go once what was sent to it has gone (the reason it is let go, last).</summary>
     void DropPeer(int conn) => Connected(conn)?.PeerDisconnectLater();
 
-    int PingOf(int conn) => Connected(conn) is { } p ? (int)p.GetStatistic(ENetPacketPeer.PeerStatistic.RoundTripTime) : -1;
+    int PingOf(int conn) => Connected(conn) is { } p && clock.Elapsed.TotalSeconds - came[conn] >= RelayLink.Settle
+        ? (int)p.GetStatistic(ENetPacketPeer.PeerStatistic.RoundTripTime) : -1;
 
     static void Log(string text) => GD.Print($"[relais] {text}");
 }
