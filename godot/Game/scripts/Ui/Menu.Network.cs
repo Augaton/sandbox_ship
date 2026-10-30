@@ -144,13 +144,11 @@ public partial class Menu
         else
         {
             var now = Now;
-            var changed = listener is not null && listener.Poll(now, out heard);
-            if (master is not null && master.Poll(now))
-            {
-                changed = true;
-                ShowMaster();
-            }
-            if (changed) FillGames();
+            // What the local network says changes the list for sure (its note too); a list from the online server, maybe only its pings.
+            var heardNew = listener is not null && listener.Poll(now, out heard);
+            var listed = master is not null && master.Poll(now);
+            if (listed) ShowMaster();
+            if (heardNew || listed) FillGames(heardNew);
             DevJoinOnline(now);
         }
         if (Session.Changes == seenChanges) return;
@@ -334,7 +332,7 @@ public partial class Menu
         footer.AddChild(Btn("Retour", Back));
         joinButton = Btn("Rejoindre la partie", JoinPicked, Primary, "act:join");
         footer.AddChild(joinButton);
-        FillGames();
+        FillGames(true);
         ShowMaster();
     }
 
@@ -422,10 +420,12 @@ public partial class Menu
 
     static string ModeName(LobbyMode m) => Modes.FirstOrDefault(x => x.Mode == m).Name ?? "Mode inconnu";
 
-    /// <summary>The list, one row a game, the one picked outlined; the focus stays on its game.</summary>
-    void FillGames()
+    /// <summary>The list, one row a game, the one picked outlined; the focus stays on its game. Left as it is when its rows would show the same.</summary>
+    void FillGames(bool force = false)
     {
         if (gamesBox is null || !IsInstanceValid(gamesBox)) return;
+        var games = Games();
+        if (!force && games.SequenceEqual(rows.Values.Select(r => r.Game)) && (games.Count > 0 || gamesBox.GetChildCount() > 0)) return;
         var focused = rows.FirstOrDefault(r => IsInstanceValid(r.Value.Button) && r.Value.Button.HasFocus()).Key;
         rows.Clear();
         foreach (var child in gamesBox.GetChildren())
@@ -433,7 +433,6 @@ public partial class Menu
             gamesBox.RemoveChild(child);
             child.QueueFree();
         }
-        var games = Games();
         if (picked is not null && games.All(g => g.Key != picked)) picked = null;
         if (games.Count == 0)
         {

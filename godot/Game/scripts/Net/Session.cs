@@ -85,7 +85,7 @@ public sealed partial class Session : Node
         // Sixty frames a second are plenty for steps of 1/60 s; without a cap, an idle server spins a core.
         Engine.MaxFps = 60;
         // The campaign needs a host who plays: its galaxy waits for its players' choices.
-        var error = Dev.Campaign ? "La campagne se joue sur la machine d'un joueur : « Héberger une partie »."
+        var error = Dev.Campaign ? "La campagne se joue sur la machine d'un joueur : « Multijoueur », puis héberger."
             : Serve(DevMode, Dev.Name ?? "Serveur Sandbox Ship", Dev.Port);
         if (error is null)
         {

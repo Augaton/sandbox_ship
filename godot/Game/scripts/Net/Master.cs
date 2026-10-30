@@ -48,13 +48,15 @@ public sealed class MasterList
         }
     }
 
-    /// <summary>What came since the last call; true when the games, or whether the server answers, changed.</summary>
+    /// <summary>What came since the last call; true when a list came (its pings with it), or whether the server answers changed.</summary>
     public bool Poll(double now)
     {
-        var (up, problem, games) = (Up, Problem, Games);
+        var (up, problem, games, listed) = (Up, Problem, Games, false);
         link?.Poll(f =>
         {
-            if (f is RelayFrame.Games g && !g.Listed.SequenceEqual(Games)) Games = g.Listed;
+            if (f is not RelayFrame.Games g) return;
+            Games = g.Listed;
+            listed = true;
         });
         if (link is { Up: true }) Problem = null;
         if (link is null || link.Down)
@@ -68,7 +70,7 @@ public sealed class MasterList
             link.Send(new RelayFrame.List(Relay.Wire));
             asked = now;
         }
-        return Up != up || Problem != problem || !Games.SequenceEqual(games);
+        return listed || Up != up || Problem != problem || !Games.SequenceEqual(games);
     }
 
     public void Close() => link?.Close();

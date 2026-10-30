@@ -923,7 +923,7 @@ public partial class GalaxyHud : CanvasLayer
         var net = scene.Opts.Net;
         box.AddChild(Heading(net is null ? "Retour au menu ?" : "Quitter la partie ?", null, 22));
         box.AddChild(HudKit.Para(net is null ? "La campagne est sauvegardée : « Continuer la campagne » la reprend où tu l'as laissée."
-            : !net.Replica ? "La partie s'arrête pour tous les joueurs. Elle est sauvegardée : « Héberger une partie », puis « Reprendre la campagne », "
+            : !net.Replica ? "La partie s'arrête pour tous les joueurs. Elle est sauvegardée : « Multijoueur », héberger, puis « Reprendre la campagne », "
                 + "la rouvre, chacun reprenant sa place."
             : "L'IA prend ta place jusqu'à la fin."));
         box.AddChild(Actions(Btn("Annuler", CloseModal), Btn(net is null ? "Menu" : "Quitter", scene.ToMenu, primary: true)));
