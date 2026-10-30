@@ -161,7 +161,7 @@ public class FleetOrdersTests
         for (var t = 0.0; t < 120 && g.Planets[West].Units.Count > 0; t += Step) StepGalaxy(g);
         Assert.Equal(before, home.Ships);
         Assert.Equal(West, home.At);
-        var sent = Assert.Single(g.Fleets.Values, f => f.Faction == Faction.Klaed && f.Id != home.Id);
+        var sent = Assert.Single(g.Fleets.Values, f => f.Side == Faction.Klaed && f.Id != home.Id);
         Assert.Equal(1, Battle.CountShips(sent.Ships));
         Assert.Equal(1, sent.Ships.Of(ShipClass.Frigate));
         Assert.Equal(next, sent.To);
@@ -179,7 +179,7 @@ public class FleetOrdersTests
         Assert.True(EnqueueBuild(g, Faction.Klaed, West, GalaxyBuild.Ship(ShipClass.Frigate)).Ok);
         for (var t = 0.0; t < 120 && g.Planets[West].Units.Count > 0; t += Step) StepGalaxy(g);
         Assert.Equal(frigates + 1, home.Ships.Of(ShipClass.Frigate));
-        Assert.Single(g.Fleets.Values, f => f.Faction == Faction.Klaed);
+        Assert.Single(g.Fleets.Values, f => f.Side == Faction.Klaed);
     }
 
     [Fact]

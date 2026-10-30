@@ -196,7 +196,7 @@ public class GalaxyTests
         SendFleet(g, FirstFleet(g, Id("Orin"), Faction.Klaed).Id, kaldra);
         RunGalaxy(g, 120);
         Assert.Equal(Faction.Nairan, g.Planets[kaldra].Owner);
-        Assert.DoesNotContain(g.Fleets.Values, f => f.Faction == Faction.Klaed && f.At == kaldra);
+        Assert.DoesNotContain(g.Fleets.Values, f => f.Side == Faction.Klaed && f.At == kaldra);
     }
 
     [Fact]
@@ -259,7 +259,7 @@ public class GalaxyTests
         for (var minute = 0; minute < 40 && g.Winner is null; minute++) RunGalaxy(g, 60);
         Assert.Equal(Faction.Nairan, g.Winner);
         Assert.True(g.Factions[Faction.Klaed].Eliminated);
-        Assert.DoesNotContain(g.Fleets.Values, f => f.Faction == Faction.Klaed);
+        Assert.DoesNotContain(g.Fleets.Values, f => f.Side == Faction.Klaed);
     }
 
     [Fact]
@@ -307,7 +307,7 @@ public class GalaxyTests
         {
             var g = CreateGalaxy(Faction.Klaed, [Faction.Nairan]);
             Assert.True(GalaxySave.Save(g, path));
-            Assert.Equal(new SaveInfo(GalaxySave.Info(path)!.SavedAt, Faction.Klaed, 1), GalaxySave.Info(path));
+            Assert.Equal(new SaveInfo(GalaxySave.Info(path)!.SavedAt, Faction.Klaed, Faction.Klaed, 1), GalaxySave.Info(path));
             Assert.NotNull(GalaxySave.Load(path));
             GalaxySave.Clear(path);
             Assert.Null(GalaxySave.Load(path));
@@ -560,8 +560,8 @@ public class GalaxyTests
     public void Ships_enter_a_battle_as_worn_as_their_fleet_and_come_out_with_what_they_kept()
     {
         var w = Battle.CreatePlanetBattle(
-            new BattleSide { Faction = Faction.Klaed, Ships = new ShipCounts { [ShipClass.Frigate] = 2 }, Condition = 0.5 },
-            new BattleSide { Faction = Faction.Nairan }, PlanetDefense.None);
+            new BattleSide { Side = Faction.Klaed, Ships = new ShipCounts { [ShipClass.Frigate] = 2 }, Condition = 0.5 },
+            new BattleSide { Side = Faction.Nairan }, PlanetDefense.None);
         var frigates = w.Entities.Where(e => e.Type == "frigate").ToList();
         foreach (var f in frigates) Expect.Close(f.MaxHull * 0.5, f.Hull, 5);
         frigates[0].Hull = frigates[0].MaxHull * 0.2;
@@ -596,7 +596,7 @@ public class GalaxyTests
     {
         var g = CreateGalaxy(Faction.Klaed, [Faction.Nairan], false);
         var target = g.Planets.Find(p => p.Owner == Faction.Nairan)!;
-        var fleet = g.Fleets.Values.First(f => f.Faction == Faction.Klaed);
+        var fleet = g.Fleets.Values.First(f => f.Side == Faction.Klaed);
         AddShipsAt(g, Faction.Klaed, fleet.At!.Value, new ShipCounts { [ShipClass.Frigate] = 6 });
         SendFleet(g, fleet.Id, target.Id);
         for (var i = 0; i < 6000 && g.Battles.Count == 0; i++) RunGalaxy(g, 0.1);
@@ -699,22 +699,22 @@ public class GalaxyTests
             Assert.True(site.Units.Count == 0 && site.Buildings.Count == 0 && site.Repeat.Count == 0);
             // Their station only ever loses levels, in battle.
             Assert.True(site.Station <= 3 && site.Platforms <= 4);
-            foreach (var f in g.Fleets.Values.Where(f => f.Faction == Faction.Errant)) Assert.True(f.At == site.Id && f.To is null);
+            foreach (var f in g.Fleets.Values.Where(f => f.Side == Faction.Errant)) Assert.True(f.At == site.Id && f.To is null);
         }
-        Assert.DoesNotContain(g.Events, e => e is PlanetBuilt { Faction: Faction.Errant } or TechResearched { Faction: Faction.Errant }
-            or GalaxyVictory { Faction: Faction.Errant } or BattleEnded { Attacker: Faction.Errant });
+        Assert.DoesNotContain(g.Events, e => e is PlanetBuilt b && b.Side == Faction.Errant || e is TechResearched t && t.Side == Faction.Errant
+            || e is GalaxyVictory v && v.Side == Faction.Errant || e is BattleEnded x && x.Attacker == Faction.Errant);
     }
 
     [Fact]
     public void The_last_playable_faction_wins_with_the_Errants_still_on_their_planet()
     {
         var g = CreateGalaxy(Faction.Klaed, [Faction.Nairan], false);
-        foreach (var f in g.Fleets.Values.Where(f => f.Faction == Faction.Nairan).ToList()) g.Fleets.Remove(f.Id);
+        foreach (var f in g.Fleets.Values.Where(f => f.Side == Faction.Nairan).ToList()) g.Fleets.Remove(f.Id);
         g.Planets[East].Owner = Faction.Klaed;
         StepGalaxy(g);
         Assert.Equal(Faction.Klaed, g.Winner);
         Assert.True(g.Factions[Faction.Nairan].Eliminated);
-        Assert.Equal(Faction.Klaed, Assert.Single(g.Events.OfType<GalaxyVictory>()).Faction);
+        Assert.Equal(Faction.Klaed, Assert.Single(g.Events.OfType<GalaxyVictory>()).Side);
         FullGuard(g, ErrantPlanet(g));
     }
 
@@ -737,7 +737,7 @@ public class GalaxyTests
         Expect.Greater(earned[Faction.Klaed], 0);
         ConcludeBattle(g, b.Id, result);
         foreach (var f in sides) Assert.Equal(credits[f] + earned[f], g.Factions[f].Credits);
-        Assert.Contains(g.Events, e => e is BountyPaid { Faction: Faction.Klaed, Tech: null } paid && paid.Credits == earned[Faction.Klaed]);
+        Assert.Contains(g.Events, e => e is BountyPaid { Tech: null } paid && paid.Side == Faction.Klaed && paid.Credits == earned[Faction.Klaed]);
     }
 
     [Fact]
@@ -763,7 +763,7 @@ public class GalaxyTests
         Assert.Equal(credits + Raids.Bounty, f.Credits);
         Assert.Equal(levels + 1, Techs.All.Sum(t => f.Research[t]));
         var paid = Assert.Single(g.Events.OfType<BountyPaid>());
-        Assert.Equal((Faction.Klaed, Raids.Bounty), (paid.Faction, paid.Credits));
+        Assert.Equal((Faction.Klaed, Raids.Bounty), (paid.Side, paid.Credits));
         Assert.NotNull(paid.Tech);
         // The Errants hold on, their guard without its colossus; nothing is paid to them.
         Assert.Equal(Faction.Errant, site.Owner);
@@ -782,13 +782,13 @@ public class GalaxyTests
         RunGalaxy(g, 30);
         var b = Assert.Single(g.Battles);
         // Everything the Errants have in orbit falls.
-        foreach (var e in b.World.Entities.Where(e => e.Faction == Faction.Errant && e.Kind != EntityKind.Hardpoint)) e.Hull = 0;
+        foreach (var e in b.World.Entities.Where(e => e.Side == Faction.Errant && e.Kind != EntityKind.Hardpoint)) e.Hull = 0;
         Worlds.RemoveDead(b.World);
         Assert.Equal(BattleResult.Attacker, Battle.Outcome(b.World, b.Attacker, b.Defender));
         ConcludeBattle(g, b.Id, BattleResult.Attacker);
         Assert.Equal((Faction.Klaed, 0), (site.Owner!.Value, site.Station));
-        Assert.DoesNotContain(g.Fleets.Values, fl => fl.Faction == Faction.Errant);
-        Assert.Contains(g.Events, e => e is Captured { Faction: Faction.Klaed, From: Faction.Errant });
+        Assert.DoesNotContain(g.Fleets.Values, fl => fl.Side == Faction.Errant);
+        Assert.Contains(g.Events, e => e is Captured c && c.Side == Faction.Klaed && c.From == Faction.Errant);
         Assert.Null(g.Winner);
     }
 
@@ -808,13 +808,13 @@ public class GalaxyTests
         Assert.DoesNotContain(site.Id, VisiblePlanets(g, Faction.Nairan));
         RunGalaxy(g, 60);
         Assert.Null(g.Winner);
-        Assert.DoesNotContain(g.Events, e => e is BattleEnded { Defender: Faction.Errant });
+        Assert.DoesNotContain(g.Events, e => e is BattleEnded b && b.Defender == Faction.Errant);
         Assert.DoesNotContain(g.Battles, b => b.PlanetId == site.Id);
         FullGuard(g, site);
         // Far stronger than the site, it goes for it.
         AddShipsAt(g, Faction.Nairan, next, new ShipCounts { [ShipClass.Leviathan] = 6 });
         RunGalaxy(g, 120);
-        Assert.Contains(g.Events, e => e is BattleEnded { Attacker: Faction.Nairan, Defender: Faction.Errant });
+        Assert.Contains(g.Events, e => e is BattleEnded b && b.Attacker == Faction.Nairan && b.Defender == Faction.Errant);
     }
 
     [Fact]

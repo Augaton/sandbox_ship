@@ -61,7 +61,7 @@ public class GalaxyAiTests
         }
         Assert.NotNull(battle);
         Assert.Equal(Faction.Nairan, battle.Attacker);
-        Expect.GreaterOrEqual(battle.World.Entities.Count(e => e.Faction == Faction.Nairan && e.Type == "frigate"), 8);
+        Expect.GreaterOrEqual(battle.World.Entities.Count(e => e.Side == Faction.Nairan && e.Type == "frigate"), 8);
         var ai = g.Factions[Faction.Nairan].AI!;
         Assert.Equal((Id("Calyx"), nadir.Id), (ai.Staging, ai.Target));
     }
@@ -79,7 +79,7 @@ public class GalaxyAiTests
         Assert.DoesNotContain(g.Events, e => e is BattleStarted);
         Assert.Equal(Faction.Klaed, nadir.Owner);
         RunGalaxy(g, 60);
-        Assert.Contains(g.Events, e => e is BattleEnded { Attacker: Faction.Nairan } ended && ended.PlanetId == nadir.Id);
+        Assert.Contains(g.Events, e => e is BattleEnded ended && ended.Attacker == Faction.Nairan && ended.PlanetId == nadir.Id);
     }
 
     [Fact]
@@ -90,10 +90,10 @@ public class GalaxyAiTests
         g.Ongoing.Add(new Incident { Kind = IncidentKind.Derelict, Planet = maru, Remaining = DerelictTime, Ships = Frigates(3) });
         AddShipsAt(g, Faction.Nairan, Id("Calyx"), Frigates(3));
         RunGalaxy(g, 1);
-        var sent = Assert.Single(g.Fleets.Values, f => f.Faction == Faction.Nairan && f.At is null && Heading(f, maru));
+        var sent = Assert.Single(g.Fleets.Values, f => f.Side == Faction.Nairan && f.At is null && Heading(f, maru));
         Assert.Equal(1, Battle.CountShips(sent.Ships));
         RunGalaxy(g, 20);
-        Assert.Contains(g.Events, e => e is IncidentEnded { Kind: IncidentKind.Derelict, Faction: Faction.Nairan });
+        Assert.Contains(g.Events, e => e is IncidentEnded { Kind: IncidentKind.Derelict } i && i.Side == Faction.Nairan);
     }
 
     [Fact]

@@ -7,14 +7,15 @@ namespace SandboxShip.Sim;
 
 public static class Raids
 {
-    /// <summary>Credits paid to the faction that lands the last blow.</summary>
+    /// <summary>Credits paid to the side that lands the last blow.</summary>
     public const double Bounty = 8000;
     /// <summary>Distance kept from the map's edges.</summary>
     const double Inset = 420;
 
     /// <summary>
-    /// Puts the colossus, on the neutral side, at the corner or edge middle farthest from every
-    /// station, facing the middle of the map. Its guardians use their abilities by themselves.
+    /// Puts the colossus, on the Errants' own side (3), at the corner or edge middle farthest
+    /// from every station, facing the middle of the map. Its guardians use their abilities by
+    /// themselves.
     /// </summary>
     public static Entity Place(World world)
     {
@@ -49,7 +50,7 @@ public static class Raids
     /// </summary>
     public static void Reward(World world, Entity colossus)
     {
-        if (colossus.LastHitBy is not Faction by || by == colossus.Faction || !world.Factions.TryGetValue(by, out var f)) return;
+        if (colossus.LastHitBy is not Side by || by == colossus.Side || !world.Factions.TryGetValue(by, out var f)) return;
         f.Credits += Bounty;
         f.Bounties += Bounty;
         f.Stats.Earned += Bounty;

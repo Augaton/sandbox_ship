@@ -64,10 +64,13 @@ public partial class BattleScreen : Node
         }
         else World = o.Campaign?.World ?? (Dev.Start == "stress" ? Stress.Create(o.Seed ?? 7) : Scenario.CreateSkirmish(new SkirmishOptions
         {
-            Player = o.Player, Enemies = [.. o.Enemies], EnemyAI = !sandbox,
+            // In the sandbox, nobody plays by itself: the others only do what the player spawns.
+            Slots = [.. o.Slots.Select(s => sandbox ? s with { AI = null } : s)],
             Credits = sandbox ? 50000 : Scenario.StartCredits, Seed = o.Seed ?? 1,
-            Map = o.Map, Size = o.Size, Fog = !sandbox, Difficulty = o.Difficulty, Raid = o.Raid,
+            Map = o.Map, Size = o.Size, Fog = !sandbox, Raid = o.Raid,
         }));
+        // A campaign battle's AI plays the side facing the player.
+        if (o.Campaign is { } cb) campaignFoe = [cb.Attacker == o.Player ? cb.Defender : cb.Attacker];
         // The player's ships use their abilities by themselves if the player wants so.
         var own = o.Demo ? null : World.Factions.GetValueOrDefault(o.Player);
         if (own is not null) own.AutoAbilities = Settings.Current.AutoAbilities;
@@ -144,9 +147,9 @@ public partial class BattleScreen : Node
         CenterOn(1700, 1150);
     }
 
-    Point FleetCenter(Faction faction)
+    Point FleetCenter(Side side)
     {
-        var ships = World.Entities.Where(e => e.Faction == faction).ToList();
+        var ships = World.Entities.Where(e => e.Side == side).ToList();
         if (ships.Count == 0) return new Point(World.Width / 2, World.Height / 2);
         return new Point(ships.Average(e => e.X), ships.Average(e => e.Y));
     }
@@ -165,7 +168,7 @@ public partial class BattleScreen : Node
             while (acc >= Steps.Step && n < MaxStepsPerFrame)
             {
                 Steps.StepWorld(World);
-                if (Opts.Campaign is not null) Sim.Battle.UpdateBattleAI(World, Opts.Enemies, Steps.Step);
+                if (Opts.Campaign is not null) Sim.Battle.UpdateBattleAI(World, campaignFoe, Steps.Step);
                 if (Opts.Demo && World.Time >= nextSteer) Steer();
                 acc -= Steps.Step;
                 n++;
@@ -203,6 +206,8 @@ public partial class BattleScreen : Node
     /// <summary>Set when the showcase fight is over, a few seconds after one side is left (or after too long).</summary>
     public bool DemoOver { get; private set; }
     double nextSteer, lastStanding = double.MaxValue;
+    /// <summary>In a campaign battle, the side the AI plays.</summary>
+    IReadOnlyList<Side> campaignFoe = [];
 
     /// <summary>Every two seconds: the idle ships back into the fight, and is it over?</summary>
     void Steer()
@@ -363,36 +368,38 @@ public partial class BattleScreen : Node
                 case Destroyed d:
                     Explode(d.Id, d.X, d.Y, d.Radius);
                     Play(d.Radius >= 50 ? Sound.BigExplosion : Sound.Explosion, d.X, d.Y, Math.Min(1, 0.4 + d.Radius / 60));
-                    if (d.Faction == Opts.Player && d.Kind != EntityKind.Ship) Alert($"Perte : {Names.TypeName(d.EntityType)}", d.X, d.Y, true);
-                    // Out of a free-for-all before it ends: say so now, the others may fight on for long.
-                    if (d.EntityType == "station" && d.Faction == Opts.Player && Opts.Campaign is null && w.Winner is null && !defeated)
+                    if (d.Side == Opts.Player && d.Kind != EntityKind.Ship) Alert($"Perte : {Names.TypeName(d.EntityType)}", d.X, d.Y, true);
+                    // Out of a free-for-all before it ends, with no ally left holding a station: say so
+                    // now, the others may fight on for long.
+                    if (d.EntityType == "station" && d.Side == Opts.Player && Opts.Campaign is null && w.Winner is null && !defeated
+                        && !w.Factions.Values.Any(f => f.StationId is not null && Worlds.Allies(w, f.Id, Opts.Player)))
                     {
                         defeated = true;
                         Hud.ShowEnd(false);
                     }
-                    else if (d.Faction == Opts.Player && !OnScreen(d.X, d.Y)) Alert($"Perte : {Names.TypeName(d.EntityType)}", d.X, d.Y);
+                    else if (d.Side == Opts.Player && !OnScreen(d.X, d.Y)) Alert($"Perte : {Names.TypeName(d.EntityType)}", d.X, d.Y);
                     break;
                 case Hit h:
                     Spark(h.X, h.Y);
                     if (h.ShieldId is int sid) shieldFlash[sid] = Now;
                     Play(h.ShieldId is not null ? Sound.Shield : Sound.Hit, h.X, h.Y, 0.6);
-                    if (h.Faction == Opts.Player) UnderFire(h.TargetId, h.X, h.Y);
+                    if (h.Side == Opts.Player) UnderFire(h.TargetId, h.X, h.Y);
                     break;
                 case RaidWon rw:
-                    var tech = rw.Tech is TechId t ? $", {Techs.Defs[t].Name} niveau {World.Factions[rw.Faction].Research[t]}" : "";
-                    if (rw.Faction == Opts.Player)
+                    var tech = rw.Tech is TechId t ? $", {Techs.Defs[t].Name} niveau {World.Factions[rw.Side].Research[t]}" : "";
+                    if (rw.Side == Opts.Player)
                     {
                         Hud.Toast($"Colosse abattu : +{rw.Credits:0} crédits{tech}");
                         Sfx.Play(Sound.Horn);
                     }
-                    else Hud.Toast($"Les {Factions.Defs[rw.Faction].Name} ont abattu le Colosse");
+                    else Hud.Toast($"Les {Factions.Defs[Worlds.RaceOf(w, rw.Side)].Name} ont abattu le Colosse");
                     break;
                 case Delivered dl:
-                    if (w.Entities.Get(dl.Id) is { Size: SizeClass.Large } big && (CanSee(big) || big.Faction == Opts.Player)) Portal(big);
+                    if (w.Entities.Get(dl.Id) is { Size: SizeClass.Large } big && (CanSee(big) || big.Side == Opts.Player)) Portal(big);
                     break;
                 case Built b:
                     var built = w.Entities.Get(b.Id);
-                    if (built?.Faction == Opts.Player)
+                    if (built?.Side == Opts.Player)
                     {
                         Hud.Toast(built.Type == "starLance" ? "Lance stellaire en service : elle charge" : "Construction terminée");
                         Sfx.Play(Sound.Built);
@@ -400,20 +407,20 @@ public partial class BattleScreen : Node
                     // Everyone hears of a star lance, wherever it stands.
                     else if (built?.Type == "starLance" && !Opts.Demo)
                     {
-                        Hud.Toast($"Les {Factions.Defs[built.Faction].Name} ont mis en service une Lance stellaire");
+                        Hud.Toast($"Les {Factions.Defs[built.Race].Name} ont mis en service une Lance stellaire");
                         Sfx.Play(Sound.Alert);
                     }
                     break;
                 case Victory v:
-                    if (!defeated) Hud.ShowEnd(v.Faction == Opts.Player);
+                    if (!defeated) Hud.ShowEnd(Worlds.Allies(w, v.Side, Opts.Player));
                     break;
                 case Rebuilt r:
-                    if (r.Faction == Opts.Player) Hud.Toast($"{Names.TypeName(r.Role)} reconstruit");
+                    if (r.Side == Opts.Player) Hud.Toast($"{Names.TypeName(r.Role)} reconstruit");
                     break;
                 case AbilityUsed { Id: AbilityId.StarLance } lance when !Opts.Demo:
-                    Hud.Toast(lance.Faction == Opts.Player ? "Frappe stellaire lancée" : "Frappe stellaire en approche : fuyez la zone !");
+                    Hud.Toast(lance.Side == Opts.Player ? "Frappe stellaire lancée" : "Frappe stellaire en approche : fuyez la zone !");
                     Sfx.Play(Sound.Horn);
-                    if (lance.Faction != Opts.Player) Alert("Frappe stellaire", lance.Tx, lance.Ty, true);
+                    if (lance.Side != Opts.Player) Alert("Frappe stellaire", lance.Tx, lance.Ty, true);
                     break;
                 case AbilityUsed a:
                     if (w.Entities.Get(a.EntityId) is { } e && CanSee(e))

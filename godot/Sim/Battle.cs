@@ -33,7 +33,11 @@ public sealed record PlanetDefense
 
 public sealed class BattleSide
 {
-    public Faction Faction;
+    public Side Side;
+    /// <summary>Null: the race whose own side it is (see Side).</summary>
+    public Faction? Race;
+    /// <summary>Null: the side's default color.</summary>
+    public uint? Color;
     public ShipCounts Ships = [];
     public List<HeroId> Heroes = [];
     public ResearchLevels? Research;
@@ -74,10 +78,10 @@ public static class Battle
             var py = y + offsets[i].Y;
             if (list[i].Hero is HeroId hero)
             {
-                SpawnHero(world, side.Faction, hero, px, py, angle);
+                SpawnHero(world, side.Side, hero, px, py, angle);
                 continue;
             }
-            var s = SpawnShip(world, side.Faction, list[i].Cls, px, py, angle);
+            var s = SpawnShip(world, side.Side, list[i].Cls, px, py, angle);
             var c = Math.Max(0.05, side.Condition);
             foreach (var part in ChildrenOf(world, s.Id).Prepend(s)) part.Hull = part.MaxHull * c;
         }
@@ -93,28 +97,28 @@ public static class Battle
         w.Fog = true;
         foreach (var side in new[] { defender, attacker })
         {
-            var f = AddFaction(w, side.Faction, 0);
+            var f = AddSide(w, side.Side, side.Race ?? (Faction)side.Side.Id, 0, color: side.Color);
             f.AutoAbilities = true;
             if (side.Research is not null) f.Research = side.Research.Clone();
         }
         var home = new Point(800, Height / 2);
         Scenario.ScatterFields(w, 5 + (int)Math.Floor(Rand(w) * 4), [home, new Point(Width - 500, home.Y)], 380);
-        if (defense.Station > 0) SpawnStation(w, defender.Faction, home.X, home.Y, defense.Station);
+        if (defense.Station > 0) SpawnStation(w, defender.Side, home.X, home.Y, defense.Station);
         var fields = w.Fields.OrderBy(a => Dist(a, home)).Take(defense.Mines).ToList();
         foreach (var field in fields)
         {
-            var mine = SpawnStructure(w, defender.Faction, BuildableType.Mine, field.X, field.Y);
+            var mine = SpawnStructure(w, defender.Side, BuildableType.Mine, field.X, field.Y);
             mine.FieldId = field.Id;
             field.MineId = mine.Id;
         }
         for (var i = 0; i < defense.Platforms; i++)
         {
             var a = (i - (defense.Platforms - 1) / 2.0) * 0.5;
-            var platform = SpawnStructure(w, defender.Faction, BuildableType.Platform, home.X + Math.Cos(a) * 420, home.Y + Math.Sin(a) * 420);
+            var platform = SpawnStructure(w, defender.Side, BuildableType.Platform, home.X + Math.Cos(a) * 420, home.Y + Math.Sin(a) * 420);
             for (var t = 1; t < defense.PlatformTier; t++) Structures.ApplyTier(w, platform);
         }
-        if (defense.RepairDock > 0) SpawnStructure(w, defender.Faction, BuildableType.RepairDock, home.X - 260, home.Y + 260);
-        if (defense.IonCannon > 0) SpawnStructure(w, defender.Faction, BuildableType.IonCannon, home.X - 260, home.Y - 260);
+        if (defense.RepairDock > 0) SpawnStructure(w, defender.Side, BuildableType.RepairDock, home.X - 260, home.Y + 260);
+        if (defense.IonCannon > 0) SpawnStructure(w, defender.Side, BuildableType.IonCannon, home.X - 260, home.Y - 260);
         PlaceShips(w, defender, home.X + 550, home.Y, 0);
         PlaceShips(w, attacker, Width - 500, home.Y, Math.PI);
         return w;
@@ -124,15 +128,15 @@ public static class Battle
     /// The defender holds while it keeps a station or a ship; the attacker while it keeps a ship.
     /// Returns null while both sides still stand.
     /// </summary>
-    public static BattleResult? Outcome(World world, Faction attacker, Faction defender)
+    public static BattleResult? Outcome(World world, Side attacker, Side defender)
     {
         var att = false;
         var def = StationOf(world, defender) is not null;
         foreach (var e in world.Entities)
         {
             if (e.Kind != EntityKind.Ship) continue;
-            if (e.Faction == attacker) att = true;
-            else if (e.Faction == defender) def = true;
+            if (e.Side == attacker) att = true;
+            else if (e.Side == defender) def = true;
         }
         if (!att) return BattleResult.Defender;
         if (!def) return BattleResult.Attacker;
@@ -141,43 +145,43 @@ public static class Battle
     }
 
     /// <summary>Ships that can go back to the galaxy map: hangar craft stay behind, heroes are counted apart.</summary>
-    public static ShipCounts Survivors(World world, Faction faction)
+    public static ShipCounts Survivors(World world, Side side)
     {
         var out_ = new ShipCounts();
         foreach (var e in world.Entities)
         {
-            if (e.Kind != EntityKind.Ship || e.Faction != faction || e.Hero is not null || e.Launched) continue;
+            if (e.Kind != EntityKind.Ship || e.Side != side || e.Hero is not null || e.Launched) continue;
             if (!Data.Ships.Defs[e.Cls].FromHangar) out_.Increase(e.Cls);
         }
         return out_;
     }
 
     /// <summary>Share of their hull the surviving ships keep, 1 when none survive.</summary>
-    public static double SurvivorCondition(World world, Faction faction)
+    public static double SurvivorCondition(World world, Side side)
     {
         double hull = 0, max = 0;
         foreach (var e in world.Entities)
         {
-            if (e.Kind != EntityKind.Ship || e.Faction != faction || e.Hero is not null || e.Launched) continue;
+            if (e.Kind != EntityKind.Ship || e.Side != side || e.Hero is not null || e.Launched) continue;
             hull += Math.Max(0, e.Hull);
             max += e.MaxHull;
         }
         return max > 0 ? hull / max : 1;
     }
 
-    public static List<HeroId> HeroSurvivors(World world, Faction faction)
+    public static List<HeroId> HeroSurvivors(World world, Side side)
     {
         var out_ = new List<HeroId>();
-        foreach (var e in world.Entities) if (e.Hero is HeroId h && e.Faction == faction) out_.Add(h);
+        foreach (var e in world.Entities) if (e.Hero is HeroId h && e.Side == side) out_.Add(h);
         return out_;
     }
 
-    public static PlanetDefense DefenseLeft(World world, Faction faction)
+    public static PlanetDefense DefenseLeft(World world, Side side)
     {
-        var left = new PlanetDefense { Station = StationOf(world, faction)?.Level ?? 0 };
+        var left = new PlanetDefense { Station = StationOf(world, side)?.Level ?? 0 };
         foreach (var e in world.Entities)
         {
-            if (e.Faction != faction || e.Kind != EntityKind.Structure) continue;
+            if (e.Side != side || e.Kind != EntityKind.Structure) continue;
             if (e.Type == "platform")
             {
                 left.Platforms++;
@@ -190,40 +194,40 @@ public static class Battle
         return left;
     }
 
-    /// <summary>Hull and shields a faction still has in the battle: what the battle prompt compares.</summary>
-    public static double SideStrength(World world, Faction faction)
+    /// <summary>Hull and shields a side still has in the battle: what the battle prompt compares.</summary>
+    public static double SideStrength(World world, Side side)
     {
         double total = 0;
-        foreach (var e in world.Entities) if (e.Faction == faction) total += e.Hull + e.Shield;
+        foreach (var e in world.Entities) if (e.Side == side) total += e.Hull + e.Shield;
         return Js.Round(total);
     }
 
     /// <summary>
-    /// Once per second, idle warships of each faction attack-move towards the nearest enemy
-    /// they can see; seeing none, towards the enemy station, or else to scout the middle.
+    /// Once per second, idle warships of each side attack-move towards the nearest foe they can
+    /// see; seeing none, towards a foe's station, or else to scout the middle.
     /// </summary>
-    public static void UpdateBattleAI(World world, IEnumerable<Faction> factions, double dt)
+    public static void UpdateBattleAI(World world, IEnumerable<Side> sides, double dt)
     {
         if (Math.Floor(world.Time) == Math.Floor(world.Time - dt)) return;
-        foreach (var faction in factions)
+        foreach (var side in sides)
         {
             var idle = new List<Entity>();
             foreach (var e in world.Entities)
             {
-                if (e.Kind == EntityKind.Ship && e.Faction == faction && e.Order is null && !e.Launched) idle.Add(e);
+                if (e.Kind == EntityKind.Ship && e.Side == side && e.Order is null && !e.Launched) idle.Add(e);
             }
             if (idle.Count == 0) continue;
             var c = new Point(idle.Sum(e => e.X) / idle.Count, idle.Sum(e => e.Y) / idle.Count);
             IPoint? target = null;
             foreach (var e in world.Entities)
             {
-                if (e.Faction != faction && Vision.IsVisible(world, faction, e) && (target is null || Dist(e, c) < Dist(target, c))) target = e;
+                if (Foes(world, side, e.Side) && Vision.IsVisible(world, side, e) && (target is null || Dist(e, c) < Dist(target, c))) target = e;
             }
             if (target is null)
             {
-                var station = world.Factions.Keys.Where(f => f != faction).Select(f => StationOf(world, f)).FirstOrDefault(s => s is not null);
+                var station = world.Factions.Keys.Where(f => Foes(world, side, f)).Select(f => StationOf(world, f)).FirstOrDefault(s => s is not null);
                 var center = new Point(world.Width / 2, world.Height / 2);
-                target = station ?? (StationOf(world, faction) is not null || Dist(c, center) < 200 ? null : (IPoint)center);
+                target = station ?? (StationOf(world, side) is not null || Dist(c, center) < 200 ? null : (IPoint)center);
             }
             if (target is not null) Movement.IssueMove(world, idle.Select(e => e.Id), target.X, target.Y, true);
         }

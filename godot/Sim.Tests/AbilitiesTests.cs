@@ -173,7 +173,7 @@ public class AbilitiesTests
         UseAbility(w, ondra, new Aim(3100, 3000));
         // The mother ship's own hangar launches fighters too: count the swarm only.
         int Fighters() => w.Entities.Count(e => e.Type == "fighter" && e.Expires is not null);
-        int Turrets() => w.Entities.Count(e => e.Type == "platform" && e.Faction == Faction.Klaed);
+        int Turrets() => w.Entities.Count(e => e.Type == "platform" && e.Side == Faction.Klaed);
         Assert.Equal(8, Fighters());
         Assert.Equal(1, Turrets());
         Run(w, 46);

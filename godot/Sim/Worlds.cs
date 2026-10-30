@@ -20,17 +20,49 @@ public static class Worlds
 
     public static AIState NewAI(Difficulty difficulty = Difficulty.Normal) => new(difficulty);
 
-    public static FactionState AddFaction(World world, Faction id, double credits, bool ai = false, Difficulty difficulty = Difficulty.Normal)
+    /// <summary>A race joins on its own side (see Side), alone in no team, in its own color.</summary>
+    public static FactionState AddFaction(World world, Faction race, double credits, bool ai = false, Difficulty difficulty = Difficulty.Normal) =>
+        AddSide(world, race, race, credits, ai: ai, difficulty: difficulty);
+
+    /// <summary>
+    /// A side joins, of any race, in a team (0: alone) and a color (null: DefaultColor). The
+    /// Errants join no team: they are everyone's foes.
+    /// </summary>
+    public static FactionState AddSide(World world, Side side, Faction race, double credits, int team = 0, uint? color = null,
+        bool ai = false, Difficulty difficulty = Difficulty.Normal)
     {
         var f = new FactionState
         {
-            Id = id, Credits = credits, AutoAbilities = ai,
+            Id = side, Race = race, Team = race == Faction.Errant ? 0 : team, Color = color ?? DefaultColor(side, race),
+            Credits = credits, AutoAbilities = ai,
             RallyX = world.Width / 2, RallyY = world.Height / 2,
             AI = ai ? NewAI(difficulty) : null,
         };
-        world.Factions[id] = f;
+        world.Factions[side] = f;
         return f;
     }
+
+    /// <summary>
+    /// A side's color unless told otherwise: its race's for the first sides (0 to 3) and for the
+    /// Errants, then the player colors in turn from side 4 on.
+    /// </summary>
+    public static uint DefaultColor(Side side, Faction race) =>
+        race == Faction.Errant || side.Id < 4 ? Factions.Defs[race].Color : Factions.PlayerColors[(side.Id - 4) % Factions.PlayerColors.Count];
+
+    /// <summary>A side's race: the one it joined with; a side that never joined is its own race's.</summary>
+    public static Faction RaceOf(World world, Side side) => world.Factions.TryGetValue(side, out var f) ? f.Race : (Faction)side.Id;
+
+    /// <summary>A side's team: 0 (alone) for a side that never joined.</summary>
+    public static int TeamOf(World world, Side side) => world.Factions.TryGetValue(side, out var f) ? f.Team : 0;
+
+    /// <summary>The same side, or two sides of the same team other than 0: they help and never hurt each other.</summary>
+    public static bool Allies(World world, Side a, Side b) => a == b || (TeamOf(world, a) is var t && t != 0 && t == TeamOf(world, b));
+
+    /// <summary>Sides that fight each other: any two that are not allies. The Errants are everyone's foes.</summary>
+    public static bool Foes(World world, Side a, Side b) => !Allies(world, a, b);
+
+    /// <summary>Whether `side` won the battle: its own victory or its team's.</summary>
+    public static bool Won(World world, Side side) => world.Winner is Side w && Allies(world, w, side);
 
     public static AsteroidField AddField(World world, double x, double y, double radius)
     {
@@ -39,24 +71,24 @@ public static class Worlds
         return field;
     }
 
-    static Entity BaseEntity(World world, EntityKind kind, string type, Faction faction, double x, double y) =>
-        new() { Id = world.NextId++, Kind = kind, Type = type, Faction = faction, X = x, Y = y, GuardX = x, GuardY = y };
+    static Entity BaseEntity(World world, EntityKind kind, string type, Side side, double x, double y) =>
+        new() { Id = world.NextId++, Kind = kind, Type = type, Side = side, Race = RaceOf(world, side), X = x, Y = y, GuardX = x, GuardY = y };
 
-    public static int ResearchLevel(World world, Faction faction, TechId tech) =>
-        world.Factions.TryGetValue(faction, out var f) ? f.Research[tech] : 0;
+    public static int ResearchLevel(World world, Side side, TechId tech) =>
+        world.Factions.TryGetValue(side, out var f) ? f.Research[tech] : 0;
 
-    /// <summary>Hull multiplier of a faction: its trait and its armor research.</summary>
-    public static double HullMult(World world, Faction faction) =>
-        Factions.Trait(faction).Hull * (1 + Techs.ArmorBonus * ResearchLevel(world, faction, TechId.Armor));
+    /// <summary>Hull multiplier of a side: its race's trait and its armor research.</summary>
+    public static double HullMult(World world, Side side) =>
+        Factions.Trait(RaceOf(world, side)).Hull * (1 + Techs.ArmorBonus * ResearchLevel(world, side, TechId.Armor));
 
-    /// <summary>Shield multiplier of a faction: its trait and its shield research.</summary>
-    public static double ShieldMult(World world, Faction faction) =>
-        Factions.Trait(faction).Shield * (1 + Techs.ShieldsBonus * ResearchLevel(world, faction, TechId.Shields));
+    /// <summary>Shield multiplier of a side: its race's trait and its shield research.</summary>
+    public static double ShieldMult(World world, Side side) =>
+        Factions.Trait(RaceOf(world, side)).Shield * (1 + Techs.ShieldsBonus * ResearchLevel(world, side, TechId.Shields));
 
     static void ScaleDefenses(World world, Entity e)
     {
-        var h = HullMult(world, e.Faction);
-        var s = ShieldMult(world, e.Faction);
+        var h = HullMult(world, e.Side);
+        var s = ShieldMult(world, e.Side);
         e.Hull *= h;
         e.MaxHull *= h;
         e.Shield *= s;
@@ -64,15 +96,15 @@ public static class Worlds
         e.ShieldRegen *= s;
     }
 
-    /// <summary>A finished armor or shield research upgrades what the faction already fields.</summary>
-    public static void RescaleForResearch(World world, Faction faction, TechId tech, double before)
+    /// <summary>A finished armor or shield research upgrades what the side already fields.</summary>
+    public static void RescaleForResearch(World world, Side side, TechId tech, double before)
     {
         if (tech != TechId.Armor && tech != TechId.Shields) return;
-        var after = tech == TechId.Armor ? HullMult(world, faction) : ShieldMult(world, faction);
+        var after = tech == TechId.Armor ? HullMult(world, side) : ShieldMult(world, side);
         var ratio = after / before;
         foreach (var e in world.Entities)
         {
-            if (e.Faction != faction) continue;
+            if (e.Side != side) continue;
             if (tech == TechId.Armor)
             {
                 e.Hull *= ratio;
@@ -91,10 +123,10 @@ public static class Worlds
 
     static HangarState? HangarOf(HangarDef? def) => def is null ? null : new HangarState(def);
 
-    public static Entity SpawnShip(World world, Faction faction, ShipClass cls, double x, double y, double angle = 0)
+    public static Entity SpawnShip(World world, Side side, ShipClass cls, double x, double y, double angle = 0)
     {
         var def = Ships.Defs[cls];
-        var e = BaseEntity(world, EntityKind.Ship, Ids.Of(cls), faction, x, y);
+        var e = BaseEntity(world, EntityKind.Ship, Ids.Of(cls), side, x, y);
         e.Angle = angle;
         e.Radius = def.Radius;
         e.Size = def.Size;
@@ -112,10 +144,10 @@ public static class Worlds
     }
 
     /// <summary>A hero: its base ship, much tougher, with the hero's own ability.</summary>
-    public static Entity SpawnHero(World world, Faction faction, HeroId id, double x, double y, double angle = 0)
+    public static Entity SpawnHero(World world, Side side, HeroId id, double x, double y, double angle = 0)
     {
         var def = Heroes.Defs[id];
-        var e = SpawnShip(world, faction, def.Base, x, y, angle);
+        var e = SpawnShip(world, side, def.Base, x, y, angle);
         e.Hero = id;
         foreach (var part in ChildrenOf(world, e.Id).Prepend(e))
         {
@@ -130,10 +162,10 @@ public static class Worlds
     }
 
     /// <summary>Spawns a station already upgraded to `level`, with the hardpoints of every level up to it.</summary>
-    public static Entity SpawnStation(World world, Faction faction, double x, double y, int level = 1)
+    public static Entity SpawnStation(World world, Side side, double x, double y, int level = 1)
     {
         var lvl = Station.Levels[level - 1];
-        var e = BaseEntity(world, EntityKind.Structure, "station", faction, x, y);
+        var e = BaseEntity(world, EntityKind.Structure, "station", side, x, y);
         e.Radius = Station.Radius;
         e.Level = level;
         e.Hull = e.MaxHull = lvl.Hull;
@@ -144,7 +176,7 @@ public static class Worlds
         ScaleDefenses(world, e);
         world.Entities.Add(e);
         for (var i = 0; i < level; i++) AddHardpoints(world, e, Station.Levels[i].Hardpoints);
-        if (world.Factions.TryGetValue(faction, out var f))
+        if (world.Factions.TryGetValue(side, out var f))
         {
             f.StationId = e.Id;
             f.HadStation = true;
@@ -164,7 +196,7 @@ public static class Worlds
             var def = Hardpoints.Defs[slot.Role];
             var weapons = slot.Weapons ?? def.Weapons;
             var hull = slot.Hull ?? def.Hull;
-            var e = BaseEntity(world, EntityKind.Hardpoint, Ids.Of(slot.Role), parent.Faction, parent.X, parent.Y);
+            var e = BaseEntity(world, EntityKind.Hardpoint, Ids.Of(slot.Role), parent.Side, parent.X, parent.Y);
             e.Radius = slot.Radius ?? def.Radius;
             e.Hull = e.MaxHull = hull;
             e.Size = parent.Kind == EntityKind.Ship ? parent.Size : SizeClass.Structure;
@@ -210,10 +242,10 @@ public static class Worlds
     }
 
     /// <summary>Spawns a buildable structure; `built: false` starts it as a construction site.</summary>
-    public static Entity SpawnStructure(World world, Faction faction, BuildableType type, double x, double y, bool built = true)
+    public static Entity SpawnStructure(World world, Side side, BuildableType type, double x, double y, bool built = true)
     {
         var def = Buildables.Defs[type];
-        var e = BaseEntity(world, EntityKind.Structure, Ids.Of(type), faction, x, y);
+        var e = BaseEntity(world, EntityKind.Structure, Ids.Of(type), side, x, y);
         e.Radius = def.Radius;
         e.Hull = built ? def.Hull : def.Hull * 0.1;
         e.MaxHull = def.Hull;
@@ -253,8 +285,8 @@ public static class Worlds
         return false;
     }
 
-    public static Entity? StationOf(World world, Faction faction) =>
-        world.Factions.TryGetValue(faction, out var f) ? world.Entities.Get(f.StationId) : null;
+    public static Entity? StationOf(World world, Side side) =>
+        world.Factions.TryGetValue(side, out var f) ? world.Entities.Get(f.StationId) : null;
 
     /// <summary>Shields absorb damage first; the rest goes to the hull. A ship's shields cover its parts too.</summary>
     public static void ApplyDamage(Entity target, double amount, Entity? shieldOf = null)
@@ -280,7 +312,7 @@ public static class Worlds
 
     /// <summary>What shooting a ship down pays. The raid's colossus pays its own bounty instead (Raids.Reward).</summary>
     public static double BountyOf(Entity e) =>
-        e.Faction == Faction.Errant && e.Cls == ShipClass.Colossus ? 0
+        e.Race == Faction.Errant && e.Cls == ShipClass.Colossus ? 0
             : Js.Round(KillShare * (e.Hero is HeroId h ? Heroes.Defs[h].Cost : Ships.UnitValue(e.Cls)));
 
     /// <summary>
@@ -298,27 +330,27 @@ public static class Worlds
             if (!world.Entities.Remove(e.Id)) continue;
             if (e.Kind != EntityKind.Hardpoint && !e.Launched)
             {
-                if (e.Kind == EntityKind.Ship && world.Factions.TryGetValue(e.Faction, out var own)) own.Stats.Lost++;
-                if (e.LastHitBy is Faction by && by != e.Faction && world.Factions.TryGetValue(by, out var killer)) killer.Stats.Kills++;
+                if (e.Kind == EntityKind.Ship && world.Factions.TryGetValue(e.Side, out var own)) own.Stats.Lost++;
+                if (e.LastHitBy is Side by && by != e.Side && world.Factions.TryGetValue(by, out var killer)) killer.Stats.Kills++;
             }
             // A ship shot down pays its killer, hangar craft included.
-            if (e.Kind == EntityKind.Ship && e.LastHitBy is Faction hunter && hunter != e.Faction && world.Factions.TryGetValue(hunter, out var paid))
+            if (e.Kind == EntityKind.Ship && e.LastHitBy is Side hunter && hunter != e.Side && world.Factions.TryGetValue(hunter, out var paid))
             {
                 var bounty = BountyOf(e);
                 paid.Credits += bounty;
                 paid.Bounties += bounty;
                 paid.Stats.Earned += bounty;
             }
-            world.Events.Add(new Destroyed(e.Id, e.Kind, e.Type, e.Faction, e.X, e.Y, e.Radius));
+            world.Events.Add(new Destroyed(e.Id, e.Kind, e.Type, e.Side, e.X, e.Y, e.Radius));
             // The raid's bounty is for the Errants' colossus, not for one a faction built.
-            if (e.Type == "colossus" && e.Faction == Faction.Errant) Raids.Reward(world, e);
-            if (e.Hero is HeroId hero && world.Factions.TryGetValue(e.Faction, out var hf)) hf.HeroCooldowns[hero] = Heroes.Defs[hero].Respawn;
+            if (e.Type == "colossus" && e.Race == Faction.Errant) Raids.Reward(world, e);
+            if (e.Hero is HeroId hero && world.Factions.TryGetValue(e.Side, out var hf)) hf.HeroCooldowns[hero] = Heroes.Defs[hero].Respawn;
             var parent = world.Entities.Get(e.ParentId);
             if (parent?.Type == "station") parent.Rebuild.Add(new Rebuild(Ids.Role(e.Type), e.Ox, e.Oy));
             if (parent is not null && e.Type == "engine" && parent.Engines > 0) parent.Engines--;
             if (parent is not null && e.Type == "shield" && parent.ShieldGens > 0) parent.ShieldGens--;
             dead.AddRange(ChildrenOf(world, e.Id));
-            if (e.Type == "station" && world.Factions.TryGetValue(e.Faction, out var sf) && sf.StationId == e.Id)
+            if (e.Type == "station" && world.Factions.TryGetValue(e.Side, out var sf) && sf.StationId == e.Id)
             {
                 sf.StationId = null;
                 sf.Queue = [];
@@ -332,25 +364,32 @@ public static class Worlds
         }
     }
 
-    /// <summary>The last faction holding a station wins, once at least two factions had one.</summary>
+    /// <summary>
+    /// The last camp holding a station wins, once at least two camps had one. A camp is a team,
+    /// or a side alone: a team wins together, whichever of its sides still holds a station. The
+    /// winner is the first of them to have joined.
+    /// </summary>
     public static void CheckVictory(World world)
     {
         if (world.Winner is not null) return;
-        // Counted in place: this runs every step.
-        int contenders = 0, alive = 0;
-        FactionState? last = null;
+        // Counted in place: this runs every step. Two camps or more show as a side outside the first one's.
+        FactionState? contender = null, alive = null;
+        bool contenders = false, rivals = false;
         foreach (var f in world.Factions.Values)
         {
             if (!f.HadStation) continue;
-            contenders++;
+            if (contender is null) contender = f;
+            else contenders |= !SameCamp(contender, f);
             if (f.StationId is null) continue;
-            alive++;
-            last = f;
+            if (alive is null) alive = f;
+            else rivals |= !SameCamp(alive, f);
         }
-        if (contenders >= 2 && alive == 1)
+        if (contenders && alive is not null && !rivals)
         {
-            world.Winner = last!.Id;
-            world.Events.Add(new Victory(last.Id));
+            world.Winner = alive.Id;
+            world.Events.Add(new Victory(alive.Id, alive.Team));
         }
     }
+
+    static bool SameCamp(FactionState a, FactionState b) => a.Id == b.Id || (a.Team != 0 && a.Team == b.Team);
 }

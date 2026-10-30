@@ -1,5 +1,6 @@
-// Fog of war in battles: each faction only sees what its ships and structures see, and
-// only targets what it sees. The AI is bound by the same rule. Port of src/sim/vision.ts.
+// Fog of war in battles: each side only sees what its ships and structures see, and those of
+// its allies, and only targets what it sees. The AI is bound by the same rule. Port of
+// src/sim/vision.ts.
 using SandboxShip.Sim.Data;
 
 namespace SandboxShip.Sim;
@@ -31,12 +32,12 @@ public static class Vision
         _ => 0,
     };
 
-    public static bool IsVisible(World world, Faction faction, Entity e)
+    public static bool IsVisible(World world, Side side, Entity e)
     {
-        if (e.Faction == faction) return true;
+        if (Worlds.Allies(world, e.Side, side)) return true;
         // A cloaked ship hides from enemies, fog or not.
         if (Cloaked(e)) return false;
-        return !world.Fog || (world.Visible.TryGetValue(faction, out var v) && v.Contains(e.Id));
+        return !world.Fog || (world.Visible.TryGetValue(side, out var v) && v.Contains(e.Id));
     }
 
     /// <summary>Whether its cloak is on. A plain loop: this is asked for every pair that might see each other.</summary>
@@ -50,8 +51,8 @@ public static class Vision
     }
 
     /// <summary>An enemy structure seen once stays on the map, greyed out, even in the fog.</summary>
-    public static bool WasSeen(World world, Faction faction, Entity e) =>
-        world.Seen.TryGetValue(faction, out var s) && s.Contains(e.Id);
+    public static bool WasSeen(World world, Side side, Entity e) =>
+        world.Seen.TryGetValue(side, out var s) && s.Contains(e.Id);
 
     public static void UpdateVision(World world, double dt)
     {
@@ -65,14 +66,15 @@ public static class Vision
         // around it, and stops at the first eye that sees it. Each eye keeps its sight, looked
         // up once rather than for every target it is tested against.
         var eyes = new Dictionary<int, List<Eye>>();
-        foreach (var faction in world.Factions.Keys)
+        foreach (var side in world.Factions.Keys)
         {
             var visible = new HashSet<int>();
-            var seen = world.Seen.TryGetValue(faction, out var s) ? s : [];
+            var seen = world.Seen.TryGetValue(side, out var s) ? s : [];
             foreach (var list in eyes.Values) list.Clear();
+            // A side sees through its allies' eyes; what it and they own needs no eye at all.
             foreach (var e in all)
             {
-                if (e.Faction != faction) continue;
+                if (!Worlds.Allies(world, e.Side, side)) continue;
                 var sight = VisionOf(e);
                 if (sight <= 0) continue;
                 var (cx, cy) = ((int)Math.Floor(e.X / EyeCell), (int)Math.Floor(e.Y / EyeCell));
@@ -83,7 +85,7 @@ public static class Vision
             Eye? last = null;
             foreach (var t in all)
             {
-                if (t.Faction == faction || t.Kind == EntityKind.Hardpoint) continue;
+                if (t.Kind == EntityKind.Hardpoint || Worlds.Allies(world, t.Side, side)) continue;
                 var cx = (int)Math.Floor(t.X / EyeCell);
                 var cy = (int)Math.Floor(t.Y / EyeCell);
                 if (Sees(eyes, t, cx, cy, ref last)) visible.Add(t.Id);
@@ -91,14 +93,14 @@ public static class Vision
             // Parts are seen along with what they are attached to.
             foreach (var t in all)
             {
-                if (t.Kind == EntityKind.Hardpoint && t.Faction != faction && t.ParentId is int p && visible.Contains(p)) visible.Add(t.Id);
+                if (t.Kind == EntityKind.Hardpoint && t.ParentId is int p && visible.Contains(p)) visible.Add(t.Id);
             }
             foreach (var id in visible)
             {
                 if (world.Entities.Get(id)!.Kind != EntityKind.Ship) seen.Add(id);
             }
-            world.Visible[faction] = visible;
-            world.Seen[faction] = seen;
+            world.Visible[side] = visible;
+            world.Seen[side] = seen;
         }
     }
 

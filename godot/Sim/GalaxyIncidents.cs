@@ -23,13 +23,13 @@ public sealed class Incident
     public ShipCounts Ships = [];
 }
 
-/// <summary>A random event begins at `Planet` (see Incident for `Other`); a war band's target belongs to `Faction`.</summary>
-public sealed record IncidentStarted(IncidentKind Kind, int Planet, int Other = -1, Faction? Faction = null) : GalaxyEvent;
+/// <summary>A random event begins at `Planet` (see Incident for `Other`); a war band's target belongs to `Side`.</summary>
+public sealed record IncidentStarted(IncidentKind Kind, int Planet, int Other = -1, Side? Side = null) : GalaxyEvent;
 /// <summary>
-/// A random event is over: run out, a derelict claimed by `Faction`, or a war band that
-/// pillaged `Planet`, held by `Faction`.
+/// A random event is over: run out, a derelict claimed by `Side`, or a war band that
+/// pillaged `Planet`, held by `Side`.
 /// </summary>
-public sealed record IncidentEnded(IncidentKind Kind, int Planet, int Other = -1, Faction? Faction = null) : GalaxyEvent;
+public sealed record IncidentEnded(IncidentKind Kind, int Planet, int Other = -1, Side? Side = null) : GalaxyEvent;
 
 public sealed partial class Galaxy
 {
@@ -83,7 +83,7 @@ public static partial class Galaxies
     static bool Empty(Galaxy g, int planetId) =>
         !g.Fleets.Values.Any(f => f.At == planetId) && !g.Ongoing.Exists(i => i.Planet == planetId || i.Other == planetId);
 
-    static bool Held(Galaxy g, int planetId) => g.Planets[planetId].Owner is Faction o && g.Factions.ContainsKey(o);
+    static bool Held(Galaxy g, int planetId) => g.Planets[planetId].Owner is Side o && g.Factions.ContainsKey(o);
 
     /// <summary>Running events go on; a new one comes when its time has come, among those the galaxy has room for.</summary>
     static void UpdateIncidents(Galaxy g, double dt)
@@ -161,11 +161,11 @@ public static partial class Galaxies
     /// <summary>The first galaxy fleet docked at a derelict, out of battle, takes its ships in.</summary>
     static bool Claim(Galaxy g, Incident derelict)
     {
-        var by = FleetsAt(g, derelict.Planet).Where(f => g.Factions.ContainsKey(f.Faction)).OrderBy(f => f.ArrivedAt).FirstOrDefault();
+        var by = FleetsAt(g, derelict.Planet).Where(f => g.Factions.ContainsKey(f.Side)).OrderBy(f => f.ArrivedAt).FirstOrDefault();
         if (by is null) return false;
-        AddShipsAt(g, by.Faction, derelict.Planet, derelict.Ships, null, DerelictCondition);
+        AddShipsAt(g, by.Side, derelict.Planet, derelict.Ships, null, DerelictCondition);
         g.Ongoing.Remove(derelict);
-        g.Events.Add(new IncidentEnded(IncidentKind.Derelict, derelict.Planet, -1, by.Faction));
+        g.Events.Add(new IncidentEnded(IncidentKind.Derelict, derelict.Planet, -1, by.Side));
         return true;
     }
 
@@ -176,7 +176,7 @@ public static partial class Galaxies
     /// </summary>
     static void Raid(Galaxy g)
     {
-        foreach (var band in g.Fleets.Values.Where(f => f.Faction == Faction.Errant && f.At is int && f.BattleId is null).ToList())
+        foreach (var band in g.Fleets.Values.Where(f => f.Side == Faction.Errant && f.At is int && f.BattleId is null).ToList())
         {
             var at = g.Planets[band.At!.Value];
             if (at.Owner == Faction.Errant || g.Ongoing.Exists(i => i.Kind == IncidentKind.WarBand && i.Planet == at.Id) || BattleAt(g, at.Id)) continue;

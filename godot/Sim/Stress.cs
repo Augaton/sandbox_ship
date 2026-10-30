@@ -37,7 +37,7 @@ public static class Stress
             var list = Fleet.SelectMany(k => Enumerable.Repeat(k.Cls, k.Count)).OrderByDescending(c => Ships.Defs[c].Radius).ToList();
             var offsets = Movement.FormationOffsets(list.Count + 1, 90).OrderBy(p => Hypot(p.X, p.Y)).ToList();
             var facing = bearing + Math.PI;
-            SpawnHero(w, f.Id, Heroes.Of(f.Id).First().Id, fx + offsets[0].X, fy + offsets[0].Y, facing);
+            SpawnHero(w, f.Id, Heroes.Of(f.Race).First().Id, fx + offsets[0].X, fy + offsets[0].Y, facing);
             for (var k = 0; k < list.Count; k++) SpawnShip(w, f.Id, list[k], fx + offsets[k + 1].X, fy + offsets[k + 1].Y, facing);
             // Three platforms behind the fleet, at their last level.
             for (var p = -1; p <= 1; p++)

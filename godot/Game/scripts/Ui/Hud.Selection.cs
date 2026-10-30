@@ -85,10 +85,10 @@ public partial class Hud
 
     List<Part> Describe(Entity e)
     {
-        var own = e.Faction == Player;
+        var own = e.Side == Player;
         var lines = new List<Part> { Title(Names.EntityName(e)) };
         if (e.Hero is HeroId hero) lines.Add(TextPart($"{Heroes.Defs[hero].Title}, {Heroes.Defs[hero].Description}", Palette.Muted));
-        lines.Add(TextPart(Factions.Defs[e.Faction].Name + (own ? "" : " (ennemi)"), Palette.Muted));
+        lines.Add(TextPart(Factions.Defs[e.Race].Name + (own ? "" : $" ({Relation(e)})"), Palette.Muted));
         lines.Add(TextPart($"Coque {N(Math.Ceiling(e.Hull))} / {N(Js.Round(e.MaxHull))}"));
         lines.Add(BarPart(e.Hull / e.MaxHull, Palette.Ok));
         if (e.MaxShield > 0)
@@ -162,7 +162,7 @@ public partial class Hud
         var byId = new List<AbilityGroup>();
         foreach (var e in ents)
         {
-            if (e.Faction != Player) continue;
+            if (e.Side != Player) continue;
             foreach (var ab in e.Abilities)
             {
                 var i = byId.FindIndex(s => s.Id == ab.Id);

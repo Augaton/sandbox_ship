@@ -100,6 +100,13 @@ public static class Factions
     };
 
     public static FactionTrait Trait(Faction f) => Defs[f].Trait;
+
+    /// <summary>
+    /// Colors of the sides past the races' own (see Worlds.DefaultColor): violet, cyan, pink,
+    /// yellow-green, silver, lavender. Far enough from the races' colors, from each other and
+    /// from the dark map to tell apart; none near the Errants' gold.
+    /// </summary>
+    public static readonly IReadOnlyList<uint> PlayerColors = [0x9a6cf0, 0x3fd6d0, 0xf06aae, 0xd4f05a, 0xdfe3ea, 0xc8a8ff];
 }
 
 public static class Weapons

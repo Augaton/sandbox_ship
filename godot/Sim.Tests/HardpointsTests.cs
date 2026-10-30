@@ -97,7 +97,7 @@ public class HardpointsTests
         var scout = SpawnShip(w, Faction.Nairan, ShipClass.Scout, 1250, 1000);
         Run(w, 10);
         Assert.True(w.Entities.Has(scout.Id));
-        Assert.DoesNotContain(w.Projectiles, p => p.Faction == Faction.Klaed);
+        Assert.DoesNotContain(w.Projectiles, p => p.Side == Faction.Klaed);
     }
 
     [Fact]
@@ -137,10 +137,10 @@ public class HardpointsTests
         foreach (var e in new[] { near, aimed }) e.Pilot = new Pilot();
         s.Pilot = new Pilot { AimX = 1200, AimY = 1100 };
         Run(w, 2);
-        Assert.DoesNotContain(w.Projectiles, p => p.Faction == Faction.Klaed);
+        Assert.DoesNotContain(w.Projectiles, p => p.Side == Faction.Klaed);
         s.Pilot.Firing = true;
         Run(w, 0.5);
-        var shots = w.Projectiles.Where(p => p.Faction == Faction.Klaed).ToList();
+        var shots = w.Projectiles.Where(p => p.Side == Faction.Klaed).ToList();
         Assert.NotEmpty(shots);
         Assert.All(shots, p => Assert.Equal(aimed.Id, p.TargetId));
     }

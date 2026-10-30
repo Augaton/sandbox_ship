@@ -70,13 +70,13 @@ public class IncidentsTests
         // Its hulls are worn: the fleet's condition is their average, by value.
         Expect.Less(fleet.Condition, 1);
         Expect.Greater(fleet.Condition, DerelictCondition);
-        Assert.Contains(g.Events, e => e is IncidentEnded { Kind: IncidentKind.Derelict, Faction: Faction.Klaed });
+        Assert.Contains(g.Events, e => e is IncidentEnded { Kind: IncidentKind.Derelict } i && i.Side == Faction.Klaed);
         Assert.Empty(g.Ongoing);
         // Nobody comes: it drifts off.
         g.Ongoing.Add(new Incident { Kind = IncidentKind.Derelict, Planet = Id("Thessa"), Remaining = DerelictTime, Ships = wreck });
         RunGalaxy(g, DerelictTime + 1);
         Assert.Empty(g.Ongoing);
-        Assert.Contains(g.Events, e => e is IncidentEnded { Kind: IncidentKind.Derelict, Faction: null });
+        Assert.Contains(g.Events, e => e is IncidentEnded { Kind: IncidentKind.Derelict, Side: null });
     }
 
     /// <summary>An Errant war band gathered at Kaldra, about to strike Orin.</summary>
@@ -100,8 +100,8 @@ public class IncidentsTests
         Assert.Single(FleetsAt(g, Id("Kaldra"), Faction.Errant));
         RunGalaxy(g, 20);
         Assert.Equal((Faction.Klaed, 0), (orin.Owner!.Value, orin.Mines));
-        Assert.DoesNotContain(g.Fleets.Values, f => f.Faction == Faction.Errant);
-        Assert.Contains(g.Events, e => e is IncidentEnded { Kind: IncidentKind.WarBand, Faction: Faction.Klaed } ended && ended.Planet == orin.Id);
+        Assert.DoesNotContain(g.Fleets.Values, f => f.Side == Faction.Errant);
+        Assert.Contains(g.Events, e => e is IncidentEnded { Kind: IncidentKind.WarBand } ended && ended.Side == Faction.Klaed && ended.Planet == orin.Id);
         Assert.DoesNotContain(g.Events, e => e is Captured);
     }
 
@@ -112,9 +112,9 @@ public class IncidentsTests
         var orin = g.Planets[Id("Orin")];
         orin.Station = 1;
         RunGalaxy(g, WarBandWarning + 90);
-        Assert.Contains(g.Events, e => e is BattleEnded { Attacker: Faction.Errant, Result: BattleResult.Attacker });
+        Assert.Contains(g.Events, e => e is BattleEnded { Result: BattleResult.Attacker } b && b.Attacker == Faction.Errant);
         Assert.Equal((Faction.Klaed, 0, 0), (orin.Owner!.Value, orin.Station, orin.Mines));
-        Assert.DoesNotContain(g.Fleets.Values, f => f.Faction == Faction.Errant);
+        Assert.DoesNotContain(g.Fleets.Values, f => f.Side == Faction.Errant);
     }
 
     [Fact]
@@ -124,9 +124,9 @@ public class IncidentsTests
         var orin = g.Planets[Id("Orin")];
         AddShipsAt(g, Faction.Klaed, orin.Id, new ShipCounts { [ShipClass.Battlecruiser] = 2 });
         RunGalaxy(g, WarBandWarning + 60);
-        Assert.Contains(g.Events, e => e is BattleEnded { Attacker: Faction.Errant, Result: BattleResult.Defender });
+        Assert.Contains(g.Events, e => e is BattleEnded { Result: BattleResult.Defender } b && b.Attacker == Faction.Errant);
         Assert.Equal(2, orin.Mines);
-        Assert.DoesNotContain(g.Fleets.Values, f => f.Faction == Faction.Errant);
+        Assert.DoesNotContain(g.Fleets.Values, f => f.Side == Faction.Errant);
     }
 
     [Fact]
@@ -172,7 +172,7 @@ public class IncidentsTests
             foreach (var (_, e) in Watch(Passive(seed), 1500))
             {
                 kinds.Add(e.Kind);
-                if (e.Kind == IncidentKind.WarBand) Assert.NotNull(e.Faction);
+                if (e.Kind == IncidentKind.WarBand) Assert.NotNull(e.Side);
             }
         }
         Assert.Equal(Enum.GetValues<IncidentKind>(), kinds.Order());

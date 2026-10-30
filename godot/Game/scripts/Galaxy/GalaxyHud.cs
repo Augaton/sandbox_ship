@@ -56,7 +56,12 @@ public partial class GalaxyHud : CanvasLayer
     public GalaxyHud(GalaxyScreen scene) => this.scene = scene;
 
     Galaxy G => scene.Galaxy;
-    Faction Player => scene.Opts.Player;
+    Side Player => scene.Player;
+    /// <summary>The player's race: its ship prices and heroes.</summary>
+    Faction Race => G.Factions[Player].Race;
+
+    /// <summary>A side as the panels name it: by its race.</summary>
+    string NameOf(Side side) => Factions.Defs[Galaxies.RaceOf(G, side)].Name;
 
     static string DescribeShips(ShipCounts ships, IEnumerable<HeroId>? heroes = null)
     {
@@ -82,24 +87,25 @@ public partial class GalaxyHud : CanvasLayer
     }
 
     /// <summary>Who holds a planet, as the panel and the summary name it.</summary>
-    static string OwnerName(Planet p) => p.Owner switch
+    string OwnerName(Planet p) => p.Owner switch
     {
         null => "Neutre",
-        Faction.Errant => $"{Factions.Defs[Faction.Errant].Name}, neutres",
-        Faction o => Factions.Defs[o].Name,
+        Side o when o == Faction.Errant => $"{Factions.Defs[Faction.Errant].Name}, neutres",
+        Side o => NameOf(o),
     };
 
     /// <summary>Whether the Errants' colossus still guards their planet, fighting there or not.</summary>
     static bool ColossusAt(Galaxy g, Planet p) =>
-        g.Fleets.Values.Any(f => f.At == p.Id && f.Faction == Faction.Errant && f.Ships.Of(ShipClass.Colossus) > 0);
+        g.Fleets.Values.Any(f => f.At == p.Id && f.Side == Faction.Errant && f.Ships.Of(ShipClass.Colossus) > 0);
 
     /// <summary>What a raid on the Errants pays, as a sentence.</summary>
     static string RaidBounty(bool colossus) =>
         (colossus ? $"Abattre leur Colosse rapporte {N(Raids.Bounty)} crédits et un niveau de recherche ; chaque" : "Leur Colosse est tombé ; chaque")
         + $" vaisseau abattu rapporte {HudKit.Percent(Worlds.KillShare)} de sa valeur.";
 
-    /// <summary>A faction's emblem, at twice its 16 pixels as the web HUD draws it.</summary>
-    public static Texture2D EmblemTexture(Faction f) => Logos.Emblem(f, 2);
+    /// <summary>A side's emblem, its race's in its color, at twice its 16 pixels as the web HUD draws it.</summary>
+    public static Texture2D EmblemTexture(Galaxy g, Side side) =>
+        Logos.Emblem(Galaxies.RaceOf(g, side), 2, g.Factions.TryGetValue(side, out var f) ? f.Color : null);
 
     // Building blocks.
 
@@ -118,17 +124,17 @@ public partial class GalaxyHud : CanvasLayer
         return primary ? HudKit.Primary(b) : b;
     }
 
-    static TextureRect Emblem(Faction f) => new()
+    TextureRect Emblem(Side side) => new()
     {
-        Texture = EmblemTexture(f), ExpandMode = TextureRect.ExpandModeEnum.IgnoreSize, StretchMode = TextureRect.StretchModeEnum.KeepAspectCentered,
+        Texture = EmblemTexture(G, side), ExpandMode = TextureRect.ExpandModeEnum.IgnoreSize, StretchMode = TextureRect.StretchModeEnum.KeepAspectCentered,
         CustomMinimumSize = new Vector2(24, 24), MouseFilter = Control.MouseFilterEnum.Ignore,
     };
 
-    /// <summary>A heading, with the faction's emblem before it.</summary>
-    static HBoxContainer Heading(string text, Faction? f, int size)
+    /// <summary>A heading, with the side's emblem before it.</summary>
+    HBoxContainer Heading(string text, Side? side, int size)
     {
         var h = HudKit.Row(8);
-        if (f is Faction faction) h.AddChild(Emblem(faction));
+        if (side is Side s) h.AddChild(Emblem(s));
         h.AddChild(Text(text, size: size, bold: true));
         return h;
     }
@@ -226,7 +232,7 @@ public partial class GalaxyHud : CanvasLayer
         root = new Control { Theme = UiTheme.Get(), MouseFilter = Control.MouseFilterEnum.Ignore };
         root.SetAnchorsPreset(Control.LayoutPreset.FullRect);
         AddChild(root);
-        var f = Factions.Defs[Player];
+        var f = Factions.Defs[Race];
 
         var bar = HudKit.Panel(8, 4);
         bar.SetAnchorsPreset(Control.LayoutPreset.TopWide);
@@ -465,7 +471,7 @@ public partial class GalaxyHud : CanvasLayer
         var f = g.Factions[Player];
         var research = $"{string.Concat(Techs.All.Select(t => f.Research[t]))}:{string.Join(",", ResearchQueue.Jobs(f).Select(j => j.Tech))}";
         if (p is null) return $"{tab}|none|{research}|{TransitSignature(Transit())}";
-        var fleets = string.Join(";", Galaxies.FleetsAt(g, p.Id).Select(fl => $"{fl.Faction}:{DescribeShips(fl.Ships, fl.Heroes)}"));
+        var fleets = string.Join(";", Galaxies.FleetsAt(g, p.Id).Select(fl => $"{fl.Side}:{DescribeShips(fl.Ships, fl.Heroes)}"));
         var battle = Galaxies.BattleAt(g, p.Id);
         var visible = Galaxies.Known(g, Player, p);
         // Several planets selected: which, how many of them are the player's, and their fleets.
@@ -474,7 +480,7 @@ public partial class GalaxyHud : CanvasLayer
                 + string.Join(";", scene.Selection.SelectMany(id => Galaxies.FleetsAt(g, id, Player)).Select(fl => DescribeShips(fl.Ships, fl.Heroes)))
             : "";
         return string.Join("|", tab, p.Id, visible, p.Owner, p.Station, p.Mines, p.Platforms, p.PlatformTier, p.Lab, p.RepairDock, p.IonCannon, fleets,
-            string.Join(",", p.Units.Select(q => q.Kind)), string.Join(",", p.Buildings.Select(q => q.Kind)), battle, p.Occupation?.Faction, research, selection, DepthSignature(p));
+            string.Join(",", p.Units.Select(q => q.Kind)), string.Join(",", p.Buildings.Select(q => q.Kind)), battle, p.Occupation?.Side, research, selection, DepthSignature(p));
     }
 
     void RenderPanel(Planet? p)
@@ -539,7 +545,7 @@ public partial class GalaxyHud : CanvasLayer
             body.AddChild(Text(yards > 1
                 ? $"Clic : un vaisseau sur chacune des {yards} planètes. Clic droit : production en boucle sur toutes. Les héros, sur {p.Name} seulement."
                 : "Clic droit sur un vaisseau : production en boucle, qui attend les crédits.", Palette.Muted, wrap: true));
-            var builds = ShipyardClasses.Select(GalaxyBuild.Ship).Concat(Heroes.Of(Player).Select(h => GalaxyBuild.HeroOf(h.Id)));
+            var builds = ShipyardClasses.Select(GalaxyBuild.Ship).Concat(Heroes.Of(Race).Select(h => GalaxyBuild.HeroOf(h.Id)));
             RenderBuilds(p, [.. builds]);
         }
         else
@@ -592,9 +598,9 @@ public partial class GalaxyHud : CanvasLayer
         if (scene.Selection.Count > 1) RenderSelectionFleets();
         else RenderFleet(p, previous, checkedHeroes);
         // Fleets hidden in a nebula do not show.
-        foreach (var f in Galaxies.FleetsAt(g, p.Id).Where(x => x.Faction != player && Galaxies.FleetVisible(g, player, x)))
+        foreach (var f in Galaxies.FleetsAt(g, p.Id).Where(x => x.Side != player && Galaxies.FleetVisible(g, player, x)))
         {
-            body.AddChild(H3($"Flotte {Factions.Defs[f.Faction].Name}"));
+            body.AddChild(H3($"Flotte {NameOf(f.Side)}"));
             body.AddChild(Text($"{DescribeShips(f.Ships, f.Heroes)}{Condition(f)}", wrap: true));
         }
     }
@@ -767,7 +773,7 @@ public partial class GalaxyHud : CanvasLayer
                     continue;
                 }
                 var r = Galaxies.CanBuild(g, player, p.Id, build);
-                var detail = $"{N(Galaxies.BuildPrice(p, build))} cr, {N(Js.Round(Galaxies.BuildTime(g, p, build)))} s";
+                var detail = $"{N(Galaxies.BuildPrice(g, p, build))} cr, {N(Js.Round(Galaxies.BuildTime(g, p, build)))} s";
                 ShowState(b, r, detail, r.Ok ? detail : r.Reason);
             }
             var which = tab == Tab.Ships ? p.Units : p.Buildings;
@@ -782,7 +788,7 @@ public partial class GalaxyHud : CanvasLayer
             }
             if (occupation is not null && p.Occupation is { } occ)
             {
-                occupation.Text = $"Prise par {Factions.Defs[occ.Faction].Name} dans {N(Math.Ceiling(occ.Remaining))} s";
+                occupation.Text = $"Prise par {NameOf(occ.Side)} dans {N(Math.Ceiling(occ.Remaining))} s";
             }
         }
         foreach (var (tech, b) in techButtons)
@@ -813,7 +819,7 @@ public partial class GalaxyHud : CanvasLayer
         var loops = targets.Count(id => g.Planets[id].Repeat.Contains(cls));
         // The planet shown speaks for the others when none of them can.
         var r = ready > 0 ? Result.OK : Galaxies.CanBuild(g, Player, p.Id, build);
-        var price = N(Galaxies.BuildPrice(p, build));
+        var price = N(Galaxies.BuildPrice(g, p, build));
         var detail = many ? $"{price} cr, {ready}/{targets.Count} planètes" : $"{price} cr, {N(Js.Round(Galaxies.BuildTime(g, p, build)))} s";
         var line = r.Ok ? detail : HudKit.ShortReason(r.Reason);
         if (loops > 0) line += loops == targets.Count ? ", en boucle" : $", boucle {loops}/{targets.Count}";
@@ -857,9 +863,9 @@ public partial class GalaxyHud : CanvasLayer
             if (p.IonCannon > 0) lines.Add("Canon ionique");
             lines.Add($"Revenu +{N(Math.Round(Galaxies.PlanetIncome(g, p), 1))}/s");
             foreach (var f in Galaxies.FleetsAt(g, p.Id).Where(f => Galaxies.FleetVisible(g, Player, f)))
-                lines.Add($"{Factions.Defs[f.Faction].Name} : {DescribeShips(f.Ships, f.Heroes)}{Condition(f)}");
+                lines.Add($"{NameOf(f.Side)} : {DescribeShips(f.Ships, f.Heroes)}{Condition(f)}");
             if (Galaxies.BattleAt(g, p.Id)) lines.Add("Combat en cours");
-            else if (p.Occupation is { } occ) lines.Add($"Prise par {Factions.Defs[occ.Faction].Name} dans {N(Math.Ceiling(occ.Remaining))} s");
+            else if (p.Occupation is { } occ) lines.Add($"Prise par {NameOf(occ.Side)} dans {N(Math.Ceiling(occ.Remaining))} s");
         }
         while (tipBox.GetChildCount() < lines.Count) tipBox.AddChild(Text("", size: 14, bold: tipBox.GetChildCount() == 0));
         for (var i = 0; i < tipBox.GetChildCount(); i++)
@@ -901,7 +907,7 @@ public partial class GalaxyHud : CanvasLayer
                 break;
             case Captured c:
                 var planet = g.Planets[c.PlanetId];
-                if (c.Faction == player)
+                if (c.Side == player)
                 {
                     Notify($"{planet.Name} est à toi", planet.Id);
                     Sfx.Play(Sound.Built);
@@ -911,17 +917,17 @@ public partial class GalaxyHud : CanvasLayer
                     Notify($"{planet.Name} perdue", planet.Id);
                     Sfx.Play(Sound.Alert);
                 }
-                else if (c.From == Faction.Errant) Notify($"{planet.Name} : les Errants tombent devant {Factions.Defs[c.Faction].Name}", planet.Id);
+                else if (c.From == Faction.Errant) Notify($"{planet.Name} : les Errants tombent devant {NameOf(c.Side)}", planet.Id);
                 break;
-            case PlanetBuilt b when b.Faction == player:
+            case PlanetBuilt b when b.Side == player:
                 Notify($"{g.Planets[b.PlanetId].Name} : {b.What} terminé", b.PlanetId);
                 Sfx.Play(Sound.Built);
                 break;
-            case TechResearched t when t.Faction == player:
+            case TechResearched t when t.Side == player:
                 Notify($"Recherche terminée : {Techs.Defs[t.Tech].Name} niveau {g.Factions[player].Research[t.Tech]}");
                 Sfx.Play(Sound.Built);
                 break;
-            case BountyPaid bp when bp.Faction == player:
+            case BountyPaid bp when bp.Side == player:
                 var taught = bp.Tech is TechId tech ? $", {Techs.Defs[tech].Name} niveau {g.Factions[player].Research[tech]}" : "";
                 var of = bp.Lane is { } l ? $"de l'interception entre {g.Planets[l.A].Name} et {g.Planets[l.B].Name}" : $"de la bataille de {g.Planets[bp.PlanetId].Name}";
                 Notify($"Primes {of} : +{N(Js.Round(bp.Credits))} crédits{taught}", bp.PlanetId);
@@ -1016,8 +1022,8 @@ public partial class GalaxyHud : CanvasLayer
         if (def.Platforms > 0) theirs.Insert(0, $"{def.Platforms} plateforme{(def.Platforms > 1 ? "s" : "")}");
         var (p, box) = Dialog();
         box.AddChild(Heading(Galaxies.BattleName(g, b.PlanetId, b.Lane), enemy, 22));
-        var them = enemy == Faction.Errant ? "les Errants" : Factions.Defs[enemy].Name;
-        box.AddChild(HudKit.Para(b.Lane is not null ? $"Ta flotte croise une flotte {Factions.Defs[enemy].Name} en chemin : impossible de passer sans combattre."
+        var them = enemy == Faction.Errant ? "les Errants" : NameOf(enemy);
+        box.AddChild(HudKit.Para(b.Lane is not null ? $"Ta flotte croise une flotte {NameOf(enemy)} en chemin : impossible de passer sans combattre."
             : $"{(b.Attacker == player ? "Tu attaques" : "Tu es attaqué par")} {them}."));
         if (enemy == Faction.Errant) box.AddChild(HudKit.Para(RaidBounty(Sim.Battle.Survivors(b.World, enemy).Of(ShipClass.Colossus) > 0), Palette.Muted));
         var dl = HudKit.Ignore(new GridContainer { Columns = 2 });

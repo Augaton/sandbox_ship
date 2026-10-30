@@ -125,9 +125,10 @@ public static class Logos
         return img;
     }
 
-    public static Image EmblemImage(Faction faction, int scale = 4)
+    /// <summary>A race's emblem, in `color` (0xRRGGBB): a side's, or by default the race's own.</summary>
+    public static Image EmblemImage(Faction faction, int scale = 4, uint? color = null)
     {
-        var b = Factions.Defs[faction].Color;
+        var b = color ?? Factions.Defs[faction].Color;
         var palette = new Dictionary<char, Color> { ['k'] = Outline, ['a'] = Palette.Hex(b), ['b'] = Lighten(b, 0.45f), ['w'] = Colors.White };
         return Paint(Emblems[faction], (ch, _, _) => palette.TryGetValue(ch, out var c) ? c : null, scale);
     }
@@ -168,8 +169,9 @@ public static class Logos
         return t;
     }
 
-    /// <summary>A faction's emblem, 16 pixels a side times `scale`.</summary>
-    public static Texture2D Emblem(Faction faction, int scale = 4) => Cached($"{faction}:{scale}", () => EmblemImage(faction, scale));
+    /// <summary>A race's emblem, 16 pixels a side times `scale`, in `color` (a side's) or the race's own.</summary>
+    public static Texture2D Emblem(Faction faction, int scale = 4, uint? color = null) =>
+        Cached($"{faction}:{scale}:{color}", () => EmblemImage(faction, scale, color));
 
     public static Texture2D Logo(int scale = 4) => Cached($"logo:{scale}", () => LogoImage(scale));
 }

@@ -39,16 +39,17 @@ public static class Ai
     static int Count(World world, FactionState f, string type)
     {
         var n = 0;
-        foreach (var e in world.Entities) if (e.Faction == f.Id && e.Type == type) n++;
+        foreach (var e in world.Entities) if (e.Side == f.Id && e.Type == type) n++;
         return n;
     }
 
+    /// <summary>The nearest station of a foe: allies' stations are none of its business.</summary>
     static Entity? NearestEnemyStation(World world, FactionState f, Entity from)
     {
         Entity? best = null;
         foreach (var other in world.Factions.Values)
         {
-            if (other.Id == f.Id) continue;
+            if (!Foes(world, f.Id, other.Id)) continue;
             var s = StationOf(world, other.Id);
             if (s is not null && (best is null || Dist(from, s) < Dist(from, best))) best = s;
         }
@@ -61,20 +62,20 @@ public static class Ai
         var out_ = new List<Entity>();
         foreach (var e in world.Entities)
         {
-            if (e.Faction == f.Id && e.Kind == EntityKind.Ship && !e.Launched && !e.Retreating && e.Pilot is null) out_.Add(e);
+            if (e.Side == f.Id && e.Kind == EntityKind.Ship && !e.Launched && !e.Retreating && e.Pilot is null) out_.Add(e);
         }
         return out_;
     }
 
     static double ShipValue(Entity e) => Ships.UnitValue(e.Cls) * (e.Hero is not null ? 4 : 1);
 
-    /// <summary>What the enemy fields, from what the AI sees now; older sightings fade.</summary>
+    /// <summary>What its foes field, from what the AI sees now; older sightings fade. Allies are no threat.</summary>
     static Intel UpdateIntel(World world, FactionState f)
     {
         var seen = new Intel();
         foreach (var e in world.Entities)
         {
-            if (e.Faction == f.Id || !Vision.IsVisible(world, f.Id, e)) continue;
+            if (!Foes(world, f.Id, e.Side) || !Vision.IsVisible(world, f.Id, e)) continue;
             if (e.Kind == EntityKind.Ship && !e.Launched)
             {
                 if (e.Size == SizeClass.Small) seen.Small++;
@@ -119,7 +120,7 @@ public static class Ai
         var fleet = Warships(world, f).Count;
         var options = Ships.All.Where(c => weights.ContainsKey(c) && station.Level >= Ships.Defs[c].MinStationLevel
             && (Ships.Defs[c].Limit is not int limit
-                || (fleet >= 8 && f.Credits >= Ships.Cost(c, f.Id) / 4 && Structures.InService(world, f.Id, c) < limit))).ToList();
+                || (fleet >= 8 && f.Credits >= Ships.Cost(c, f.Race) / 4 && Structures.InService(world, f.Id, c) < limit))).ToList();
         var total = options.Sum(c => weights[c]);
         var r = Rand(world) * total;
         foreach (var c in options)
@@ -184,7 +185,7 @@ public static class Ai
         var tech = f.Researching is null && Structures.HasLab(world, f.Id) && Rand(world) < 0.2 ? PickTech(f, station) : null;
         if (tech is TechId t) return new AIGoal(GoalKind.Research, Tech: t);
         // Now and then, a hero: whichever is available, saving up for it if needed.
-        var hero = Heroes.Of(f.Id).FirstOrDefault(h =>
+        var hero = Heroes.Of(f.Race).FirstOrDefault(h =>
         {
             var r = CanBuildHero(world, f.Id, h.Id);
             return r.Ok || r.Reason == NoCredits;
@@ -312,14 +313,14 @@ public static class Ai
     /// <summary>Badly damaged warships fall back to a repair dock, and rejoin once mended.</summary>
     static void RetreatDamaged(World world, FactionState f)
     {
-        var docks = world.Entities.Where(e => e.Faction == f.Id && e.Type == "repairDock" && e.Build >= 1).ToList();
-        var mends = docks.Count > 0 || Factions.Trait(f.Id).HullRegen > 0;
+        var docks = world.Entities.Where(e => e.Side == f.Id && e.Type == "repairDock" && e.Build >= 1).ToList();
+        var mends = docks.Count > 0 || Factions.Trait(f.Race).HullRegen > 0;
         // Ships on a wave hold on longer, and late in the game not at all: a wave that keeps
         // breaking off never takes a station.
         var waveLimit = world.Time > PressureTime / 2 ? 0 : 0.15;
         foreach (var e in world.Entities)
         {
-            if (e.Faction != f.Id || e.Kind != EntityKind.Ship || e.Launched || e.Size == SizeClass.Small || e.Pilot is not null) continue;
+            if (e.Side != f.Id || e.Kind != EntityKind.Ship || e.Launched || e.Size == SizeClass.Small || e.Pilot is not null) continue;
             var limit = e.Order?.Type == OrderType.AttackMove ? waveLimit : 0.3;
             if (e.Retreating && e.Hull >= e.MaxHull * 0.85)
             {
@@ -337,7 +338,7 @@ public static class Ai
     }
 
     /// <summary>
-    /// Defends home when attacked; otherwise sends idle warships at the nearest enemy station
+    /// Defends home when a foe comes near; otherwise sends idle warships at the nearest enemy station
     /// once the wave is big enough, or right away when clearly stronger than what it has seen.
     /// Returns whether it is outmatched.
     /// </summary>
@@ -348,7 +349,7 @@ public static class Ai
         var threatened = false;
         foreach (var e in world.Entities)
         {
-            if (e.Faction != f.Id && e.Kind == EntityKind.Ship && Dist(e, station) < Station.ConstructionRadius && Vision.IsVisible(world, f.Id, e))
+            if (e.Kind == EntityKind.Ship && Dist(e, station) < Station.ConstructionRadius && Foes(world, f.Id, e.Side) && Vision.IsVisible(world, f.Id, e))
             {
                 threatened = true;
                 break;

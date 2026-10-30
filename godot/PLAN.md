@@ -153,6 +153,14 @@ tests de `FixtureTests` et `CrossTests` les listent.
   niveau 3, canon ionique, dock, le Colosse et son escorte) ; ils ne construisent ni ne bougent, ne comptent
   pas pour la victoire, et leur planète se prend comme une autre. L'IA ne les attaque que nettement plus
   forte. Les primes gagnées en bataille (Colosse compris, avec son niveau de recherche) vont au trésor galactique.
+- Camps, races et équipes (fondation du salon multijoueur) : la simulation sépare le camp (`Side` : qui possède
+  quoi, qui combat qui) de la race (`Faction` : traits, prix, héros, sprites, noms). Jusqu'à six camps, deux
+  d'une même race possibles ; chacun a sa couleur (celle de sa race pour les camps 0 à 3, puis six couleurs de
+  joueur). Les camps d'une même équipe sont alliés : jamais visés ni blessés, frappes et lance comprises ; ils se
+  réparent, voient et gagnent ensemble, et en campagne partagent planètes, voies et ravitaillement sans
+  combattre. Les Errants (camp 3) restent ennemis de tous. Escarmouche et campagne se créent depuis des places
+  (`Slot`) ; les anciennes sauvegardes se chargent. Sans équipes, les parties sont identiques à avant. Galaxies
+  générées : 4 planètes de plus par joueur au-delà de trois (petite et moyenne), pour séparer les capitales.
 
 ## Ce qui change de technique
 

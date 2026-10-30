@@ -247,7 +247,7 @@ public partial class BattleScreen
     View CreateView(Entity e)
     {
         var look = Assets.LookFor(e);
-        Color? tint = look.Tint ? Palette.Of(e.Faction) : null;
+        Color? tint = look.Tint ? Palette.Of(e.Race) : null;
         var scale = LayerScale(e, look.Layers[0].Key, look.Layers[0].Size);
         // Ship parts sit on top of their ship.
         var parent = World.Entities.Get(e.ParentId);
@@ -256,10 +256,10 @@ public partial class BattleScreen
         var root = new Node2D { ZIndex = Depth.Z(depth) };
         var engine = look.Engine is string ek ? Sprite(ek, scale, null) : null;
         if (engine is not null) root.AddChild(engine);
-        // Structures and parts come from one pack, in each faction's colors.
+        // Structures and parts come from one pack, in each race's colors.
         foreach (var l in look.Layers)
         {
-            var key = e.Kind == EntityKind.Ship ? l.Key : Assets.FactionKey(l.Key, e.Faction);
+            var key = e.Kind == EntityKind.Ship ? l.Key : Assets.FactionKey(l.Key, e.Race);
             var s = (Node2D)Sprite(key, LayerScale(e, key, l.Size), tint);
             s.Position = new Vector2((float)(l.X * e.Radius), (float)(l.Y * e.Radius));
             root.AddChild(s);
@@ -379,14 +379,14 @@ public partial class BattleScreen
         {
             // Zoomed out: shots are strokes along their path, all in one batch.
             foreach (var p in World.Projectiles)
-                Draw.Line(g, p.X, p.Y, p.X - p.Vx * 0.04, p.Y - p.Vy * 0.04, Palette.Of(p.Faction, 0.9f), 1.5 / z);
+                Draw.Line(g, p.X, p.Y, p.X - p.Vx * 0.04, p.Y - p.Vy * 0.04, Palette.Of(Worlds.RaceOf(World, p.Side), 0.9f), 1.5 / z);
         }
         if (z >= LodIcons) return;
         var rect = ViewRect().Grow(40);
         foreach (var e in World.Entities)
         {
             if (e.Kind != EntityKind.Ship || e.Size != SizeClass.Small || !rect.HasPoint(new Vector2((float)e.X, (float)e.Y)) || !CanSee(e)) continue;
-            // A small craft seen from afar: a chevron in its faction's color, pointing where it flies.
+            // A small craft seen from afar: a chevron in its side's color, pointing where it flies.
             var s = 5 / z;
             var c = Math.Cos(e.Angle);
             var n = Math.Sin(e.Angle);
@@ -394,7 +394,7 @@ public partial class BattleScreen
                 new Vector2((float)(e.X + c * s * 1.4), (float)(e.Y + n * s * 1.4)),
                 new Vector2((float)(e.X - c * s + n * s), (float)(e.Y - n * s - c * s)),
                 new Vector2((float)(e.X - c * s - n * s), (float)(e.Y - n * s + c * s)),
-                Palette.Of(e.Faction));
+                Palette.Of(World, e.Side));
         }
     }
 
@@ -417,12 +417,13 @@ public partial class BattleScreen
             {
                 if (!shots.TryGetValue(p.Id, out var shot))
                 {
-                    var (key, tint) = Assets.Projectile(p.Faction, p.Kind);
+                    var race = Worlds.RaceOf(World, p.Side);
+                    var (key, tint) = Assets.Projectile(race, p.Kind);
                     var img = shotPool.Count > 0 ? shotPool.Pop() : NewShot();
                     img.Visible = true;
                     img.SpriteFrames = Assets.Anim(key, true);
                     img.Play();
-                    img.Modulate = tint ? Palette.Of(p.Faction) : Colors.White;
+                    img.Modulate = tint ? Palette.Of(race) : Colors.White;
                     shots[p.Id] = shot = new Shot(img);
                 }
                 shot.Seen = frame;
@@ -580,7 +581,7 @@ public partial class BattleScreen
     {
         arrivals[e.Id] = Now;
         var (x, y, r, z) = (e.X, e.Y, e.Radius * 1.7, Zoom);
-        var color = Palette.Of(e.Faction);
+        var color = Palette.Of(e.Race);
         var light = Palette.Hex(0x9fd4ff);
         Add(fxList, 2000, (g, k) =>
         {
@@ -598,7 +599,7 @@ public partial class BattleScreen
         });
         Boom(x, y, r * 2.2 / 64, 1.6, 900, 0.7f);
         var big = e.Cls is ShipClass.Titan or ShipClass.Leviathan;
-        var mine = e.Faction == Opts.Player;
+        var mine = e.Side == Opts.Player;
         if (mine || OnScreen(x, y)) Sfx.Play(Sound.Warp, 0, 0.8);
         if (!big) return;
         Shake(600, e.Cls == ShipClass.Leviathan ? 0.008 : 0.005);
@@ -769,6 +770,8 @@ public partial class BattleScreen
         var green = Palette.Hex(0x6fd08c);
         var red = Palette.Hex(0xe05a4a);
         var amber = Palette.Hex(0xe8a13a);
+        // Green for the player's own, red for a foe, grey for an ally: neither to command nor to strike.
+        Color Whose(Entity e) => e.Side == player ? green : Worlds.Foes(World, e.Side, player) ? red : Palette.Muted;
         foreach (var e in World.Entities)
         {
             var r = e.Radius + 12 / z;
@@ -780,10 +783,10 @@ public partial class BattleScreen
                 Draw.Ring(g, e.X, e.Y, e.Radius + 9 / z, amber with { A = 0.8f }, 1.5 / z, z);
                 if (z >= LodIcons || e.Size != SizeClass.Small) Draw.Text(g, UiTheme.Mono, Heroes.Defs[hero].Name, e.X, e.Y - e.Radius - 14 / z, 13, amber, z);
             }
-            // Structures and station parts wear their faction's ring; ship parts go without, their ship shows.
+            // Structures and station parts wear their side's ring; ship parts go without, their ship shows.
             var fixedPart = e.Kind == EntityKind.Structure || (e.Kind == EntityKind.Hardpoint && World.Entities.Get(e.ParentId)?.Kind != EntityKind.Ship);
-            if (fixedPart) Draw.Ring(g, e.X, e.Y, e.Radius + 2 / z, Palette.Of(e.Faction, 0.45f), 1.5 / z, z);
-            if (sel) Draw.Ring(g, e.X, e.Y, e.Radius + 5 / z, (e.Faction == player ? green : red) with { A = 0.9f }, 2 / z, z);
+            if (fixedPart) Draw.Ring(g, e.X, e.Y, e.Radius + 2 / z, Palette.Of(World, e.Side, 0.45f), 1.5 / z, z);
+            if (sel) Draw.Ring(g, e.X, e.Y, e.Radius + 5 / z, Whose(e) with { A = 0.9f }, 2 / z, z);
             if (sel && e.Order is Order o)
             {
                 IPoint? t = o.Type == OrderType.Attack ? World.Entities.Get(o.TargetId) : new Point(o.X, o.Y);
@@ -793,11 +796,11 @@ public partial class BattleScreen
             var damaged = e.Hull < e.MaxHull || e.Shield < e.MaxShield;
             if (sel || damaged || e.Build < 1 || Settings.Current.AlwaysBars) Bars(g, e, z);
         }
-        // Ring under the cursor: green for your units, red for a target.
+        // Ring under the cursor: green for your units, red for a target, grey for an ally's.
         var ctl = Controls;
         var over = ctl.Mode is SelectMode && ctl.PilotId is null && ctl.Box is null && ctl.PointerOver ? ctl.Hovered() : null;
         if (over is not null && !Selected.Contains(over.Id) && CanSee(over))
-            Draw.Ring(g, over.X, over.Y, over.Radius + 5 / z, (over.Faction == player ? green : red) with { A = 0.5f }, 1.5 / z, z);
+            Draw.Ring(g, over.X, over.Y, over.Radius + 5 / z, Whose(over) with { A = 0.5f }, 1.5 / z, z);
         var piloted = World.Entities.Get(ctl.PilotId);
         if (piloted?.Pilot is Pilot p)
         {
@@ -868,7 +871,7 @@ public partial class BattleScreen
             }
         }
         if (def.Target == AbilityTarget.Point && def.Radius is double radius) Draw.Ring(g, h.X, h.Y, radius, color with { A = 0.8f }, 2 / z, z);
-        if (def.Target == AbilityTarget.Enemy && Controls.Hovered() is { } t && t.Faction != Opts.Player)
+        if (def.Target == AbilityTarget.Enemy && Controls.Hovered() is { } t && Worlds.Foes(World, t.Side, Opts.Player))
             Draw.Ring(g, t.X, t.Y, t.Radius + 10 / z, color with { A = 0.9f }, 2 / z, z);
     }
 
@@ -905,7 +908,8 @@ public partial class BattleScreen
         var brush = Assets.Frame("fog-brush");
         foreach (var e in World.Entities)
         {
-            if (e.Faction != Opts.Player) continue;
+            // Allies' eyes clear the fog as the player's own do.
+            if (!Worlds.Allies(World, e.Side, Opts.Player)) continue;
             var r = Vision.VisionOf(e);
             if (r <= 0) continue;
             var size = (float)(2 * r / FogCell);

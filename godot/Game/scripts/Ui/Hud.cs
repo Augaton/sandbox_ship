@@ -72,7 +72,9 @@ public partial class Hud : CanvasLayer
     }
 
     World World => scene.World;
-    Faction Player => scene.Opts.Player;
+    Side Player => scene.Opts.Player;
+    /// <summary>The player's race: its ships, prices and heroes.</summary>
+    Faction Race => Worlds.RaceOf(World, Player);
     Vector2 Screen => scene.ScreenSize;
 
     public override void _Ready()
@@ -91,7 +93,7 @@ public partial class Hud : CanvasLayer
 
     void BuildTopbar()
     {
-        var f = Factions.Defs[Player];
+        var f = Factions.Defs[Race];
         var bar = Panel(8, 4);
         bar.SetAnchorsPreset(Control.LayoutPreset.TopWide);
         bar.OffsetLeft = 8;
@@ -148,17 +150,20 @@ public partial class Hud : CanvasLayer
     /// <summary>The player's star lance in the top bar: building, charging, or ready to fire.</summary>
     string LanceStatus()
     {
-        var lance = World.Entities.FirstOrDefault(e => e.Faction == Player && e.Type == "starLance");
+        var lance = World.Entities.FirstOrDefault(e => e.Side == Player && e.Type == "starLance");
         if (lance is null) return "";
         if (lance.Build < 1) return $", Lance stellaire en construction {Percent(lance.Build)}";
         var wait = lance.Abilities[0].Cooldown;
         return wait > 0 ? $", Lance stellaire {Percent(1 - wait / Abilities.Defs[AbilityId.StarLance].Cooldown)}" : ", Lance stellaire prête";
     }
 
-    /// <summary>A faction's emblem, 24 pixels, crisp.</summary>
-    static TextureRect Emblem(Faction f) => Ignore(new TextureRect
+    /// <summary>Whose an entity is, to the player: "ennemi", "allié", or nothing for its own.</summary>
+    string Relation(Entity e) => e.Side == Player ? "" : Worlds.Foes(World, e.Side, Player) ? "ennemi" : "allié";
+
+    /// <summary>A side's emblem, 24 pixels, crisp: its race's, in its color.</summary>
+    TextureRect Emblem(Side side) => Ignore(new TextureRect
     {
-        Texture = Logos.Emblem(f, 2),
+        Texture = Logos.Emblem(Worlds.RaceOf(World, side), 2, World.Factions.TryGetValue(side, out var f) ? f.Color : null),
         ExpandMode = TextureRect.ExpandModeEnum.IgnoreSize,
         StretchMode = TextureRect.StretchModeEnum.KeepAspectCentered,
         CustomMinimumSize = new Vector2(24, 24),
@@ -274,7 +279,7 @@ public partial class Hud : CanvasLayer
             shipButtons[cls] = b;
         }
         var heroRow = Grid(shipList);
-        foreach (var h in Heroes.Of(Player))
+        foreach (var h in Heroes.Of(Race))
         {
             var id = h.Id;
             var b = BuildButton($"{h.Name}, {h.Title.ToLowerInvariant()}");
@@ -365,7 +370,7 @@ public partial class Hud : CanvasLayer
         {
             faction.AddItem(Factions.Defs[id].Name);
             faction.SetItemMetadata(faction.ItemCount - 1, (int)id);
-            if (scene.Opts.Enemies.Count > 0 && id == scene.Opts.Enemies[0]) faction.Select(faction.ItemCount - 1);
+            if (scene.Opts.Slots.Count > 1 && id == scene.Opts.Slots[1].Race) faction.Select(faction.ItemCount - 1);
         }
         Field("Faction").AddChild(faction);
         var what = new OptionButton { FocusMode = Control.FocusModeEnum.None, CustomMinimumSize = new Vector2(0, 40) };
@@ -403,9 +408,9 @@ public partial class Hud : CanvasLayer
         box.AddChild(Check("Brouillard de guerre", World.Fog, on => World.Fog = on));
         box.AddChild(Check("IA ennemie active", !open, on =>
         {
-            foreach (var id in scene.Opts.Enemies)
+            foreach (var s in scene.Opts.Slots)
             {
-                if (World.Factions.TryGetValue(id, out var enemy)) enemy.AI = on ? Worlds.NewAI(scene.Opts.Difficulty) : null;
+                if (s.Side != Player && World.Factions.TryGetValue(s.Side, out var enemy)) enemy.AI = on ? Worlds.NewAI(s.AI ?? scene.Opts.Difficulty) : null;
             }
         }));
         box.AddChild(Button("+5 000 crédits", () => World.Factions[Player].Credits += 5000));
@@ -579,10 +584,9 @@ public partial class Hud : CanvasLayer
             return;
         }
         const int size = 14;
-        var own = e.Faction == Player;
         var lines = new List<Part>
         {
-            SpansPart(size, (Names.EntityName(e), Palette.Text, true), (Factions.Defs[e.Faction].Name + (own ? "" : ", ennemi"), Palette.Muted, false)),
+            SpansPart(size, (Names.EntityName(e), Palette.Text, true), (Factions.Defs[e.Race].Name + (Relation(e) is { Length: > 0 } r ? $", {r}" : ""), Palette.Muted, false)),
             TextPart($"Coque {N(Math.Ceiling(e.Hull))} / {N(Js.Round(e.MaxHull))}" + (e.MaxShield > 0 ? $", bouclier {N(Math.Ceiling(e.Shield))} / {N(Js.Round(e.MaxShield))}" : ""), size: size, wrap: false),
         };
         if (e.Build < 1) lines.Add(TextPart($"En construction : {Percent(e.Build)}", size: size, wrap: false));
@@ -591,7 +595,7 @@ public partial class Hud : CanvasLayer
             var state = a.Active > 0 ? "active" : a.Cooldown > 0 ? $"recharge {N(Math.Ceiling(a.Cooldown))} s" : "prête";
             lines.Add(TextPart($"{Abilities.Defs[a.Id].Name} : {state}", size: size, wrap: false));
         }
-        if (own && e.Kind == EntityKind.Ship)
+        if (e.Side == Player && e.Kind == EntityKind.Ship)
         {
             var doing = e.Order is { } o ? OrderName(o.Type) : e.TargetId is not null ? "Au combat" : "Inactif";
             lines.Add(TextPart(doing, Palette.Muted, size, wrap: false));
@@ -653,7 +657,7 @@ public partial class Hud : CanvasLayer
             return;
         }
         var gain = station is not null ? Station.Levels[station.Level - 1].Income : 0;
-        foreach (var e in World.Entities) if (e.Faction == Player && e.Build >= 1) gain += e.Income;
+        foreach (var e in World.Entities) if (e.Side == Player && e.Build >= 1) gain += e.Income;
         creditsValue!.Text = N(Math.Floor(f.Credits));
         income!.Text = $"+{N(gain)}/s";
         level.Text = (station is not null ? $"Station niveau {station.Level}" : "Station détruite") + LanceStatus();
@@ -689,7 +693,7 @@ public partial class Hud : CanvasLayer
             Unlocked(b, level, Ships.Defs[cls].MinStationLevel);
             var loop = f.Repeat.Contains(cls);
             b.SetColor(1, loop ? Palette.Ok : Palette.Accent);
-            SetButton(b, Structures.CanBuildShip(w, Player, cls), $"{N(Ships.Cost(cls, Player))} cr, {N(Ships.Defs[cls].BuildTime)} s{(loop ? ", en boucle" : "")}");
+            SetButton(b, Structures.CanBuildShip(w, Player, cls), $"{N(Ships.Cost(cls, Race))} cr, {N(Ships.Defs[cls].BuildTime)} s{(loop ? ", en boucle" : "")}");
             Outline(b, loop ? Palette.Ok : null, false);
             b.TooltipText += ". Maj + clic : 5 d'un coup. Clic droit : production en boucle.";
         }
@@ -737,7 +741,7 @@ public partial class Hud : CanvasLayer
             var target = w.Entities.Get(q.TargetId);
             return target is not null ? $"{Names.EntityName(target)} niveau {target.Level + 1}" : "Amélioration";
         }
-        var sites = w.Entities.Where(e => e.Faction == Player && e.Kind == EntityKind.Structure && e.Build < 1).ToList();
+        var sites = w.Entities.Where(e => e.Side == Player && e.Kind == EntityKind.Structure && e.Build < 1).ToList();
         RenderList(buildingsQueue!, [
             .. f.BuildQueue.Select((q, i) => new QueueEntry(WorkName(q), $"index:{i}", i == 0 ? 1 - q.Remaining / q.Total : 0,
                 () => Structures.CancelQueued(World, Player, i, QueueSide.Buildings), i == 0 ? q.Remaining : null)),

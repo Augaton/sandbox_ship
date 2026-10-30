@@ -100,9 +100,9 @@ public static class HudKit
     public static ColorRect ProgressBar()
     {
         var bar = Ignore(new ColorRect { Color = Palette.Accent });
-        bar.SetAnchor(Side.Top, 1, true);
-        bar.SetAnchor(Side.Bottom, 1, true);
-        bar.SetAnchor(Side.Right, 0, true);
+        bar.SetAnchor(Godot.Side.Top, 1, true);
+        bar.SetAnchor(Godot.Side.Bottom, 1, true);
+        bar.SetAnchor(Godot.Side.Right, 0, true);
         bar.OffsetLeft = bar.OffsetRight = bar.OffsetBottom = 0;
         bar.OffsetTop = -3;
         return bar;
@@ -112,7 +112,7 @@ public static class HudKit
     /// A progress bar's length, 0 to 1. Its offsets must stay as they are: an anchor moved
     /// alone keeps the control where it was, and the bar would never grow.
     /// </summary>
-    public static void Fill(ColorRect bar, double done) => bar.SetAnchor(Side.Right, (float)Math.Clamp(done, 0, 1), true);
+    public static void Fill(ColorRect bar, double done) => bar.SetAnchor(Godot.Side.Right, (float)Math.Clamp(done, 0, 1), true);
 
     /// <summary>Fades a control in that was just put on screen: a dialog appears rather than pops.</summary>
     public static void FadeIn(Control c, double seconds = 0.14)

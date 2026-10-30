@@ -1,5 +1,5 @@
-// The main menu's backdrop: random fleets of two or three factions meet in the middle of a
-// small map and fight it out, for show. No stations, no fog, no AI: the ships attack-move
+// The main menu's backdrop: random fleets of two or three sides meet in the middle of a small
+// map and fight it out, for show. A race may come twice, Kla'ed against Kla'ed. No stations, no fog, no AI: the ships attack-move
 // toward each other, abilities on, and `Steer` sends the idle ones back into the fight.
 using SandboxShip.Sim.Data;
 using static SandboxShip.Sim.Worlds;
@@ -20,33 +20,39 @@ public static class Showcase
         (ShipClass.Frigate, 4), (ShipClass.Battlecruiser, 2), (ShipClass.Bulwark, 0.8), (ShipClass.Carrier, 0.6), (ShipClass.Dreadnought, 0.8),
     ];
 
-    static readonly Faction[] Sides = [Faction.Klaed, Faction.Nairan, Faction.Nautolan, Faction.Errant];
+    static readonly Faction[] Races = [Faction.Klaed, Faction.Nairan, Faction.Nautolan, Faction.Errant];
 
+    /// <summary>
+    /// Each side draws its race from all four; only the Errants, in their single gold, come once.
+    /// A race drawn again plays on a side past the races' own, in a player color.
+    /// </summary>
     public static World Create(int seed)
     {
         var world = CreateWorld(4500, 3000, seed);
         world.Fog = false;
         var (cx, cy) = (world.Width / 2, world.Height / 2);
-        var pool = Sides.ToList();
+        var pool = Races.ToList();
         var count = Rand(world) < 0.3 ? 3 : 2;
         var start = Rand(world) * Math.Tau;
         var spots = new List<Point>();
+        var extra = 4;
         for (var i = 0; i < count; i++)
         {
-            var f = pool[(int)(Rand(world) * pool.Count)];
-            pool.Remove(f);
-            AddFaction(world, f, 0).AutoAbilities = true;
+            var race = pool[(int)(Rand(world) * pool.Count)];
+            if (race == Faction.Errant) pool.Remove(race);
+            var side = world.Factions.ContainsKey(race) ? new Side(extra++) : race;
+            AddSide(world, side, race, 0).AutoAbilities = true;
             var bearing = start + i * Math.Tau / count;
             var (fx, fy) = (cx + Math.Cos(bearing) * Ring, cy + Math.Sin(bearing) * Ring);
             spots.Add(new Point(fx, fy));
-            Fleet(world, f, fx, fy, bearing + Math.PI);
+            Fleet(world, side, race, fx, fy, bearing + Math.PI);
         }
         Scenario.ScatterFields(world, 5, spots, 350);
         return world;
     }
 
     /// <summary>A random fleet facing `facing`, its heavy ships in the middle; sometimes a hero or a titan leads it.</summary>
-    static void Fleet(World world, Faction f, double x, double y, double facing)
+    static void Fleet(World world, Side side, Faction race, double x, double y, double facing)
     {
         var list = new List<ShipClass>();
         if (Rand(world) < 0.15) list.Add(ShipClass.Titan);
@@ -64,16 +70,16 @@ public static class Showcase
         list = [.. list.OrderByDescending(c => Ships.Defs[c].Radius)];
         var offsets = Movement.FormationOffsets(list.Count + 1, 80).OrderBy(p => Hypot(p.X, p.Y)).ToList();
         var ids = new List<int>();
-        if (f != Faction.Errant && Rand(world) < 0.3)
+        if (race != Faction.Errant && Rand(world) < 0.3)
         {
-            var heroes = Heroes.Of(f).ToList();
-            ids.Add(SpawnHero(world, f, heroes[(int)(Rand(world) * heroes.Count)].Id, x + offsets[^1].X, y + offsets[^1].Y, facing).Id);
+            var heroes = Heroes.Of(race).ToList();
+            ids.Add(SpawnHero(world, side, heroes[(int)(Rand(world) * heroes.Count)].Id, x + offsets[^1].X, y + offsets[^1].Y, facing).Id);
         }
-        for (var k = 0; k < list.Count; k++) ids.Add(SpawnShip(world, f, list[k], x + offsets[k].X, y + offsets[k].Y, facing).Id);
+        for (var k = 0; k < list.Count; k++) ids.Add(SpawnShip(world, side, list[k], x + offsets[k].X, y + offsets[k].Y, facing).Id);
         Movement.IssueMove(world, ids, world.Width / 2, world.Height / 2, true);
     }
 
-    /// <summary>The factions with ships left.</summary>
+    /// <summary>The sides with ships left.</summary>
     public static int Standing(World world)
     {
         var n = 0;
@@ -81,7 +87,7 @@ public static class Showcase
         {
             foreach (var e in world.Entities)
             {
-                if (e.Kind != EntityKind.Ship || e.Faction != f) continue;
+                if (e.Kind != EntityKind.Ship || e.Side != f) continue;
                 n++;
                 break;
             }
@@ -89,15 +95,15 @@ public static class Showcase
         return n;
     }
 
-    /// <summary>Sends each faction's idle ships at the nearest enemy: nobody stays out of the fight.</summary>
+    /// <summary>Sends each side's idle ships at the nearest foe: nobody stays out of the fight.</summary>
     public static void Steer(World world)
     {
         foreach (var f in world.Factions.Keys)
         {
-            var idle = world.Entities.Where(e => e.Kind == EntityKind.Ship && e.Faction == f && e.Order is null && e.CarrierId is null).ToList();
+            var idle = world.Entities.Where(e => e.Kind == EntityKind.Ship && e.Side == f && e.Order is null && e.CarrierId is null).ToList();
             if (idle.Count == 0) continue;
             var (mx, my) = (idle.Average(e => e.X), idle.Average(e => e.Y));
-            var foe = world.Entities.Where(e => e.Kind == EntityKind.Ship && e.Faction != f).MinBy(e => Hypot(e.X - mx, e.Y - my));
+            var foe = world.Entities.Where(e => e.Kind == EntityKind.Ship && Foes(world, f, e.Side)).MinBy(e => Hypot(e.X - mx, e.Y - my));
             if (foe is not null) Movement.IssueMove(world, idle.Select(e => e.Id), foe.X, foe.Y, true);
         }
     }

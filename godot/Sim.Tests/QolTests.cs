@@ -23,7 +23,7 @@ public class QolTests
         StepWorld(w);
         Assert.Single(f.Queue);
         Run(w, Ships.Defs[ShipClass.Frigate].BuildTime * 2 + 1);
-        int Frigates() => w.Entities.Count(e => e.Type == "frigate" && e.Faction == Faction.Klaed);
+        int Frigates() => w.Entities.Count(e => e.Type == "frigate" && e.Side == Faction.Klaed);
         Assert.Equal(2, Frigates());
         Assert.Single(f.Queue);
         f.Repeat = [];
@@ -65,7 +65,7 @@ public class QolTests
             hit = w.Events.OfType<Hit>().FirstOrDefault();
             w.Events.Clear();
         }
-        Assert.Equal(Faction.Nairan, hit?.Faction);
+        Assert.Equal(Faction.Nairan, hit?.Side);
         // On the frigate or one of its parts, the frigate's shield takes it.
         var struck = w.Entities.Get(hit!.TargetId)!;
         Assert.True(struck == target || struck.ParentId == target.Id);

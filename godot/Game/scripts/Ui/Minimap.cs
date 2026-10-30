@@ -79,7 +79,7 @@ public partial class Minimap : Control
             if (e.Kind == EntityKind.Hardpoint) continue;
             if (!Vision.IsVisible(w, player, e) && !(e.Kind == EntityKind.Structure && Vision.WasSeen(w, player, e))) continue;
             var s = e.Kind == EntityKind.Ship ? (e.Size == SizeClass.Small ? 1.5 : 2.5) : e.Type == "station" ? 7 : 4;
-            squares.Rect(new Rect2((float)(e.X * sx - s / 2), (float)(e.Y * sy - s / 2), (float)s, (float)s), Palette.Of(e.Faction));
+            squares.Rect(new Rect2((float)(e.X * sx - s / 2), (float)(e.Y * sy - s / 2), (float)s, (float)s), Palette.Of(w, e.Side));
         }
         squares.Flush(this);
         var v = scene.ViewRect();
@@ -91,8 +91,8 @@ public partial class Minimap : Control
             if (e.Type != "colossus") continue;
             var pulse = (float)(0.5 + 0.5 * Math.Sin(now / 400));
             var at = new Vector2((float)(e.GuardX * sx), (float)(e.GuardY * sy));
-            DrawArc(at, 6 + 2 * pulse, 0, Mathf.Tau, 24, Palette.Of(e.Faction, 0.5f + 0.4f * pulse), 2);
-            DrawCircle(at, 2, Palette.Of(e.Faction));
+            DrawArc(at, 6 + 2 * pulse, 0, Mathf.Tau, 24, Palette.Of(w, e.Side, 0.5f + 0.4f * pulse), 2);
+            DrawCircle(at, 2, Palette.Of(w, e.Side));
         }
         // Recent alerts ping where they happened.
         foreach (var a in scene.Alerts)

@@ -42,8 +42,8 @@ public partial class GalaxyHud
     {
         var g = G;
         var target = g.Planets[lf.Target];
-        var by = Factions.Defs[lf.Faction].Name;
-        if (lf.Faction == Player) Notify($"Lance stellaire : {target.Name} frappée", target.Id);
+        var by = NameOf(lf.Side);
+        if (lf.Side == Player) Notify($"Lance stellaire : {target.Name} frappée", target.Id);
         else if (target.Owner == Player)
         {
             Notify($"{target.Name} frappée par la Lance stellaire des {by}", target.Id);

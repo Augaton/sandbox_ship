@@ -40,7 +40,7 @@ public partial class GalaxyScreen
             Hud.Toast("Tir annulé");
             return;
         }
-        var r = Galaxies.FireLance(Galaxy, Opts.Player, from, t);
+        var r = Galaxies.FireLance(Galaxy, Player, from, t);
         if (!r.Ok) Hud.Toast(r.Reason);
         Hud.Refresh();
     }
@@ -56,7 +56,7 @@ public partial class GalaxyScreen
         // Each known lance: a ring around its planet, filling as it charges, burning once ready.
         foreach (var p in g.Planets)
         {
-            if (p.StarLance == 0 || !Galaxies.Known(g, Opts.Player, p)) continue;
+            if (p.StarLance == 0 || !Galaxies.Known(g, Player, p)) continue;
             var (x, y, r) = (Sx(p.X), Sy(p.Y), Radius(p) + 20);
             var charge = 1 - p.LanceCharge / Galaxies.LanceRecharge;
             Draw.Ring(u, x, y, r, Palette.Line, 3, 1);
@@ -68,7 +68,7 @@ public partial class GalaxyScreen
         {
             foreach (var p in g.Planets)
             {
-                if (Galaxies.CanFireLance(g, Opts.Player, from, p.Id).Ok)
+                if (Galaxies.CanFireLance(g, Player, from, p.Id).Ok)
                     Draw.Ring(u, Sx(p.X), Sy(p.Y), Radius(p) + 12, Palette.Danger with { A = 0.5f + 0.4f * pulse }, 3, 1);
             }
         }

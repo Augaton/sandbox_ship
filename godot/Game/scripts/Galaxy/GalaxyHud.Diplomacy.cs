@@ -13,8 +13,6 @@ public partial class GalaxyHud
 {
     static readonly Color StormNote = Palette.Hex(0x9b8cff);
 
-    static string FactionName(Faction f) => Factions.Defs[f].Name;
-
     static string Minutes(double seconds) => $"{N(Math.Round(seconds / 60))} min";
 
     /// <summary>"7 min 05 s", "1 min" on the minute, or "45 s" under a minute.</summary>
@@ -27,14 +25,15 @@ public partial class GalaxyHud
     /// <summary>", hors ravitaillement" for a fleet too far from its planets; nothing otherwise.</summary>
     string Supply(Fleet f) => Galaxies.Supplied(G, f) ? "" : ", hors ravitaillement";
 
-    IEnumerable<Faction> Rivals() => G.Factions.Keys.Where(f => f != Player);
+    /// <summary>Every other side but the player's allies, who need no truce.</summary>
+    IEnumerable<Side> Rivals() => G.Factions.Keys.Where(f => !Galaxies.Allies(G, f, Player));
 
-    TruceOffer? OfferFrom(Faction rival) => G.Offers.Find(o => o.From == rival && o.To == Player);
+    TruceOffer? OfferFrom(Side rival) => G.Offers.Find(o => o.From == rival && o.To == Player);
 
-    double Grudge(Faction rival) => G.Factions[rival].AI?.Grudges.GetValueOrDefault(Player) ?? 0;
+    double Grudge(Side rival) => G.Factions[rival].AI?.Grudges.GetValueOrDefault(Player) ?? 0;
 
     /// <summary>Where the player stands with a rival.</summary>
-    string Relation(Faction rival)
+    string Relation(Side rival)
     {
         var g = G;
         if (g.Factions[rival].Eliminated) return "Éliminée";
@@ -74,20 +73,20 @@ public partial class GalaxyHud
         if (others.Count > 0)
         {
             parts.Add(HudKit.TextPart("Trêves entre les autres : "
-                + string.Join(", ", others.Select(t => $"{FactionName(t.A)} et {FactionName(t.B)} ({Left(t.Remaining)})")), Palette.Muted, 13));
+                + string.Join(", ", others.Select(t => $"{NameOf(t.A)} et {NameOf(t.B)} ({Left(t.Remaining)})")), Palette.Muted, 13));
         }
         return parts;
     }
 
     /// <summary>A rival in the diplomacy list: emblem, name, relation, and the buttons its state allows.</summary>
-    Control RivalRow(Faction r, string state)
+    Control RivalRow(Side r, string state)
     {
         var col = HudKit.Column(4);
         var head = HudKit.Row(8);
         head.AddChild(Emblem(r));
         var name = HudKit.Column(0);
         name.SizeFlagsHorizontal = Control.SizeFlags.ExpandFill;
-        name.AddChild(Text(FactionName(r), bold: true));
+        name.AddChild(Text(NameOf(r), bold: true));
         var relation = Text("", Palette.Muted, 13, wrap: true);
         relation.Name = "Relation";
         name.AddChild(relation);
@@ -118,34 +117,34 @@ public partial class GalaxyHud
         return col;
     }
 
-    void Propose(Faction rival)
+    void Propose(Side rival)
     {
         var r = Galaxies.ProposeTruce(G, Player, rival);
         // A truce signed says so itself (TruceSigned).
-        if (!r.Ok) Notify($"{FactionName(rival)} refuse la trêve : {Lower(r.Reason)}");
+        if (!r.Ok) Notify($"{NameOf(rival)} refuse la trêve : {Lower(r.Reason)}");
         RefreshSoon();
     }
 
-    void Answer(Faction rival, bool yes)
+    void Answer(Side rival, bool yes)
     {
         if (yes)
         {
             var r = Galaxies.AcceptTruce(G, Player, rival);
-            if (!r.Ok) Notify($"L'offre de {FactionName(rival)} n'est plus valable");
+            if (!r.Ok) Notify($"L'offre de {NameOf(rival)} n'est plus valable");
         }
         else
         {
             Galaxies.RefuseTruce(G, Player, rival);
-            Notify($"Trêve de {FactionName(rival)} refusée");
+            Notify($"Trêve de {NameOf(rival)} refusée");
         }
         RefreshSoon();
     }
 
-    void ConfirmBreak(Faction rival)
+    void ConfirmBreak(Side rival)
     {
         var (p, box) = Dialog();
-        box.AddChild(Heading($"Rompre la trêve avec {FactionName(rival)} ?", rival, 22));
-        box.AddChild(HudKit.Para($"Vos flottes pourront de nouveau se battre, sur les planètes comme en chemin. {FactionName(rival)} refusera alors "
+        box.AddChild(Heading($"Rompre la trêve avec {NameOf(rival)} ?", rival, 22));
+        box.AddChild(HudKit.Para($"Vos flottes pourront de nouveau se battre, sur les planètes comme en chemin. {NameOf(rival)} refusera alors "
             + $"toute trêve pendant {Minutes(Galaxies.GrudgeTime)}."));
         box.AddChild(Actions(Btn("Annuler", CloseModal), Btn("Rompre", () =>
         {
@@ -157,10 +156,10 @@ public partial class GalaxyHud
     }
 
     /// <summary>A rival offers the player a truce: answer now, or later from the diplomacy list.</summary>
-    void ShowOffer(Faction rival)
+    void ShowOffer(Side rival)
     {
         var (p, box) = Dialog();
-        box.AddChild(Heading($"{FactionName(rival)} propose une trêve", rival, 22));
+        box.AddChild(Heading($"{NameOf(rival)} propose une trêve", rival, 22));
         box.AddChild(HudKit.Para($"{Minutes(Galaxies.TruceTime)} sans aucun combat entre vous, ni sur les planètes ni en chemin, et aucune flotte "
             + $"envoyée chez l'autre. L'offre tient {Left(Galaxies.OfferTime)} ; la liste Diplomatie (T) la garde jusque-là."));
         box.AddChild(Actions(
@@ -180,7 +179,7 @@ public partial class GalaxyHud
 
     string PlanetName(int id) => G.Planets[id].Name;
 
-    string Holder(Faction? f) => f is Faction o ? FactionName(o) : "neutre";
+    string Holder(Side? f) => f is Side o ? NameOf(o) : "neutre";
 
     /// <summary>Messages for truces, random events and ruins; the rest is OnEvent's.</summary>
     void OnDepthEvent(GalaxyEvent ev)
@@ -190,23 +189,23 @@ public partial class GalaxyHud
         {
             case TruceOffered o when o.To == player:
                 Sfx.Play(Sound.Alert);
-                Notify($"{FactionName(o.From)} propose une trêve de {Minutes(Galaxies.TruceTime)}");
+                Notify($"{NameOf(o.From)} propose une trêve de {Minutes(Galaxies.TruceTime)}");
                 if (!DialogOpen) ShowOffer(o.From);
                 break;
             case TruceSigned s:
                 Notify(s.A == player || s.B == player
-                    ? $"Trêve signée avec {FactionName(s.A == player ? s.B : s.A)} : {Minutes(Galaxies.TruceTime)} sans combat"
-                    : $"Trêve entre {FactionName(s.A)} et {FactionName(s.B)}");
+                    ? $"Trêve signée avec {NameOf(s.A == player ? s.B : s.A)} : {Minutes(Galaxies.TruceTime)} sans combat"
+                    : $"Trêve entre {NameOf(s.A)} et {NameOf(s.B)}");
                 break;
             case TruceEnded e when e.A == player || e.B == player:
                 var other = e.A == player ? e.B : e.A;
                 Notify(e.BrokenBy == player
-                    ? $"Trêve rompue avec {FactionName(other)} : plus de trêve avec elle avant {Minutes(Galaxies.GrudgeTime)}"
-                    : $"Fin de la trêve avec {FactionName(other)}");
+                    ? $"Trêve rompue avec {NameOf(other)} : plus de trêve avec elle avant {Minutes(Galaxies.GrudgeTime)}"
+                    : $"Fin de la trêve avec {NameOf(other)}");
                 Sfx.Play(Sound.Alert);
                 break;
             case TruceEnded e:
-                Notify($"Fin de la trêve entre {FactionName(e.A)} et {FactionName(e.B)}");
+                Notify($"Fin de la trêve entre {NameOf(e.A)} et {NameOf(e.B)}");
                 break;
             case IncidentStarted i:
                 OnIncident(i);
@@ -214,13 +213,13 @@ public partial class GalaxyHud
             case IncidentEnded i:
                 OnIncidentEnd(i);
                 break;
-            case RuinsExplored r when r.Faction == player:
+            case RuinsExplored r when r.Side == player:
                 var tech = r.Tech is TechId t ? $", {Techs.Defs[t].Name} niveau {G.Factions[player].Research[t]}" : "";
                 Notify($"Ruines de {PlanetName(r.PlanetId)} explorées : +{N(r.Credits)} crédits{tech}", r.PlanetId);
                 Sfx.Play(Sound.Built);
                 break;
             case RuinsExplored r:
-                Notify($"{FactionName(r.Faction)} explore les ruines de {PlanetName(r.PlanetId)}", r.PlanetId);
+                Notify($"{NameOf(r.Side)} explore les ruines de {PlanetName(r.PlanetId)}", r.PlanetId);
                 break;
         }
     }
@@ -232,19 +231,19 @@ public partial class GalaxyHud
             case IncidentKind.Derelict:
                 Notify($"Une flotte abandonnée dérive à {PlanetName(i.Planet)} : à la première flotte qui s'y arrête", i.Planet);
                 break;
-            case IncidentKind.WarBand when i.Faction == Player:
+            case IncidentKind.WarBand when i.Side == Player:
                 Notify($"Une bande errante se rassemble à {PlanetName(i.Planet)} : elle frappera {PlanetName(i.Other)} dans {N(Galaxies.WarBandWarning)} s", i.Other);
                 Sfx.Play(Sound.Alert);
                 break;
             case IncidentKind.WarBand:
-                Notify($"Une bande errante menace {PlanetName(i.Other)} ({Holder(i.Faction)})", i.Other);
+                Notify($"Une bande errante menace {PlanetName(i.Other)} ({Holder(i.Side)})", i.Other);
                 break;
             case IncidentKind.IonStorm:
                 Notify($"Tempête ionique entre {PlanetName(i.Planet)} et {PlanetName(i.Other)} : vitesse divisée par deux pendant "
                     + Minutes(Galaxies.StormTime), i.Planet);
                 break;
             case IncidentKind.TradeBoom:
-                Notify($"Essor commercial à {PlanetName(i.Planet)}{(i.Faction == Player ? "" : $" ({Holder(i.Faction)})")} : revenu doublé pendant "
+                Notify($"Essor commercial à {PlanetName(i.Planet)}{(i.Side == Player ? "" : $" ({Holder(i.Side)})")} : revenu doublé pendant "
                     + Minutes(Galaxies.BoomTime), i.Planet);
                 break;
         }
@@ -252,11 +251,11 @@ public partial class GalaxyHud
 
     void OnIncidentEnd(IncidentEnded i)
     {
-        var mine = i.Faction == Player;
+        var mine = i.Side == Player;
         switch (i.Kind)
         {
-            case IncidentKind.Derelict when i.Faction is Faction by:
-                Notify(mine ? $"Flotte abandonnée récupérée à {PlanetName(i.Planet)}" : $"{FactionName(by)} récupère la flotte abandonnée de {PlanetName(i.Planet)}", i.Planet);
+            case IncidentKind.Derelict when i.Side is Side by:
+                Notify(mine ? $"Flotte abandonnée récupérée à {PlanetName(i.Planet)}" : $"{NameOf(by)} récupère la flotte abandonnée de {PlanetName(i.Planet)}", i.Planet);
                 if (mine) Sfx.Play(Sound.Built);
                 break;
             case IncidentKind.Derelict:
@@ -264,7 +263,7 @@ public partial class GalaxyHud
                 break;
             case IncidentKind.WarBand:
                 Notify(mine ? $"{PlanetName(i.Planet)} pillée par une bande errante : ses mines sont perdues"
-                    : $"Une bande errante pille {PlanetName(i.Planet)} ({Holder(i.Faction)})", i.Planet);
+                    : $"Une bande errante pille {PlanetName(i.Planet)} ({Holder(i.Side)})", i.Planet);
                 if (mine) Sfx.Play(Sound.Alert);
                 break;
             case IncidentKind.IonStorm:
@@ -302,9 +301,9 @@ public partial class GalaxyHud
                     break;
             }
         }
-        if (p.Owner is Faction o && o != Player && Galaxies.AtPeace(g, Player, o))
+        if (p.Owner is Side o && o != Player && Galaxies.AtPeace(g, Player, o))
         {
-            notes.Add(("Trêve", $"Avec {FactionName(o)} : ni combat ici, ni flotte envoyée ; tes flottes y passent.", Palette.Ok));
+            notes.Add(("Trêve", $"Avec {NameOf(o)} : ni combat ici, ni flotte envoyée ; tes flottes y passent.", Palette.Ok));
         }
         return notes;
     }

@@ -257,7 +257,7 @@ public partial class GalaxyScreen
         var bestD = FleetSlop;
         foreach (var f in Galaxy.Fleets.Values)
         {
-            if (f.Faction != Opts.Player || f.At is not null || f.To is null) continue;
+            if (f.Side != Player || f.At is not null || f.To is null) continue;
             var (x, y) = FleetPoint(f);
             var d = Worlds.Hypot(Sx(x) - at.X, Sy(y) - at.Y);
             if (d > bestD) continue;
@@ -334,7 +334,7 @@ public partial class GalaxyScreen
         }
         SelectedFleet = null;
         var at = f?.At ?? fleetBound;
-        if (at is int p && (f is not null || Galaxies.FleetsAt(g, p, Opts.Player).Count > 0)) Click(p, false);
+        if (at is int p && (f is not null || Galaxies.FleetsAt(g, p, Player).Count > 0)) Click(p, false);
     }
 
     /// <summary>Sends the selected fleet on the move to `dest`, the shorter way, turning back if need be.</summary>
@@ -359,7 +359,7 @@ public partial class GalaxyScreen
         Hud.Refresh();
     }
 
-    List<int> OwnTargets() => [.. Targets.Where(id => Galaxy.Planets[id].Owner == Opts.Player)];
+    List<int> OwnTargets() => [.. Targets.Where(id => Galaxy.Planets[id].Owner == Player)];
 
     /// <summary>The next click on a planet sets the rally point of the selected planets.</summary>
     public void BeginRally()
@@ -382,7 +382,7 @@ public partial class GalaxyScreen
             Hud.Toast("Sélectionne d'abord une de tes planètes");
             return;
         }
-        var refused = own.Select(id => Galaxies.SetRally(g, Opts.Player, id, dest)).Where(r => !r.Ok).ToList();
+        var refused = own.Select(id => Galaxies.SetRally(g, Player, id, dest)).Where(r => !r.Ok).ToList();
         if (refused.Count == own.Count)
         {
             Hud.Toast(refused[0].Reason);
@@ -399,7 +399,7 @@ public partial class GalaxyScreen
         var g = Galaxy;
         foreach (var p in g.Planets)
         {
-            if (p.Owner != Opts.Player || p.Rally is not int rally) continue;
+            if (p.Owner != Player || p.Rally is not int rally) continue;
             DashedRoute(u, p.Id, rally, Palette.Ok with { A = Targets.Contains(p.Id) ? 0.9f : 0.4f });
         }
         // Picking a rally point: where it would lead.

@@ -109,7 +109,7 @@ public class GalaxyLanceTests
             fired.AddRange(g.Events.OfType<LanceFired>());
         }
         var shot = Assert.Single(fired);
-        Assert.Equal(Faction.Nairan, shot.Faction);
+        Assert.Equal(Faction.Nairan, shot.Side);
         Assert.Equal(Faction.Klaed, g.Planets[shot.Target].Owner);
         Assert.InRange(LanesBetween(g, theirs.Id, shot.Target), 1, LanceReach);
     }

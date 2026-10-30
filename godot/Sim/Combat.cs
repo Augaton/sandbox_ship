@@ -20,10 +20,10 @@ public static class Combat
         var bestD = range;
         foreach (var t in world.Grid.Near(e.X, e.Y, range))
         {
-            if (t.Faction == e.Faction) continue;
-            // Sight is checked last: it costs more than the distance, and only a nearer target needs it.
+            if (t.Side == e.Side) continue;
+            // Allies and sight are checked last: they cost more than the distance, and only a nearer target needs them.
             var d = Reach(e, t);
-            if (d < bestD && Vision.IsVisible(world, e.Faction, t))
+            if (d < bestD && Foes(world, e.Side, t.Side) && Vision.IsVisible(world, e.Side, t))
             {
                 bestD = d;
                 best = t;
@@ -49,15 +49,15 @@ public static class Combat
             // Craft fly for their carrier: they go for what it fights (not in the web version).
             if (Movement.CarrierOf(world, e) is { } carrier && Movement.FocusOf(world, carrier) is { } focus) e.TargetId = focus.Id;
             // Taunted: only the bulwark that did it, while it can be seen (not in the web version).
-            if (e.Effects.Taunted > 0 && world.Entities.Get(e.Effects.TauntedBy) is { } taunter && Vision.IsVisible(world, e.Faction, taunter))
+            if (e.Effects.Taunted > 0 && world.Entities.Get(e.Effects.TauntedBy) is { } taunter && Vision.IsVisible(world, e.Side, taunter))
                 e.TargetId = taunter.Id;
         }
     }
 
-    /// <summary>Faction trait, weapons research and damage abilities.</summary>
+    /// <summary>Race trait, weapons research and damage abilities.</summary>
     public static double DamageMult(World world, Entity e)
     {
-        var m = Factions.Trait(e.Faction).Damage * (1 + Techs.WeaponsBonus * ResearchLevel(world, e.Faction, TechId.Weapons));
+        var m = Factions.Trait(e.Race).Damage * (1 + Techs.WeaponsBonus * ResearchLevel(world, e.Side, TechId.Weapons));
         if (IsActive(world, e, AbilityId.Barrage)) m *= 1.5;
         if (IsActive(world, e, AbilityId.Broadside)) m *= 2;
         // Out of hiding, the first blows hit hard.
@@ -65,7 +65,7 @@ public static class Combat
         var owner = OwnerOf(world, e);
         if (owner.Hero is HeroId h) m *= Heroes.Defs[h].Damage;
         // Stations and platforms, and the guns on them, hit harder with fortifications research.
-        if (owner.Kind == EntityKind.Structure) m *= 1 + Techs.FortificationBonus * ResearchLevel(world, e.Faction, TechId.Fortification);
+        if (owner.Kind == EntityKind.Structure) m *= 1 + Techs.FortificationBonus * ResearchLevel(world, e.Side, TechId.Fortification);
         if (InCommandAura(world, owner)) m *= 1.15;
         return m;
     }
@@ -86,7 +86,7 @@ public static class Combat
         if (len == 0) len = 1;
         world.Projectiles.Add(new Projectile
         {
-            Id = world.NextId++, Faction = e.Faction, Kind = w.Kind,
+            Id = world.NextId++, Side = e.Side, Kind = w.Kind,
             X = e.X, Y = e.Y,
             Vx = ax / len * w.ProjectileSpeed, Vy = ay / len * w.ProjectileSpeed,
             Speed = w.ProjectileSpeed, Damage = w.Damage * DamageMult(world, e), Mult = w.Multipliers,
@@ -94,14 +94,14 @@ public static class Combat
         });
     }
 
-    /// <summary>The enemy closest to where a pilot aims, among those within `range`.</summary>
+    /// <summary>The foe closest to where a pilot aims, among those within `range`.</summary>
     public static Entity? AimedTarget(World world, Entity e, Pilot pilot, double range)
     {
         Entity? best = null;
         var bestD = double.PositiveInfinity;
         foreach (var t in world.Entities)
         {
-            if (t.Faction == e.Faction || Reach(e, t) > range || !Vision.IsVisible(world, e.Faction, t)) continue;
+            if (!Foes(world, e.Side, t.Side) || Reach(e, t) > range || !Vision.IsVisible(world, e.Side, t)) continue;
             var d = Hypot(t.X - pilot.AimX, t.Y - pilot.AimY) - t.Radius;
             if (d < bestD)
             {
@@ -181,8 +181,8 @@ public static class Combat
                 var owner = OwnerOf(world, t);
                 var shieldOf = owner.Kind == EntityKind.Ship ? owner : t;
                 int? shieldId = shieldOf.Shield > 0 ? shieldOf.Id : null;
-                Hurt(world, t, p.Damage * p.Mult.Of(t.Size), p.Faction);
-                world.Events.Add(new Hit(p.X, p.Y, p.Kind, t.Id, t.Faction, shieldId));
+                Hurt(world, t, p.Damage * p.Mult.Of(t.Size), p.Side);
+                world.Events.Add(new Hit(p.X, p.Y, p.Kind, t.Id, t.Side, shieldId));
                 continue;
             }
             if (p.Ttl > 0) all[kept++] = p;
@@ -196,7 +196,7 @@ public static class Combat
         foreach (var e in world.Entities)
         {
             // Biomechanical hulls mend themselves, but a ship already lost stays lost.
-            var regen = Factions.Trait(e.Faction).HullRegen;
+            var regen = Factions.Trait(e.Race).HullRegen;
             if (regen > 0 && e.Kind == EntityKind.Ship && e.Hull > 0) e.Hull = Math.Min(e.MaxHull, e.Hull + e.MaxHull * regen * dt);
             if (e.MaxShield <= 0 || !Operational(e) || e.Effects.Stunned > 0) continue;
             if (e.ShieldDown > 0)
@@ -214,18 +214,18 @@ public static class Combat
         }
     }
 
-    /// <summary>Support ships repair the most damaged friendly ship or structure in range; repair research speeds them up.</summary>
+    /// <summary>Support ships repair the most damaged ship or structure of their side or an ally's in range; repair research speeds them up.</summary>
     public static void UpdateRepair(World world, double dt)
     {
         foreach (var e in world.Entities)
         {
-            // Repair docks mend every friendly ship around them.
+            // Repair docks mend every ship of their side and its allies around them.
             var dock = e.Kind == EntityKind.Structure && Operational(e) && Ids.IsBuildable(e.Type, out var b) ? Buildables.Defs[b].Repair : null;
             if (dock is not null)
             {
                 foreach (var t in world.Grid.Near(e.X, e.Y, dock.Range))
                 {
-                    if (t.Kind == EntityKind.Ship && t.Faction == e.Faction && t.Hull > 0 && Dist(e, t) <= dock.Range)
+                    if (t.Kind == EntityKind.Ship && t.Hull > 0 && Allies(world, t.Side, e.Side) && Dist(e, t) <= dock.Range)
                         t.Hull = Math.Min(t.MaxHull, t.Hull + dock.Rate * RepairBoost(world, e) * dt);
                 }
                 continue;
@@ -238,7 +238,7 @@ public static class Combat
             foreach (var t in world.Grid.Near(e.X, e.Y, repair.Range))
             {
                 // What is already lost this step is not brought back.
-                if (t == e || t.Faction != e.Faction || !Operational(t) || t.Hull <= 0) continue;
+                if (t == e || !Operational(t) || t.Hull <= 0 || !Allies(world, t.Side, e.Side)) continue;
                 var ratio = t.Hull / t.MaxHull;
                 if (ratio < bestRatio && Dist(e, t) - t.Radius <= repair.Range)
                 {
@@ -250,5 +250,5 @@ public static class Combat
         }
     }
 
-    static double RepairBoost(World world, Entity e) => 1 + Techs.RepairBonus * ResearchLevel(world, e.Faction, TechId.Repair);
+    static double RepairBoost(World world, Entity e) => 1 + Techs.RepairBonus * ResearchLevel(world, e.Side, TechId.Repair);
 }

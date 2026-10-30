@@ -195,12 +195,12 @@ public partial class Menu : Node
     {
         foreach (var child in caption.GetChildren()) child.QueueFree();
         if (demo is null) return;
-        var sides = demo.Opts.Demo && demo.World is { } w ? w.Factions.Keys.ToList() : [];
+        var sides = demo.Opts.Demo && demo.World is { } w ? w.Factions.Values.ToList() : [];
         for (var i = 0; i < sides.Count; i++)
         {
             if (i > 0 && i == sides.Count - 1) caption.AddChild(Shadowed("contre"));
-            caption.AddChild(Picture(Logos.Emblem(sides[i], 1), new Vector2(16, 16)));
-            caption.AddChild(Shadowed(Factions.Defs[sides[i]].Name + (i < sides.Count - 2 ? "," : "")));
+            caption.AddChild(Picture(Logos.Emblem(sides[i].Race, 1, sides[i].Color), new Vector2(16, 16)));
+            caption.AddChild(Shadowed(Factions.Defs[sides[i].Race].Name + (i < sides.Count - 2 ? "," : "")));
         }
     }
 
@@ -334,7 +334,7 @@ public partial class Menu : Node
         {
             nav.AddChild(Nav("Continuer la campagne", () => Start(c with { Mode = GameMode.Campaign, Resume = true }), true));
             var when = DateTimeOffset.FromUnixTimeMilliseconds(save.SavedAt).ToLocalTime().ToString("dd/MM/yyyy HH:mm", CultureInfo.InvariantCulture);
-            var info = Paragraph($"{Factions.Defs[save.Player].Name}, {save.Planets} planète{(save.Planets > 1 ? "s" : "")}, le {when}", Palette.Muted, 13);
+            var info = Paragraph($"{Factions.Defs[save.Race].Name}, {save.Planets} planète{(save.Planets > 1 ? "s" : "")}, le {when}", Palette.Muted, 13);
             var indent = new MarginContainer();
             indent.AddThemeConstantOverride("margin_left", 17);
             indent.AddThemeConstantOverride("margin_bottom", 10);
@@ -559,13 +559,13 @@ public partial class Menu : Node
 
     /// <summary>
     /// The map the choices give, before launching: the galaxy (planets, lanes, capitals in their
-    /// faction's color) or the battlefield (stations and asteroid fields).
+    /// side's color) or the battlefield (stations and asteroid fields).
     /// </summary>
     static void DrawPreview(Control g, MenuChoice c)
     {
         var (w, h) = (g.Size.X, g.Size.Y);
         g.DrawRect(new Rect2(0, 0, w, h), Palette.Bg);
-        List<Faction> factions = [c.Player, .. c.Enemies];
+        var slots = c.Slots;
         if (c.Mode == GameMode.Campaign)
         {
             var layout = Layout(c);
@@ -579,12 +579,13 @@ public partial class Menu : Node
                 {
                     if (layout.Capitals[k] == i) owner = k;
                 }
-                g.DrawCircle(At(layout.Planets[i]), owner >= 0 ? 6 : 3.5f, owner >= 0 ? Palette.Of(factions[owner]) : Palette.Muted, true, -1, true);
+                var color = owner >= 0 ? Palette.Hex(slots[owner].Color ?? Worlds.DefaultColor(slots[owner].Side, slots[owner].Race)) : Palette.Muted;
+                g.DrawCircle(At(layout.Planets[i]), owner >= 0 ? 6 : 3.5f, color, true, -1, true);
             }
         }
         else
         {
-            var world = Scenario.CreateSkirmish(new SkirmishOptions { Player = c.Player, Enemies = [.. c.Enemies], EnemyAI = false, Seed = c.Seed, Map = c.Map, Size = c.Size });
+            var world = Scenario.CreateSkirmish(new SkirmishOptions { Slots = [.. slots.Select(s => s with { AI = null })], Seed = c.Seed, Map = c.Map, Size = c.Size });
             var (sx, sy) = (w / world.Width, h / world.Height);
             foreach (var f in world.Fields)
             {
@@ -592,7 +593,7 @@ public partial class Menu : Node
             }
             foreach (var e in world.Entities)
             {
-                if (e.Type == "station") g.DrawRect(new Rect2((float)(e.X * sx - 5), (float)(e.Y * sy - 5), 10, 10), Palette.Of(e.Faction));
+                if (e.Type == "station") g.DrawRect(new Rect2((float)(e.X * sx - 5), (float)(e.Y * sy - 5), 10, 10), Palette.Of(world, e.Side));
             }
         }
         g.DrawRect(new Rect2(0.5f, 0.5f, w - 1, h - 1), Palette.Line, false, 1);

@@ -100,7 +100,7 @@ public class GalaxySizesTests
         // Far stronger than their guard, the fleet leaves home to go through them.
         AddShipsAt(g, Faction.Klaed, layout.Capitals[0], new ShipCounts { [ShipClass.Leviathan] = 6 });
         RunGalaxy(g, 300);
-        Assert.Contains(g.Events, e => e is BattleEnded { Attacker: Faction.Klaed, Defender: Faction.Errant });
+        Assert.Contains(g.Events, e => e is BattleEnded b && b.Attacker == Faction.Klaed && b.Defender == Faction.Errant);
     }
 
     [Fact]

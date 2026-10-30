@@ -59,8 +59,8 @@ public class ExtremesTests
     public void End_even_when_no_side_can_hurt_the_other_the_attacker_falls_back()
     {
         var w = Battle.CreatePlanetBattle(
-            new BattleSide { Faction = Faction.Klaed, Ships = new() { [ShipClass.Battlecruiser] = 1 } },
-            new BattleSide { Faction = Faction.Nairan },
+            new BattleSide { Side = Faction.Klaed, Ships = new() { [ShipClass.Battlecruiser] = 1 } },
+            new BattleSide { Side = Faction.Nairan },
             PlanetDefense.None with { Station = 1 });
         foreach (var e in w.Entities) if (e.Kind == EntityKind.Ship || e.Type == "station") Disarm(w, e);
         Run(w, Battle.Stalemate - 5, 1.0 / 30);

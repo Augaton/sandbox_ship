@@ -136,7 +136,7 @@ public class VarietyTests
         target.Pilot = new Pilot();
         a.Pilot = new Pilot { Firing = true, AimX = target.X, AimY = target.Y };
         Run(w, 0.4);
-        var shot = w.Projectiles.First(p => p.Faction == Faction.Klaed);
+        var shot = w.Projectiles.First(p => p.Side == Faction.Klaed);
         // Base damage (flak 4, laser 16) x Kla'ed trait x two levels of weapons research.
         Expect.Close((shot.Kind == WeaponKind.Laser ? 16 : 4) * Factions.Trait(Faction.Klaed).Damage * 1.2, shot.Damage, 5);
     }

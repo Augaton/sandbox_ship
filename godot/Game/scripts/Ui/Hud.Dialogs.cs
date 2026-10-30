@@ -152,13 +152,13 @@ public partial class Hud
         foreach (var h in heads) Cell(h == "Faction" ? Text(h, Palette.Muted, 14) : Number(h, Palette.Muted));
         foreach (var f in World.Factions.Values)
         {
-            // The neutral guardians of a raid are not a side.
-            if (!Factions.All.Contains(f.Id)) continue;
+            // The neutral guardians of a raid are not a player.
+            if (f.Race == Faction.Errant) continue;
             var s = f.Stats;
             var color = f.Id == Player ? Palette.Accent : Palette.Text;
             var who = Row(8);
             who.AddChild(Emblem(f.Id));
-            who.AddChild(Text(Factions.Defs[f.Id].Name, color, 14));
+            who.AddChild(Text(Factions.Defs[f.Race].Name, color, 14));
             Cell(who);
             foreach (var v in new[] { s.Built, s.Lost, s.Kills, Js.Round(s.Damage), Js.Round(s.Earned) }) Cell(Number(N(v), color));
         }

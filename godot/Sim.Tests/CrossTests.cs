@@ -65,7 +65,7 @@ public class CrossTests
             var t = entities[i++];
             var label = $"{when}: entity {e.Id} ({e.Type})";
             Assert.Equal(t.GetProperty("type").GetString(), e.Type);
-            Assert.Equal(Named<Faction>(t.GetProperty("faction")), e.Faction);
+            Assert.Equal(Named<Faction>(t.GetProperty("faction")), e.Side);
             Assert.True(Math.Abs(t.GetProperty("x").GetDouble() - e.X) <= tolerance, $"{label}: x {e.X} vs {t.GetProperty("x").GetDouble()}");
             Assert.True(Math.Abs(t.GetProperty("y").GetDouble() - e.Y) <= tolerance, $"{label}: y {e.Y} vs {t.GetProperty("y").GetDouble()}");
             // Stations are sturdier here on purpose.

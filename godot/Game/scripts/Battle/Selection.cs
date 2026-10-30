@@ -62,17 +62,17 @@ public partial class Selection : Node
     }
 
     World World => scene.World;
-    Faction Player => scene.Opts.Player;
+    Side Player => scene.Opts.Player;
 
     /// <summary>The entity under a point; small entities win over the big ones they overlap. Enemies the viewer cannot see are left out.</summary>
-    public static Entity? PickAt(World world, double x, double y, double slop, Faction? viewer = null)
+    public static Entity? PickAt(World world, double x, double y, double slop, Side? viewer = null)
     {
         Entity? best = null;
         var bestRatio = double.PositiveInfinity;
         var at = new Point(x, y);
         foreach (var e in world.Entities)
         {
-            if (viewer is Faction v && !Vision.IsVisible(world, v, e)) continue;
+            if (viewer is Side v && !Vision.IsVisible(world, v, e)) continue;
             var ratio = Worlds.Dist(e, at) / (e.Radius + slop);
             if (ratio <= 1 && ratio < bestRatio)
             {
@@ -83,7 +83,7 @@ public partial class Selection : Node
         return best;
     }
 
-    /// <summary>Places a unit or structure for the sandbox; false when the battle is already full.</summary>
+    /// <summary>Places a unit or structure of a race for the sandbox, on that race's own side; false when the battle is already full.</summary>
     public static bool SpawnAt(World world, Faction faction, string what, double x, double y, Random random)
     {
         if (world.Entities.Count >= MaxEntities) return false;
@@ -121,7 +121,7 @@ public partial class Selection : Node
         var out_ = OwnShips();
         foreach (var id in scene.Selected)
         {
-            if (World.Entities.Get(id) is { Kind: EntityKind.Structure, Build: >= 1 } e && e.Faction == Player && e.Abilities.Count > 0) out_.Add(e);
+            if (World.Entities.Get(id) is { Kind: EntityKind.Structure, Build: >= 1 } e && e.Side == Player && e.Abilities.Count > 0) out_.Add(e);
         }
         return out_;
     }
@@ -132,7 +132,7 @@ public partial class Selection : Node
         foreach (var id in scene.Selected)
         {
             var e = World.Entities.Get(id);
-            if (e is not null && e.Kind == EntityKind.Ship && e.Faction == Player) out_.Add(e);
+            if (e is not null && e.Kind == EntityKind.Ship && e.Side == Player) out_.Add(e);
         }
         return out_;
     }
@@ -237,7 +237,7 @@ public partial class Selection : Node
             case AbilityMode m:
             {
                 var t = PickAt(World, w.X, w.Y, Slop, Player);
-                var used = AimAbility(m.Id, new Aim(w.X, w.Y, t is not null && t.Faction != Player ? t.Id : null));
+                var used = AimAbility(m.Id, new Aim(w.X, w.Y, t is not null && Worlds.Foes(World, t.Side, Player) ? t.Id : null));
                 if (used && !shift) SetMode(new SelectMode());
                 break;
             }
@@ -274,7 +274,7 @@ public partial class Selection : Node
 
     /// <summary>Warships with nothing to do: no order, no target, not flown. Hangar craft do not count.</summary>
     public List<Entity> IdleShips() =>
-        World.Entities.Where(e => e.Kind == EntityKind.Ship && e.Faction == Player && !e.Launched && e.Order is null && e.TargetId is null && e.Pilot is null).ToList();
+        World.Entities.Where(e => e.Kind == EntityKind.Ship && e.Side == Player && !e.Launched && e.Order is null && e.TargetId is null && e.Pilot is null).ToList();
 
     /// <summary>Selects the next idle ship and centers on it; with `all`, selects every idle ship.</summary>
     public void SelectIdle(bool all)
@@ -328,14 +328,14 @@ public partial class Selection : Node
             var now = BattleScreen.Now;
             var dbl = e is not null && e.Id == lastClick.Id && now - lastClick.Time < DoubleTapMs;
             lastClick = (e?.Id ?? -1, now);
-            if ((dbl || p.CtrlPressed) && e?.Kind == EntityKind.Ship && e.Faction == Player)
+            if ((dbl || p.CtrlPressed) && e?.Kind == EntityKind.Ship && e.Side == Player)
             {
                 // Double click or Ctrl + click: every ship of that class on screen.
                 if (!shift && !dbl) sel.Clear();
                 var view = scene.ViewRect();
                 foreach (var s in World.Entities)
                 {
-                    if (s.Kind == EntityKind.Ship && s.Faction == Player && s.Type == e.Type && view.HasPoint(new Vector2((float)s.X, (float)s.Y))) sel.Add(s.Id);
+                    if (s.Kind == EntityKind.Ship && s.Side == Player && s.Type == e.Type && view.HasPoint(new Vector2((float)s.X, (float)s.Y))) sel.Add(s.Id);
                 }
                 return;
             }
@@ -349,7 +349,7 @@ public partial class Selection : Node
         // A ship counts as soon as its hull overlaps the rectangle: big ships are easy to catch.
         foreach (var e in World.Entities)
         {
-            if (e.Kind != EntityKind.Ship || e.Faction != Player) continue;
+            if (e.Kind != EntityKind.Ship || e.Side != Player) continue;
             if (e.X + e.Radius >= box.Position.X && e.X - e.Radius <= box.End.X && e.Y + e.Radius >= box.Position.Y && e.Y - e.Radius <= box.End.Y) sel.Add(e.Id);
         }
     }
@@ -359,10 +359,10 @@ public partial class Selection : Node
     {
         var e = PickAt(World, x ?? Hover.X, y ?? Hover.Y, Slop, Player);
         var parent = World.Entities.Get(e?.ParentId);
-        return e is not null && parent?.Kind == EntityKind.Ship && e.Faction == Player ? parent : e;
+        return e is not null && parent?.Kind == EntityKind.Ship && e.Side == Player ? parent : e;
     }
 
-    /// <summary>Right click: attack what is under the cursor, or move there. With the station selected, sets the rally point.</summary>
+    /// <summary>Right click: attack the foe under the cursor, or move there. With the station selected, sets the rally point.</summary>
     void Command(double x, double y)
     {
         var ships = OwnShips();
@@ -370,7 +370,7 @@ public partial class Selection : Node
         {
             var t = PickAt(World, x, y, Slop, Player);
             var ids = ships.Select(s => s.Id).ToList();
-            if (t is not null && t.Faction != Player)
+            if (t is not null && Worlds.Foes(World, t.Side, Player))
             {
                 Movement.IssueAttack(World, ids, t.Id);
                 scene.Marker(t.X, t.Y, Palette.Hex(0xe05a4a));
@@ -443,7 +443,7 @@ public partial class Selection : Node
         }
         if (key == Key.A && ev.CtrlPressed)
         {
-            foreach (var e in World.Entities) if (e.Kind == EntityKind.Ship && e.Faction == Player) scene.Selected.Add(e.Id);
+            foreach (var e in World.Entities) if (e.Kind == EntityKind.Ship && e.Side == Player) scene.Selected.Add(e.Id);
             return;
         }
         var digit = ev.PhysicalKeycode - Key.Key0;

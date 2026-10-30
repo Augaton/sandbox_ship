@@ -9,7 +9,7 @@ namespace SandboxShip.Sim.Tests;
 
 public class BattleTests
 {
-    static BattleSide Side(Faction faction, ShipCounts ships) => new() { Faction = faction, Ships = ships };
+    static BattleSide Side(Faction faction, ShipCounts ships) => new() { Side = faction, Ships = ships };
 
     // Planet battles.
 
@@ -36,7 +36,7 @@ public class BattleTests
         StationOf(w, Faction.Nairan)!.Hull = 0;
         Run(w, 0.1);
         Assert.Equal(BattleResult.Attacker, Outcome(w, Faction.Klaed, Faction.Nairan));
-        foreach (var e in w.Entities) if (e.Faction == Faction.Klaed) e.Hull = 0;
+        foreach (var e in w.Entities) if (e.Side == Faction.Klaed) e.Hull = 0;
         Run(w, 0.1);
         Assert.Equal(BattleResult.Defender, Outcome(w, Faction.Klaed, Faction.Nairan));
     }

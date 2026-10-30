@@ -48,10 +48,10 @@ public partial class Main : Node
         if (Dev.Dump is string dir) Ui.Logos.LogoImage(Ui.Loading.LogoScale).SavePng($"{dir}/boot.png");
         switch (Dev.Start)
         {
-            case "battle" or "raid": StartBattle(new BattleOptions { Player = Faction.Klaed, Enemies = [Faction.Nairan], Raid = true, Size = Dev.Size }); break;
-            case "sandbox" or "gallery": StartBattle(new BattleOptions { Player = Faction.Klaed, Enemies = [Faction.Nairan], Mode = GameMode.Sandbox, Size = Dev.Size }); break;
+            case "battle" or "raid": StartBattle(new BattleOptions { Player = Faction.Klaed, Slots = BattleOptions.Versus(Faction.Klaed, [Faction.Nairan]), Raid = true, Size = Dev.Size }); break;
+            case "sandbox" or "gallery": StartBattle(new BattleOptions { Player = Faction.Klaed, Slots = BattleOptions.Versus(Faction.Klaed, [Faction.Nairan]), Mode = GameMode.Sandbox, Size = Dev.Size }); break;
             case "campaign": StartCampaign(new MenuChoice { Mode = GameMode.Campaign, Size = Dev.Size }); break;
-            case "stress": StartBattle(new BattleOptions { Player = Faction.Klaed, Enemies = [Faction.Nairan, Faction.Nautolan], Size = MapSize.Large, Seed = 7 }); break;
+            case "stress": StartBattle(new BattleOptions { Player = Faction.Klaed, Slots = BattleOptions.Versus(Faction.Klaed, [Faction.Nairan, Faction.Nautolan]), Size = MapSize.Large, Seed = 7 }); break;
             default: ShowMenu(); break;
         }
     }
@@ -137,7 +137,7 @@ public partial class Main : Node
     public void Start(MenuChoice c)
     {
         if (c.Mode == GameMode.Campaign) StartCampaign(c);
-        else StartBattle(new BattleOptions { Player = c.Player, Enemies = c.Enemies, Mode = c.Mode, Seed = c.Seed, Map = c.Map, Size = c.Size, Difficulty = c.Difficulty, Raid = c.Raid && c.Mode == GameMode.Skirmish });
+        else StartBattle(new BattleOptions { Player = c.Slots[0].Side, Slots = c.Slots, Mode = c.Mode, Seed = c.Seed, Map = c.Map, Size = c.Size, Difficulty = c.Difficulty, Raid = c.Raid && c.Mode == GameMode.Skirmish });
     }
 
     public void StartBattle(BattleOptions opts) => Show(BattleScreen.Create(opts));

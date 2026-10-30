@@ -21,7 +21,7 @@ public class RaidTests
     {
         var w = Skirmish();
         var c = Colossus(w);
-        Assert.Equal(Faction.Errant, c.Faction);
+        Assert.Equal(Faction.Errant, c.Side);
         foreach (var st in w.Entities.Where(e => e.Type == "station")) Expect.Greater(Dist(c, st), 2000);
         Assert.False(Structures.CanBuildShip(w, Faction.Klaed, ShipClass.Colossus).Ok);
         Assert.DoesNotContain(Faction.Errant, Factions.All);
@@ -53,7 +53,7 @@ public class RaidTests
         RemoveDead(w);
         Assert.Equal(credits + Raids.Bounty, f.Credits);
         Assert.Equal(levels + 1, Techs.All.Sum(t => f.Research[t]));
-        Assert.Contains(w.Events, e => e is RaidWon { Faction: Faction.Nairan });
+        Assert.Contains(w.Events, e => e is RaidWon r && r.Side == Faction.Nairan);
         // Neutral guardians never count for victory.
         CheckVictory(w);
         Assert.Null(w.Winner);

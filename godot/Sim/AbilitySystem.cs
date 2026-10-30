@@ -1,4 +1,4 @@
-// Abilities in battle: their effects, zones, delayed strikes, and when a faction uses them by
+// Abilities in battle: their effects, zones, delayed strikes, and when a side uses them by
 // itself. Port of src/sim/abilities.ts.
 using SandboxShip.Sim.Data;
 using static SandboxShip.Sim.Worlds;
@@ -40,12 +40,12 @@ public static class AbilitySystem
 
     public static bool IsStunned(World world, Entity e) => OwnerOf(world, e).Effects.Stunned > 0;
 
-    /// <summary>Whether one of its faction's zones of this kind covers the entity.</summary>
+    /// <summary>Whether a zone of this kind, of its side or an ally's, covers the entity.</summary>
     public static bool InZone(World world, Entity e, ZoneKind kind)
     {
         foreach (var z in world.Zones)
         {
-            if (z.Kind == kind && z.Faction == e.Faction && Hypot(z.X - e.X, z.Y - e.Y) <= z.R) return true;
+            if (z.Kind == kind && Hypot(z.X - e.X, z.Y - e.Y) <= z.R && Allies(world, z.Side, e.Side)) return true;
         }
         return false;
     }
@@ -59,9 +59,10 @@ public static class AbilitySystem
         return (owner.Effects.Marked > 0 ? 1.5 : 1) * (InZone(world, owner, ZoneKind.Dome) ? 0.5 : 1);
     }
 
-    /// <summary>Deals damage from a faction, through the shields of the ship a part belongs to.</summary>
-    public static void Hurt(World world, Entity t, double amount, Faction from)
+    /// <summary>Deals damage from a side, through the shields of the ship a part belongs to. Allies are never hurt.</summary>
+    public static void Hurt(World world, Entity t, double amount, Side from)
     {
+        if (Allies(world, from, t.Side)) return;
         var parent = t.Kind == EntityKind.Hardpoint && t.ParentId is not null ? world.Entities.Get(t.ParentId) : null;
         var dealt = amount * DamageTaken(world, t);
         ApplyDamage(t, dealt, parent?.Kind == EntityKind.Ship ? parent : t);
@@ -96,7 +97,7 @@ public static class AbilitySystem
         if (def.Target == AbilityTarget.Enemy)
         {
             var t = aim?.Id is int aimed ? world.Entities.Get(aimed) : null;
-            if (t is null || t.Faction == e.Faction || !Vision.IsVisible(world, e.Faction, t)) return Result.Fail("Choisis un ennemi");
+            if (t is null || !Foes(world, e.Side, t.Side) || !Vision.IsVisible(world, e.Side, t)) return Result.Fail("Choisis un ennemi");
             if (Dist(e, t) - t.Radius > def.Range!.Value) return Result.Fail("Cible hors de portée");
             target = OwnerOf(world, t);
             point = new Point(t.X, t.Y);
@@ -109,10 +110,10 @@ public static class AbilitySystem
             var k = d > range ? range / d : 1;
             point = new Point(e.X + (p.X - e.X) * k, e.Y + (p.Y - e.Y) * k);
         }
-        a.Cooldown = def.Cooldown * (1 - Techs.EnergyBonus * ResearchLevel(world, e.Faction, TechId.Energy));
+        a.Cooldown = def.Cooldown * (1 - Techs.EnergyBonus * ResearchLevel(world, e.Side, TechId.Energy));
         a.Active = def.Duration;
         Apply(world, e, def, point, target);
-        world.Events.Add(new AbilityUsed(a.Id, e.Faction, e.Id, e.X, e.Y, point.X, point.Y));
+        world.Events.Add(new AbilityUsed(a.Id, e.Side, e.Id, e.X, e.Y, point.X, point.Y));
         return Result.OK;
     }
 
@@ -124,7 +125,7 @@ public static class AbilitySystem
             case AbilityId.Repair:
                 foreach (var t in world.Entities)
                 {
-                    if (t.Kind == EntityKind.Ship && t.Faction == e.Faction && t.Hull > 0 && Dist(t, e) <= def.Radius!.Value)
+                    if (t.Kind == EntityKind.Ship && t.Hull > 0 && Allies(world, t.Side, e.Side) && Dist(t, e) <= def.Radius!.Value)
                         t.Hull = Math.Min(t.MaxHull, t.Hull + t.MaxHull * 0.25);
                 }
                 break;
@@ -140,7 +141,7 @@ public static class AbilitySystem
                 var len = def.Range!.Value;
                 world.Strikes.Add(new Strike
                 {
-                    Kind = StrikeKind.Beam, Faction = e.Faction, X = e.X, Y = e.Y, X2 = e.X + Math.Cos(a) * len, Y2 = e.Y + Math.Sin(a) * len,
+                    Kind = StrikeKind.Beam, Side = e.Side, X = e.X, Y = e.Y, X2 = e.X + Math.Cos(a) * len, Y2 = e.Y + Math.Sin(a) * len,
                     Radius = SpinalWidth, Damage = SpinalDamage, Delay = Abilities.SpinalCharge, Total = Abilities.SpinalCharge,
                 });
                 break;
@@ -148,14 +149,14 @@ public static class AbilitySystem
             case AbilityId.OrbitalStrike:
                 world.Strikes.Add(new Strike
                 {
-                    Kind = StrikeKind.Orbital, Faction = e.Faction, X = p.X, Y = p.Y, X2 = p.X, Y2 = p.Y,
+                    Kind = StrikeKind.Orbital, Side = e.Side, X = p.X, Y = p.Y, X2 = p.X, Y2 = p.Y,
                     Radius = def.Radius!.Value, Damage = OrbitalDamage, Delay = Abilities.OrbitalDelay, Total = Abilities.OrbitalDelay,
                 });
                 break;
             case AbilityId.StarLance:
                 world.Strikes.Add(new Strike
                 {
-                    Kind = StrikeKind.Stellar, Faction = e.Faction, X = p.X, Y = p.Y, X2 = p.X, Y2 = p.Y,
+                    Kind = StrikeKind.Stellar, Side = e.Side, X = p.X, Y = p.Y, X2 = p.X, Y2 = p.Y,
                     Radius = def.Radius!.Value, Damage = Abilities.StarLanceDamage, Delay = Abilities.StarLanceDelay, Total = Abilities.StarLanceDelay,
                 });
                 break;
@@ -166,12 +167,12 @@ public static class AbilitySystem
                 target!.Effects.Corroded = Abilities.Corroded;
                 break;
             case AbilityId.FieldTurret:
-                SpawnStructure(world, e.Faction, BuildableType.Platform, p.X, p.Y).Expires = TurretLife;
+                SpawnStructure(world, e.Side, BuildableType.Platform, p.X, p.Y).Expires = TurretLife;
                 break;
             case AbilityId.Emp:
                 foreach (var t in world.Entities)
                 {
-                    if (t.Kind != EntityKind.Ship || t.Faction == e.Faction || Dist(t, e) > def.Radius!.Value + t.Radius) continue;
+                    if (t.Kind != EntityKind.Ship || Dist(t, e) > def.Radius!.Value + t.Radius || !Foes(world, t.Side, e.Side)) continue;
                     t.Shield = 0;
                     t.Effects.Stunned = Abilities.Stunned;
                 }
@@ -179,7 +180,7 @@ public static class AbilitySystem
             case AbilityId.Taunt:
                 foreach (var t in world.Entities)
                 {
-                    if (t.Faction == e.Faction || t.Kind == EntityKind.Hardpoint || Dist(t, e) > def.Radius!.Value + t.Radius) continue;
+                    if (t.Kind == EntityKind.Hardpoint || Dist(t, e) > def.Radius!.Value + t.Radius || !Foes(world, t.Side, e.Side)) continue;
                     t.Effects.Taunted = Abilities.Taunted;
                     t.Effects.TauntedBy = e.Id;
                     t.TargetId = e.Id;
@@ -193,7 +194,7 @@ public static class AbilitySystem
                 for (var i = 0; i < SwarmSize; i++)
                 {
                     var a = (double)i / SwarmSize * Math.PI * 2;
-                    var s = SpawnShip(world, e.Faction, ShipClass.Fighter, e.X + Math.Cos(a) * (e.Radius + 20), e.Y + Math.Sin(a) * (e.Radius + 20), a);
+                    var s = SpawnShip(world, e.Side, ShipClass.Fighter, e.X + Math.Cos(a) * (e.Radius + 20), e.Y + Math.Sin(a) * (e.Radius + 20), a);
                     Movement.Assign(s, e, s.X, s.Y);
                     s.Launched = true;
                     s.Expires = SwarmLife;
@@ -210,11 +211,11 @@ public static class AbilitySystem
         var hit = new List<Entity>();
         foreach (var t in world.Grid.Near(cx, cy, reach))
         {
-            if (t.Faction == s.Faction) continue;
+            if (!Foes(world, t.Side, s.Side)) continue;
             var d = s.Kind != StrikeKind.Beam ? Hypot(t.X - s.X, t.Y - s.Y) : SegmentDistance(t, s);
             if (d <= s.Radius + t.Radius) hit.Add(t);
         }
-        foreach (var t in hit) Hurt(world, t, s.Damage, s.Faction);
+        foreach (var t in hit) Hurt(world, t, s.Damage, s.Side);
         world.Events.Add(new StrikeLanded(s));
     }
 
@@ -239,13 +240,13 @@ public static class AbilitySystem
         return n;
     }
 
-    /// <summary>Where to drop an orbital strike: on the thickest visible enemy group in range, if any.</summary>
+    /// <summary>Where to drop an orbital strike: on the thickest visible group of foes in range, if any.</summary>
     static Aim? BestCluster(World world, Entity e, AbilityDef def)
     {
         Aim? best = null;
         var most = 1;
         var range = def.Range!.Value;
-        bool Enemy(Entity t) => t.Faction != e.Faction && t.Kind != EntityKind.Hardpoint && Vision.IsVisible(world, e.Faction, t);
+        bool Enemy(Entity t) => t.Kind != EntityKind.Hardpoint && Foes(world, e.Side, t.Side) && Vision.IsVisible(world, e.Side, t);
         foreach (var c in world.Grid.Near(e.X, e.Y, range))
         {
             if (!Enemy(c) || Dist(c, e) > range) continue;
@@ -269,7 +270,7 @@ public static class AbilitySystem
     };
 
     /// <summary>
-    /// Where the star lance does the most harm among the enemies its faction sees: the spot
+    /// Where the star lance does the most harm among the foes its side sees: the spot
     /// worth the most within its radius, if worth a blow at all.
     /// </summary>
     static Aim? RichestTarget(World world, Entity e, AbilityDef def)
@@ -277,7 +278,7 @@ public static class AbilitySystem
         Aim? best = null;
         var most = 4000.0;
         var r = def.Radius!.Value;
-        bool Enemy(Entity t) => t.Faction != e.Faction && t.Kind != EntityKind.Hardpoint && Vision.IsVisible(world, e.Faction, t);
+        bool Enemy(Entity t) => t.Kind != EntityKind.Hardpoint && Foes(world, e.Side, t.Side) && Vision.IsVisible(world, e.Side, t);
         foreach (var c in world.Entities)
         {
             if (!Enemy(c) || (c.Kind == EntityKind.Ship && Ships.Defs[c.Cls].Size == SizeClass.Small)) continue;
@@ -297,7 +298,7 @@ public static class AbilitySystem
         var self = new Aim(e.X, e.Y);
         var t = world.Entities.Get(e.TargetId);
         var reach = t is not null ? Dist(e, t) - t.Radius : double.PositiveInfinity;
-        Func<Entity, bool> Ally(double min) => a => a.Kind == EntityKind.Ship && a.Faction == e.Faction && a.Hull < a.MaxHull * min;
+        Func<Entity, bool> Ally(double min) => a => a.Kind == EntityKind.Ship && a.Hull < a.MaxHull * min && Allies(world, a.Side, e.Side);
         switch (def.Id)
         {
             case AbilityId.Repair:
@@ -309,7 +310,7 @@ public static class AbilitySystem
             case AbilityId.Sprint:
                 return t is not null && reach > e.Range ? self : null;
             case AbilityId.Emp:
-                return Count(world, e, def.Radius!.Value, a => a.Kind == EntityKind.Ship && a.Faction != e.Faction) >= 2 ? self : null;
+                return Count(world, e, def.Radius!.Value, a => a.Kind == EntityKind.Ship && Foes(world, a.Side, e.Side)) >= 2 ? self : null;
             case AbilityId.ShieldDome:
                 return t is not null && Count(world, e, def.Radius!.Value, Ally(1.01)) >= 3 ? self : null;
             case AbilityId.OrbitalStrike:
@@ -334,7 +335,7 @@ public static class AbilitySystem
                 return t is not null ? self : null;
             case AbilityId.Taunt:
                 // Worth it once several enemies would turn on it rather than on frailer ships.
-                return Count(world, e, def.Radius!.Value, a => a.Kind == EntityKind.Ship && a.Faction != e.Faction) >= 3 ? self : null;
+                return Count(world, e, def.Radius!.Value, a => a.Kind == EntityKind.Ship && Foes(world, a.Side, e.Side)) >= 3 ? self : null;
             default:
                 // Salvo, barrage, broadside: once in range.
                 return t is not null && reach <= e.Range ? self : null;
@@ -347,11 +348,11 @@ public static class AbilitySystem
         world.Zones.Clear();
         foreach (var e in world.Entities)
         {
-            if (e.Hero?.Role == HeroRole.Admiral) world.Zones.Add(new Zone(ZoneKind.Command, e.Faction, e.X, e.Y, Abilities.CommandRadius));
+            if (e.Hero?.Role == HeroRole.Admiral) world.Zones.Add(new Zone(ZoneKind.Command, e.Side, e.X, e.Y, Abilities.CommandRadius));
             foreach (var ab in e.Abilities)
             {
                 if (ab.Active > 0 && (ab.Id == AbilityId.ShieldDome || ab.Id == AbilityId.Graft))
-                    world.Zones.Add(new Zone(ab.Id == AbilityId.ShieldDome ? ZoneKind.Dome : ZoneKind.Graft, e.Faction, e.X, e.Y, Abilities.Defs[ab.Id].Radius!.Value));
+                    world.Zones.Add(new Zone(ab.Id == AbilityId.ShieldDome ? ZoneKind.Dome : ZoneKind.Graft, e.Side, e.X, e.Y, Abilities.Defs[ab.Id].Radius!.Value));
             }
         }
         var think = Math.Floor(world.Time / AiThink) != Math.Floor((world.Time - dt) / AiThink);
@@ -384,7 +385,7 @@ public static class AbilitySystem
                 a.Cooldown = Math.Max(0, a.Cooldown - dt);
                 a.Active = Math.Max(0, a.Active - dt);
                 if (!think || a.Cooldown > 0 || e.Pilot is not null || fx.Stunned > 0) continue;
-                if (!world.Factions.TryGetValue(e.Faction, out var f) || !f.AutoAbilities) continue;
+                if (!world.Factions.TryGetValue(e.Side, out var f) || !f.AutoAbilities) continue;
                 // A player's star lance fires only when the player says so.
                 if (e.Kind == EntityKind.Structure && f.AI is null) continue;
                 if (AutoAim(world, e, a) is Aim aim) UseAbility(world, e, a.Id, aim);

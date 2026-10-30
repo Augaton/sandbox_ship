@@ -39,7 +39,7 @@ public class CampaignBalanceTests(ITestOutputHelper output)
                 incidents += g.Events.Count(e => e is IncidentStarted);
                 g.Events.Clear();
             }
-            results[i] = (g.Winner, g.Time, truces, incidents);
+            results[i] = (g.Winner is Side won ? RaceOf(g, won) : null, g.Time, truces, incidents);
         });
         var lengths = new List<double>();
         for (var i = 0; i < runs.Count; i++)

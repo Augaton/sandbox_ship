@@ -7,7 +7,7 @@ using SandboxShip.Sim.Data;
 namespace SandboxShip.Sim;
 
 /// <summary>A star lance fired from one planet at another.</summary>
-public sealed record LanceFired(int From, int Target, Faction Faction) : GalaxyEvent;
+public sealed record LanceFired(int From, int Target, Side Side) : GalaxyEvent;
 
 public static partial class Galaxies
 {
@@ -17,8 +17,8 @@ public static partial class Galaxies
     public const int LanceReach = 3;
 
     /// <summary>Whether the faction has a star lance, built or under construction.</summary>
-    static bool HasLance(Galaxy g, Faction faction) =>
-        g.Planets.Exists(p => p.Owner == faction && (p.StarLance > 0 || p.Buildings.Exists(q => q.Kind == GalaxyBuildKind.StarLance)));
+    static bool HasLance(Galaxy g, Side side) =>
+        g.Planets.Exists(p => p.Owner == side && (p.StarLance > 0 || p.Buildings.Exists(q => q.Kind == GalaxyBuildKind.StarLance)));
 
     /// <summary>Lanes between two planets, whoever holds those on the way.</summary>
     public static int LanesBetween(Galaxy g, int from, int to)
@@ -40,22 +40,22 @@ public static partial class Galaxies
         return int.MaxValue;
     }
 
-    public static Result CanFireLance(Galaxy g, Faction faction, int from, int target)
+    public static Result CanFireLance(Galaxy g, Side side, int from, int target)
     {
         var p = g.Planets[from];
-        if (p.Owner != faction || p.StarLance == 0) return Result.Fail("Aucune Lance stellaire ici");
+        if (p.Owner != side || p.StarLance == 0) return Result.Fail("Aucune Lance stellaire ici");
         if (p.LanceCharge > 0) return Result.Fail($"En charge : {Math.Ceiling(p.LanceCharge)} s");
         var t = g.Planets[target];
-        if (t.Owner is not Faction owner || owner == faction) return Result.Fail("Choisis une planète ennemie");
-        if (AtPeace(g, faction, owner)) return Result.Fail("Trêve en cours");
+        if (t.Owner is not Side owner || Allies(g, owner, side)) return Result.Fail("Choisis une planète ennemie");
+        if (AtPeace(g, side, owner)) return Result.Fail("Trêve en cours");
         if (LanesBetween(g, from, target) > LanceReach) return Result.Fail($"Hors de portée ({LanceReach} voies au plus)");
         return Result.OK;
     }
 
     /// <summary>Fires the lance: what stands in orbit of the target is broken, its fleets halved.</summary>
-    public static Result FireLance(Galaxy g, Faction faction, int from, int target)
+    public static Result FireLance(Galaxy g, Side side, int from, int target)
     {
-        var r = CanFireLance(g, faction, from, target);
+        var r = CanFireLance(g, side, from, target);
         if (!r.Ok) return r;
         g.Planets[from].LanceCharge = LanceRecharge;
         var t = g.Planets[target];
@@ -64,7 +64,7 @@ public static partial class Galaxies
         t.RepairDock = 0;
         t.Station = Math.Max(0, t.Station - 1);
         t.Mines = Math.Max(0, t.Mines - 1);
-        foreach (var f in FleetsAt(g, target).Where(f => f.Faction != faction).ToList())
+        foreach (var f in FleetsAt(g, target).Where(f => !Allies(g, f.Side, side)).ToList())
         {
             var left = new ShipCounts();
             foreach (var c in Data.Ships.All) if (f.Ships.Of(c) / 2 > 0) left[c] = f.Ships.Of(c) / 2;
@@ -72,13 +72,13 @@ public static partial class Galaxies
             f.Condition *= 0.7;
             if (Battle.CountShips(left) == 0 && f.Heroes.Count == 0) g.Fleets.Remove(f.Id);
         }
-        g.Events.Add(new LanceFired(from, target, faction));
+        g.Events.Add(new LanceFired(from, target, side));
         return Result.OK;
     }
 
     /// <summary>The rival planet worth striking the most within reach, for the AI: its defenses and docked fleets.</summary>
-    static int? LanceTarget(Galaxy g, Faction faction, int from) => g.Planets
-        .Where(p => p.Owner != Faction.Errant && CanFireLance(g, faction, from, p.Id).Ok)
+    static int? LanceTarget(Galaxy g, Side side, int from) => g.Planets
+        .Where(p => p.Owner != Faction.Errant && CanFireLance(g, side, from, p.Id).Ok)
         .OrderByDescending(p => DefenseValue(g, p))
         .Select(p => (int?)p.Id).FirstOrDefault();
 
@@ -90,7 +90,7 @@ public static partial class Galaxies
     {
         foreach (var p in g.Planets)
         {
-            if (p.StarLance == 0 || p.Owner is not Faction owner) continue;
+            if (p.StarLance == 0 || p.Owner is not Side owner) continue;
             p.LanceCharge = Math.Max(0, p.LanceCharge - dt);
             if (p.LanceCharge > 0 || g.Factions.GetValueOrDefault(owner)?.AI is null) continue;
             if (LanceTarget(g, owner, p.Id) is int target) FireLance(g, owner, p.Id, target);

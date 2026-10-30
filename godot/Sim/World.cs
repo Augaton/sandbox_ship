@@ -39,6 +39,26 @@ public interface IPoint
 
 public readonly record struct Point(double X, double Y) : IPoint;
 
+/// <summary>
+/// Who owns an entity, a fleet or a planet, and who fights whom: a seat in the game. Its race
+/// (Faction) is apart: two sides may share one. Each race has a side of its own, its number:
+/// Kla'ed 0, Nairan 1, Nautolan 2, the Errants 3; a race converts to it, so code that names a
+/// race where an owner is meant keeps meaning that race's side. More sides take ids from 4 on.
+/// </summary>
+public readonly record struct Side(int Id)
+{
+    public static implicit operator Side(Faction race) => new((int)race);
+
+    public override string ToString() => Id.ToString(System.Globalization.CultureInfo.InvariantCulture);
+}
+
+/// <summary>
+/// A seat at a game: its side, its race, its team (0: alone, at war with everyone), the AI's
+/// difficulty (null for a human, or a side that only does what it is told), and its color, null
+/// for the side's default.
+/// </summary>
+public sealed record Slot(Side Side, Faction Race, int Team = 0, Difficulty? AI = null, uint? Color = null);
+
 public sealed class WeaponState(WeaponDef def)
 {
     public WeaponDef Def { get; } = def;
@@ -79,8 +99,8 @@ public sealed class Effects
 
 public enum ZoneKind { Command, Dome, Graft }
 
-/// <summary>Areas that help a faction's units inside them, rebuilt every step.</summary>
-public sealed record Zone(ZoneKind Kind, Faction Faction, double X, double Y, double R) : IPoint;
+/// <summary>Areas that help the units of a side and its allies inside them, rebuilt every step.</summary>
+public sealed record Zone(ZoneKind Kind, Side Side, double X, double Y, double R) : IPoint;
 
 /// <summary>`Stellar`: the star lance's blow, a blast as an orbital strike's, far bigger.</summary>
 public enum StrikeKind { Orbital, Beam, Stellar }
@@ -89,7 +109,8 @@ public enum StrikeKind { Orbital, Beam, Stellar }
 public sealed class Strike
 {
     public StrikeKind Kind;
-    public Faction Faction;
+    /// <summary>Whose blow: it spares that side and its allies.</summary>
+    public Side Side;
     /// <summary>Center of the blast, or start of the beam.</summary>
     public double X, Y;
     /// <summary>End of the beam; the center again for a blast.</summary>
@@ -123,7 +144,10 @@ public sealed class Entity : IPoint
     public EntityKind Kind;
     /// <summary>The web version's name of the ship class, structure or part: "scout", "station", "heavyTurret".</summary>
     public string Type = "";
-    public Faction Faction;
+    /// <summary>Who owns it.</summary>
+    public Side Side;
+    /// <summary>Its side's race, set at spawn: traits, prices, heroes, looks.</summary>
+    public Faction Race;
     public double X { get; set; }
     public double Y { get; set; }
     public double Angle, Speed, Radius = 10;
@@ -173,8 +197,8 @@ public sealed class Entity : IPoint
     public double ShieldDown;
     /// <summary>Seconds left for what an ability summoned (swarm craft, field turrets); null if it stays.</summary>
     public double? Expires;
-    /// <summary>Faction that hit it last: the kill is theirs.</summary>
-    public Faction? LastHitBy;
+    /// <summary>Side that hit it last: the kill is theirs.</summary>
+    public Side? LastHitBy;
     /// <summary>World time of the last hit it took.</summary>
     public double HitAt = double.NegativeInfinity;
     /// <summary>Station parts lost and waiting to be rebuilt.</summary>
@@ -188,7 +212,7 @@ public sealed class Entity : IPoint
 public sealed class Projectile : IPoint
 {
     public int Id;
-    public Faction Faction;
+    public Side Side;
     public WeaponKind Kind;
     public double X { get; set; }
     public double Y { get; set; }
@@ -258,9 +282,16 @@ public sealed class BattleStats
     public double Damage, Earned;
 }
 
+/// <summary>A side in a battle: its race, team, color, economy and research.</summary>
 public sealed class FactionState : IResearcher
 {
-    public Faction Id;
+    public Side Id;
+    /// <summary>Its race: traits, ship prices, heroes, looks.</summary>
+    public Faction Race;
+    /// <summary>Sides of the same team, other than 0, are allies; team 0 is alone, at war with everyone.</summary>
+    public int Team;
+    /// <summary>What marks its units on screen (rings, chevrons, minimap), as 0xRRGGBB.</summary>
+    public uint Color;
     public double Credits { get; set; }
     /// <summary>Credits earned by shooting ships down: in a campaign battle, they go back to the galaxy (not in the web version).</summary>
     public double Bounties;
@@ -285,20 +316,21 @@ public sealed class FactionState : IResearcher
 }
 
 public abstract record SimEvent;
-public sealed record Destroyed(int Id, EntityKind Kind, string EntityType, Faction Faction, double X, double Y, double Radius) : SimEvent;
-/// <summary>A shot landed on TargetId; ShieldId is whose shield took it, if one did.</summary>
-public sealed record Hit(double X, double Y, WeaponKind Kind, int TargetId, Faction Faction, int? ShieldId) : SimEvent;
+public sealed record Destroyed(int Id, EntityKind Kind, string EntityType, Side Side, double X, double Y, double Radius) : SimEvent;
+/// <summary>A shot landed on TargetId, of side `Side`; ShieldId is whose shield took it, if one did.</summary>
+public sealed record Hit(double X, double Y, WeaponKind Kind, int TargetId, Side Side, int? ShieldId) : SimEvent;
 public sealed record Built(int Id) : SimEvent;
 /// <summary>A ship left the shipyard (not in the web version: the view greets big ones).</summary>
 public sealed record Delivered(int Id) : SimEvent;
-public sealed record Researched(Faction Faction, TechId Tech) : SimEvent;
+public sealed record Researched(Side Side, TechId Tech) : SimEvent;
 /// <summary>An ability was used, from (X, Y), aimed at (Tx, Ty).</summary>
-public sealed record AbilityUsed(AbilityId Id, Faction Faction, int EntityId, double X, double Y, double Tx, double Ty) : SimEvent;
+public sealed record AbilityUsed(AbilityId Id, Side Side, int EntityId, double X, double Y, double Tx, double Ty) : SimEvent;
 public sealed record StrikeLanded(Strike Strike) : SimEvent;
-public sealed record Rebuilt(int Id, Faction Faction, HardpointRole Role) : SimEvent;
-public sealed record Victory(Faction Faction) : SimEvent;
-/// <summary>A raid boss fell to `Faction`: its bounty, and the tech that gained a level, if any.</summary>
-public sealed record RaidWon(Faction Faction, double Credits, TechId? Tech) : SimEvent;
+public sealed record Rebuilt(int Id, Side Side, HardpointRole Role) : SimEvent;
+/// <summary>`Side` won, with its team if it has one (0: alone): its allies won with it.</summary>
+public sealed record Victory(Side Side, int Team) : SimEvent;
+/// <summary>A raid boss fell to `Side`: its bounty, and the tech that gained a level, if any.</summary>
+public sealed record RaidWon(Side Side, double Credits, TechId? Tech) : SimEvent;
 
 public readonly record struct Result(bool Ok, string Reason = "")
 {
@@ -356,24 +388,25 @@ public sealed class World
     public double Width, Height;
     public readonly EntityStore Entities = new();
     public List<Projectile> Projectiles = [];
-    /// <summary>Factions in the order they joined.</summary>
-    public readonly Dictionary<Faction, FactionState> Factions = [];
+    /// <summary>Sides in the order they joined.</summary>
+    public readonly Dictionary<Side, FactionState> Factions = [];
     public readonly List<AsteroidField> Fields = [];
     public readonly List<SimEvent> Events = [];
     public int NextId = 1;
     /// <summary>State of the mulberry32 generator.</summary>
     public int Seed;
-    public Faction? Winner;
+    /// <summary>The side that won; its allies won with it (Worlds.Won).</summary>
+    public Side? Winner;
     public List<Zone> Zones = [];
     public List<Strike> Strikes = [];
     /// <summary>World time of the last damage anyone dealt: a long quiet means a battle that cannot end.</summary>
     public double LastDamage;
-    /// <summary>Fog of war: each faction only sees and targets what its own units see.</summary>
+    /// <summary>Fog of war: each side only sees and targets what its own units and its allies' see.</summary>
     public bool Fog;
-    /// <summary>Enemy entities each faction sees right now.</summary>
-    public readonly Dictionary<Faction, HashSet<int>> Visible = [];
-    /// <summary>Enemy structures each faction has seen at least once.</summary>
-    public readonly Dictionary<Faction, HashSet<int>> Seen = [];
+    /// <summary>Enemy entities each side sees right now.</summary>
+    public readonly Dictionary<Side, HashSet<int>> Visible = [];
+    /// <summary>Enemy structures each side has seen at least once.</summary>
+    public readonly Dictionary<Side, HashSet<int>> Seen = [];
     public double VisionTimer;
     /// <summary>Neighbour index, rebuilt every step.</summary>
     public readonly SpatialGrid Grid = new();

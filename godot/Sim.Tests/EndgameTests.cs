@@ -80,7 +80,7 @@ public class EndgameTests
         SpawnShip(w, Faction.Klaed, ShipClass.Scout, 1500, 600);
         Run(w, 1.5);
         var strike = Assert.Single(w.Strikes);
-        Assert.Equal(Faction.Nairan, strike.Faction);
+        Assert.Equal(Faction.Nairan, strike.Side);
         Assert.InRange(strike.X, 2400, 2900);
         // The player's own, charged, waits for an order even with automatic abilities on.
         var mine = Lance(w);

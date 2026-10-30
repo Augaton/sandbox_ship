@@ -87,7 +87,7 @@ public class DiplomacyTests
         RunGalaxy(g, 1);
         AddShipsAt(g, Faction.Nairan, thessa.Id, new ShipCounts { [ShipClass.Frigate] = 3 });
         RunGalaxy(g, 1);
-        Assert.Equal(Faction.Klaed, thessa.Occupation?.Faction);
+        Assert.Equal(Faction.Klaed, thessa.Occupation?.Side);
         RunGalaxy(g, GalaxyRules.NeutralCaptureTime);
         Assert.Equal(Faction.Klaed, thessa.Owner);
         // Now a partner's planet: the Nairan fleet neither takes it nor fights for it.
@@ -145,7 +145,7 @@ public class DiplomacyTests
         Assert.True(ProposeTruce(g, Faction.Klaed, Faction.Nairan).Ok);
         Assert.Equal(Result.Fail("Aucune trêve"), BreakTruce(g, Faction.Nairan, Faction.Nautolan));
         Assert.True(BreakTruce(g, Faction.Klaed, Faction.Nairan).Ok);
-        Assert.Contains(g.Events, e => e is TruceEnded { A: Faction.Klaed, B: Faction.Nairan, BrokenBy: Faction.Klaed });
+        Assert.Contains(g.Events, e => e is TruceEnded t && t.A == Faction.Klaed && t.B == Faction.Nairan && t.BrokenBy == Faction.Klaed);
         Assert.False(AtPeace(g, Faction.Klaed, Faction.Nairan));
         var ai = g.Factions[Faction.Nairan].AI!;
         Assert.Equal(GrudgeTime, ai.Grudges[Faction.Klaed]);

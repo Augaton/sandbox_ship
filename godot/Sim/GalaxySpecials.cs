@@ -7,7 +7,7 @@ using SandboxShip.Sim.Data;
 namespace SandboxShip.Sim;
 
 /// <summary>A faction took ancient ruins first: what it found there.</summary>
-public sealed record RuinsExplored(int PlanetId, Faction Faction, double Credits, TechId? Tech) : GalaxyEvent;
+public sealed record RuinsExplored(int PlanetId, Side Side, double Credits, TechId? Tech) : GalaxyEvent;
 
 public static partial class Galaxies
 {
@@ -38,13 +38,13 @@ public static partial class Galaxies
 
     /// <summary>Whether a fleet hides in a nebula, docked there. The Errants are known to all.</summary>
     public static bool InNebula(Galaxy g, Fleet fleet) =>
-        fleet.At is int at && g.Planets[at].Special == PlanetSpecial.Nebula && fleet.Faction != Faction.Errant;
+        fleet.At is int at && g.Planets[at].Special == PlanetSpecial.Nebula && fleet.Side != Faction.Errant;
 
     /// <summary>Speed factor of a fleet on its lane: faster from a relay its faction holds, slower in an ion storm.</summary>
     public static double LaneSpeed(Galaxy g, Fleet f)
     {
         var from = g.Planets[f.From];
-        var speed = from.Special == PlanetSpecial.Relay && from.Owner == f.Faction ? RelaySpeed : 1;
+        var speed = from.Special == PlanetSpecial.Relay && from.Owner == f.Side ? RelaySpeed : 1;
         return f.To is int to && StormOn(g, f.From, to) ? speed * StormSpeed : speed;
     }
 
@@ -56,7 +56,7 @@ public static partial class Galaxies
     {
         foreach (var p in g.Planets)
         {
-            if (p.Special != PlanetSpecial.Ruins || p.Owner is not Faction owner || !g.Factions.TryGetValue(owner, out var f)) continue;
+            if (p.Special != PlanetSpecial.Ruins || p.Owner is not Side owner || !g.Factions.TryGetValue(owner, out var f)) continue;
             p.Special = null;
             f.Credits += RuinsCredits;
             var open = Techs.All.Where(t => ResearchQueue.PlannedLevel(f, t) < Techs.Defs[t].MaxLevel).ToList();

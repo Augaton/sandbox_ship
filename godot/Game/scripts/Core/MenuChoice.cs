@@ -7,6 +7,7 @@ namespace SandboxShip.Core;
 
 public sealed record MenuChoice
 {
+    /// <summary>The race the player picked: it plays on that race's own side.</summary>
     public Faction Player { get; init; } = Faction.Klaed;
     /// <summary>One or two opponents, every faction against all others.</summary>
     public IReadOnlyList<Faction> Enemies { get; init; } = [Faction.Nairan];
@@ -21,6 +22,9 @@ public sealed record MenuChoice
     public Difficulty Difficulty { get; init; } = Difficulty.Normal;
     /// <summary>A neutral colossus to raid, in skirmishes.</summary>
     public bool Raid { get; init; } = true;
+
+    /// <summary>Who plays, the player's seat first: the picks above, one side per race, the enemies at the chosen difficulty.</summary>
+    public IReadOnlyList<Slot> Slots => BattleOptions.Versus(Player, Enemies, Difficulty);
 }
 
 /// <summary>

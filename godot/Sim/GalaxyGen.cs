@@ -25,14 +25,16 @@ public static class GalaxyGen
     const double MinGap = 165;
 
     /// <summary>
-    /// Map extent and planet count of each galaxy size, about as dense in all three. Medium is
-    /// the web version's galaxy.
+    /// Map extent and planet count of each galaxy size, about as dense in all three, and the
+    /// planets added for each player past three: room enough that capitals do not touch (one
+    /// galaxy in a hundred on the small one), and the Errants' site seldom borders one. The large
+    /// one has that room already. Medium is the web version's galaxy.
     /// </summary>
-    static readonly Dictionary<MapSize, (double W, double H, int Min, int Max)> Sizes = new()
+    static readonly Dictionary<MapSize, (double W, double H, int Min, int Max, int PerPlayer)> Sizes = new()
     {
-        [MapSize.Small] = (1300, 850, 10, 12),
-        [MapSize.Medium] = (GalaxyMap.W, GalaxyMap.H, 12, 18),
-        [MapSize.Large] = (2200, 1350, 22, 30),
+        [MapSize.Small] = (1300, 850, 10, 12, 4),
+        [MapSize.Medium] = (GalaxyMap.W, GalaxyMap.H, 12, 18, 4),
+        [MapSize.Large] = (2200, 1350, 22, 30, 0),
     };
 
     /// <summary>Deterministic random numbers in [0, 1) (mulberry32).</summary>
@@ -74,13 +76,16 @@ public static class GalaxyGen
     static double Gap(Point p, Point q) => Worlds.Hypot(p.X - q.X, p.Y - q.Y);
 
     /// <summary>
-    /// A random galaxy: planets spread out (12 to 18 at medium size), lanes between near
-    /// neighbours that never cross, everything connected, and the capitals as far apart as the
-    /// lanes allow.
+    /// A random galaxy: planets spread out (12 to 18 at medium size, more past three players),
+    /// lanes between near neighbours that never cross, everything connected, and the capitals of
+    /// 2 to 6 players as far apart as the lanes allow.
     /// </summary>
     public static GalaxyLayout GenerateLayout(int seed, int players = 2, MapSize size = MapSize.Medium)
     {
-        var (w, h, min, max) = Sizes[size];
+        var (w, h, min, max, perPlayer) = Sizes[size];
+        // Up to three players, the web version's draws.
+        var extra = Math.Max(0, players - 3) * perPlayer;
+        (min, max) = (min + extra, Math.Min(Names.Length, max + extra));
         var rnd = SeededRandom(seed);
         var count = min + (int)Math.Floor(rnd() * (max - min + 1));
         var points = new List<Point>();

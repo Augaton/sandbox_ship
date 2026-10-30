@@ -93,7 +93,7 @@ public class SpecialsTests
         RunGalaxy(g, 15);
         Assert.Equal(Faction.Klaed, orin.Owner);
         var found = Assert.Single(g.Events.OfType<RuinsExplored>());
-        Assert.Equal((orin.Id, Faction.Klaed, RuinsCredits), (found.PlanetId, found.Faction, found.Credits));
+        Assert.Equal((orin.Id, Faction.Klaed, RuinsCredits), (found.PlanetId, found.Side, found.Credits));
         Assert.Equal(levels + 1, Techs.All.Sum(t => f.Research[t]));
         Assert.Equal(1, f.Research[found.Tech!.Value]);
         Expect.GreaterOrEqual(f.Credits, RuinsCredits);

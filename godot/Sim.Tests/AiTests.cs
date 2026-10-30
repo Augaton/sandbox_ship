@@ -40,7 +40,7 @@ public class AiTests
         // Nine minutes, not three as in the web version: upgrades cost far more here, and the AI
         // gets there in 6 to 8 minutes.
         Run(w, 540, 1.0 / 30);
-        var own = w.Entities.Where(e => e.Faction == Faction.Nairan).ToList();
+        var own = w.Entities.Where(e => e.Side == Faction.Nairan).ToList();
         Assert.True(own.Count(e => e.Type == "mine") >= 2);
         Expect.Greater(w.Entities.Get(w.Factions[Faction.Nairan].StationId)!.Level, 1);
         Expect.Greater(own.Count(e => e.Kind == EntityKind.Ship && e.Type != "fighter" && e.Type != "bomber"), 0);

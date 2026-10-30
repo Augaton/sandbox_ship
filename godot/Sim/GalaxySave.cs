@@ -7,14 +7,16 @@ using SandboxShip.Sim.Data;
 
 namespace SandboxShip.Sim;
 
-public sealed record SaveInfo(long SavedAt, Faction Player, int Planets);
+/// <summary>What the menu shows of a save: when, whose (its side and race), how many planets it holds.</summary>
+public sealed record SaveInfo(long SavedAt, Side Player, Faction Race, int Planets);
 
 public static class GalaxySave
 {
     /// <summary>
     /// Bumped whenever the saved shape changes in a way older saves cannot follow: they are then
     /// ignored. A field added with a default (research queue, production loops, map extent, truces,
-    /// random events) needs no bump.
+    /// random events) needs no bump. Sides (see Side) needed none either: they are written as
+    /// numbers, and the race names older saves wrote for them read as those races' own sides.
     /// </summary>
     const int Version = 1;
 
@@ -23,7 +25,7 @@ public static class GalaxySave
         public int Version;
         public long SavedAt;
         public double Time;
-        public Faction Player;
+        public Side Player;
         /// <summary>Saves from before galaxy sizes have none: the medium galaxy's.</summary>
         public double W = GalaxyMap.W, H = GalaxyMap.H;
         public List<Planet> Planets = [];
@@ -32,7 +34,12 @@ public static class GalaxySave
         public List<GalaxyFaction> Factions = [];
         public int NextId;
         public long Seed;
-        public Faction? Winner;
+        public Side? Winner;
+        /// <summary>
+        /// Whether factions carry their race, team and color. Older saves had one side per race,
+        /// at war with all, in its race's color: their factions get those once read.
+        /// </summary>
+        public bool Sides;
         /// <summary>Truces, offers and random events (not in the web version): none in older saves.</summary>
         public List<Truce> Truces = [];
         public List<TruceOffer> Offers = [];
@@ -46,7 +53,7 @@ public static class GalaxySave
     {
         IncludeFields = true,
         PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
-        Converters = { new JsonStringEnumConverter(JsonNamingPolicy.CamelCase), new HeroIdConverter(), new ResearchLevelsConverter() },
+        Converters = { new JsonStringEnumConverter(JsonNamingPolicy.CamelCase), new SideConverter(), new HeroIdConverter(), new ResearchLevelsConverter() },
     };
 
     public static string Serialize(Galaxy g, long? savedAt = null)
@@ -61,7 +68,7 @@ public static class GalaxySave
                 copy.BattleId = null;
                 return copy;
             }).ToList(),
-            Factions = [.. g.Factions.Values], NextId = g.NextId, Seed = g.Seed, Winner = g.Winner,
+            Factions = [.. g.Factions.Values], NextId = g.NextId, Seed = g.Seed, Winner = g.Winner, Sides = true,
             Truces = g.Truces, Offers = g.Offers, Incidents = g.Incidents, NextIncident = g.NextIncident, IncidentSeed = g.IncidentSeed, Ongoing = g.Ongoing,
         };
         return JsonSerializer.Serialize(save, Options);
@@ -90,7 +97,15 @@ public static class GalaxySave
             Truces = s.Truces, Offers = s.Offers, Incidents = s.Incidents, NextIncident = s.NextIncident, IncidentSeed = s.IncidentSeed, Ongoing = s.Ongoing,
         };
         foreach (var f in s.Fleets) g.Fleets[f.Id] = f;
-        foreach (var f in s.Factions) g.Factions[f.Id] = f;
+        foreach (var f in s.Factions)
+        {
+            if (!s.Sides)
+            {
+                f.Race = (Faction)f.Id.Id;
+                f.Color = Worlds.DefaultColor(f.Id, f.Race);
+            }
+            g.Factions[f.Id] = f;
+        }
         return g;
     }
 
@@ -129,7 +144,8 @@ public static class GalaxySave
     {
         var s = Read(path) is string text ? Parse(text) : null;
         if (s is null || s.Version != Version) return null;
-        return new SaveInfo(s.SavedAt, s.Player, s.Planets.Count(p => p.Owner == s.Player));
+        var race = s.Sides ? s.Factions.Find(f => f.Id == s.Player)?.Race ?? (Faction)s.Player.Id : (Faction)s.Player.Id;
+        return new SaveInfo(s.SavedAt, s.Player, race, s.Planets.Count(p => p.Owner == s.Player));
     }
 
     public static void Clear(string path)
@@ -142,6 +158,31 @@ public static class GalaxySave
         {
             // Nothing to clear, or nothing we may clear: either way the save stays unreadable to us.
         }
+    }
+
+    /// <summary>
+    /// Sides are written as their number, as values and as dictionary keys. Older saves wrote a
+    /// race's name, "klaed": that race's own side.
+    /// </summary>
+    sealed class SideConverter : JsonConverter<Side>
+    {
+        static Side Parse(string? s)
+        {
+            if (int.TryParse(s, System.Globalization.NumberStyles.None, System.Globalization.CultureInfo.InvariantCulture, out var id)) return new Side(id);
+            if (Enum.TryParse<Faction>(s, true, out var race) && Enum.IsDefined(race)) return race;
+            throw new JsonException($"Camp inconnu : {s}");
+        }
+
+        public override Side Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options) => reader.TokenType switch
+        {
+            JsonTokenType.Number when reader.TryGetInt32(out var id) && id >= 0 => new Side(id),
+            JsonTokenType.String => Parse(reader.GetString()),
+            _ => throw new JsonException("Camp illisible"),
+        };
+
+        public override void Write(Utf8JsonWriter writer, Side value, JsonSerializerOptions options) => writer.WriteNumberValue(value.Id);
+        public override Side ReadAsPropertyName(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options) => Parse(reader.GetString());
+        public override void WriteAsPropertyName(Utf8JsonWriter writer, Side value, JsonSerializerOptions options) => writer.WritePropertyName(value.ToString());
     }
 
     /// <summary>Heroes are written "klaed-admiral", as values and as dictionary keys.</summary>

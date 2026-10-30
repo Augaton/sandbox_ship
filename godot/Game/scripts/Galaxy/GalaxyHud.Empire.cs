@@ -149,7 +149,7 @@ public partial class GalaxyHud
 
     List<Part> FleetParts()
     {
-        var own = G.Fleets.Values.Where(f => f.Faction == Player).ToList();
+        var own = G.Fleets.Values.Where(f => f.Side == Player).ToList();
         if (own.Count == 0) return [HudKit.TextPart("Aucune flotte.", Palette.Muted)];
         var parts = new List<Part> { HudKit.TextPart("Clic : sélectionner la flotte et centrer la vue sur elle.", Palette.Muted, 13) };
         foreach (var f in own)

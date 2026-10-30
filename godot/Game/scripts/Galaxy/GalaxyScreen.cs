@@ -30,6 +30,8 @@ public partial class GalaxyScreen : Node
 
     public Galaxy Galaxy { get; private set; } = null!;
     public MenuChoice Opts { get; private set; } = null!;
+    /// <summary>The local player's side: the save's, or the menu's first seat.</summary>
+    public Side Player => Galaxy.Player;
     public GalaxyHud Hud { get; private set; } = null!;
     /// <summary>Planet shown in the panel.</summary>
     public int? Selected;
@@ -68,12 +70,12 @@ public partial class GalaxyScreen : Node
     {
         var opts = Opts;
         var saved = opts.Resume ? GalaxySave.Load(SavePath) : null;
-        var layout = opts.Map == MapKind.Classic && opts.Enemies.Count == 1
+        var slots = opts.Slots;
+        var layout = opts.Map == MapKind.Classic && slots.Count == 2
             ? GalaxyGen.Classic
-            : GalaxyGen.GenerateLayout(opts.Seed, 1 + opts.Enemies.Count, opts.Size);
-        Galaxy = saved ?? Galaxies.CreateGalaxy(opts.Player, opts.Enemies, true, opts.Seed, layout, opts.Difficulty);
+            : GalaxyGen.GenerateLayout(opts.Seed, slots.Count, opts.Size);
+        Galaxy = saved ?? Galaxies.CreateGalaxy(slots, opts.Seed, layout);
         var player = Galaxy.Player;
-        Opts = opts with { Player = player, Enemies = [.. Galaxy.Factions.Keys.Where(f => f != player)] };
         if (Dev.Skip > 0 && saved is null) PlayAhead(Dev.Skip);
         var home = Galaxy.Planets.FindIndex(p => p.Owner == player);
         Click(home >= 0 ? home : null, false);
@@ -257,7 +259,7 @@ public partial class GalaxyScreen : Node
     static bool Dragged(Rect2 b) => Math.Abs(b.Size.X) >= DragMin || Math.Abs(b.Size.Y) >= DragMin;
 
     /// <summary>Whether a planet can join a selection of several: the player's, or one where a fleet of theirs waits.</summary>
-    bool Selectable(int id) => Galaxy.Planets[id].Owner == Opts.Player || Galaxies.FleetsAt(Galaxy, id, Opts.Player).Count > 0;
+    bool Selectable(int id) => Galaxy.Planets[id].Owner == Player || Galaxies.FleetsAt(Galaxy, id, Player).Count > 0;
 
     /// <summary>Planets the orders go to: the whole selection when it holds several, else the planet shown.</summary>
     public IReadOnlyList<int> Targets => Selection.Count > 1 ? Selection : Selected is int id ? [id] : [];
@@ -308,7 +310,7 @@ public partial class GalaxyScreen : Node
         if (Selected is int shown && Selection.Contains(shown)) return;
         if (Selection.Count > 0)
         {
-            var owned = Selection.FindIndex(id => Galaxy.Planets[id].Owner == Opts.Player);
+            var owned = Selection.FindIndex(id => Galaxy.Planets[id].Owner == Player);
             Selected = Selection[Math.Max(0, owned)];
         }
         else if (!shift) Selected = null;
@@ -360,7 +362,7 @@ public partial class GalaxyScreen : Node
             return;
         }
         if (Selected is not int from || from == dest) return;
-        var fleet = Galaxies.FleetsAt(Galaxy, from, Opts.Player).FirstOrDefault();
+        var fleet = Galaxies.FleetsAt(Galaxy, from, Player).FirstOrDefault();
         if (fleet is null)
         {
             Hud.Toast("Aucune flotte à toi sur cette planète");
@@ -377,7 +379,7 @@ public partial class GalaxyScreen : Node
     void SendAll(int dest)
     {
         var g = Galaxy;
-        var fleets = Selection.Where(id => id != dest).SelectMany(id => Galaxies.FleetsAt(g, id, Opts.Player)).ToList();
+        var fleets = Selection.Where(id => id != dest).SelectMany(id => Galaxies.FleetsAt(g, id, Player)).ToList();
         if (fleets.Count == 0)
         {
             Hud.Toast("Aucune flotte à envoyer depuis ces planètes");
@@ -436,11 +438,10 @@ public partial class GalaxyScreen : Node
         var b = Galaxy.Battles.Find(x => x.Id == battleId);
         if (b is null) return;
         Galaxies.ChooseBattle(Galaxy, battleId, BattleStatus.Tactical);
-        var player = Opts.Player;
+        var player = Player;
         var opts = new BattleOptions
         {
             Player = player,
-            Enemies = [b.Attacker == player ? b.Defender : b.Attacker],
             Mode = GameMode.Campaign,
             Campaign = new CampaignBattle(b.World, battleId, Galaxies.BattleName(Galaxy, b.PlanetId, b.Lane), b.Attacker, b.Defender),
         };
@@ -499,10 +500,10 @@ public partial class GalaxyScreen : Node
         // than leaving the galaxy waiting forever.
         var pending = g.Battles.Find(b => b.Status == BattleStatus.Pending);
         if (pending is not null && g.Winner is null && !Hud.DialogOpen) Hud.PromptBattle(pending);
-        if (g.Winner is Faction winner && !ended)
+        if (g.Winner is not null && !ended)
         {
             ended = true;
-            Hud.ShowEnd(winner == Opts.Player);
+            Hud.ShowEnd(Galaxies.Won(g, Player));
             if (Saving) GalaxySave.Clear(SavePath);
         }
         saveTimer += delta * 1000;
@@ -527,14 +528,14 @@ public partial class GalaxyScreen : Node
     /// </summary>
     void SyncSprites()
     {
-        var seen = Galaxies.VisiblePlanets(Galaxy, Opts.Player);
+        var seen = Galaxies.VisiblePlanets(Galaxy, Player);
         foreach (var p in Galaxy.Planets)
         {
             var sprite = planets[p.Id];
-            sprite.Modulate = sprite.Modulate with { A = Galaxies.Known(Galaxy, Opts.Player, p, seen) ? 1 : 0.45f };
+            sprite.Modulate = sprite.Modulate with { A = Galaxies.Known(Galaxy, Player, p, seen) ? 1 : 0.45f };
             var badge = emblems[p.Id];
             badge.Visible = p.Owner is not null;
-            if (p.Owner is Faction owner) badge.Texture = GalaxyHud.EmblemTexture(owner);
+            if (p.Owner is Side owner) badge.Texture = GalaxyHud.EmblemTexture(Galaxy, owner);
         }
     }
 
@@ -554,7 +555,7 @@ public partial class GalaxyScreen : Node
         if (hover is not int to) return;
         foreach (var from in Targets)
         {
-            if (from == to || Galaxies.FleetsAt(g, from, Opts.Player).Count == 0) continue;
+            if (from == to || Galaxies.FleetsAt(g, from, Player).Count == 0) continue;
             var prev = g.Planets[from];
             foreach (var id in Galaxies.FindPath(g, from, to) ?? [])
             {
@@ -569,7 +570,7 @@ public partial class GalaxyScreen : Node
     {
         var g = Galaxy;
         var t = Godot.Time.GetTicksMsec() / 1000.0;
-        var player = Opts.Player;
+        var player = Player;
         var font = UiTheme.Mono;
         var nameHeight = font.GetHeight(14);
 
@@ -587,7 +588,7 @@ public partial class GalaxyScreen : Node
             var y = Sy(p.Y);
             var r = Radius(p);
             var visible = Galaxies.Known(g, player, p, seen);
-            var ring = p.Owner is Faction owner ? Palette.Of(owner) : Neutral;
+            var ring = p.Owner is Side owner ? Palette.Of(g, owner) : Neutral;
             Draw.Ring(o, x, y, r + 3, ring with { A = visible ? 1 : 0.5f }, 3, 1);
             // Every selected planet has its ring; the one shown in the panel, a thicker one.
             if (p.Id == Selected || Selection.Contains(p.Id)) Draw.Ring(o, x, y, r + 9, Palette.Accent, p.Id == Selected && Selection.Count > 1 ? 3 : 2, 1);
@@ -600,7 +601,7 @@ public partial class GalaxyScreen : Node
                 if (done > 0)
                 {
                     o.DrawArc(new Vector2((float)x, (float)y), (float)(r + 7), -Mathf.Pi / 2, (float)(-Math.PI / 2 + done * Math.Tau),
-                        Math.Max(4, (int)(done * 48)), Palette.Of(occ.Faction), 4);
+                        Math.Max(4, (int)(done * 48)), Palette.Of(g, occ.Side), 4);
                 }
             }
             if (Galaxies.BattleAt(g, p.Id))
@@ -622,13 +623,15 @@ public partial class GalaxyScreen : Node
         foreach (var f in g.Fleets.Values)
         {
             // The Errants' guard never leaves their site, known to all.
-            if (!Galaxies.FleetVisible(g, player, f, seen) && f.Faction != Faction.Errant) continue;
+            if (!Galaxies.FleetVisible(g, player, f, seen) && f.Side != Faction.Errant) continue;
             var count = Sim.Battle.CountShips(f.Ships) + f.Heroes.Count;
+            var color = Palette.Of(g, f.Side);
             if (f.At is int at)
             {
+                // The owner's fleets and its allies' on its left, the others on its right.
                 var p = g.Planets[at];
-                var side = f.Faction == p.Owner || (p.Owner is null && f.Faction == player) ? -1 : 1;
-                FleetMarker(o, Sx(p.X) + side * (Radius(p) + 18), Sy(p.Y), side < 0 ? 0 : Math.PI, f.Faction, count);
+                var side = p.Owner is Side owner ? Galaxies.Allies(g, f.Side, owner) : f.Side == player;
+                FleetMarker(o, Sx(p.X) + (side ? -1 : 1) * (Radius(p) + 18), Sy(p.Y), side ? 0 : Math.PI, color, count);
             }
             else if (f.To is int to)
             {
@@ -636,7 +639,7 @@ public partial class GalaxyScreen : Node
                 var b = g.Planets[to];
                 var x = Sx(a.X + (b.X - a.X) * f.Progress);
                 var y = Sy(a.Y + (b.Y - a.Y) * f.Progress);
-                FleetMarker(o, x, y, Math.Atan2(b.Y - a.Y, b.X - a.X), f.Faction, count);
+                FleetMarker(o, x, y, Math.Atan2(b.Y - a.Y, b.X - a.X), color, count);
             }
         }
         DrawFleetMarks(o);
@@ -648,10 +651,9 @@ public partial class GalaxyScreen : Node
         }
     }
 
-    /// <summary>Fleet marker: a triangle pointing along `angle`, with the ship count above it.</summary>
-    static void FleetMarker(DrawCanvas o, double x, double y, double angle, Faction faction, int count)
+    /// <summary>Fleet marker: a triangle in its side's color pointing along `angle`, with the ship count above it.</summary>
+    static void FleetMarker(DrawCanvas o, double x, double y, double angle, Color c, int count)
     {
-        var c = Palette.Of(faction);
         const double r = 8;
         Vector2 Pt(double a) => new((float)(x + Math.Cos(angle + a) * r), (float)(y + Math.Sin(angle + a) * r));
         Vector2[] tri = [Pt(0), Pt(2.5), Pt(-2.5)];

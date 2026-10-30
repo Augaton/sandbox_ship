@@ -48,13 +48,13 @@ public class BalanceTests(ITestOutputHelper output)
                     }
                     games[a]++;
                     games[b]++;
-                    if (w.Winner is Faction winner)
+                    if (w.Winner is Side won)
                     {
-                        wins[winner]++;
+                        wins[Worlds.RaceOf(w, won)]++;
                         lengths.Add(w.Time);
                     }
                     else draws++;
-                    output.WriteLine($"{a} contre {b}, graine {seed}: {w.Winner?.ToString() ?? "nul"} en {Js.Round(w.Time / 60)} min");
+                    output.WriteLine($"{a} contre {b}, graine {seed}: {(w.Winner is Side s ? Worlds.RaceOf(w, s).ToString() : "nul")} en {Js.Round(w.Time / 60)} min");
                 }
             }
         }

@@ -127,11 +127,11 @@ public static class Assets
 
     public static Look LookFor(Entity e) => e.Kind switch
     {
-        EntityKind.Ship => ships[(e.Faction, e.Cls)],
+        EntityKind.Ship => ships[(e.Race, e.Cls)],
         EntityKind.Hardpoint => hardpoints[e.Type],
         _ when e.Type == "platform" && platformTiers.TryGetValue(e.Level, out var tier) => tier,
         _ when e.Type == "lab" && lab is not null => lab,
-        _ when e.Type == "starLance" && lances.TryGetValue(e.Faction, out var lance) => lance,
+        _ when e.Type == "starLance" && lances.TryGetValue(e.Race, out var lance) => lance,
         _ => structures[e.Type],
     };
 

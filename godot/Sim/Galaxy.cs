@@ -1,5 +1,5 @@
 // Galaxy map simulation: planets, fleets travelling along lanes, production, and the battles
-// that start when two factions meet over a planet. Port of src/sim/galaxy.ts.
+// that start when two sides at war meet over a planet. Port of src/sim/galaxy.ts.
 using System.Text.Json.Serialization;
 using SandboxShip.Sim.Data;
 
@@ -29,7 +29,9 @@ public sealed class GalaxyQueueItem
 /// <summary>A lone fleet taking a planet over.</summary>
 public sealed class Occupation
 {
-    public Faction Faction;
+    /// <summary>Who takes it; "faction" in saves.</summary>
+    [JsonPropertyName("faction")]
+    public Side Side;
     public double Remaining;
 }
 
@@ -41,7 +43,7 @@ public sealed class Planet : IPoint
     public double Y { get; set; }
     public double Income;
     public int MineSlots;
-    public Faction? Owner;
+    public Side? Owner;
     /// <summary>Station level, 0 without a station.</summary>
     public int Station;
     public int Mines, Platforms;
@@ -67,7 +69,9 @@ public sealed class Planet : IPoint
 public sealed class Fleet
 {
     public int Id;
-    public Faction Faction;
+    /// <summary>Who owns it; "faction" in saves.</summary>
+    [JsonPropertyName("faction")]
+    public Side Side;
     public ShipCounts Ships = [];
     public List<HeroId> Heroes = [];
     /// <summary>Planet the fleet is docked at, null while travelling.</summary>
@@ -103,16 +107,16 @@ public sealed class GalaxyBattle
     public int PlanetId;
     /// <summary>Set for an interception: two fleets met on this lane, and no planet is at stake (not in the web version).</summary>
     public LaneSpot? Lane;
-    public Faction Attacker, Defender;
+    public Side Attacker, Defender;
     /// <summary>Where the attacker falls back.</summary>
     public int From;
     public required World World;
     public BattleStatus Status;
     public double Elapsed;
     /// <summary>Heroes each side brought, to know who fell.</summary>
-    public Dictionary<Faction, List<HeroId>> Heroes = [];
+    public Dictionary<Side, List<HeroId>> Heroes = [];
     /// <summary>Research each galaxy side came with, to know what the battle taught it: a fallen colossus' free level.</summary>
-    public Dictionary<Faction, ResearchLevels> Research = [];
+    public Dictionary<Side, ResearchLevels> Research = [];
 }
 
 public sealed partial class GalaxyAIState
@@ -123,9 +127,16 @@ public sealed partial class GalaxyAIState
     public Difficulty Difficulty;
 }
 
+/// <summary>A side in the campaign: its race, team, color, treasury and research.</summary>
 public sealed class GalaxyFaction : IResearcher
 {
-    public Faction Id;
+    public Side Id;
+    /// <summary>Its race: traits, ship prices, heroes, looks.</summary>
+    public Faction Race;
+    /// <summary>Sides of the same team, other than 0, are allies; team 0 is alone, at war with everyone.</summary>
+    public int Team;
+    /// <summary>What marks its planets and fleets on the map, as 0xRRGGBB.</summary>
+    public uint Color;
     public double Credits { get; set; }
     public GalaxyAIState? AI;
     public bool Eliminated;
@@ -138,31 +149,34 @@ public sealed class GalaxyFaction : IResearcher
 
 public abstract record GalaxyEvent;
 public sealed record BattleStarted(int BattleId) : GalaxyEvent;
-public sealed record BattleEnded(int PlanetId, Faction Attacker, Faction Defender, BattleResult Result, LaneSpot? Lane = null) : GalaxyEvent;
-public sealed record Captured(int PlanetId, Faction Faction, Faction? From) : GalaxyEvent;
-public sealed record PlanetBuilt(int PlanetId, Faction Faction, string What) : GalaxyEvent;
-public sealed record TechResearched(Faction Faction, TechId Tech) : GalaxyEvent;
+public sealed record BattleEnded(int PlanetId, Side Attacker, Side Defender, BattleResult Result, LaneSpot? Lane = null) : GalaxyEvent;
+public sealed record Captured(int PlanetId, Side Side, Side? From) : GalaxyEvent;
+public sealed record PlanetBuilt(int PlanetId, Side Side, string What) : GalaxyEvent;
+public sealed record TechResearched(Side Side, TechId Tech) : GalaxyEvent;
 /// <summary>What a side earned in a battle and brought back: bounties, and the tech a fallen colossus taught.</summary>
-public sealed record BountyPaid(int PlanetId, Faction Faction, double Credits, TechId? Tech, LaneSpot? Lane = null) : GalaxyEvent;
-public sealed record GalaxyVictory(Faction Faction) : GalaxyEvent;
+public sealed record BountyPaid(int PlanetId, Side Side, double Credits, TechId? Tech, LaneSpot? Lane = null) : GalaxyEvent;
+/// <summary>`Side` won, with its team if it has one (0: alone): its allies won with it.</summary>
+public sealed record GalaxyVictory(Side Side, int Team) : GalaxyEvent;
 
 public sealed partial class Galaxy
 {
     public double Time;
-    public Faction Player;
+    /// <summary>The local player's side: its battles wait for its choice.</summary>
+    public Side Player;
     /// <summary>Extent of the map the planets lie in.</summary>
     public double W = GalaxyMap.W, H = GalaxyMap.H;
     public List<Planet> Planets = [];
     public List<Lane> Lanes = [];
     /// <summary>In insertion order, as a JavaScript Map: merges and battles depend on it.</summary>
     public OrderedDictionary<int, Fleet> Fleets = [];
-    public OrderedDictionary<Faction, GalaxyFaction> Factions = [];
+    public OrderedDictionary<Side, GalaxyFaction> Factions = [];
     public List<GalaxyBattle> Battles = [];
     public List<GalaxyEvent> Events = [];
     public int NextId = 1;
     /// <summary>State of the Park-Miller generator.</summary>
     public long Seed;
-    public Faction? Winner;
+    /// <summary>The side that won; its allies won with it (Galaxies.Won).</summary>
+    public Side? Winner;
 }
 
 public static partial class Galaxies
@@ -185,12 +199,24 @@ public static partial class Galaxies
     /// galaxy faction: they never build, research or move, and do not count for victory.
     /// </summary>
     public static Galaxy CreateGalaxy(Faction player, IReadOnlyList<Faction> enemies, bool enemyAI = true, long seed = 7,
-        GalaxyLayout? layout = null, Difficulty difficulty = Difficulty.Normal, bool errants = true, bool incidents = true)
+        GalaxyLayout? layout = null, Difficulty difficulty = Difficulty.Normal, bool errants = true, bool incidents = true) =>
+        CreateGalaxy([new Slot(player, player), .. enemies.Select(e => new Slot(e, e, 0, enemyAI ? difficulty : null))], seed, layout, errants, incidents);
+
+    /// <summary>
+    /// A galaxy for these seats, the local player's first (Player), each on a capital of the
+    /// layout in turn: the layout needs one per seat (GalaxyGen.GenerateLayout places 2 to 6).
+    /// Side 3 is the Errants': seats take 0 to 2, then 4 and up. Otherwise as above.
+    /// </summary>
+    public static Galaxy CreateGalaxy(IReadOnlyList<Slot> slots, long seed = 7, GalaxyLayout? layout = null, bool errants = true, bool incidents = true)
     {
         layout ??= GalaxyGen.Classic;
+        if (slots.Count > layout.Capitals.Count) throw new ArgumentException("The layout has fewer capitals than seats.");
+        if (slots.Select(s => s.Side).Distinct().Count() != slots.Count) throw new ArgumentException("Two slots share a side.");
+        // Their site and their war bands (GalaxyIncidents) are theirs.
+        if (slots.Any(s => s.Side == Faction.Errant)) throw new ArgumentException("Side 3 is the Errants'.");
         var g = new Galaxy
         {
-            Player = player, Seed = seed, W = layout.W, H = layout.H, Incidents = incidents,
+            Player = slots[0].Side, Seed = seed, W = layout.W, H = layout.H, Incidents = incidents,
             Planets = layout.Planets.Select((p, id) => new Planet
             {
                 Id = id, Name = p.Name, X = p.X, Y = p.Y, Income = p.Income, MineSlots = p.MineSlots, Special = p.Special,
@@ -198,21 +224,21 @@ public static partial class Galaxies
             Lanes = [.. layout.Lanes],
         };
         if (!ReferenceEquals(layout, GalaxyGen.Classic)) AddNewSpecials(g, layout.Capitals, seed);
-        var sides = new List<(Faction Faction, int Capital, bool Ai)> { (player, layout.Capitals[0], false) };
-        for (var i = 0; i < enemies.Count; i++) sides.Add((enemies[i], layout.Capitals[i + 1], enemyAI));
-        foreach (var (faction, capital, ai) in sides)
+        for (var i = 0; i < slots.Count; i++)
         {
-            g.Factions[faction] = new GalaxyFaction
+            var (side, race, capital) = (slots[i].Side, slots[i].Race, layout.Capitals[i]);
+            g.Factions[side] = new GalaxyFaction
             {
-                Id = faction, Credits = GalaxyRules.StartCredits, AI = ai ? new GalaxyAIState { Difficulty = difficulty } : null,
+                Id = side, Race = race, Team = race == Faction.Errant ? 0 : slots[i].Team, Color = slots[i].Color ?? Worlds.DefaultColor(side, race),
+                Credits = GalaxyRules.StartCredits, AI = slots[i].AI is Difficulty d ? new GalaxyAIState { Difficulty = d } : null,
             };
             var p = g.Planets[capital];
-            p.Owner = faction;
+            p.Owner = side;
             p.Station = 1;
             p.Mines = 1;
-            AddShipsAt(g, faction, capital, new ShipCounts { [ShipClass.Frigate] = 2, [ShipClass.Scout] = 2 });
+            AddShipsAt(g, side, capital, new ShipCounts { [ShipClass.Frigate] = 2, [ShipClass.Scout] = 2 });
         }
-        if (errants && ErrantSite(g, [.. sides.Select(s => s.Capital)]) is int site)
+        if (errants && ErrantSite(g, [.. layout.Capitals.Take(slots.Count)]) is int site)
         {
             var p = g.Planets[site];
             p.Owner = Faction.Errant;
@@ -317,21 +343,22 @@ public static partial class Galaxies
     }
 
     /// <summary>
-    /// Planets a faction has eyes on: its own, their neighbours, and those its fleets sit at or
-    /// fly between. Ownership is known everywhere; defenses and fleets only there.
+    /// Planets a side has eyes on, with its allies': their planets, the neighbours of those, and
+    /// those their fleets sit at or fly between. Ownership is known everywhere; defenses and
+    /// fleets only there.
     /// </summary>
-    public static HashSet<int> VisiblePlanets(Galaxy g, Faction faction)
+    public static HashSet<int> VisiblePlanets(Galaxy g, Side side)
     {
         var out_ = new HashSet<int>();
         foreach (var p in g.Planets)
         {
-            if (p.Owner != faction) continue;
+            if (p.Owner is not Side o || !Allies(g, o, side)) continue;
             out_.Add(p.Id);
             foreach (var n in Neighbours(g, p.Id)) out_.Add(n);
         }
         foreach (var f in g.Fleets.Values)
         {
-            if (f.Faction != faction) continue;
+            if (!Allies(g, f.Side, side)) continue;
             if (f.At is int at) out_.Add(at);
             out_.Add(f.From);
             if (f.To is int to) out_.Add(to);
@@ -340,22 +367,23 @@ public static partial class Galaxies
     }
 
     /// <summary>
-    /// Whether a faction knows what guards a planet: it has eyes on it, or it is the Errants'
+    /// Whether a side knows what guards a planet: it or an ally has eyes on it, or it is the Errants'
     /// site, known to all (their guard never leaves it, and changes only in the battles fought there).
     /// </summary>
-    public static bool Known(Galaxy g, Faction faction, Planet planet, HashSet<int>? seen = null) =>
-        planet.Owner == Faction.Errant || (seen ?? VisiblePlanets(g, faction)).Contains(planet.Id);
+    public static bool Known(Galaxy g, Side side, Planet planet, HashSet<int>? seen = null) =>
+        planet.Owner == Faction.Errant || (seen ?? VisiblePlanets(g, side)).Contains(planet.Id);
 
-    public static bool FleetVisible(Galaxy g, Faction faction, Fleet fleet, HashSet<int>? seen = null)
+    /// <summary>Whether a side sees a fleet: its own or an ally's, or one where it has eyes, out of nebulae.</summary>
+    public static bool FleetVisible(Galaxy g, Side side, Fleet fleet, HashSet<int>? seen = null)
     {
-        if (fleet.Faction == faction) return true;
+        if (Allies(g, fleet.Side, side)) return true;
         if (InNebula(g, fleet)) return false;
-        seen ??= VisiblePlanets(g, faction);
+        seen ??= VisiblePlanets(g, side);
         return fleet.At is int at ? seen.Contains(at) : seen.Contains(fleet.From) || (fleet.To is int to && seen.Contains(to));
     }
 
-    public static List<Fleet> FleetsAt(Galaxy g, int planetId, Faction? faction = null) =>
-        g.Fleets.Values.Where(f => f.At == planetId && f.BattleId is null && (faction is null || f.Faction == faction)).ToList();
+    public static List<Fleet> FleetsAt(Galaxy g, int planetId, Side? side = null) =>
+        g.Fleets.Values.Where(f => f.At == planetId && f.BattleId is null && (side is null || f.Side == side)).ToList();
 
     /// <summary>Whether a battle is fought over this planet; fleets fighting on a lane nearby do not count.</summary>
     public static bool BattleAt(Galaxy g, int planetId) => g.Battles.Exists(b => b.PlanetId == planetId && b.Lane is null);
@@ -379,11 +407,11 @@ public static partial class Galaxies
         into.Heroes.AddRange(heroes);
     }
 
-    public static Fleet? AddShipsAt(Galaxy g, Faction faction, int planetId, ShipCounts ships, IReadOnlyList<HeroId>? heroes = null, double condition = 1)
+    public static Fleet? AddShipsAt(Galaxy g, Side side, int planetId, ShipCounts ships, IReadOnlyList<HeroId>? heroes = null, double condition = 1)
     {
         heroes ??= [];
         if (Battle.CountShips(ships) == 0 && heroes.Count == 0) return null;
-        var fleet = FleetsAt(g, planetId, faction).FirstOrDefault();
+        var fleet = FleetsAt(g, planetId, side).FirstOrDefault();
         if (fleet is not null)
         {
             MergeInto(fleet, ships, heroes, condition);
@@ -391,7 +419,7 @@ public static partial class Galaxies
         }
         var f = new Fleet
         {
-            Id = g.NextId++, Faction = faction, Ships = ships.Clone(), Heroes = [.. heroes], At = planetId, From = planetId,
+            Id = g.NextId++, Side = side, Ships = ships.Clone(), Heroes = [.. heroes], At = planetId, From = planetId,
             Came = planetId, ArrivedAt = g.Time, Condition = condition,
         };
         g.Fleets[f.Id] = f;
@@ -406,7 +434,7 @@ public static partial class Galaxies
     {
         heroes ??= [];
         if (!g.Fleets.TryGetValue(fleetId, out var fleet) || fleet.At is not int at || fleet.BattleId is not null) return Result.Fail("Flotte indisponible");
-        if (g.Planets[dest].Owner is Faction partner && AtPeace(g, fleet.Faction, partner)) return Result.Fail("Trêve en cours");
+        if (g.Planets[dest].Owner is Side partner && AtPeace(g, fleet.Side, partner)) return Result.Fail("Trêve en cours");
         var path = FindPath(g, at, dest);
         if (path is null) return Result.Fail("Aucune route");
         var moving = fleet;
@@ -467,7 +495,7 @@ public static partial class Galaxies
         if (!g.Fleets.TryGetValue(fleetId, out var fleet) || fleet.BattleId is not null) return Result.Fail("Flotte indisponible");
         if (fleet.At is not null) return SendFleet(g, fleetId, dest);
         if (fleet.To is not int to) return Result.Fail("Flotte indisponible");
-        if (g.Planets[dest].Owner is Faction partner && AtPeace(g, fleet.Faction, partner)) return Result.Fail("Trêve en cours");
+        if (g.Planets[dest].Owner is Side partner && AtPeace(g, fleet.Side, partner)) return Result.Fail("Trêve en cours");
         if (PlanRedirect(g, fleet, dest) is not { } plan) return Result.Fail("Aucune route");
         var (back, path) = plan;
         if (back)
@@ -511,12 +539,12 @@ public static partial class Galaxies
     public static double TravelTime(Galaxy g, Fleet f)
     {
         if (f.To is not int to) return 0;
-        var engines = g.Factions.TryGetValue(f.Faction, out var gf) ? gf.Research[TechId.Engines] : 0;
+        var engines = g.Factions.TryGetValue(f.Side, out var gf) ? gf.Research[TechId.Engines] : 0;
         var speed = FleetSpeed(f.Ships, engines, f.Heroes);
         var t = (1 - f.Progress) * Worlds.Dist(g.Planets[f.From], g.Planets[to]) / (speed * LaneSpeed(g, f));
         foreach (var next in f.Path)
         {
-            t += Worlds.Dist(g.Planets[to], g.Planets[next]) / (speed * LaneSpeed(g, new Fleet { Faction = f.Faction, From = to, To = next }));
+            t += Worlds.Dist(g.Planets[to], g.Planets[next]) / (speed * LaneSpeed(g, new Fleet { Side = f.Side, From = to, To = next }));
             to = next;
         }
         return t;
@@ -526,24 +554,24 @@ public static partial class Galaxies
     /// Where the ships built at a planet leave for once done (not in the web version); null, or
     /// the planet itself, clears it.
     /// </summary>
-    public static Result SetRally(Galaxy g, Faction faction, int planetId, int? target)
+    public static Result SetRally(Galaxy g, Side side, int planetId, int? target)
     {
         var planet = g.Planets[planetId];
-        if (planet.Owner != faction) return Result.Fail("Planète non contrôlée");
+        if (planet.Owner != side) return Result.Fail("Planète non contrôlée");
         if (target is int t && t != planetId && FindPath(g, planetId, t) is null) return Result.Fail("Aucune route");
         planet.Rally = target == planetId ? null : target;
         return Result.OK;
     }
 
-    static bool HostileTo(Galaxy g, Planet planet, Faction faction)
+    static bool HostileTo(Galaxy g, Planet planet, Side side)
     {
-        // A truce partner's planets and fleets let the fleet by.
-        var owned = planet.Owner is Faction o && o != faction && !AtPeace(g, o, faction);
-        return owned || FleetsAt(g, planet.Id).Exists(f => f.Faction != faction && !AtPeace(g, f.Faction, faction));
+        // Allies and truce partners let the fleet by, their planets and their fleets.
+        var owned = planet.Owner is Side o && AtWar(g, o, side);
+        return owned || FleetsAt(g, planet.Id).Exists(f => AtWar(g, f.Side, side));
     }
 
     /// <summary>
-    /// Fleets pass through friendly and neutral planets, and stop at enemy ones. Enemy fleets
+    /// Fleets pass through friendly and neutral planets, and stop at enemy ones. Fleets at war
     /// that meet head-on along a lane stop there and fight first (not in the web version).
     /// </summary>
     static void MoveFleets(Galaxy g, double dt)
@@ -552,7 +580,7 @@ public static partial class Galaxies
         foreach (var f in g.Fleets.Values)
         {
             if (f.To is not int to || f.BattleId is not null) continue;
-            var engines = g.Factions.TryGetValue(f.Faction, out var gf) ? gf.Research[TechId.Engines] : 0;
+            var engines = g.Factions.TryGetValue(f.Side, out var gf) ? gf.Research[TechId.Engines] : 0;
             moving.Add((f, f.Progress));
             f.Progress += FleetSpeed(f.Ships, engines, f.Heroes) * LaneSpeed(g, f) * dt / Worlds.Dist(g.Planets[f.From], g.Planets[to]);
         }
@@ -565,7 +593,7 @@ public static partial class Galaxies
             f.Came = f.From;
             f.From = arrived;
             f.Progress = 0;
-            if (f.Path.Count > 0 && !HostileTo(g, b, f.Faction))
+            if (f.Path.Count > 0 && !HostileTo(g, b, f.Side))
             {
                 f.To = f.Path[0];
                 f.Path.RemoveAt(0);
@@ -579,7 +607,7 @@ public static partial class Galaxies
     }
 
     /// <summary>
-    /// Two enemy fleets on the same lane, heading towards each other, that passed each other
+    /// Two fleets at war on the same lane, heading towards each other, that passed each other
     /// during this step: they go back to where they met, and fight there. No fleet slips past
     /// another to strike behind its lines.
     /// </summary>
@@ -591,7 +619,7 @@ public static partial class Galaxies
             for (var j = i + 1; j < moving.Count && a.BattleId is null; j++)
             {
                 var (b, b0) = moving[j];
-                if (b.BattleId is not null || a.Faction == b.Faction || a.From != b.To || a.To != b.From || AtPeace(g, a.Faction, b.Faction)) continue;
+                if (b.BattleId is not null || a.From != b.To || a.To != b.From || !AtWar(g, a.Side, b.Side)) continue;
                 // Along the lane, the two progresses add up to 1 where the fleets meet.
                 if (a0 + b0 >= 1 || a.Progress + b.Progress < 1) continue;
                 var share = (1 - a0 - b0) / (a.Progress - a0 + b.Progress - b0);
@@ -599,7 +627,7 @@ public static partial class Galaxies
                 // A hair short of each other: a game saved during the fight has them meet again once loaded.
                 b.Progress = Math.Max(0, 1 - a.Progress - 1e-6);
                 var near = a.Progress < 0.5 ? a.From : a.To!.Value;
-                Open(g, near, new LaneSpot(a.From, a.To!.Value, a.Progress), a.Faction, [a], b.Faction, [b], PlanetDefense.None, a.From);
+                Open(g, near, new LaneSpot(a.From, a.To!.Value, a.Progress), a.Side, [a], b.Side, [b], PlanetDefense.None, a.From);
             }
         }
     }
@@ -610,23 +638,23 @@ public static partial class Galaxies
         {
             if (f.Condition >= 1 || f.BattleId is not null) continue;
             var p = f.At is int at ? g.Planets[at] : null;
-            var home = p?.Owner == f.Faction ? p : null;
+            var home = p?.Owner == f.Side ? p : null;
             var rate = (home is null ? 0 : home.RepairDock > 0 ? RepairDock : home.Station > 0 ? RepairStation : RepairPlanet)
-                + (Factions.Trait(f.Faction).HullRegen > 0 && Supplied(g, f) ? RepairRegen : 0);
-            if (g.Factions.TryGetValue(f.Faction, out var gf)) rate *= 1 + Techs.RepairBonus * gf.Research[TechId.Repair];
+                + (Factions.Trait(RaceOf(g, f.Side)).HullRegen > 0 && Supplied(g, f) ? RepairRegen : 0);
+            if (g.Factions.TryGetValue(f.Side, out var gf)) rate *= 1 + Techs.RepairBonus * gf.Research[TechId.Repair];
             f.Condition = Math.Min(1, f.Condition + rate * dt);
         }
     }
 
     static void MergeFleets(Galaxy g)
     {
-        var seen = new Dictionary<(int, Faction), Fleet>();
+        var seen = new Dictionary<(int, Side), Fleet>();
         foreach (var f in g.Fleets.Values.OrderBy(f => f.ArrivedAt).ToList())
         {
             if (f.At is not int at || f.BattleId is not null) continue;
-            if (!seen.TryGetValue((at, f.Faction), out var into))
+            if (!seen.TryGetValue((at, f.Side), out var into))
             {
-                seen[(at, f.Faction)] = f;
+                seen[(at, f.Side)] = f;
                 continue;
             }
             MergeInto(into, f.Ships, f.Heroes, f.Condition);
@@ -634,10 +662,10 @@ public static partial class Galaxies
         }
     }
 
-    static void Capture(Galaxy g, Planet planet, Faction faction)
+    static void Capture(Galaxy g, Planet planet, Side side)
     {
         var from = planet.Owner;
-        planet.Owner = faction;
+        planet.Owner = side;
         // Space structures are lost; mines and labs on the ground change hands.
         planet.Station = 0;
         planet.Platforms = 0;
@@ -651,7 +679,7 @@ public static partial class Galaxies
         planet.Repeat = [];
         planet.Occupation = null;
         planet.Rally = null;
-        g.Events.Add(new Captured(planet.Id, faction, from));
+        g.Events.Add(new Captured(planet.Id, side, from));
     }
 
     static PlanetDefense DefenseOf(Planet p) => new()
@@ -665,22 +693,22 @@ public static partial class Galaxies
     /// <summary>Strength a planet opposes to an attacker: its defenses plus the fleets docked there.</summary>
     public static double DefenseValue(Galaxy g, Planet planet)
     {
-        var fleets = planet.Owner is Faction owner ? FleetsAt(g, planet.Id, owner) : [];
+        var fleets = planet.Owner is Side owner ? FleetsAt(g, planet.Id, owner) : [];
         var levels = Station.Levels.Take(planet.Station).Sum(l => l.Hull + l.Shield);
         return levels / 2 + planet.Platforms * Buildables.Defs[BuildableType.Platform].Cost + planet.IonCannon * Buildables.Defs[BuildableType.IonCannon].Cost
             + fleets.Sum(FleetStrength);
     }
 
-    static void StartBattle(Galaxy g, Planet planet, Faction attacker, Faction defender, int from) =>
+    static void StartBattle(Galaxy g, Planet planet, Side attacker, Side defender, int from) =>
         Open(g, planet.Id, null, attacker, FleetsAt(g, planet.Id, attacker), defender, FleetsAt(g, planet.Id, defender),
             planet.Owner == defender ? DefenseOf(planet) : PlanetDefense.None, from);
 
     /// <summary>Opens a battle between these fleets, over a planet or on a lane.</summary>
-    static void Open(Galaxy g, int planetId, LaneSpot? lane, Faction attacker, List<Fleet> attackers, Faction defender, List<Fleet> defenders,
+    static void Open(Galaxy g, int planetId, LaneSpot? lane, Side attacker, List<Fleet> attackers, Side defender, List<Fleet> defenders,
         PlanetDefense defense, int from)
     {
         var id = g.NextId++;
-        BattleSide Side(Faction faction, List<Fleet> fleets)
+        BattleSide SideOf(Side side, List<Fleet> fleets)
         {
             var ships = new ShipCounts();
             var heroes = new List<HeroId>();
@@ -696,30 +724,30 @@ public static partial class Galaxies
             }
             return new BattleSide
             {
-                Faction = faction, Ships = ships, Heroes = heroes,
-                Research = g.Factions.TryGetValue(faction, out var gf) ? gf.Research : null,
+                Side = side, Race = RaceOf(g, side), Color = g.Factions.TryGetValue(side, out var gf) ? gf.Color : null,
+                Ships = ships, Heroes = heroes, Research = gf?.Research,
                 Condition = value > 0 ? wear / value : 1,
             };
         }
-        var att = Side(attacker, attackers);
-        var def = Side(defender, defenders);
+        var att = SideOf(attacker, attackers);
+        var def = SideOf(defender, defenders);
         var world = Battle.CreatePlanetBattle(att, def, defense, (int)Math.Floor(GalaxyRand(g) * 2147483646) + 1);
         var status = attacker == g.Player || defender == g.Player ? BattleStatus.Pending : BattleStatus.Auto;
         g.Battles.Add(new GalaxyBattle
         {
             Id = id, PlanetId = planetId, Lane = lane, Attacker = attacker, Defender = defender, From = from, World = world, Status = status,
             Heroes = new() { [attacker] = att.Heroes, [defender] = def.Heroes },
-            Research = new[] { att, def }.Where(x => x.Research is not null).ToDictionary(x => x.Faction, x => x.Research!.Clone()),
+            Research = new[] { att, def }.Where(x => x.Research is not null).ToDictionary(x => x.Side, x => x.Research!.Clone()),
         });
         g.Events.Add(new BattleStarted(id));
     }
 
     /// <summary>
     /// A lone fleet occupies an undefended planet, and takes it once the occupation runs out.
-    /// Two factions present (fleets, or an owner with a station or platforms) fight: the last
-    /// fleet to arrive attacks. Sides bound by a truce do not fight, and do not take each other's
-    /// planets: on a neutral one, the first to come takes it while the other waits by. Errant war
-    /// bands never take a planet.
+    /// Two sides at war present (fleets, or an owner with a station or platforms) fight: the last
+    /// fleet to arrive attacks. Allies and sides bound by a truce do not fight, and do not take
+    /// each other's planets: on a neutral one, the first to come takes it while the other waits
+    /// by. Errant war bands never take a planet.
     /// </summary>
     static void DetectConflicts(Galaxy g)
     {
@@ -727,24 +755,24 @@ public static partial class Galaxies
         {
             if (BattleAt(g, planet.Id)) continue;
             var here = FleetsAt(g, planet.Id).OrderBy(f => f.ArrivedAt).ToList();
-            var present = here.Select(f => f.Faction).Distinct().ToList();
+            var present = here.Select(f => f.Side).Distinct().ToList();
             var owner = planet.Owner;
-            var defended = owner is Faction o && (Fortified(planet) || present.Contains(o));
+            var defended = owner is Side o && (Fortified(planet) || present.Contains(o));
             var clash = Clash(g, here, defended ? owner : null);
-            var takers = present.Where(f => f != Faction.Errant && (owner is not Faction o2 || !AtPeace(g, f, o2))).ToList();
+            var takers = present.Where(f => f != Faction.Errant && (owner is not Side o2 || f == o2 || AtWar(g, f, o2))).ToList();
             if (!defended && clash is null && takers.Count > 0)
             {
-                var f = planet.Occupation is { } going && takers.Contains(going.Faction) ? going.Faction : takers[0];
+                var f = planet.Occupation is { } going && takers.Contains(going.Side) ? going.Side : takers[0];
                 if (owner == f) planet.Occupation = null;
-                else if (planet.Occupation?.Faction != f)
+                else if (planet.Occupation?.Side != f)
                 {
                     var time = owner is not null ? GalaxyRules.CaptureTime : GalaxyRules.NeutralCaptureTime;
-                    planet.Occupation = new Occupation { Faction = f, Remaining = time };
+                    planet.Occupation = new Occupation { Side = f, Remaining = time };
                 }
                 continue;
             }
             planet.Occupation = null;
-            if (clash is { } c) StartBattle(g, planet, c.Attacker.Faction, c.Defender, c.Attacker.Came);
+            if (clash is { } c) StartBattle(g, planet, c.Attacker.Side, c.Defender, c.Attacker.Came);
         }
     }
 
@@ -765,16 +793,16 @@ public static partial class Galaxies
         var attHeroes = Battle.HeroSurvivors(w, b.Attacker);
         var defHeroes = Battle.HeroSurvivors(w, b.Defender);
         // Fallen heroes can be built again after a while.
-        foreach (var (faction, alive) in new[] { (b.Attacker, attHeroes), (b.Defender, defHeroes) })
+        foreach (var (side, alive) in new[] { (b.Attacker, attHeroes), (b.Defender, defHeroes) })
         {
-            if (!g.Factions.TryGetValue(faction, out var f)) continue;
-            foreach (var h in b.Heroes.GetValueOrDefault(faction) ?? []) if (!alive.Contains(h)) f.HeroCooldowns[h] = Data.Heroes.Defs[h].Respawn;
+            if (!g.Factions.TryGetValue(side, out var f)) continue;
+            foreach (var h in b.Heroes.GetValueOrDefault(side) ?? []) if (!alive.Contains(h)) f.HeroCooldowns[h] = Data.Heroes.Defs[h].Respawn;
         }
         if (b.Lane is not null)
         {
             foreach (var f in g.Fleets.Values.Where(f => f.BattleId == b.Id).ToList())
             {
-                var attacking = f.Faction == b.Attacker;
+                var attacking = f.Side == b.Attacker;
                 var ships = attacking ? att : def;
                 var heroes = attacking ? attHeroes : defHeroes;
                 if (Battle.CountShips(ships) == 0 && heroes.Count == 0)
@@ -833,7 +861,7 @@ public static partial class Galaxies
         if (result == BattleResult.Attacker)
         {
             // An Errant war band pillages the planet and leaves it (GalaxyIncidents): it never holds one.
-            if (b.Attacker != Faction.Errant) Capture(g, planet, b.Attacker);
+            if (RaceOf(g, b.Attacker) != Faction.Errant) Capture(g, planet, b.Attacker);
             AddShipsAt(g, b.Attacker, planet.Id, att, attHeroes, attCondition);
         }
         else
@@ -886,17 +914,17 @@ public static partial class Galaxies
             var o = planet.Occupation;
             if (o is null) continue;
             o.Remaining -= dt;
-            if (o.Remaining <= 0) Capture(g, planet, o.Faction);
+            if (o.Remaining <= 0) Capture(g, planet, o.Side);
         }
     }
 
-    /// <summary>Galaxy income per second for a faction: planets, plus mines (more on rich deposits, more with research).</summary>
-    public static double IncomeOf(Galaxy g, Faction faction)
+    /// <summary>Galaxy income per second for a side: planets, plus mines (more on rich deposits, more with research).</summary>
+    public static double IncomeOf(Galaxy g, Side side)
     {
         double s = 0;
         foreach (var p in g.Planets)
         {
-            if (p.Owner == faction) s += PlanetIncome(g, p);
+            if (p.Owner == side) s += PlanetIncome(g, p);
         }
         return s;
     }
@@ -904,7 +932,7 @@ public static partial class Galaxies
     /// <summary>What one planet pays its owner per second, mining research included.</summary>
     public static double PlanetIncome(Galaxy g, Planet p)
     {
-        var mining = 1 + Techs.MiningBonus * (p.Owner is Faction o && g.Factions.TryGetValue(o, out var f) ? f.Research[TechId.Mining] : 0);
+        var mining = 1 + Techs.MiningBonus * (p.Owner is Side o && g.Factions.TryGetValue(o, out var f) ? f.Research[TechId.Mining] : 0);
         return (p.Income + p.Station * GalaxyRules.StationIncome + p.Mines * GalaxyRules.MineIncome * mining * (p.Special == PlanetSpecial.Rich ? 2 : 1)) * BoomOf(g, p);
     }
 
@@ -937,7 +965,7 @@ public static partial class Galaxies
     };
 
     /// <summary>Price and time at the planet, whose station is taken at level `station`; `logistics`: its owner's research.</summary>
-    static (double Cost, double Time) BuildCost(Planet planet, GalaxyBuild build, int station, int logistics = 0)
+    static (double Cost, double Time) BuildCost(Galaxy g, Planet planet, GalaxyBuild build, int station, int logistics = 0)
     {
         var yard = planet.Special == PlanetSpecial.Shipyard ? 0.7 : 1;
         switch (build.Kind)
@@ -948,7 +976,7 @@ public static partial class Galaxies
                 return (def.Cost, def.BuildTime * yard);
             }
             case GalaxyBuildKind.Ship:
-                return (Data.Ships.Cost(build.Cls, planet.Owner ?? Faction.Klaed),
+                return (Data.Ships.Cost(build.Cls, planet.Owner is Side owner ? RaceOf(g, owner) : Faction.Klaed),
                     Data.Ships.Defs[build.Cls].BuildTime * yard * (1 - Techs.LogisticsBonus * logistics));
             case GalaxyBuildKind.Station:
                 if (station == 0) return (GalaxyRules.StationCost, GalaxyRules.StationTime);
@@ -969,13 +997,13 @@ public static partial class Galaxies
         }
     }
 
-    public static double BuildPrice(Planet planet, GalaxyBuild build) => BuildCost(planet, build, planet.Station).Cost;
+    public static double BuildPrice(Galaxy g, Planet planet, GalaxyBuild build) => BuildCost(g, planet, build, planet.Station).Cost;
 
-    public static double BuildTime(Galaxy g, Planet planet, GalaxyBuild build) => BuildCost(planet, build, planet.Station, Logistics(g, planet)).Time;
+    public static double BuildTime(Galaxy g, Planet planet, GalaxyBuild build) => BuildCost(g, planet, build, planet.Station, Logistics(g, planet)).Time;
 
     /// <summary>The logistics research of the planet's owner: its ships are built faster.</summary>
     static int Logistics(Galaxy g, Planet planet) =>
-        planet.Owner is Faction owner && g.Factions.TryGetValue(owner, out var f) ? f.Research[TechId.Logistics] : 0;
+        planet.Owner is Side owner && g.Factions.TryGetValue(owner, out var f) ? f.Research[TechId.Logistics] : 0;
 
     static List<GalaxyQueueItem> QueueFor(Planet planet, GalaxyBuild build) =>
         build.Kind is GalaxyBuildKind.Ship or GalaxyBuildKind.Hero ? planet.Units : planet.Buildings;
@@ -986,22 +1014,22 @@ public static partial class Galaxies
         || g.Battles.Exists(b => b.Heroes.Values.Any(list => list.Contains(hero)))
         || g.Planets.Exists(p => p.Units.Exists(q => q.Kind == GalaxyBuildKind.Hero && q.Hero == hero));
 
-    /// <summary>How many ships of this class the faction has anywhere: in fleets, battles and queues.</summary>
-    public static int ClassCount(Galaxy g, Faction faction, ShipClass cls)
+    /// <summary>How many ships of this class the side has anywhere: in fleets, battles and queues.</summary>
+    public static int ClassCount(Galaxy g, Side side, ShipClass cls)
     {
         var type = Ids.Of(cls);
-        return g.Fleets.Values.Where(f => f.Faction == faction).Sum(f => f.Ships.Of(cls))
-            + g.Battles.Sum(b => b.World.Entities.Count(e => e.Faction == faction && e.Kind == EntityKind.Ship && e.Type == type))
-            + g.Planets.Where(p => p.Owner == faction).Sum(p => p.Units.Count(q => q.Kind == GalaxyBuildKind.Ship && q.Cls == cls));
+        return g.Fleets.Values.Where(f => f.Side == side).Sum(f => f.Ships.Of(cls))
+            + g.Battles.Sum(b => b.World.Entities.Count(e => e.Side == side && e.Kind == EntityKind.Ship && e.Type == type))
+            + g.Planets.Where(p => p.Owner == side).Sum(p => p.Units.Count(q => q.Kind == GalaxyBuildKind.Ship && q.Cls == cls));
     }
 
     public static int PlatformCap(Planet planet) => planet.Station * 2 + (planet.Special == PlanetSpecial.Fortress ? 2 : 0);
 
-    /// <summary>Whether the faction can queue this at the planet right now, and if not, why.</summary>
-    public static Result CanBuild(Galaxy g, Faction faction, int planetId, GalaxyBuild build)
+    /// <summary>Whether the side can queue this at the planet right now, and if not, why.</summary>
+    public static Result CanBuild(Galaxy g, Side side, int planetId, GalaxyBuild build)
     {
         var planet = g.Planets[planetId];
-        if (!g.Factions.TryGetValue(faction, out var f) || planet.Owner != faction) return Result.Fail("Planète non contrôlée");
+        if (!g.Factions.TryGetValue(side, out var f) || planet.Owner != side) return Result.Fail("Planète non contrôlée");
         if (BattleAt(g, planetId)) return Result.Fail("Combat en cours");
         if (QueueFor(planet, build).Count >= Buildables.MaxQueue) return Result.Fail("File d'attente pleine");
         int Queued(GalaxyBuildKind kind) => planet.Buildings.Count(q => q.Kind == kind);
@@ -1047,12 +1075,12 @@ public static partial class Galaxies
             }
             case GalaxyBuildKind.StarLance:
                 if (planet.Station < Station.Levels.Count) return Result.Fail($"Station niveau {Station.Levels.Count} requise");
-                if (HasLance(g, faction)) return Result.Fail("Une seule Lance stellaire");
+                if (HasLance(g, side)) return Result.Fail("Une seule Lance stellaire");
                 break;
             case GalaxyBuildKind.Hero:
             {
                 var def = Data.Heroes.Defs[build.Hero];
-                if (def.Id.Faction != faction) return Result.Fail("Héros d'une autre faction");
+                if (def.Id.Faction != f.Race) return Result.Fail("Héros d'une autre faction");
                 if (planet.Station < def.MinStationLevel) return Result.Fail($"Station niveau {def.MinStationLevel} requise");
                 if (HeroInService(g, build.Hero)) return Result.Fail("Déjà en service");
                 var wait = f.HeroCooldowns.GetValueOrDefault(build.Hero);
@@ -1064,11 +1092,11 @@ public static partial class Galaxies
                 var yard = Shipyard(planet, build.Cls);
                 if (!yard.Ok) return yard;
                 var def = Data.Ships.Defs[build.Cls];
-                if (def.Limit is int limit && ClassCount(g, faction, build.Cls) >= limit) return Result.Fail(def.LimitReason);
+                if (def.Limit is int limit && ClassCount(g, side, build.Cls) >= limit) return Result.Fail(def.LimitReason);
                 break;
             }
         }
-        if (f.Credits < BuildCost(planet, build, planet.Station).Cost) return Result.Fail("Crédits insuffisants");
+        if (f.Credits < BuildCost(g, planet, build, planet.Station).Cost) return Result.Fail("Crédits insuffisants");
         return Result.OK;
     }
 
@@ -1083,40 +1111,40 @@ public static partial class Galaxies
     }
 
     /// <summary>
-    /// Whether the faction can keep this class in production at the planet: its station must
+    /// Whether the side can keep this class in production at the planet: its station must
     /// build it. Credits, a full queue or a class at its limit only make the loop wait.
     /// </summary>
-    public static Result CanLoop(Galaxy g, Faction faction, int planetId, ShipClass cls)
+    public static Result CanLoop(Galaxy g, Side side, int planetId, ShipClass cls)
     {
         var planet = g.Planets[planetId];
-        if (!g.Factions.ContainsKey(faction) || planet.Owner != faction) return Result.Fail("Planète non contrôlée");
+        if (!g.Factions.ContainsKey(side) || planet.Owner != side) return Result.Fail("Planète non contrôlée");
         return Shipyard(planet, cls);
     }
 
     /// <summary>Starts or stops a planet's production loop of a ship class. Heroes are one of a kind: they never loop.</summary>
-    public static Result SetLoop(Galaxy g, Faction faction, int planetId, ShipClass cls, bool on)
+    public static Result SetLoop(Galaxy g, Side side, int planetId, ShipClass cls, bool on)
     {
         var planet = g.Planets[planetId];
         if (!on)
         {
-            if (planet.Owner != faction) return Result.Fail("Planète non contrôlée");
+            if (planet.Owner != side) return Result.Fail("Planète non contrôlée");
             planet.Repeat.Remove(cls);
             return Result.OK;
         }
-        var r = CanLoop(g, faction, planetId, cls);
+        var r = CanLoop(g, side, planetId, cls);
         if (r.Ok && !planet.Repeat.Contains(cls)) planet.Repeat.Add(cls);
         return r;
     }
 
-    public static Result EnqueueBuild(Galaxy g, Faction faction, int planetId, GalaxyBuild build)
+    public static Result EnqueueBuild(Galaxy g, Side side, int planetId, GalaxyBuild build)
     {
-        var r = CanBuild(g, faction, planetId, build);
+        var r = CanBuild(g, side, planetId, build);
         if (!r.Ok) return r;
         var planet = g.Planets[planetId];
         // A station upgrade queued behind another one is priced at the level it will reach.
         var ahead = planet.Station + planet.Buildings.Count(q => q.Kind == GalaxyBuildKind.Station);
-        var (cost, time) = BuildCost(planet, build, ahead, Logistics(g, planet));
-        var f = g.Factions[faction];
+        var (cost, time) = BuildCost(g, planet, build, ahead, Logistics(g, planet));
+        var f = g.Factions[side];
         if (f.Credits < cost) return Result.Fail("Crédits insuffisants");
         f.Credits -= cost;
         QueueFor(planet, build).Add(new GalaxyQueueItem { Kind = build.Kind, Cls = build.Cls, Hero = build.Hero, Remaining = time, Total = time, Cost = cost });
@@ -1127,7 +1155,7 @@ public static partial class Galaxies
     {
         var planet = g.Planets[planetId];
         var queue = which == QueueSide.Units ? planet.Units : planet.Buildings;
-        if (index < 0 || index >= queue.Count || planet.Owner is not Faction owner) return;
+        if (index < 0 || index >= queue.Count || planet.Owner is not Side owner) return;
         var item = queue[index];
         queue.RemoveAt(index);
         g.Factions[owner].Credits += item.Cost;
@@ -1185,7 +1213,7 @@ public static partial class Galaxies
         }
         var f = new Fleet
         {
-            Id = g.NextId++, Faction = owner, Ships = ships.Clone(), Heroes = [.. heroes], At = planet.Id, From = planet.Id,
+            Id = g.NextId++, Side = owner, Ships = ships.Clone(), Heroes = [.. heroes], At = planet.Id, From = planet.Id,
             Came = planet.Id, ArrivedAt = g.Time,
         };
         g.Fleets[f.Id] = f;
@@ -1200,7 +1228,7 @@ public static partial class Galaxies
     {
         foreach (var planet in g.Planets)
         {
-            if (planet.Owner is not Faction owner || BattleAt(g, planet.Id)) continue;
+            if (planet.Owner is not Side owner || BattleAt(g, planet.Id)) continue;
             foreach (var queue in new[] { planet.Buildings, planet.Units })
             {
                 var item = queue.Count > 0 ? queue[0] : null;
@@ -1219,10 +1247,10 @@ public static partial class Galaxies
     /// Whether the next level of this tech can join the queue: judged on the level it would reach.
     /// Research needs a lab, and a station of the level about to be reached.
     /// </summary>
-    public static Result CanResearchTech(Galaxy g, Faction faction, TechId tech)
+    public static Result CanResearchTech(Galaxy g, Side side, TechId tech)
     {
-        if (!g.Factions.TryGetValue(faction, out var f)) return Result.Fail("Faction inconnue");
-        var own = g.Planets.Where(p => p.Owner == faction).ToList();
+        if (!g.Factions.TryGetValue(side, out var f)) return Result.Fail("Faction inconnue");
+        var own = g.Planets.Where(p => p.Owner == side).ToList();
         var level = ResearchQueue.PlannedLevel(f, tech);
         if (!own.Exists(p => p.Lab > 0)) return Result.Fail("Laboratoire requis");
         if (level >= Techs.Defs[tech].MaxLevel) return Result.Fail("Niveau maximum");
@@ -1233,23 +1261,23 @@ public static partial class Galaxies
         return Result.OK;
     }
 
-    public static Result StartTech(Galaxy g, Faction faction, TechId tech)
+    public static Result StartTech(Galaxy g, Side side, TechId tech)
     {
-        var r = CanResearchTech(g, faction, tech);
+        var r = CanResearchTech(g, side, tech);
         if (!r.Ok) return r;
-        ResearchQueue.Queue(g.Factions[faction], tech);
+        ResearchQueue.Queue(g.Factions[side], tech);
         return Result.OK;
     }
 
     /// <summary>Cancels a research job, 0 being the running one; later levels of the same tech go too.</summary>
-    public static void CancelTech(Galaxy g, Faction faction, int index = 0)
+    public static void CancelTech(Galaxy g, Side side, int index = 0)
     {
-        if (g.Factions.TryGetValue(faction, out var f)) ResearchQueue.CancelAt(f, index);
+        if (g.Factions.TryGetValue(side, out var f)) ResearchQueue.CancelAt(f, index);
     }
 
     /// <summary>Owning ancient archives speeds research up.</summary>
-    public static double ResearchSpeed(Galaxy g, Faction faction) =>
-        g.Planets.Exists(p => p.Owner == faction && p.Special == PlanetSpecial.Archive) ? 1 / 0.75 : 1;
+    public static double ResearchSpeed(Galaxy g, Side side) =>
+        g.Planets.Exists(p => p.Owner == side && p.Special == PlanetSpecial.Archive) ? 1 / 0.75 : 1;
 
     static void UpdateResearch(Galaxy g, double dt)
     {
@@ -1260,26 +1288,26 @@ public static partial class Galaxies
     }
 
     /// <summary>
-    /// A faction without a planet is out, unless it is taking one over or fighting for one:
-    /// its fleets have nowhere left to go. The last faction standing wins; the Errants, no galaxy
-    /// faction, are never out and never in the way.
+    /// A side without a planet is out, unless it is taking one over or fighting for one: its
+    /// fleets have nowhere left to go. The last camp standing wins, a team together or a side
+    /// alone; the Errants, no galaxy faction, are never out and never in the way.
     /// </summary>
     static void CheckElimination(Galaxy g)
     {
         foreach (var f in g.Factions.Values)
         {
             if (f.Eliminated) continue;
-            var planets = g.Planets.Exists(p => p.Owner == f.Id || p.Occupation?.Faction == f.Id);
+            var planets = g.Planets.Exists(p => p.Owner == f.Id || p.Occupation?.Side == f.Id);
             var fighting = g.Battles.Exists(b => b.Attacker == f.Id || b.Defender == f.Id);
             if (planets || fighting) continue;
             f.Eliminated = true;
-            foreach (var fl in g.Fleets.Values.ToList()) if (fl.Faction == f.Id) g.Fleets.Remove(fl.Id);
+            foreach (var fl in g.Fleets.Values.ToList()) if (fl.Side == f.Id) g.Fleets.Remove(fl.Id);
         }
         var alive = g.Factions.Values.Where(f => !f.Eliminated).ToList();
-        if (g.Winner is null && alive.Count == 1)
+        if (g.Winner is null && alive.Count > 0 && alive.TrueForAll(f => Allies(g, f.Id, alive[0].Id)))
         {
             g.Winner = alive[0].Id;
-            g.Events.Add(new GalaxyVictory(alive[0].Id));
+            g.Events.Add(new GalaxyVictory(alive[0].Id, alive[0].Team));
         }
     }
 

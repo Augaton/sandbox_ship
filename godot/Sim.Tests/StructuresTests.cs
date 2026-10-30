@@ -18,7 +18,7 @@ public class StructuresTests
     }
 
     static List<Entity> ShipsOf(World w, Faction faction, string? type = null) =>
-        w.Entities.Where(e => e.Kind == EntityKind.Ship && e.Faction == faction && (type is null || e.Type == type)).ToList();
+        w.Entities.Where(e => e.Kind == EntityKind.Ship && e.Side == faction && (type is null || e.Type == type)).ToList();
 
     // Production.
 

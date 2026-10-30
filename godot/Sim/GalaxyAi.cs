@@ -43,18 +43,19 @@ public static class GalaxyAi
     /// walls the faction off from every rival: their planet is then the front, to take once
     /// clearly stronger, or the fleets would wait at home forever.
     /// </summary>
-    static Dictionary<int, int> HopsToEnemy(Galaxy g, Faction faction)
+    static Dictionary<int, int> HopsToEnemy(Galaxy g, Side side)
     {
-        var seen = VisiblePlanets(g, faction);
+        var seen = VisiblePlanets(g, side);
         // Truce partners are no front while there is another rival; with none left, the fleets
         // still face them, ready for when the truce runs out.
-        var peace = g.Factions.Keys.Any(f => f != faction && !AtPeace(g, faction, f) && !g.Factions[f].Eliminated);
-        bool Rival(Faction? f) => f is Faction other && other != faction && other != Faction.Errant && (!peace || !AtPeace(g, faction, other));
+        // Allies are never one.
+        var peace = g.Factions.Keys.Any(f => AtWar(g, side, f) && !g.Factions[f].Eliminated);
+        bool Rival(Side? f) => f is Side other && other != Faction.Errant && !Allies(g, side, other) && (!peace || !AtPeace(g, side, other));
         var frontier = g.Planets
-            .Where(p => Rival(p.Owner) || (seen.Contains(p.Id) && FleetsAt(g, p.Id).Exists(f => Rival(f.Faction))))
+            .Where(p => Rival(p.Owner) || (seen.Contains(p.Id) && FleetsAt(g, p.Id).Exists(f => Rival(f.Side))))
             .Select(p => p.Id);
         var hops = Hops(g, frontier, p => p.Owner != Faction.Errant);
-        var own = g.Planets.Where(p => p.Owner == faction).ToList();
+        var own = g.Planets.Where(p => p.Owner == side).ToList();
         if (own.Count == 0 || own.Exists(p => hops.ContainsKey(p.Id))) return hops;
         return Hops(g, g.Planets.Where(p => p.Owner == Faction.Errant).Select(p => p.Id));
     }
@@ -65,33 +66,33 @@ public static class GalaxyAi
     /// Strength an attacker would meet at a planet, as far as the faction knows (the Errants' site,
     /// always): what holds it and the fleets it sees there, truce partners left out.
     /// </summary>
-    static double Threat(Galaxy g, Planet planet, Faction faction)
+    static double Threat(Galaxy g, Planet planet, Side side)
     {
-        if (!Known(g, faction, planet)) return 0;
-        var hostile = planet.Owner is Faction o && o != faction && !AtPeace(g, faction, o);
+        if (!Known(g, side, planet)) return 0;
+        var hostile = planet.Owner is Side o && AtWar(g, side, o);
         var owned = hostile ? DefenseValue(g, planet) - FleetsAt(g, planet.Id, planet.Owner).Sum(FleetStrength) : 0;
-        var fleets = FleetsAt(g, planet.Id).Where(f => f.Faction != faction && !AtPeace(g, faction, f.Faction) && !InNebula(g, f));
+        var fleets = FleetsAt(g, planet.Id).Where(f => AtWar(g, side, f.Side) && !InNebula(g, f));
         return owned + fleets.Sum(FleetStrength);
     }
 
-    /// <summary>Whether a fleet the faction sees can strike it: not its own, not a truce partner's, not the Errants' guard, which never leaves its planet.</summary>
-    static bool Hostile(Galaxy g, Faction faction, Fleet f, HashSet<int> seen) =>
-        f.Faction != faction && !AtPeace(g, faction, f.Faction) && FleetVisible(g, faction, f, seen)
-        && !(f.Faction == Faction.Errant && f.At is int at && g.Planets[at].Owner == Faction.Errant);
+    /// <summary>Whether a fleet the faction sees can strike it: not its own, not an ally's or a truce partner's, not the Errants' guard, which never leaves its planet.</summary>
+    static bool Hostile(Galaxy g, Side side, Fleet f, HashSet<int> seen) =>
+        AtWar(g, side, f.Side) && FleetVisible(g, side, f, seen)
+        && !(f.Side == Faction.Errant && f.At is int at && g.Planets[at].Owner == Faction.Errant);
 
-    /// <summary>Whether the faction is at war with a planet's owner: a rival galaxy faction with no truce, or the Errants.</summary>
-    static bool EnemyPlanet(Galaxy g, Faction faction, Planet p) => p.Owner is Faction o && o != faction && !AtPeace(g, faction, o);
+    /// <summary>Whether the faction is at war with a planet's owner: a rival galaxy faction, neither ally nor truce partner, or the Errants.</summary>
+    static bool EnemyPlanet(Galaxy g, Side side, Planet p) => p.Owner is Side o && AtWar(g, side, o);
 
     /// <summary>Ship weights tilted towards what counters the enemy fleets the faction can see.</summary>
-    static ShipClass? PickShip(Galaxy g, Faction faction, Planet planet)
+    static ShipClass? PickShip(Galaxy g, Side side, Planet planet)
     {
         var weights = new Dictionary<ShipClass, double>(ShipWeights);
-        var seen = VisiblePlanets(g, faction);
+        var seen = VisiblePlanets(g, side);
         var small = 0;
         var large = 0;
         foreach (var f in g.Fleets.Values)
         {
-            if (f.Faction == faction || !FleetVisible(g, faction, f, seen)) continue;
+            if (Allies(g, f.Side, side) || !FleetVisible(g, side, f, seen)) continue;
             foreach (var c in Ships.All)
             {
                 if (Ships.Defs[c].Size == SizeClass.Small) small += f.Ships.Of(c);
@@ -106,7 +107,7 @@ public static class GalaxyAi
         }
         // Classes at their limit are left out: wanting one would block every other purchase.
         var options = Ships.All.Where(c => weights.ContainsKey(c) && planet.Station >= Ships.Defs[c].MinStationLevel
-            && (Ships.Defs[c].Limit is not int limit || ClassCount(g, faction, c) < limit)).ToList();
+            && (Ships.Defs[c].Limit is not int limit || ClassCount(g, side, c) < limit)).ToList();
         var total = options.Sum(c => weights[c]);
         var r = GalaxyRand(g) * total;
         foreach (var c in options)
@@ -118,17 +119,17 @@ public static class GalaxyAi
     }
 
     /// <summary>Least researched tech not at its last level, combat techs first.</summary>
-    static TechId? PickTech(Galaxy g, Faction faction)
+    static TechId? PickTech(Galaxy g, Side side)
     {
-        var r = g.Factions[faction].Research;
+        var r = g.Factions[side].Research;
         foreach (var t in TechOrder.Where(t => r[t] < Techs.Defs[t].MaxLevel).OrderBy(t => r[t])) return t;
         return null;
     }
 
     /// <summary>Candidate purchases, most wanted first.</summary>
-    static List<Wish> Wishes(Galaxy g, Faction faction, Dictionary<int, int> hops)
+    static List<Wish> Wishes(Galaxy g, Side side, Dictionary<int, int> hops)
     {
-        var own = g.Planets.Where(p => p.Owner == faction).ToList();
+        var own = g.Planets.Where(p => p.Owner == side).ToList();
         var byFront = own.OrderBy(p => HopsOf(hops, p.Id)).ToList();
         static Wish At(Planet p, GalaxyBuild build) => new(p.Id, build);
         var out_ = own.OrderByDescending(p => p.Income).Select(p => At(p, GalaxyBuild.Of(GalaxyBuildKind.Mine))).ToList();
@@ -142,7 +143,7 @@ public static class GalaxyAi
         // Research: a lab in the rear once the empire grows, then one tech after another.
         var rear = byFront.LastOrDefault();
         if (rear is not null && own.Count >= 3 && !own.Exists(p => p.Lab > 0)) infra.Add(At(rear, GalaxyBuild.Of(GalaxyBuildKind.Lab)));
-        if (own.Exists(p => p.Lab > 0) && g.Factions[faction].Researching is null && PickTech(g, faction) is TechId tech) infra.Add(new Wish(-1, null, tech));
+        if (own.Exists(p => p.Lab > 0) && g.Factions[side].Researching is null && PickTech(g, side) is TechId tech) infra.Add(new Wish(-1, null, tech));
         foreach (var p in byFront)
         {
             if (p.Station == 0 || HopsOf(hops, p.Id) > 1) continue;
@@ -153,24 +154,24 @@ public static class GalaxyAi
 
         var ships = new List<Wish>();
         var yard = byFront.Find(p => p.Station > 0 && p.Units.Count < 2);
-        var ai = g.Factions[faction].AI!;
-        if (yard is not null) ai.Want ??= PickShip(g, faction, yard);
+        var ai = g.Factions[side].AI!;
+        if (yard is not null) ai.Want ??= PickShip(g, side, yard);
         if (yard is not null && ai.Want is ShipClass want) ships.Add(At(yard, GalaxyBuild.Ship(want)));
         // Heroes now and then, at the front shipyard.
-        var hero = yard is null ? null : Heroes.Of(faction).FirstOrDefault(h =>
+        var hero = yard is null ? null : Heroes.Of(g.Factions[side].Race).FirstOrDefault(h =>
         {
-            var r = CanBuild(g, faction, yard.Id, GalaxyBuild.HeroOf(h.Id));
+            var r = CanBuild(g, side, yard.Id, GalaxyBuild.HeroOf(h.Id));
             return r.Ok || r.Reason == NoCredits;
         });
         if (yard is not null && hero is not null && GalaxyRand(g) < 0.15) ships.Insert(0, At(yard, GalaxyBuild.HeroOf(hero.Id)));
 
         // A planet facing a stronger enemy fleet next door gets its defenses first. The Errants'
         // guard never leaves its planet: no danger.
-        var seen = VisiblePlanets(g, faction);
+        var seen = VisiblePlanets(g, side);
         var danger = new List<Wish>();
         foreach (var p in own)
         {
-            var near = Neighbours(g, p.Id).SelectMany(n => FleetsAt(g, n)).Where(f => Hostile(g, faction, f, seen));
+            var near = Neighbours(g, p.Id).SelectMany(n => FleetsAt(g, n)).Where(f => Hostile(g, side, f, seen));
             var menace = near.Sum(FleetStrength);
             if (menace > 0 && menace > DefenseValue(g, p))
             {
@@ -184,26 +185,26 @@ public static class GalaxyAi
     }
 
     /// <summary>Buys the first wish it can; stops to save up when the wish is only too expensive.</summary>
-    static void Spend(Galaxy g, Faction faction, Dictionary<int, int> hops)
+    static void Spend(Galaxy g, Side side, Dictionary<int, int> hops)
     {
-        foreach (var wish in Wishes(g, faction, hops))
+        foreach (var wish in Wishes(g, side, hops))
         {
-            var r = wish.Tech is TechId tech ? CanResearchTech(g, faction, tech) : CanBuild(g, faction, wish.Planet, wish.Build!.Value);
+            var r = wish.Tech is TechId tech ? CanResearchTech(g, side, tech) : CanBuild(g, side, wish.Planet, wish.Build!.Value);
             if (r.Ok)
             {
-                if (wish.Tech is TechId t) StartTech(g, faction, t);
-                else EnqueueBuild(g, faction, wish.Planet, wish.Build!.Value);
-                if (wish.Build?.Kind == GalaxyBuildKind.Ship) g.Factions[faction].AI!.Want = null;
+                if (wish.Tech is TechId t) StartTech(g, side, t);
+                else EnqueueBuild(g, side, wish.Planet, wish.Build!.Value);
+                if (wish.Build?.Kind == GalaxyBuildKind.Ship) g.Factions[side].AI!.Want = null;
                 return;
             }
             if (r.Reason == NoCredits) return;
             // A ship it may no longer build (its limit reached meanwhile): want another one.
-            if (wish.Build?.Kind == GalaxyBuildKind.Ship) g.Factions[faction].AI!.Want = null;
+            if (wish.Build?.Kind == GalaxyBuildKind.Ship) g.Factions[side].AI!.Want = null;
         }
     }
 
-    static bool Heading(Galaxy g, Faction faction, int planetId) =>
-        g.Fleets.Values.Any(f => f.Faction == faction && (f.To == planetId || f.Path.Contains(planetId)));
+    static bool Heading(Galaxy g, Side side, int planetId) =>
+        g.Fleets.Values.Any(f => f.Side == side && (f.To == planetId || f.Path.Contains(planetId)));
 
     static ShipClass Cheapest(Fleet f) => Ships.All.Where(c => f.Ships.Of(c) > 0).OrderBy(c => Ships.Defs[c].Cost).First();
 
@@ -226,21 +227,21 @@ public static class GalaxyAi
     }
 
     /// <summary>Strength of the hostile fleets the faction sees within two lanes of a planet, or on a lane towards it or a neighbour.</summary>
-    static double Menace(Galaxy g, Faction faction, Planet planet, HashSet<int> seen)
+    static double Menace(Galaxy g, Side side, Planet planet, HashSet<int> seen)
     {
         var around = Around(g, planet.Id);
         var next = Neighbours(g, planet.Id).Append(planet.Id).ToHashSet();
         return g.Fleets.Values
-            .Where(f => (f.At is int at ? around.Contains(at) : f.To is int to && next.Contains(to)) && Hostile(g, faction, f, seen))
+            .Where(f => (f.At is int at ? around.Contains(at) : f.To is int to && next.Contains(to)) && Hostile(g, side, f, seen))
             .Sum(FleetStrength);
     }
 
     /// <summary>A route from `from` to `to` that stops at no hostile planet before the end.</summary>
-    static bool SafeRoute(Galaxy g, Faction faction, int from, int to, HashSet<int> seen)
+    static bool SafeRoute(Galaxy g, Side side, int from, int to, HashSet<int> seen)
     {
         var path = FindPath(g, from, to);
         return path is not null && path.Take(path.Count - 1).All(id =>
-            !EnemyPlanet(g, faction, g.Planets[id]) && !FleetsAt(g, id).Exists(f => Hostile(g, faction, f, seen)));
+            !EnemyPlanet(g, side, g.Planets[id]) && !FleetsAt(g, id).Exists(f => Hostile(g, side, f, seen)));
     }
 
     /// <summary>
@@ -249,19 +250,19 @@ public static class GalaxyAi
     /// hold it together. A fleet leaves a planet it guards only for a more valuable one. Returns
     /// the fleets sent.
     /// </summary>
-    static HashSet<int> Defend(Galaxy g, Faction faction, List<Planet> own, HashSet<int> seen)
+    static HashSet<int> Defend(Galaxy g, Side side, List<Planet> own, HashSet<int> seen)
     {
         var sent = new HashSet<int>();
-        var menace = own.ToDictionary(p => p.Id, p => Menace(g, faction, p, seen));
+        var menace = own.ToDictionary(p => p.Id, p => Menace(g, side, p, seen));
         foreach (var p in own.Where(p => menace[p.Id] > 0).OrderByDescending(Worth))
         {
             var need = menace[p.Id] * 1.1 - DefenseValue(g, p);
             if (need <= 0) continue;
             var around = Around(g, p.Id);
             var helpers = own.Where(q => q.Id != p.Id && around.Contains(q.Id))
-                .SelectMany(q => FleetsAt(g, q.Id, faction).Where(f => !sent.Contains(f.Id)
+                .SelectMany(q => FleetsAt(g, q.Id, side).Where(f => !sent.Contains(f.Id)
                     && (Worth(q) < Worth(p) || DefenseValue(g, q) - FleetStrength(f) >= menace[q.Id] * 1.1)))
-                .Where(f => SafeRoute(g, faction, f.At!.Value, p.Id, seen))
+                .Where(f => SafeRoute(g, side, f.At!.Value, p.Id, seen))
                 .OrderByDescending(FleetStrength).ToList();
             if (DefenseValue(g, p) + helpers.Sum(FleetStrength) < menace[p.Id]) continue;
             foreach (var f in helpers)
@@ -279,12 +280,12 @@ public static class GalaxyAi
     /// The next offensive: a rival planet next to one of the faction's, where its fleets gather.
     /// It holds while both stay what they are; then the most valuable planet for what guards it.
     /// </summary>
-    static (int Staging, int Target)? Offensive(Galaxy g, Faction faction, GalaxyAIState ai, List<Planet> own)
+    static (int Staging, int Target)? Offensive(Galaxy g, Side side, GalaxyAIState ai, List<Planet> own)
     {
-        bool Rival(Planet t) => t.Owner is Faction o && o != faction && g.Factions.ContainsKey(o) && !AtPeace(g, faction, o);
-        if (ai.Staging is int s0 && ai.Target is int t0 && g.Planets[s0].Owner == faction && Rival(g.Planets[t0])) return (s0, t0);
+        bool Rival(Planet t) => t.Owner is Side o && g.Factions.ContainsKey(o) && AtWar(g, side, o);
+        if (ai.Staging is int s0 && ai.Target is int t0 && g.Planets[s0].Owner == side && Rival(g.Planets[t0])) return (s0, t0);
         var best = own.SelectMany(s => Neighbours(g, s.Id).Select(id => g.Planets[id]).Where(Rival).Select(t => (Staging: s, Target: t)))
-            .OrderByDescending(x => Worth(x.Target) / (Threat(g, x.Target, faction) + 1000))
+            .OrderByDescending(x => Worth(x.Target) / (Threat(g, x.Target, side) + 1000))
             .ThenByDescending(x => x.Staging.Station)
             .Select(x => ((int, int)?)(x.Staging.Id, x.Target.Id)).FirstOrDefault();
         ai.Staging = best?.Item1;
@@ -293,33 +294,33 @@ public static class GalaxyAi
     }
 
     /// <summary>The nearest planet of the faction with a station, where a worn fleet mends fastest; any of its planets without one.</summary>
-    static Planet? Home(Galaxy g, Faction faction, int from)
+    static Planet? Home(Galaxy g, Side side, int from)
     {
         var hops = Hops(g, [from]);
-        return g.Planets.Where(p => p.Owner == faction && hops.ContainsKey(p.Id))
+        return g.Planets.Where(p => p.Owner == side && hops.ContainsKey(p.Id))
             .OrderByDescending(p => p.Station > 0).ThenBy(p => hops[p.Id]).FirstOrDefault();
     }
 
-    static void Command(Galaxy g, Faction faction, Dictionary<int, int> hops)
+    static void Command(Galaxy g, Side side, Dictionary<int, int> hops)
     {
-        var ai = g.Factions[faction].AI!;
-        var seen = VisiblePlanets(g, faction);
-        var own = g.Planets.Where(p => p.Owner == faction).ToList();
-        var sent = Defend(g, faction, own, seen);
-        var plan = Offensive(g, faction, ai, own);
+        var ai = g.Factions[side].AI!;
+        var seen = VisiblePlanets(g, side);
+        var own = g.Planets.Where(p => p.Owner == side).ToList();
+        var sent = Defend(g, side, own, seen);
+        var plan = Offensive(g, side, ai, own);
         var struck = false;
         var derelicts = g.Ongoing.Where(i => i.Kind == IncidentKind.Derelict).Select(i => i.Planet).ToList();
         foreach (var fleet in g.Fleets.Values.ToList())
         {
-            if (fleet.Faction != faction || fleet.At is not int at || fleet.BattleId is not null || sent.Contains(fleet.Id)) continue;
+            if (fleet.Side != side || fleet.At is not int at || fleet.BattleId is not null || sent.Contains(fleet.Id)) continue;
             var near = Neighbours(g, at).Select(id => g.Planets[id]).ToList();
             var value = FleetStrength(fleet);
             // A worn fleet stays home to mend, unless its own planet needs it.
             var worn = fleet.Condition < 0.5;
-            var home = g.Planets[at].Owner == faction;
+            var home = g.Planets[at].Owner == side;
 
             // Defend first: an own planet with enemies on it.
-            var rescue = near.Find(p => p.Owner == faction && Threat(g, p, faction) > 0 && value >= Threat(g, p, faction) * 1.2);
+            var rescue = near.Find(p => p.Owner == side && Threat(g, p, side) > 0 && value >= Threat(g, p, side) * 1.2);
             if (rescue is not null)
             {
                 SendFleet(g, fleet.Id, rescue.Id);
@@ -329,8 +330,8 @@ public static class GalaxyAi
             // Then the most valuable enemy planet the fleet can clearly beat; the Errants, only
             // with the full edge.
             var target = near
-                .Where(p => (EnemyPlanet(g, faction, p) || Threat(g, p, faction) > 0)
-                    && value >= Threat(g, p, faction) * (p.Owner == Faction.Errant ? 1.4 : Edge(ai)) + 300)
+                .Where(p => (EnemyPlanet(g, side, p) || Threat(g, p, side) > 0)
+                    && value >= Threat(g, p, side) * (p.Owner == Faction.Errant ? 1.4 : Edge(ai)) + 300)
                 .OrderByDescending(Worth).FirstOrDefault();
             if (target is not null && !worn && SendFleet(g, fleet.Id, target.Id).Ok)
             {
@@ -339,15 +340,15 @@ public static class GalaxyAi
             }
 
             // A derelict within two lanes, for whoever gets there first: one ship goes to claim it.
-            var wreck = derelicts.Where(d => d != at && Around(g, at).Contains(d) && !Heading(g, faction, d)
-                && Threat(g, g.Planets[d], faction) == 0 && SafeRoute(g, faction, at, d, seen)).Select(d => (int?)d).FirstOrDefault();
+            var wreck = derelicts.Where(d => d != at && Around(g, at).Contains(d) && !Heading(g, side, d)
+                && Threat(g, g.Planets[d], side) == 0 && SafeRoute(g, side, at, d, seen)).Select(d => (int?)d).FirstOrDefault();
             if (wreck is int d0)
             {
                 var one = Battle.CountShips(fleet.Ships) >= 2 ? new ShipCounts { [Cheapest(fleet)] = 1 } : null;
                 if (SendFleet(g, fleet.Id, d0, one).Ok) continue;
             }
 
-            var free = near.Find(p => p.Owner is null && !Heading(g, faction, p.Id) && Threat(g, p, faction) == 0);
+            var free = near.Find(p => p.Owner is null && !Heading(g, side, p.Id) && Threat(g, p, side) == 0);
             if (free is not null && Battle.CountShips(fleet.Ships) >= 2)
             {
                 SendFleet(g, fleet.Id, free.Id, new ShipCounts { [Cheapest(fleet)] = 1 });
@@ -355,10 +356,10 @@ public static class GalaxyAi
             }
 
             // Stranded at a truce partner's planet, or worn beyond its supply lines: back home.
-            var partner = g.Planets[at].Owner is Faction o && o != faction && AtPeace(g, faction, o);
+            var partner = g.Planets[at].Owner is Side o && o != side && AtPeace(g, side, o);
             if (partner || (worn && !home && !Supplied(g, fleet)))
             {
-                if (Home(g, faction, at) is { } back) SendFleet(g, fleet.Id, back.Id);
+                if (Home(g, side, at) is { } back) SendFleet(g, fleet.Id, back.Id);
                 continue;
             }
             if (worn && home) continue;
@@ -367,7 +368,7 @@ public static class GalaxyAi
             // the staging planet, wait for the edge (the strike itself is the attack above).
             if (plan is { } p0 && home)
             {
-                if (at != p0.Staging && SafeRoute(g, faction, at, p0.Staging, seen)) SendFleet(g, fleet.Id, p0.Staging);
+                if (at != p0.Staging && SafeRoute(g, side, at, p0.Staging, seen)) SendFleet(g, fleet.Id, p0.Staging);
                 continue;
             }
 
@@ -376,7 +377,7 @@ public static class GalaxyAi
             // would never be taken, its fleet called back again and again.
             var here = HopsOf(hops, at);
             var closer = near
-                .Where(p => (p.Owner is null || p.Owner == faction) && HopsOf(hops, p.Id) < here)
+                .Where(p => (p.Owner is not Side o || Allies(g, o, side)) && HopsOf(hops, p.Id) < here)
                 .OrderBy(p => HopsOf(hops, p.Id)).FirstOrDefault();
             if (closer is not null && here > 1 && home) SendFleet(g, fleet.Id, closer.Id);
         }
@@ -384,11 +385,11 @@ public static class GalaxyAi
     }
 
     /// <summary>What a faction could bring to a war: its fleets, and a minute of its income.</summary>
-    public static double Might(Galaxy g, Faction faction) =>
-        g.Fleets.Values.Where(f => f.Faction == faction).Sum(FleetStrength) + IncomeOf(g, faction) * 60;
+    public static double Might(Galaxy g, Side side) =>
+        g.Fleets.Values.Where(f => f.Side == side).Sum(FleetStrength) + IncomeOf(g, side) * 60;
 
     /// <summary>Whether two factions face each other: planets two lanes apart at most, or a battle between them.</summary>
-    static bool Contact(Galaxy g, Faction a, Faction b)
+    static bool Contact(Galaxy g, Side a, Side b)
     {
         if (g.Battles.Exists(x => (x.Attacker == a && x.Defender == b) || (x.Attacker == b && x.Defender == a))) return true;
         var hops = Hops(g, g.Planets.Where(p => p.Owner == a).Select(p => p.Id));
@@ -396,18 +397,18 @@ public static class GalaxyAi
     }
 
     /// <summary>Whether the faction is at war, face to face, with a third galaxy faction besides `other`.</summary>
-    static bool BusyElsewhere(Galaxy g, Faction faction, Faction other) =>
-        g.Factions.Values.Any(t => !t.Eliminated && t.Id != faction && t.Id != other && !AtPeace(g, faction, t.Id) && Contact(g, faction, t.Id));
+    static bool BusyElsewhere(Galaxy g, Side side, Side other) =>
+        g.Factions.Values.Any(t => !t.Eliminated && t.Id != other && AtWar(g, side, t.Id) && Contact(g, side, t.Id));
 
     /// <summary>
     /// An AI's answer to a truce: yes when it is the weaker, or busy with a third faction; never
     /// while it bears a grudge against one that broke a truce with it.
     /// </summary>
-    public static Result AnswerTruce(Galaxy g, Faction faction, Faction from)
+    public static Result AnswerTruce(Galaxy g, Side side, Side from)
     {
-        var ai = g.Factions[faction].AI!;
+        var ai = g.Factions[side].AI!;
         if (ai.Grudges.GetValueOrDefault(from) > 0) return Result.Fail("Elle n'a pas oublié la trêve rompue");
-        if (Might(g, faction) < Might(g, from) || BusyElsewhere(g, faction, from)) return Result.OK;
+        if (Might(g, side) < Might(g, from) || BusyElsewhere(g, side, from)) return Result.OK;
         return Result.Fail("Elle se croit la plus forte");
     }
 
@@ -415,19 +416,19 @@ public static class GalaxyAi
     /// Now and then, an AI offers a truce to the strongest rival it faces: when it is clearly the
     /// weaker, or to have its hands free against a third faction.
     /// </summary>
-    static void OfferTruces(Galaxy g, Faction faction)
+    static void OfferTruces(Galaxy g, Side side)
     {
-        var ai = g.Factions[faction].AI!;
+        var ai = g.Factions[side].AI!;
         if (ai.OfferWait > 0) return;
-        var mine = Might(g, faction);
+        var mine = Might(g, side);
         var rivals = g.Factions.Values
-            .Where(f => !f.Eliminated && f.Id != faction && !ai.Grudges.ContainsKey(f.Id) && CanOfferTruce(g, faction, f.Id).Ok)
+            .Where(f => !f.Eliminated && f.Id != side && !ai.Grudges.ContainsKey(f.Id) && CanOfferTruce(g, side, f.Id).Ok)
             .OrderByDescending(f => Might(g, f.Id));
         foreach (var r in rivals)
         {
-            if (!Contact(g, faction, r.Id) || (mine >= Might(g, r.Id) * 0.7 && !BusyElsewhere(g, faction, r.Id))) continue;
+            if (!Contact(g, side, r.Id) || (mine >= Might(g, r.Id) * 0.7 && !BusyElsewhere(g, side, r.Id))) continue;
             ai.OfferWait = OfferPause;
-            ProposeTruce(g, faction, r.Id);
+            ProposeTruce(g, side, r.Id);
             return;
         }
     }

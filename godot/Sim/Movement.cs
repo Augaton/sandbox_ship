@@ -100,16 +100,16 @@ public static class Movement
 
     static double EngineShare(Entity e) => e.Engines is null || e.MaxEngines == 0 ? 1 : Math.Max(0.15, (double)e.Engines.Value / e.MaxEngines);
 
-    /// <summary>Speed multiplier that lasts: faction trait, engine research, hero.</summary>
+    /// <summary>Speed multiplier that lasts: race trait, engine research, hero.</summary>
     static double LastingBoost(World world, Entity e) =>
-        Factions.Trait(e.Faction).Speed * (1 + Techs.EnginesBonus * ResearchLevel(world, e.Faction, TechId.Engines))
+        Factions.Trait(e.Race).Speed * (1 + Techs.EnginesBonus * ResearchLevel(world, e.Side, TechId.Engines))
         * (e.Hero is HeroId h ? Heroes.Defs[h].Speed : 1);
 
     /// <summary>Top speed of a ship with no ability running: what a fleet's pace is made of.</summary>
     public static double CruiseSpeed(World world, Entity e) => Base[e.Cls].Speed * EngineShare(e) * LastingBoost(world, e);
 
     /// <summary>
-    /// Lost engines slow a ship down and make it turn slower; the faction trait, engine
+    /// Lost engines slow a ship down and make it turn slower; the race trait, engine
     /// research, the afterburner and an admiral's command change its top speed. A paralysed
     /// ship only brakes.
     /// </summary>
@@ -176,7 +176,7 @@ public static class Movement
     static Entity? HostileTarget(World world, Entity e)
     {
         var t = world.Entities.Get(e.TargetId);
-        return t is not null && t.Faction != e.Faction ? t : null;
+        return t is not null && Foes(world, e.Side, t.Side) ? t : null;
     }
 
     static void UpdateShip(World world, Entity e, double dt)
@@ -194,7 +194,7 @@ public static class Movement
         {
             // A target lost in the fog is lost.
             var t = world.Entities.Get(o.TargetId);
-            if (t is not null && Vision.IsVisible(world, e.Faction, t))
+            if (t is not null && Vision.IsVisible(world, e.Side, t))
             {
                 Engage(world, e, Pace(world, e, def, o), t, dt);
                 return;
@@ -234,11 +234,11 @@ public static class Movement
     /// <summary>The ship or structure a launched craft flies for, while it stands.</summary>
     public static Entity? CarrierOf(World world, Entity e) => e.CarrierId is int id ? world.Entities.Get(id) : null;
 
-    /// <summary>What a ship or structure fights: the enemy it was ordered to attack, else the one it picked; seen ones only.</summary>
+    /// <summary>What a ship or structure fights: the foe it was ordered to attack, else the one it picked; seen ones only.</summary>
     public static Entity? FocusOf(World world, Entity owner)
     {
         var t = world.Entities.Get(owner.Order?.Type == OrderType.Attack ? owner.Order.TargetId : owner.TargetId);
-        return t is not null && t.Faction != owner.Faction && Vision.IsVisible(world, owner.Faction, t) ? t : null;
+        return t is not null && Foes(world, owner.Side, t.Side) && Vision.IsVisible(world, owner.Side, t) ? t : null;
     }
 
     /// <summary>Gives a launched craft its carrier, and its place at the world point (x, y) for now.</summary>
@@ -488,11 +488,11 @@ public static class Movement
         return new Point(px, py);
     }
 
-    /// <summary>Sends ships at an enemy; together, they close in at the pace of the slowest.</summary>
+    /// <summary>Sends ships at a foe; together, they close in at the pace of the slowest. Allies of the target stay put.</summary>
     public static void IssueAttack(World world, IEnumerable<int> ids, int targetId)
     {
         var target = world.Entities.Get(targetId);
-        var ships = OwnShips(world, ids).Where(s => s.Faction != target?.Faction).ToList();
+        var ships = OwnShips(world, ids).Where(s => target is null || Foes(world, s.Side, target.Side)).ToList();
         var group = GroupOf(world, ships, 0, 0);
         foreach (var s in ships) s.Order = Order.Attack(targetId, group);
     }

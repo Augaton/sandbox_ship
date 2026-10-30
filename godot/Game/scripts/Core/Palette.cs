@@ -21,5 +21,14 @@ public static class Palette
     public static Color Hex(uint rgb, float alpha = 1) =>
         new(((rgb >> 16) & 255) / 255f, ((rgb >> 8) & 255) / 255f, (rgb & 255) / 255f, alpha);
 
+    /// <summary>A race's color: its looks (tints, shots), and its card in the menu.</summary>
     public static Color Of(SandboxShip.Sim.Data.Faction f, float alpha = 1) => Hex(SandboxShip.Sim.Data.Factions.Defs[f].Color, alpha);
+
+    /// <summary>A side's color in a battle: what marks whose a unit is (rings, chevrons, minimap).</summary>
+    public static Color Of(SandboxShip.Sim.World world, Side side, float alpha = 1) =>
+        Hex(world.Factions.TryGetValue(side, out var f) ? f.Color : SandboxShip.Sim.Worlds.DefaultColor(side, SandboxShip.Sim.Worlds.RaceOf(world, side)), alpha);
+
+    /// <summary>A side's color on the galaxy map: planet rings, fleet markers, emblems.</summary>
+    public static Color Of(SandboxShip.Sim.Galaxy g, Side side, float alpha = 1) =>
+        Hex(g.Factions.TryGetValue(side, out var f) ? f.Color : SandboxShip.Sim.Worlds.DefaultColor(side, SandboxShip.Sim.Galaxies.RaceOf(g, side)), alpha);
 }
