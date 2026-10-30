@@ -26,20 +26,21 @@ public sealed class MasterList
     public MasterList(string address, double now)
     {
         Address = address;
-        Connect(now);
+        Connect(now, false);
     }
 
-    void Connect(double now)
+    /// <summary>A new connection; `quiet`, tried again by itself: the reason the last one failed stays shown until this one is up.</summary>
+    void Connect(double now, bool quiet)
     {
         link?.Close();
         link = RelayLink.Open(Address, new RelayFrame.List(Relay.Wire), out var error);
-        (Problem, asked, retry) = (error, now, now + Retry);
+        (Problem, asked, retry) = (error ?? (quiet ? Problem : null), now, now + Retry);
     }
 
     /// <summary>The list again, now: the refresh button. A server that did not answer is tried again.</summary>
     public void Refresh(double now)
     {
-        if (link is not { Down: false }) Connect(now);
+        if (link is not { Down: false }) Connect(now, false);
         else if (link.Up)
         {
             link.Send(new RelayFrame.List(Relay.Wire));
@@ -55,11 +56,12 @@ public sealed class MasterList
         {
             if (f is RelayFrame.Games g && !g.Listed.SequenceEqual(Games)) Games = g.Listed;
         });
+        if (link is { Up: true }) Problem = null;
         if (link is null || link.Down)
         {
             Problem ??= link?.Problem ?? $"Serveur en ligne injoignable ({Address}).";
             Games = [];
-            if (now >= retry) Connect(now);
+            if (now >= retry) Connect(now, true);
         }
         else if (link.Up && now - asked >= Every)
         {

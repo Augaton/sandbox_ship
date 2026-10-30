@@ -6,6 +6,7 @@
 // and every ten seconds its load: games, players, bytes a second before and after compression,
 // processor time.
 using System.Diagnostics;
+using System.Runtime.InteropServices;
 using Godot;
 using SandboxShip.Core;
 using SandboxShip.Sim.Net;
@@ -26,6 +27,7 @@ public sealed partial class RelayServer : Node
     RelayHub hub = null!;
     System.Threading.Thread? thread;
     volatile bool stop;
+    PosixSignalRegistration[] signals = [];
     int next;
 
     /// <summary>`--relay`: listens on --port (27029 by default) and serves until stopped; quits if it cannot listen.</summary>
@@ -38,7 +40,9 @@ public sealed partial class RelayServer : Node
         var err = s.host.CreateHostBound("*", Dev.Port, limits.Connections, Relay.Channels);
         if (err != Error.Ok)
         {
-            GD.PrintErr(err == Error.AlreadyInUse ? $"Le port {Dev.Port} est déjà pris." : $"Impossible d'écouter sur le port {Dev.Port} ({err}).");
+            // ENet says only that it could not create its host: most often, the port is taken.
+            GD.PrintErr($"Impossible d'écouter sur le port {Dev.Port} : déjà pris par un autre programme ? ({err})");
+            s.Free();
             Main.Instance.QuitGame();
             return;
         }
@@ -49,12 +53,22 @@ public sealed partial class RelayServer : Node
             + $"{limits.PlayersPerRoom} joueurs chacune, {limits.RoomBytesPerSecond >> 10} Kio/s par partie");
         s.thread = new System.Threading.Thread(s.Serve) { IsBackground = true, Name = "Relais" };
         s.thread.Start();
+        // Ctrl+C, or a panel's stop: everyone connected hears at once that the server goes, then it quits.
+        s.signals = [PosixSignalRegistration.Create(PosixSignal.SIGINT, Stopping), PosixSignalRegistration.Create(PosixSignal.SIGTERM, Stopping)];
+    }
+
+    static void Stopping(PosixSignalContext context)
+    {
+        context.Cancel = true;
+        Log("Arrêt demandé");
+        Callable.From(Main.Instance.QuitGame).CallDeferred();
     }
 
     public override void _ExitTree()
     {
         stop = true;
         thread?.Join(1000);
+        foreach (var s in signals) s.Dispose();
     }
 
     void Serve()
@@ -100,6 +114,7 @@ public sealed partial class RelayServer : Node
         foreach (var p in peers.Values) if (p.IsActive()) p.PeerDisconnectNow();
         host.Flush();
         host.Destroy();
+        Log($"Arrêté : {peers.Count} connexions fermées");
     }
 
     void Handle(ENetConnection.EventType type, ENetPacketPeer peer, int channel, double now)
