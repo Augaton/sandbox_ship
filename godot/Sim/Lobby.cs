@@ -94,7 +94,7 @@ public sealed class Lobby
     [JsonIgnore]
     public bool TeamsLocked => Mode == LobbyMode.Survival;
     [JsonIgnore]
-    public bool HasRaid => Mode is LobbyMode.Skirmish or LobbyMode.Zones or LobbyMode.Regicide;
+    public bool HasRaid => Mode is not (LobbyMode.Campaign or LobbyMode.Sandbox) && Modes.AllowsRaid(Rules);
     /// <summary>The sandbox shows everything; the campaign's battles keep their own fog.</summary>
     [JsonIgnore]
     public bool HasFog => Mode is not (LobbyMode.Campaign or LobbyMode.Sandbox);
@@ -253,8 +253,8 @@ public sealed class Lobby
             problems.Add("Tout le monde est dans la même équipe : il faut au moins deux camps ennemis.");
         }
         if (playing.Exists(s => s.Kind == SeatKind.Human && s.Peer != Host && !s.Ready)) problems.Add("Un joueur n'est pas prêt.");
-        // TODO(modes): once the battle modes land with their own check (Scenario.Check(SkirmishOptions),
-        // as announced), add its reasons here for every mode but the campaign: Problems stays the one list the menu shows.
+        // Then the rules' own check, for whatever the lobby's checks above leave through.
+        if (problems.Count == 0 && Mode != LobbyMode.Campaign && Scenario.Check(Skirmish()) is { Ok: false } r) problems.Add(r.Reason);
         return problems;
     }
 
