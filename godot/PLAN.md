@@ -167,6 +167,14 @@ tests de `FixtureTests` et `CrossTests` les listent.
   positions ; carte, graine et aperçu numéroté ; règles du mode (objectif, durée, raid, brouillard). Le lancement
   reste grisé, avec la raison, tant que la partie ne tient pas. Le salon est une donnée simple (`Sim/Lobby.cs`, prête
   à passer sur le réseau) ; le dernier de chaque mode se garde dans `user://lobby.json`, avec une graine neuve.
+- Multijoueur, fondations (pas encore de réseau) : tout ce que fait le joueur, en bataille comme en campagne,
+  devient une commande (`Sim/Commands.cs` : données pures, ids et points, sans le camp qui la donne) qu'applique
+  `Commands.Apply` : un camp n'ordonne que ce qui est à lui et ne vise que ce que son équipe voit ; une commande
+  mal formée est refusée. Chaque écran envoie les siennes à un « puits » (`Sim/CommandSinks.cs`) : appliquées
+  sur-le-champ en solo (parties identiques), gardées pour le pas suivant chez un hôte. Les outils du bac à sable
+  ne servent qu'au jeu seul (`World.SandboxTools`). Instantanés de bataille (`Sim/Snapshot*.cs`) : ce que voit
+  l'équipe d'un joueur, en binaire versionné, relu dans une copie du monde sans rien simuler ; 48 Ko pour la
+  bataille de mesure (1 270 entités), 1,6 Ko pour un duel à 5 min.
 
 ## Ce qui change de technique
 

@@ -254,24 +254,14 @@ public partial class Hud : CanvasLayer
         {
             var b = BuildButton(Ships.OrderName(cls));
             // Shift: five at once, as many as the queue and the credits allow.
-            b.Pressed += () =>
-            {
-                var first = Structures.EnqueueShip(World, Player, cls);
-                Report(first);
-                for (var i = 1; first.Ok && Input.IsKeyPressed(Key.Shift) && i < 5; i++)
-                {
-                    if (!Structures.EnqueueShip(World, Player, cls).Ok) break;
-                }
-            };
+            b.Pressed += () => Report(scene.Sink.Send(new Command.EnqueueShip(cls, Input.IsKeyPressed(Key.Shift) ? 5 : 1)));
             // Right click: keep this class in production.
             b.GuiInput += ev =>
             {
                 if (ev is not InputEventMouseButton { Pressed: true, ButtonIndex: MouseButton.Right }) return;
                 b.AcceptEvent();
-                var f = World.Factions[Player];
-                var on = f.Repeat.Contains(cls);
-                if (on) f.Repeat.Remove(cls);
-                else f.Repeat.Add(cls);
+                var on = World.Factions[Player].Repeat.Contains(cls);
+                scene.Sink.Send(new Command.SetLoop(cls, !on));
                 Toast($"{Ships.Defs[cls].Name} : production en boucle {(on ? "arrêtée" : "lancée")}");
                 Refresh();
             };
@@ -285,7 +275,7 @@ public partial class Hud : CanvasLayer
             var b = BuildButton($"{h.Name}, {h.Title.ToLowerInvariant()}");
             var power = Abilities.Defs[h.Ability];
             b.TooltipText = $"{h.Description} {power.Name} : {power.Description}";
-            b.Pressed += () => Report(Structures.EnqueueHero(World, Player, id));
+            b.Pressed += () => Report(scene.Sink.Send(new Command.EnqueueHero(id)));
             heroRow.AddChild(b);
             heroButtons[id] = b;
         }
@@ -293,7 +283,7 @@ public partial class Hud : CanvasLayer
 
         var buildings = AddTab(Tab.Buildings, "Bâtiments");
         var buildingList = Scrolled(buildings);
-        upgradeButton = Button("", () => Report(Structures.EnqueueUpgrade(World, Player)));
+        upgradeButton = Button("", () => Report(scene.Sink.Send(new Command.UpgradeStation())));
         upgradeButton.SizeFlagsHorizontal = Control.SizeFlags.ShrinkBegin;
         buildingList.AddChild(upgradeButton);
         var structureRow = Grid(buildingList);
@@ -312,7 +302,7 @@ public partial class Hud : CanvasLayer
         {
             var t = tech;
             var b = BuildButton("");
-            b.Pressed += () => Report(Structures.StartResearch(World, Player, t));
+            b.Pressed += () => Report(scene.Sink.Send(new Command.StartResearch(t)));
             techRow.AddChild(b);
             techButtons[tech] = b;
         }
@@ -405,22 +395,16 @@ public partial class Hud : CanvasLayer
         faction.ItemSelected += Resync;
         what.ItemSelected += Resync;
 
-        box.AddChild(Check("Brouillard de guerre", World.Fog, on => World.Fog = on));
+        box.AddChild(Check("Brouillard de guerre", World.Fog, on => scene.Sink.Send(new Command.SetFog(on))));
         box.AddChild(Check("IA ennemie active", !open, on =>
         {
             foreach (var s in scene.Opts.Slots)
             {
-                if (s.Side != Player && World.Factions.TryGetValue(s.Side, out var enemy)) enemy.AI = on ? Worlds.NewAI(s.AI ?? scene.Opts.Difficulty) : null;
+                if (s.Side != Player) scene.Sink.Send(new Command.SetAI(s.Side, on ? s.AI ?? scene.Opts.Difficulty : null));
             }
         }));
-        box.AddChild(Button("+5 000 crédits", () => World.Factions[Player].Credits += 5000));
-        box.AddChild(Button("Détruire la sélection", () =>
-        {
-            foreach (var id in scene.Selected)
-            {
-                if (World.Entities.Get(id) is { } e) e.Hull = 0;
-            }
-        }));
+        box.AddChild(Button("+5 000 crédits", () => scene.Sink.Send(new Command.GrantCredits(5000))));
+        box.AddChild(Button("Détruire la sélection", () => scene.Sink.Send(new Command.Destroy([.. scene.Selected]))));
     }
 
     SpawnMode PickSpawn() =>
@@ -645,7 +629,7 @@ public partial class Hud : CanvasLayer
     {
         if (!World.Factions.TryGetValue(Player, out var f)) return;
         // The setting may change here or in the options dialog.
-        f.AutoAbilities = Settings.Current.AutoAbilities;
+        if (f.AutoAbilities != Settings.Current.AutoAbilities) scene.Sink.Send(new Command.SetAutoAbilities(Settings.Current.AutoAbilities));
         var station = Worlds.StationOf(World, Player);
         RefreshTip();
         RefreshQuickbar();
@@ -733,7 +717,7 @@ public partial class Hud : CanvasLayer
         RenderList(unitsQueue!, f.Queue.Select((q, i) => new QueueEntry(
             q.Kind == QueueKind.Ship ? Ships.OrderName(q.Cls) : q.Kind == QueueKind.Hero ? Heroes.Defs[q.Hero].Name : "",
             $"index:{i}", i == 0 ? 1 - q.Remaining / q.Total : 0,
-            () => Structures.CancelQueued(World, Player, i, QueueSide.Units), i == 0 ? q.Remaining : null)).ToList(),
+            () => scene.Sink.Send(new Command.CancelQueued(i, QueueSide.Units)), i == 0 ? q.Remaining : null)).ToList(),
             "File vide : choisis un vaisseau ci-dessus.");
         string WorkName(QueueItem q)
         {
@@ -744,14 +728,14 @@ public partial class Hud : CanvasLayer
         var sites = w.Entities.Where(e => e.Side == Player && e.Kind == EntityKind.Structure && e.Build < 1).ToList();
         RenderList(buildingsQueue!, [
             .. f.BuildQueue.Select((q, i) => new QueueEntry(WorkName(q), $"index:{i}", i == 0 ? 1 - q.Remaining / q.Total : 0,
-                () => Structures.CancelQueued(World, Player, i, QueueSide.Buildings), i == 0 ? q.Remaining : null)),
-            .. sites.Select(e => new QueueEntry(Names.EntityName(e), $"site:{e.Id}", e.Build, () => Structures.CancelConstruction(World, Player, e.Id))),
+                () => scene.Sink.Send(new Command.CancelQueued(i, QueueSide.Buildings)), i == 0 ? q.Remaining : null)),
+            .. sites.Select(e => new QueueEntry(Names.EntityName(e), $"site:{e.Id}", e.Build, () => scene.Sink.Send(new Command.CancelConstruction(e.Id)))),
         ], "Rien en construction.");
         // Each queued level is named by the level it reaches.
         var reached = f.Research.Clone();
         RenderList(researchStatus!, ResearchQueue.Jobs(f).Select((job, i) => new QueueEntry(
             $"{Techs.Defs[job.Tech].Name} {++reached[job.Tech]}", $"research:{i}", i == 0 ? 1 - job.Remaining / job.Total : 0,
-            () => Structures.CancelResearch(World, Player, i), i == 0 ? job.Remaining : null)).ToList(),
+            () => scene.Sink.Send(new Command.CancelResearch(i)), i == 0 ? job.Remaining : null)).ToList(),
             "Aucune recherche en file. Chaque niveau demande une station du même niveau (niveau 4 pour les derniers).");
     }
 

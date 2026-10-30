@@ -33,6 +33,8 @@ public partial class GalaxyScreen : Node
     /// <summary>The local player's side: the save's, or the menu's first seat.</summary>
     public Side Player => Galaxy.Player;
     public GalaxyHud Hud { get; private set; } = null!;
+    /// <summary>Where the player's orders go (Sim/Commands.cs): applied at once here, as single player always did.</summary>
+    public ICommandSink<GalaxyCommand> Sink { get; private set; } = null!;
     /// <summary>Planet shown in the panel.</summary>
     public int? Selected;
     /// <summary>
@@ -77,6 +79,7 @@ public partial class GalaxyScreen : Node
         Galaxy = saved ?? Galaxies.CreateGalaxy(slots, opts.Seed, layout);
         // The player may sit at any seat of the lobby, not only the first.
         if (saved is null && opts.Me is Side me) Galaxy.Player = me;
+        Sink = new LocalSink<GalaxyCommand>(c => Commands.Apply(Galaxy, Player, c));
         var player = Galaxy.Player;
         if (Dev.Skip > 0 && saved is null) PlayAhead(Dev.Skip);
         var home = Galaxy.Planets.FindIndex(p => p.Owner == player);
@@ -371,7 +374,7 @@ public partial class GalaxyScreen : Node
             return;
         }
         var (ships, heroes) = Hud.SendCounts();
-        var r = Galaxies.SendFleet(Galaxy, fleet.Id, dest, ships, heroes);
+        var r = Sink.Send(new GalaxyCommand.SendFleet(fleet.Id, dest, ships, [.. heroes]));
         if (!r.Ok) Hud.Toast(r.Reason);
         // The fleet left: show what stays, with fresh quantities, before the next order.
         else Hud.Refresh();
@@ -392,7 +395,7 @@ public partial class GalaxyScreen : Node
         foreach (var f in fleets)
         {
             var at = g.Planets[f.At!.Value].Name;
-            var r = Galaxies.SendFleet(g, f.Id, dest);
+            var r = Sink.Send(new GalaxyCommand.SendFleet(f.Id, dest));
             if (r.Ok) sent++;
             else stayed.Add($"{at} ({GalaxyHud.Lower(r.Reason)})");
         }
@@ -439,7 +442,7 @@ public partial class GalaxyScreen : Node
     {
         var b = Galaxy.Battles.Find(x => x.Id == battleId);
         if (b is null) return;
-        Galaxies.ChooseBattle(Galaxy, battleId, BattleStatus.Tactical);
+        Sink.Send(new GalaxyCommand.ChooseBattle(battleId, BattleStatus.Tactical));
         var player = Player;
         var opts = new BattleOptions
         {
@@ -451,12 +454,19 @@ public partial class GalaxyScreen : Node
         Main.Instance.StartBattle(opts);
     }
 
-    public void AutoResolve(int battleId) => Galaxies.ChooseBattle(Galaxy, battleId, BattleStatus.Auto);
+    public void AutoResolve(int battleId) => Sink.Send(new GalaxyCommand.ChooseBattle(battleId, BattleStatus.Auto));
 
     /// <summary>The player left a battle they were commanding: it plays on by itself.</summary>
     public void DelegateBattle(int battleId)
     {
-        Galaxies.DelegateBattle(Galaxy, battleId);
+        Sink.Send(new GalaxyCommand.DelegateBattle(battleId));
+        Save();
+    }
+
+    /// <summary>The player, attacking, fell back from a battle they were commanding.</summary>
+    public void Retreat(int battleId)
+    {
+        Sink.Send(new GalaxyCommand.Retreat(battleId));
         Save();
     }
 
