@@ -1,0 +1,1973 @@
+{
+ "layouts": {
+  "1-2": {
+   "planets": [
+    {
+     "name": "Nérée",
+     "x": 94,
+     "y": 523,
+     "income": 6,
+     "mineSlots": 3
+    },
+    {
+     "name": "Yvra",
+     "x": 1483,
+     "y": 884,
+     "income": 6,
+     "mineSlots": 3
+    },
+    {
+     "name": "Pélion",
+     "x": 489,
+     "y": 593,
+     "income": 5,
+     "mineSlots": 3
+    },
+    {
+     "name": "Ostra",
+     "x": 1113,
+     "y": 439,
+     "income": 3,
+     "mineSlots": 2,
+     "special": "rich"
+    },
+    {
+     "name": "Kestel",
+     "x": 1503,
+     "y": 463,
+     "income": 2,
+     "mineSlots": 2
+    },
+    {
+     "name": "Solenne",
+     "x": 784,
+     "y": 204,
+     "income": 5,
+     "mineSlots": 3
+    },
+    {
+     "name": "Kaldra",
+     "x": 309,
+     "y": 491,
+     "income": 2,
+     "mineSlots": 2
+    },
+    {
+     "name": "Thessa",
+     "x": 361,
+     "y": 125,
+     "income": 4,
+     "mineSlots": 3,
+     "special": "archive"
+    },
+    {
+     "name": "Ixion",
+     "x": 697,
+     "y": 574,
+     "income": 3,
+     "mineSlots": 2
+    },
+    {
+     "name": "Corvée",
+     "x": 865,
+     "y": 712,
+     "income": 6,
+     "mineSlots": 3
+    },
+    {
+     "name": "Ulme",
+     "x": 1502,
+     "y": 286,
+     "income": 2,
+     "mineSlots": 2,
+     "special": "rich"
+    },
+    {
+     "name": "Sorel",
+     "x": 1165,
+     "y": 216,
+     "income": 6,
+     "mineSlots": 3
+    },
+    {
+     "name": "Dravon",
+     "x": 549,
+     "y": 429,
+     "income": 5,
+     "mineSlots": 3
+    },
+    {
+     "name": "Hesper",
+     "x": 271,
+     "y": 307,
+     "income": 2,
+     "mineSlots": 2,
+     "special": "archive"
+    },
+    {
+     "name": "Orin",
+     "x": 1319,
+     "y": 286,
+     "income": 5,
+     "mineSlots": 3
+    },
+    {
+     "name": "Bérénice",
+     "x": 1495,
+     "y": 679,
+     "income": 3,
+     "mineSlots": 2,
+     "special": "rich"
+    }
+   ],
+   "lanes": [
+    [
+     11,
+     14
+    ],
+    [
+     2,
+     12
+    ],
+    [
+     4,
+     10
+    ],
+    [
+     10,
+     14
+    ],
+    [
+     6,
+     13
+    ],
+    [
+     7,
+     13
+    ],
+    [
+     1,
+     15
+    ],
+    [
+     2,
+     6
+    ],
+    [
+     8,
+     12
+    ],
+    [
+     2,
+     8
+    ],
+    [
+     4,
+     15
+    ],
+    [
+     0,
+     6
+    ],
+    [
+     8,
+     9
+    ],
+    [
+     3,
+     11
+    ],
+    [
+     6,
+     12
+    ],
+    [
+     4,
+     14
+    ],
+    [
+     3,
+     14
+    ],
+    [
+     0,
+     13
+    ],
+    [
+     12,
+     13
+    ],
+    [
+     10,
+     11
+    ],
+    [
+     3,
+     9
+    ],
+    [
+     5,
+     8
+    ],
+    [
+     5,
+     11
+    ],
+    [
+     3,
+     4
+    ],
+    [
+     2,
+     9
+    ],
+    [
+     5,
+     7
+    ]
+   ],
+   "capitals": [
+    0,
+    1
+   ]
+  },
+  "42-2": {
+   "planets": [
+    {
+     "name": "Nérée",
+     "x": 727,
+     "y": 789,
+     "income": 2,
+     "mineSlots": 2
+    },
+    {
+     "name": "Fargo",
+     "x": 1041,
+     "y": 233,
+     "income": 2,
+     "mineSlots": 2
+    },
+    {
+     "name": "Orin",
+     "x": 838,
+     "y": 314,
+     "income": 5,
+     "mineSlots": 3,
+     "special": "shipyard"
+    },
+    {
+     "name": "Pélion",
+     "x": 977,
+     "y": 800,
+     "income": 2,
+     "mineSlots": 2
+    },
+    {
+     "name": "Corvée",
+     "x": 1343,
+     "y": 702,
+     "income": 3,
+     "mineSlots": 2,
+     "special": "fortress"
+    },
+    {
+     "name": "Sorel",
+     "x": 526,
+     "y": 252,
+     "income": 6,
+     "mineSlots": 3
+    },
+    {
+     "name": "Solenne",
+     "x": 163,
+     "y": 576,
+     "income": 6,
+     "mineSlots": 3
+    },
+    {
+     "name": "Ulme",
+     "x": 135,
+     "y": 309,
+     "income": 2,
+     "mineSlots": 2
+    },
+    {
+     "name": "Vesper",
+     "x": 1203,
+     "y": 525,
+     "income": 3,
+     "mineSlots": 2,
+     "special": "fortress"
+    },
+    {
+     "name": "Maru",
+     "x": 1239,
+     "y": 352,
+     "income": 5,
+     "mineSlots": 3
+    },
+    {
+     "name": "Gélise",
+     "x": 729,
+     "y": 121,
+     "income": 6,
+     "mineSlots": 3,
+     "special": "fortress"
+    },
+    {
+     "name": "Dravon",
+     "x": 521,
+     "y": 696,
+     "income": 4,
+     "mineSlots": 3,
+     "special": "rich"
+    },
+    {
+     "name": "Brume",
+     "x": 215,
+     "y": 864,
+     "income": 5,
+     "mineSlots": 3
+    },
+    {
+     "name": "Pyros",
+     "x": 285,
+     "y": 181,
+     "income": 3,
+     "mineSlots": 2,
+     "special": "shipyard"
+    },
+    {
+     "name": "Opale",
+     "x": 774,
+     "y": 592,
+     "income": 2,
+     "mineSlots": 2,
+     "special": "archive"
+    },
+    {
+     "name": "Elyne",
+     "x": 1367,
+     "y": 154,
+     "income": 6,
+     "mineSlots": 3
+    }
+   ],
+   "lanes": [
+    [
+     8,
+     9
+    ],
+    [
+     7,
+     13
+    ],
+    [
+     0,
+     14
+    ],
+    [
+     1,
+     2
+    ],
+    [
+     2,
+     10
+    ],
+    [
+     4,
+     8
+    ],
+    [
+     0,
+     11
+    ],
+    [
+     1,
+     9
+    ],
+    [
+     9,
+     15
+    ],
+    [
+     5,
+     10
+    ],
+    [
+     0,
+     3
+    ],
+    [
+     5,
+     13
+    ],
+    [
+     6,
+     7
+    ],
+    [
+     11,
+     14
+    ],
+    [
+     2,
+     14
+    ],
+    [
+     3,
+     14
+    ],
+    [
+     6,
+     12
+    ],
+    [
+     2,
+     5
+    ],
+    [
+     1,
+     10
+    ],
+    [
+     1,
+     8
+    ],
+    [
+     11,
+     12
+    ],
+    [
+     3,
+     8
+    ],
+    [
+     4,
+     9
+    ],
+    [
+     6,
+     11
+    ],
+    [
+     3,
+     4
+    ],
+    [
+     5,
+     7
+    ],
+    [
+     10,
+     13
+    ],
+    [
+     0,
+     12
+    ],
+    [
+     4,
+     15
+    ]
+   ],
+   "capitals": [
+    6,
+    15
+   ]
+  },
+  "21-3": {
+   "planets": [
+    {
+     "name": "Kestel",
+     "x": 725,
+     "y": 322,
+     "income": 3,
+     "mineSlots": 2
+    },
+    {
+     "name": "Maru",
+     "x": 633,
+     "y": 481,
+     "income": 4,
+     "mineSlots": 3
+    },
+    {
+     "name": "Hesper",
+     "x": 1357,
+     "y": 803,
+     "income": 5,
+     "mineSlots": 3
+    },
+    {
+     "name": "Pyros",
+     "x": 1192,
+     "y": 245,
+     "income": 2,
+     "mineSlots": 2
+    },
+    {
+     "name": "Corvée",
+     "x": 573,
+     "y": 169,
+     "income": 4,
+     "mineSlots": 3
+    },
+    {
+     "name": "Mirth",
+     "x": 1391,
+     "y": 259,
+     "income": 6,
+     "mineSlots": 3
+    },
+    {
+     "name": "Elyne",
+     "x": 877,
+     "y": 765,
+     "income": 6,
+     "mineSlots": 3
+    },
+    {
+     "name": "Bérénice",
+     "x": 163,
+     "y": 491,
+     "income": 6,
+     "mineSlots": 3
+    },
+    {
+     "name": "Nérée",
+     "x": 418,
+     "y": 541,
+     "income": 6,
+     "mineSlots": 3
+    },
+    {
+     "name": "Dravon",
+     "x": 1366,
+     "y": 622,
+     "income": 2,
+     "mineSlots": 2,
+     "special": "rich"
+    },
+    {
+     "name": "Vesper",
+     "x": 927,
+     "y": 240,
+     "income": 5,
+     "mineSlots": 3,
+     "special": "fortress"
+    },
+    {
+     "name": "Thessa",
+     "x": 175,
+     "y": 173,
+     "income": 4,
+     "mineSlots": 3
+    },
+    {
+     "name": "Ulme",
+     "x": 1118,
+     "y": 411,
+     "income": 3,
+     "mineSlots": 2
+    },
+    {
+     "name": "Fargo",
+     "x": 453,
+     "y": 291,
+     "income": 4,
+     "mineSlots": 3,
+     "special": "shipyard"
+    },
+    {
+     "name": "Isaure",
+     "x": 1167,
+     "y": 764,
+     "income": 4,
+     "mineSlots": 3,
+     "special": "shipyard"
+    }
+   ],
+   "lanes": [
+    [
+     4,
+     13
+    ],
+    [
+     2,
+     9
+    ],
+    [
+     3,
+     12
+    ],
+    [
+     0,
+     1
+    ],
+    [
+     2,
+     14
+    ],
+    [
+     3,
+     5
+    ],
+    [
+     0,
+     4
+    ],
+    [
+     0,
+     10
+    ],
+    [
+     1,
+     8
+    ],
+    [
+     9,
+     14
+    ],
+    [
+     8,
+     13
+    ],
+    [
+     10,
+     12
+    ],
+    [
+     7,
+     8
+    ],
+    [
+     1,
+     13
+    ],
+    [
+     3,
+     10
+    ],
+    [
+     0,
+     13
+    ],
+    [
+     6,
+     14
+    ],
+    [
+     5,
+     12
+    ],
+    [
+     7,
+     11
+    ],
+    [
+     9,
+     12
+    ],
+    [
+     4,
+     10
+    ],
+    [
+     5,
+     9
+    ],
+    [
+     1,
+     6
+    ],
+    [
+     4,
+     11
+    ],
+    [
+     8,
+     11
+    ],
+    [
+     2,
+     6
+    ]
+   ],
+   "capitals": [
+    7,
+    5,
+    6
+   ]
+  },
+  "12345-2": {
+   "planets": [
+    {
+     "name": "Pélion",
+     "x": 526,
+     "y": 487,
+     "income": 6,
+     "mineSlots": 3
+    },
+    {
+     "name": "Tarsis",
+     "x": 1251,
+     "y": 508,
+     "income": 5,
+     "mineSlots": 3,
+     "special": "rich"
+    },
+    {
+     "name": "Pyros",
+     "x": 583,
+     "y": 150,
+     "income": 6,
+     "mineSlots": 3,
+     "special": "fortress"
+    },
+    {
+     "name": "Gélise",
+     "x": 1178,
+     "y": 907,
+     "income": 6,
+     "mineSlots": 3
+    },
+    {
+     "name": "Nadir",
+     "x": 1433,
+     "y": 820,
+     "income": 6,
+     "mineSlots": 3
+    },
+    {
+     "name": "Fargo",
+     "x": 1466,
+     "y": 605,
+     "income": 3,
+     "mineSlots": 2,
+     "special": "fortress"
+    },
+    {
+     "name": "Rhéa",
+     "x": 523,
+     "y": 723,
+     "income": 4,
+     "mineSlots": 3,
+     "special": "shipyard"
+    },
+    {
+     "name": "Maru",
+     "x": 1198,
+     "y": 736,
+     "income": 4,
+     "mineSlots": 3,
+     "special": "fortress"
+    },
+    {
+     "name": "Nérée",
+     "x": 1017,
+     "y": 461,
+     "income": 6,
+     "mineSlots": 3
+    },
+    {
+     "name": "Orin",
+     "x": 194,
+     "y": 358,
+     "income": 6,
+     "mineSlots": 3
+    },
+    {
+     "name": "Isaure",
+     "x": 183,
+     "y": 606,
+     "income": 3,
+     "mineSlots": 2
+    },
+    {
+     "name": "Brume",
+     "x": 1407,
+     "y": 375,
+     "income": 6,
+     "mineSlots": 3
+    },
+    {
+     "name": "Quarre",
+     "x": 391,
+     "y": 91,
+     "income": 6,
+     "mineSlots": 3
+    },
+    {
+     "name": "Kaldra",
+     "x": 461,
+     "y": 306,
+     "income": 6,
+     "mineSlots": 3,
+     "special": "archive"
+    },
+    {
+     "name": "Thessa",
+     "x": 825,
+     "y": 679,
+     "income": 4,
+     "mineSlots": 3
+    },
+    {
+     "name": "Tyval",
+     "x": 1358,
+     "y": 210,
+     "income": 3,
+     "mineSlots": 2
+    },
+    {
+     "name": "Hesper",
+     "x": 1180,
+     "y": 336,
+     "income": 2,
+     "mineSlots": 2,
+     "special": "rich"
+    },
+    {
+     "name": "Dravon",
+     "x": 328,
+     "y": 769,
+     "income": 4,
+     "mineSlots": 3
+    }
+   ],
+   "lanes": [
+    [
+     11,
+     15
+    ],
+    [
+     3,
+     7
+    ],
+    [
+     1,
+     16
+    ],
+    [
+     0,
+     13
+    ],
+    [
+     2,
+     13
+    ],
+    [
+     6,
+     17
+    ],
+    [
+     2,
+     12
+    ],
+    [
+     1,
+     11
+    ],
+    [
+     8,
+     16
+    ],
+    [
+     4,
+     5
+    ],
+    [
+     15,
+     16
+    ],
+    [
+     10,
+     17
+    ],
+    [
+     12,
+     13
+    ],
+    [
+     11,
+     16
+    ],
+    [
+     1,
+     7
+    ],
+    [
+     1,
+     5
+    ],
+    [
+     0,
+     6
+    ],
+    [
+     5,
+     11
+    ],
+    [
+     9,
+     10
+    ],
+    [
+     4,
+     7
+    ],
+    [
+     3,
+     4
+    ],
+    [
+     9,
+     13
+    ],
+    [
+     8,
+     14
+    ],
+    [
+     5,
+     7
+    ],
+    [
+     6,
+     14
+    ],
+    [
+     9,
+     12
+    ],
+    [
+     0,
+     2
+    ],
+    [
+     0,
+     17
+    ],
+    [
+     9,
+     17
+    ]
+   ],
+   "capitals": [
+    12,
+    4
+   ]
+  }
+ },
+ "skirmishes": {
+  "duel": {
+   "start": {
+    "time": 0,
+    "nextId": 25,
+    "seed": -1079424044,
+    "winner": null,
+    "factions": [
+     {
+      "id": "klaed",
+      "credits": 1500,
+      "queue": 0,
+      "buildQueue": 0,
+      "research": {
+       "weapons": 0,
+       "shields": 0,
+       "armor": 0,
+       "engines": 0,
+       "mining": 0,
+       "hangars": 0
+      },
+      "stats": {
+       "built": 0,
+       "lost": 0,
+       "kills": 0,
+       "damage": 0,
+       "earned": 0
+      }
+     },
+     {
+      "id": "nairan",
+      "credits": 1500,
+      "queue": 0,
+      "buildQueue": 0,
+      "research": {
+       "weapons": 0,
+       "shields": 0,
+       "armor": 0,
+       "engines": 0,
+       "mining": 0,
+       "hangars": 0
+      },
+      "stats": {
+       "built": 0,
+       "lost": 0,
+       "kills": 0,
+       "damage": 0,
+       "earned": 0
+      }
+     }
+    ],
+    "fields": [
+     {
+      "id": 13,
+      "x": 591.4702739130216,
+      "y": 3111.0710500733016,
+      "radius": 130,
+      "mineId": null
+     },
+     {
+      "id": 14,
+      "x": 429.2788238576342,
+      "y": 2653.365865567536,
+      "radius": 130,
+      "mineId": null
+     },
+     {
+      "id": 15,
+      "x": 5776.05148712368,
+      "y": 2155.280752096904,
+      "radius": 130,
+      "mineId": null
+     },
+     {
+      "id": 16,
+      "x": 5706.697512310221,
+      "y": 2635.8950762405984,
+      "radius": 130,
+      "mineId": null
+     },
+     {
+      "id": 17,
+      "x": 5181.023806217127,
+      "y": 1258.4055775078014,
+      "radius": 150.04550714977086,
+      "mineId": null
+     },
+     {
+      "id": 18,
+      "x": 4229.15815806482,
+      "y": 1137.5233439030126,
+      "radius": 195.529717002064,
+      "mineId": null
+     },
+     {
+      "id": 19,
+      "x": 927.9405942652375,
+      "y": 1895.2717054635286,
+      "radius": 147.26193133275956,
+      "mineId": null
+     },
+     {
+      "id": 20,
+      "x": 1600.09879025165,
+      "y": 533.3070536144078,
+      "radius": 219.16433887556195,
+      "mineId": null
+     },
+     {
+      "id": 21,
+      "x": 1993.6333240475506,
+      "y": 1676.467110752128,
+      "radius": 204.85930941533297,
+      "mineId": null
+     },
+     {
+      "id": 22,
+      "x": 3063.540996517986,
+      "y": 3067.7401741268113,
+      "radius": 207.88124665152282,
+      "mineId": null
+     },
+     {
+      "id": 23,
+      "x": 1983.5081695346162,
+      "y": 2976.0995272081345,
+      "radius": 177.76190077885985,
+      "mineId": null
+     },
+     {
+      "id": 24,
+      "x": 294.6979708503932,
+      "y": 3512.036020634696,
+      "radius": 180.94180995132774,
+      "mineId": null
+     }
+    ],
+    "entities": [
+     {
+      "id": 1,
+      "kind": "structure",
+      "type": "station",
+      "faction": "klaed",
+      "x": 844.8874554596841,
+      "y": 2763.6811652220786,
+      "angle": 0,
+      "hull": 3000,
+      "shield": 850,
+      "level": 1,
+      "build": 1
+     },
+     {
+      "id": 2,
+      "kind": "hardpoint",
+      "type": "shipyard",
+      "faction": "klaed",
+      "x": 844.8874554596841,
+      "y": 2663.6811652220786,
+      "angle": 0,
+      "hull": 800,
+      "shield": 0,
+      "level": 0,
+      "build": 1
+     },
+     {
+      "id": 3,
+      "kind": "hardpoint",
+      "type": "hangar",
+      "faction": "klaed",
+      "x": 844.8874554596841,
+      "y": 2863.6811652220786,
+      "angle": 0,
+      "hull": 600,
+      "shield": 0,
+      "level": 0,
+      "build": 1
+     },
+     {
+      "id": 4,
+      "kind": "hardpoint",
+      "type": "shield",
+      "faction": "klaed",
+      "x": 774.8874554596841,
+      "y": 2763.6811652220786,
+      "angle": 0,
+      "hull": 500,
+      "shield": 0,
+      "level": 0,
+      "build": 1
+     },
+     {
+      "id": 5,
+      "kind": "hardpoint",
+      "type": "turret",
+      "faction": "klaed",
+      "x": 919.8874554596841,
+      "y": 2693.6811652220786,
+      "angle": 0,
+      "hull": 400,
+      "shield": 0,
+      "level": 0,
+      "build": 1
+     },
+     {
+      "id": 6,
+      "kind": "hardpoint",
+      "type": "turret",
+      "faction": "klaed",
+      "x": 919.8874554596841,
+      "y": 2833.6811652220786,
+      "angle": 0,
+      "hull": 400,
+      "shield": 0,
+      "level": 0,
+      "build": 1
+     },
+     {
+      "id": 7,
+      "kind": "structure",
+      "type": "station",
+      "faction": "nairan",
+      "x": 5390.118494862691,
+      "y": 2344.9007022194564,
+      "angle": 0,
+      "hull": 2850,
+      "shield": 1400,
+      "level": 1,
+      "build": 1
+     },
+     {
+      "id": 8,
+      "kind": "hardpoint",
+      "type": "shipyard",
+      "faction": "nairan",
+      "x": 5390.118494862691,
+      "y": 2244.9007022194564,
+      "angle": 0,
+      "hull": 760,
+      "shield": 0,
+      "level": 0,
+      "build": 1
+     },
+     {
+      "id": 9,
+      "kind": "hardpoint",
+      "type": "hangar",
+      "faction": "nairan",
+      "x": 5390.118494862691,
+      "y": 2444.9007022194564,
+      "angle": 0,
+      "hull": 570,
+      "shield": 0,
+      "level": 0,
+      "build": 1
+     },
+     {
+      "id": 10,
+      "kind": "hardpoint",
+      "type": "shield",
+      "faction": "nairan",
+      "x": 5320.118494862691,
+      "y": 2344.9007022194564,
+      "angle": 0,
+      "hull": 475,
+      "shield": 0,
+      "level": 0,
+      "build": 1
+     },
+     {
+      "id": 11,
+      "kind": "hardpoint",
+      "type": "turret",
+      "faction": "nairan",
+      "x": 5465.118494862691,
+      "y": 2274.9007022194564,
+      "angle": 0,
+      "hull": 380,
+      "shield": 0,
+      "level": 0,
+      "build": 1
+     },
+     {
+      "id": 12,
+      "kind": "hardpoint",
+      "type": "turret",
+      "faction": "nairan",
+      "x": 5465.118494862691,
+      "y": 2414.9007022194564,
+      "angle": 0,
+      "hull": 380,
+      "shield": 0,
+      "level": 0,
+      "build": 1
+     }
+    ]
+   }
+  },
+  "classic": {
+   "start": {
+    "time": 0,
+    "nextId": 23,
+    "seed": 1135788955,
+    "winner": null,
+    "factions": [
+     {
+      "id": "nautolan",
+      "credits": 1500,
+      "queue": 0,
+      "buildQueue": 0,
+      "research": {
+       "weapons": 0,
+       "shields": 0,
+       "armor": 0,
+       "engines": 0,
+       "mining": 0,
+       "hangars": 0
+      },
+      "stats": {
+       "built": 0,
+       "lost": 0,
+       "kills": 0,
+       "damage": 0,
+       "earned": 0
+      }
+     },
+     {
+      "id": "klaed",
+      "credits": 1500,
+      "queue": 0,
+      "buildQueue": 0,
+      "research": {
+       "weapons": 0,
+       "shields": 0,
+       "armor": 0,
+       "engines": 0,
+       "mining": 0,
+       "hangars": 0
+      },
+      "stats": {
+       "built": 0,
+       "lost": 0,
+       "kills": 0,
+       "damage": 0,
+       "earned": 0
+      }
+     }
+    ],
+    "fields": [
+     {
+      "id": 13,
+      "x": 1100,
+      "y": 1200,
+      "radius": 140,
+      "mineId": null
+     },
+     {
+      "id": 14,
+      "x": 4900,
+      "y": 2800,
+      "radius": 140,
+      "mineId": null
+     },
+     {
+      "id": 15,
+      "x": 1200,
+      "y": 2900,
+      "radius": 140,
+      "mineId": null
+     },
+     {
+      "id": 16,
+      "x": 4800,
+      "y": 1100,
+      "radius": 140,
+      "mineId": null
+     },
+     {
+      "id": 17,
+      "x": 2200,
+      "y": 700,
+      "radius": 170,
+      "mineId": null
+     },
+     {
+      "id": 18,
+      "x": 3800,
+      "y": 3300,
+      "radius": 170,
+      "mineId": null
+     },
+     {
+      "id": 19,
+      "x": 2400,
+      "y": 2300,
+      "radius": 160,
+      "mineId": null
+     },
+     {
+      "id": 20,
+      "x": 3600,
+      "y": 1700,
+      "radius": 160,
+      "mineId": null
+     },
+     {
+      "id": 21,
+      "x": 3000,
+      "y": 1100,
+      "radius": 200,
+      "mineId": null
+     },
+     {
+      "id": 22,
+      "x": 3000,
+      "y": 2900,
+      "radius": 200,
+      "mineId": null
+     }
+    ],
+    "entities": [
+     {
+      "id": 1,
+      "kind": "structure",
+      "type": "station",
+      "faction": "nautolan",
+      "x": 700,
+      "y": 2000,
+      "angle": 0,
+      "hull": 3000,
+      "shield": 1000,
+      "level": 1,
+      "build": 1
+     },
+     {
+      "id": 2,
+      "kind": "hardpoint",
+      "type": "shipyard",
+      "faction": "nautolan",
+      "x": 700,
+      "y": 1900,
+      "angle": 0,
+      "hull": 800,
+      "shield": 0,
+      "level": 0,
+      "build": 1
+     },
+     {
+      "id": 3,
+      "kind": "hardpoint",
+      "type": "hangar",
+      "faction": "nautolan",
+      "x": 700,
+      "y": 2100,
+      "angle": 0,
+      "hull": 600,
+      "shield": 0,
+      "level": 0,
+      "build": 1
+     },
+     {
+      "id": 4,
+      "kind": "hardpoint",
+      "type": "shield",
+      "faction": "nautolan",
+      "x": 630,
+      "y": 2000,
+      "angle": 0,
+      "hull": 500,
+      "shield": 0,
+      "level": 0,
+      "build": 1
+     },
+     {
+      "id": 5,
+      "kind": "hardpoint",
+      "type": "turret",
+      "faction": "nautolan",
+      "x": 775,
+      "y": 1930,
+      "angle": 0,
+      "hull": 400,
+      "shield": 0,
+      "level": 0,
+      "build": 1
+     },
+     {
+      "id": 6,
+      "kind": "hardpoint",
+      "type": "turret",
+      "faction": "nautolan",
+      "x": 775,
+      "y": 2070,
+      "angle": 0,
+      "hull": 400,
+      "shield": 0,
+      "level": 0,
+      "build": 1
+     },
+     {
+      "id": 7,
+      "kind": "structure",
+      "type": "station",
+      "faction": "klaed",
+      "x": 5300,
+      "y": 2000,
+      "angle": 0,
+      "hull": 3000,
+      "shield": 850,
+      "level": 1,
+      "build": 1
+     },
+     {
+      "id": 8,
+      "kind": "hardpoint",
+      "type": "shipyard",
+      "faction": "klaed",
+      "x": 5300,
+      "y": 1900,
+      "angle": 0,
+      "hull": 800,
+      "shield": 0,
+      "level": 0,
+      "build": 1
+     },
+     {
+      "id": 9,
+      "kind": "hardpoint",
+      "type": "hangar",
+      "faction": "klaed",
+      "x": 5300,
+      "y": 2100,
+      "angle": 0,
+      "hull": 600,
+      "shield": 0,
+      "level": 0,
+      "build": 1
+     },
+     {
+      "id": 10,
+      "kind": "hardpoint",
+      "type": "shield",
+      "faction": "klaed",
+      "x": 5230,
+      "y": 2000,
+      "angle": 0,
+      "hull": 500,
+      "shield": 0,
+      "level": 0,
+      "build": 1
+     },
+     {
+      "id": 11,
+      "kind": "hardpoint",
+      "type": "turret",
+      "faction": "klaed",
+      "x": 5375,
+      "y": 1930,
+      "angle": 0,
+      "hull": 400,
+      "shield": 0,
+      "level": 0,
+      "build": 1
+     },
+     {
+      "id": 12,
+      "kind": "hardpoint",
+      "type": "turret",
+      "faction": "klaed",
+      "x": 5375,
+      "y": 2070,
+      "angle": 0,
+      "hull": 400,
+      "shield": 0,
+      "level": 0,
+      "build": 1
+     }
+    ]
+   }
+  },
+  "ffa": {
+   "start": {
+    "time": 0,
+    "nextId": 36,
+    "seed": -1711259642,
+    "winner": null,
+    "factions": [
+     {
+      "id": "nairan",
+      "credits": 1500,
+      "queue": 0,
+      "buildQueue": 0,
+      "research": {
+       "weapons": 0,
+       "shields": 0,
+       "armor": 0,
+       "engines": 0,
+       "mining": 0,
+       "hangars": 0
+      },
+      "stats": {
+       "built": 0,
+       "lost": 0,
+       "kills": 0,
+       "damage": 0,
+       "earned": 0
+      }
+     },
+     {
+      "id": "klaed",
+      "credits": 1500,
+      "queue": 0,
+      "buildQueue": 0,
+      "research": {
+       "weapons": 0,
+       "shields": 0,
+       "armor": 0,
+       "engines": 0,
+       "mining": 0,
+       "hangars": 0
+      },
+      "stats": {
+       "built": 0,
+       "lost": 0,
+       "kills": 0,
+       "damage": 0,
+       "earned": 0
+      }
+     },
+     {
+      "id": "nautolan",
+      "credits": 1500,
+      "queue": 0,
+      "buildQueue": 0,
+      "research": {
+       "weapons": 0,
+       "shields": 0,
+       "armor": 0,
+       "engines": 0,
+       "mining": 0,
+       "hangars": 0
+      },
+      "stats": {
+       "built": 0,
+       "lost": 0,
+       "kills": 0,
+       "damage": 0,
+       "earned": 0
+      }
+     }
+    ],
+    "fields": [
+     {
+      "id": 19,
+      "x": 1022.9925545449441,
+      "y": 3916.0814157233854,
+      "radius": 130,
+      "mineId": null
+     },
+     {
+      "id": 20,
+      "x": 873.8264824866736,
+      "y": 3453.967160001672,
+      "radius": 130,
+      "mineId": null
+     },
+     {
+      "id": 21,
+      "x": 3959.7753248426793,
+      "y": 384.2755155122896,
+      "radius": 130,
+      "mineId": null
+     },
+     {
+      "id": 22,
+      "x": 4443.503526582728,
+      "y": 426.7858582051563,
+      "radius": 130,
+      "mineId": null
+     },
+     {
+      "id": 23,
+      "x": 6964.4150644030915,
+      "y": 3678.0462660574703,
+      "radius": 130,
+      "mineId": null
+     },
+     {
+      "id": 24,
+      "x": 6776.864293895967,
+      "y": 4125.95787661999,
+      "radius": 130,
+      "mineId": null
+     },
+     {
+      "id": 25,
+      "x": 3374.3786989944056,
+      "y": 2732.2764191310853,
+      "radius": 127.48321998398751,
+      "mineId": null
+     },
+     {
+      "id": 26,
+      "x": 681.4259823877364,
+      "y": 1662.413582089357,
+      "radius": 217.65482789371163,
+      "mineId": null
+     },
+     {
+      "id": 27,
+      "x": 1270.80246550031,
+      "y": 1268.4124224586412,
+      "radius": 144.94739626999944,
+      "mineId": null
+     },
+     {
+      "id": 28,
+      "x": 311.9335105875507,
+      "y": 4246.564123686403,
+      "radius": 141.80064737331122,
+      "mineId": null
+     },
+     {
+      "id": 29,
+      "x": 3820.2712106285617,
+      "y": 3219.6500862948596,
+      "radius": 172.10741171613336,
+      "mineId": null
+     },
+     {
+      "id": 30,
+      "x": 2192.9709867108613,
+      "y": 3180.1354974741116,
+      "radius": 150.37789303343743,
+      "mineId": null
+     },
+     {
+      "id": 31,
+      "x": 5573.05970613379,
+      "y": 2423.8359119277447,
+      "radius": 147.58023864589632,
+      "mineId": null
+     },
+     {
+      "id": 32,
+      "x": 4663.638119585812,
+      "y": 2208.6038642562926,
+      "radius": 182.51993058249354,
+      "mineId": null
+     },
+     {
+      "id": 33,
+      "x": 7230.3529273485765,
+      "y": 868.7643594341353,
+      "radius": 120.6862836657092,
+      "mineId": null
+     },
+     {
+      "id": 34,
+      "x": 3916.926706209779,
+      "y": 4248.667729669251,
+      "radius": 210.67081350367516,
+      "mineId": null
+     },
+     {
+      "id": 35,
+      "x": 3075.2035775221884,
+      "y": 1588.787305378355,
+      "radius": 151.76426314748824,
+      "mineId": null
+     }
+    ],
+    "entities": [
+     {
+      "id": 1,
+      "kind": "structure",
+      "type": "station",
+      "faction": "nairan",
+      "x": 1286.1447858535298,
+      "y": 3576.0065663779615,
+      "angle": 0,
+      "hull": 2850,
+      "shield": 1400,
+      "level": 1,
+      "build": 1
+     },
+     {
+      "id": 2,
+      "kind": "hardpoint",
+      "type": "shipyard",
+      "faction": "nairan",
+      "x": 1286.1447858535298,
+      "y": 3476.0065663779615,
+      "angle": 0,
+      "hull": 760,
+      "shield": 0,
+      "level": 0,
+      "build": 1
+     },
+     {
+      "id": 3,
+      "kind": "hardpoint",
+      "type": "hangar",
+      "faction": "nairan",
+      "x": 1286.1447858535298,
+      "y": 3676.0065663779615,
+      "angle": 0,
+      "hull": 570,
+      "shield": 0,
+      "level": 0,
+      "build": 1
+     },
+     {
+      "id": 4,
+      "kind": "hardpoint",
+      "type": "shield",
+      "faction": "nairan",
+      "x": 1216.1447858535298,
+      "y": 3576.0065663779615,
+      "angle": 0,
+      "hull": 475,
+      "shield": 0,
+      "level": 0,
+      "build": 1
+     },
+     {
+      "id": 5,
+      "kind": "hardpoint",
+      "type": "turret",
+      "faction": "nairan",
+      "x": 1361.1447858535298,
+      "y": 3506.0065663779615,
+      "angle": 0,
+      "hull": 380,
+      "shield": 0,
+      "level": 0,
+      "build": 1
+     },
+     {
+      "id": 6,
+      "kind": "hardpoint",
+      "type": "turret",
+      "faction": "nairan",
+      "x": 1361.1447858535298,
+      "y": 3646.0065663779615,
+      "angle": 0,
+      "hull": 380,
+      "shield": 0,
+      "level": 0,
+      "build": 1
+     },
+     {
+      "id": 7,
+      "kind": "structure",
+      "type": "station",
+      "faction": "klaed",
+      "x": 4170.5708279011715,
+      "y": 759.0624628441267,
+      "angle": 0,
+      "hull": 3000,
+      "shield": 850,
+      "level": 1,
+      "build": 1
+     },
+     {
+      "id": 8,
+      "kind": "hardpoint",
+      "type": "shipyard",
+      "faction": "klaed",
+      "x": 4170.5708279011715,
+      "y": 659.0624628441267,
+      "angle": 0,
+      "hull": 800,
+      "shield": 0,
+      "level": 0,
+      "build": 1
+     },
+     {
+      "id": 9,
+      "kind": "hardpoint",
+      "type": "hangar",
+      "faction": "klaed",
+      "x": 4170.5708279011715,
+      "y": 859.0624628441267,
+      "angle": 0,
+      "hull": 600,
+      "shield": 0,
+      "level": 0,
+      "build": 1
+     },
+     {
+      "id": 10,
+      "kind": "hardpoint",
+      "type": "shield",
+      "faction": "klaed",
+      "x": 4100.5708279011715,
+      "y": 759.0624628441267,
+      "angle": 0,
+      "hull": 500,
+      "shield": 0,
+      "level": 0,
+      "build": 1
+     },
+     {
+      "id": 11,
+      "kind": "hardpoint",
+      "type": "turret",
+      "faction": "klaed",
+      "x": 4245.5708279011715,
+      "y": 689.0624628441267,
+      "angle": 0,
+      "hull": 400,
+      "shield": 0,
+      "level": 0,
+      "build": 1
+     },
+     {
+      "id": 12,
+      "kind": "hardpoint",
+      "type": "turret",
+      "faction": "klaed",
+      "x": 4245.5708279011715,
+      "y": 829.0624628441267,
+      "angle": 0,
+      "hull": 400,
+      "shield": 0,
+      "level": 0,
+      "build": 1
+     },
+     {
+      "id": 13,
+      "kind": "structure",
+      "type": "station",
+      "faction": "nautolan",
+      "x": 6543.284386245299,
+      "y": 3764.9309707779116,
+      "angle": 0,
+      "hull": 3000,
+      "shield": 1000,
+      "level": 1,
+      "build": 1
+     },
+     {
+      "id": 14,
+      "kind": "hardpoint",
+      "type": "shipyard",
+      "faction": "nautolan",
+      "x": 6543.284386245299,
+      "y": 3664.9309707779116,
+      "angle": 0,
+      "hull": 800,
+      "shield": 0,
+      "level": 0,
+      "build": 1
+     },
+     {
+      "id": 15,
+      "kind": "hardpoint",
+      "type": "hangar",
+      "faction": "nautolan",
+      "x": 6543.284386245299,
+      "y": 3864.9309707779116,
+      "angle": 0,
+      "hull": 600,
+      "shield": 0,
+      "level": 0,
+      "build": 1
+     },
+     {
+      "id": 16,
+      "kind": "hardpoint",
+      "type": "shield",
+      "faction": "nautolan",
+      "x": 6473.284386245299,
+      "y": 3764.9309707779116,
+      "angle": 0,
+      "hull": 500,
+      "shield": 0,
+      "level": 0,
+      "build": 1
+     },
+     {
+      "id": 17,
+      "kind": "hardpoint",
+      "type": "turret",
+      "faction": "nautolan",
+      "x": 6618.284386245299,
+      "y": 3694.9309707779116,
+      "angle": 0,
+      "hull": 400,
+      "shield": 0,
+      "level": 0,
+      "build": 1
+     },
+     {
+      "id": 18,
+      "kind": "hardpoint",
+      "type": "turret",
+      "faction": "nautolan",
+      "x": 6618.284386245299,
+      "y": 3834.9309707779116,
+      "angle": 0,
+      "hull": 400,
+      "shield": 0,
+      "level": 0,
+      "build": 1
+     }
+    ]
+   }
+  }
+ }
+}

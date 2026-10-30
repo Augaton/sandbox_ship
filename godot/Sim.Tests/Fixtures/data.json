@@ -1,0 +1,1686 @@
+{
+ "factions": {
+  "klaed": {
+   "name": "Kla'ed",
+   "color": 14702139,
+   "trait": {
+    "damage": 1.1,
+    "shield": 0.85,
+    "hull": 1,
+    "speed": 1,
+    "cost": 1,
+    "hullRegen": 0,
+    "name": "Assaut",
+    "description": "Armes +10 %, boucliers −15 %"
+   }
+  },
+  "nairan": {
+   "name": "Nairan",
+   "color": 5219296,
+   "trait": {
+    "damage": 1,
+    "shield": 1.4,
+    "hull": 0.95,
+    "speed": 1,
+    "cost": 1,
+    "hullRegen": 0,
+    "name": "Technologie",
+    "description": "Boucliers +40 %, coques −5 %"
+   }
+  },
+  "nautolan": {
+   "name": "Nautolan",
+   "color": 8115050,
+   "trait": {
+    "damage": 1,
+    "shield": 1,
+    "hull": 1,
+    "speed": 1,
+    "cost": 0.9,
+    "hullRegen": 0.01,
+    "name": "Biomécanique",
+    "description": "Les coques se régénèrent (1 % par seconde), vaisseaux 10 % moins chers"
+   }
+  }
+ },
+ "ships": {
+  "scout": {
+   "id": "scout",
+   "name": "Éclaireur",
+   "size": "small",
+   "hull": 60,
+   "shield": 20,
+   "shieldRegen": 2,
+   "speed": 230,
+   "accel": 300,
+   "turnRate": 4,
+   "radius": 10,
+   "ability": "sprint",
+   "source": "shipyard",
+   "cost": 400,
+   "buildTime": 10,
+   "minStationLevel": 1,
+   "squad": 3,
+   "weapons": [
+    {
+     "kind": "bullet",
+     "range": 220,
+     "damage": 4,
+     "cooldown": 0.4,
+     "projectileSpeed": 650
+    }
+   ]
+  },
+  "fighter": {
+   "id": "fighter",
+   "name": "Chasseur",
+   "size": "small",
+   "hull": 40,
+   "shield": 0,
+   "shieldRegen": 0,
+   "speed": 260,
+   "accel": 360,
+   "turnRate": 5,
+   "radius": 9,
+   "source": "hangar",
+   "cost": 0,
+   "buildTime": 0,
+   "minStationLevel": 1,
+   "weapons": [
+    {
+     "kind": "bullet",
+     "range": 200,
+     "damage": 3,
+     "cooldown": 0.3,
+     "projectileSpeed": 700,
+     "mult": {
+      "small": 1.5,
+      "medium": 0.5,
+      "large": 0.3,
+      "structure": 0.2
+     }
+    }
+   ]
+  },
+  "bomber": {
+   "id": "bomber",
+   "name": "Bombardier",
+   "size": "small",
+   "hull": 70,
+   "shield": 0,
+   "shieldRegen": 0,
+   "speed": 190,
+   "accel": 260,
+   "turnRate": 3.5,
+   "radius": 12,
+   "source": "shipyard",
+   "cost": 500,
+   "buildTime": 15,
+   "minStationLevel": 1,
+   "squad": 3,
+   "weapons": [
+    {
+     "kind": "torpedo",
+     "range": 260,
+     "damage": 30,
+     "cooldown": 3,
+     "projectileSpeed": 320,
+     "homing": true,
+     "mult": {
+      "small": 0.2,
+      "large": 1.5,
+      "structure": 1.8
+     }
+    }
+   ]
+  },
+  "support": {
+   "id": "support",
+   "name": "Soutien",
+   "size": "medium",
+   "hull": 220,
+   "shield": 80,
+   "shieldRegen": 4,
+   "speed": 120,
+   "accel": 120,
+   "turnRate": 2,
+   "radius": 18,
+   "ability": "repair",
+   "source": "shipyard",
+   "cost": 400,
+   "buildTime": 12,
+   "minStationLevel": 1,
+   "weapons": [
+    {
+     "kind": "bullet",
+     "range": 260,
+     "damage": 3,
+     "cooldown": 0.35,
+     "projectileSpeed": 700,
+     "mult": {
+      "small": 2,
+      "medium": 0.6,
+      "large": 0.3,
+      "structure": 0.3
+     }
+    }
+   ],
+   "repair": {
+    "range": 220,
+    "rate": 10
+   }
+  },
+  "torpedo": {
+   "id": "torpedo",
+   "name": "Torpilleur",
+   "size": "medium",
+   "hull": 300,
+   "shield": 100,
+   "shieldRegen": 4,
+   "speed": 110,
+   "accel": 110,
+   "turnRate": 1.8,
+   "radius": 18,
+   "ability": "salvo",
+   "source": "shipyard",
+   "cost": 500,
+   "buildTime": 14,
+   "minStationLevel": 2,
+   "weapons": [
+    {
+     "kind": "torpedo",
+     "range": 420,
+     "damage": 45,
+     "cooldown": 4,
+     "projectileSpeed": 320,
+     "homing": true,
+     "mult": {
+      "small": 0.15,
+      "large": 1.6,
+      "structure": 1.6
+     }
+    }
+   ]
+  },
+  "frigate": {
+   "id": "frigate",
+   "name": "Frégate",
+   "size": "medium",
+   "hull": 600,
+   "shield": 250,
+   "shieldRegen": 3,
+   "speed": 90,
+   "accel": 80,
+   "turnRate": 1.2,
+   "radius": 26,
+   "ability": "overcharge",
+   "source": "shipyard",
+   "cost": 650,
+   "buildTime": 16,
+   "minStationLevel": 1,
+   "weapons": [
+    {
+     "kind": "bullet",
+     "range": 260,
+     "damage": 4,
+     "cooldown": 0.35,
+     "projectileSpeed": 700,
+     "mult": {
+      "small": 2,
+      "medium": 0.6,
+      "large": 0.3,
+      "structure": 0.3
+     }
+    }
+   ],
+   "hardpoints": [
+    {
+     "role": "turret",
+     "x": 10,
+     "y": 0,
+     "hull": 200,
+     "radius": 7,
+     "weapons": [
+      {
+       "kind": "laser",
+       "range": 400,
+       "damage": 16,
+       "cooldown": 1.2,
+       "projectileSpeed": 900,
+       "mult": {
+        "small": 0.4
+       }
+      }
+     ]
+    },
+    {
+     "role": "shield",
+     "x": -12,
+     "y": 0,
+     "hull": 220,
+     "radius": 7
+    }
+   ]
+  },
+  "battlecruiser": {
+   "id": "battlecruiser",
+   "name": "Croiseur",
+   "size": "large",
+   "hull": 1100,
+   "shield": 600,
+   "shieldRegen": 5,
+   "speed": 65,
+   "accel": 50,
+   "turnRate": 0.7,
+   "radius": 40,
+   "ability": "barrage",
+   "source": "shipyard",
+   "cost": 1400,
+   "buildTime": 28,
+   "minStationLevel": 2,
+   "weapons": [],
+   "hardpoints": [
+    {
+     "role": "turret",
+     "x": 14,
+     "y": -18,
+     "hull": 250,
+     "radius": 8,
+     "weapons": [
+      {
+       "kind": "laser",
+       "range": 450,
+       "damage": 22,
+       "cooldown": 1.2,
+       "projectileSpeed": 900,
+       "mult": {
+        "small": 0.4
+       }
+      }
+     ]
+    },
+    {
+     "role": "turret",
+     "x": 14,
+     "y": 18,
+     "hull": 250,
+     "radius": 8,
+     "weapons": [
+      {
+       "kind": "laser",
+       "range": 450,
+       "damage": 22,
+       "cooldown": 1.2,
+       "projectileSpeed": 900,
+       "mult": {
+        "small": 0.4
+       }
+      }
+     ]
+    },
+    {
+     "role": "turret",
+     "x": -8,
+     "y": 0,
+     "hull": 200,
+     "radius": 7,
+     "weapons": [
+      {
+       "kind": "bullet",
+       "range": 260,
+       "damage": 4,
+       "cooldown": 0.35,
+       "projectileSpeed": 700,
+       "mult": {
+        "small": 2,
+        "medium": 0.6,
+        "large": 0.3,
+        "structure": 0.3
+       }
+      }
+     ]
+    },
+    {
+     "role": "shield",
+     "x": -24,
+     "y": 0,
+     "hull": 350,
+     "radius": 8
+    },
+    {
+     "role": "engine",
+     "x": -42,
+     "y": -12
+    },
+    {
+     "role": "engine",
+     "x": -42,
+     "y": 12
+    }
+   ]
+  },
+  "dreadnought": {
+   "id": "dreadnought",
+   "name": "Cuirassé",
+   "size": "large",
+   "hull": 2800,
+   "shield": 1500,
+   "shieldRegen": 8,
+   "speed": 45,
+   "accel": 35,
+   "turnRate": 0.45,
+   "radius": 56,
+   "ability": "broadside",
+   "source": "shipyard",
+   "cost": 3000,
+   "buildTime": 45,
+   "minStationLevel": 3,
+   "weapons": [],
+   "hardpoints": [
+    {
+     "role": "heavyTurret",
+     "x": 34,
+     "y": 0,
+     "hull": 400,
+     "radius": 11,
+     "weapons": [
+      {
+       "kind": "ray",
+       "range": 560,
+       "damage": 60,
+       "cooldown": 2.5,
+       "projectileSpeed": 1100,
+       "mult": {
+        "small": 0.2
+       }
+      }
+     ]
+    },
+    {
+     "role": "turret",
+     "x": 10,
+     "y": -24,
+     "hull": 250,
+     "radius": 8,
+     "weapons": [
+      {
+       "kind": "laser",
+       "range": 450,
+       "damage": 22,
+       "cooldown": 1.2,
+       "projectileSpeed": 900,
+       "mult": {
+        "small": 0.4
+       }
+      }
+     ]
+    },
+    {
+     "role": "turret",
+     "x": 10,
+     "y": 24,
+     "hull": 250,
+     "radius": 8,
+     "weapons": [
+      {
+       "kind": "laser",
+       "range": 450,
+       "damage": 22,
+       "cooldown": 1.2,
+       "projectileSpeed": 900,
+       "mult": {
+        "small": 0.4
+       }
+      }
+     ]
+    },
+    {
+     "role": "turret",
+     "x": -16,
+     "y": -22,
+     "hull": 200,
+     "radius": 7,
+     "weapons": [
+      {
+       "kind": "bullet",
+       "range": 260,
+       "damage": 4,
+       "cooldown": 0.35,
+       "projectileSpeed": 700,
+       "mult": {
+        "small": 2,
+        "medium": 0.6,
+        "large": 0.3,
+        "structure": 0.3
+       }
+      }
+     ]
+    },
+    {
+     "role": "turret",
+     "x": -16,
+     "y": 22,
+     "hull": 200,
+     "radius": 7,
+     "weapons": [
+      {
+       "kind": "bullet",
+       "range": 260,
+       "damage": 4,
+       "cooldown": 0.35,
+       "projectileSpeed": 700,
+       "mult": {
+        "small": 2,
+        "medium": 0.6,
+        "large": 0.3,
+        "structure": 0.3
+       }
+      }
+     ]
+    },
+    {
+     "role": "hangar",
+     "x": -8,
+     "y": 0,
+     "hull": 400,
+     "radius": 10,
+     "hangar": {
+      "squadrons": [
+       {
+        "cls": "fighter",
+        "size": 3
+       }
+      ],
+      "cap": 6,
+      "interval": 25
+     }
+    },
+    {
+     "role": "shield",
+     "x": -32,
+     "y": 0,
+     "hull": 350,
+     "radius": 9
+    },
+    {
+     "role": "engine",
+     "x": -58,
+     "y": -16
+    },
+    {
+     "role": "engine",
+     "x": -58,
+     "y": 16
+    }
+   ]
+  },
+  "titan": {
+   "id": "titan",
+   "name": "Titan",
+   "size": "large",
+   "hull": 6000,
+   "shield": 3500,
+   "shieldRegen": 12,
+   "speed": 32,
+   "accel": 25,
+   "turnRate": 0.3,
+   "radius": 84,
+   "ability": "spinal",
+   "source": "shipyard",
+   "cost": 8000,
+   "buildTime": 90,
+   "minStationLevel": 3,
+   "unique": true,
+   "weapons": [
+    {
+     "kind": "bullet",
+     "range": 260,
+     "damage": 4,
+     "cooldown": 0.35,
+     "projectileSpeed": 700,
+     "mult": {
+      "small": 2,
+      "medium": 0.6,
+      "large": 0.3,
+      "structure": 0.3
+     }
+    },
+    {
+     "kind": "bullet",
+     "range": 260,
+     "damage": 4,
+     "cooldown": 0.35,
+     "projectileSpeed": 700,
+     "mult": {
+      "small": 2,
+      "medium": 0.6,
+      "large": 0.3,
+      "structure": 0.3
+     }
+    }
+   ],
+   "hardpoints": [
+    {
+     "role": "heavyTurret",
+     "x": 52,
+     "y": -16,
+     "hull": 500,
+     "radius": 12,
+     "weapons": [
+      {
+       "kind": "ray",
+       "range": 600,
+       "damage": 70,
+       "cooldown": 2.5,
+       "projectileSpeed": 1100,
+       "mult": {
+        "small": 0.2
+       }
+      }
+     ]
+    },
+    {
+     "role": "heavyTurret",
+     "x": 52,
+     "y": 16,
+     "hull": 500,
+     "radius": 12,
+     "weapons": [
+      {
+       "kind": "ray",
+       "range": 600,
+       "damage": 70,
+       "cooldown": 2.5,
+       "projectileSpeed": 1100,
+       "mult": {
+        "small": 0.2
+       }
+      }
+     ]
+    },
+    {
+     "role": "turret",
+     "x": 20,
+     "y": -46,
+     "hull": 300,
+     "radius": 9,
+     "weapons": [
+      {
+       "kind": "laser",
+       "range": 470,
+       "damage": 24,
+       "cooldown": 1.2,
+       "projectileSpeed": 900,
+       "mult": {
+        "small": 0.4
+       }
+      }
+     ]
+    },
+    {
+     "role": "turret",
+     "x": 20,
+     "y": 46,
+     "hull": 300,
+     "radius": 9,
+     "weapons": [
+      {
+       "kind": "laser",
+       "range": 470,
+       "damage": 24,
+       "cooldown": 1.2,
+       "projectileSpeed": 900,
+       "mult": {
+        "small": 0.4
+       }
+      }
+     ]
+    },
+    {
+     "role": "turret",
+     "x": -22,
+     "y": -52,
+     "hull": 300,
+     "radius": 9,
+     "weapons": [
+      {
+       "kind": "laser",
+       "range": 470,
+       "damage": 24,
+       "cooldown": 1.2,
+       "projectileSpeed": 900,
+       "mult": {
+        "small": 0.4
+       }
+      }
+     ]
+    },
+    {
+     "role": "turret",
+     "x": -22,
+     "y": 52,
+     "hull": 300,
+     "radius": 9,
+     "weapons": [
+      {
+       "kind": "laser",
+       "range": 470,
+       "damage": 24,
+       "cooldown": 1.2,
+       "projectileSpeed": 900,
+       "mult": {
+        "small": 0.4
+       }
+      }
+     ]
+    },
+    {
+     "role": "hangar",
+     "x": -14,
+     "y": 0,
+     "hull": 500,
+     "radius": 11,
+     "hangar": {
+      "squadrons": [
+       {
+        "cls": "fighter",
+        "size": 3
+       },
+       {
+        "cls": "bomber",
+        "size": 2
+       }
+      ],
+      "cap": 8,
+      "interval": 20
+     }
+    },
+    {
+     "role": "shield",
+     "x": -40,
+     "y": -14,
+     "hull": 400,
+     "radius": 9
+    },
+    {
+     "role": "shield",
+     "x": -40,
+     "y": 14,
+     "hull": 400,
+     "radius": 9
+    },
+    {
+     "role": "engine",
+     "x": -76,
+     "y": -38
+    },
+    {
+     "role": "engine",
+     "x": -80,
+     "y": 0
+    },
+    {
+     "role": "engine",
+     "x": -76,
+     "y": 38
+    }
+   ]
+  }
+ },
+ "hardpoints": {
+  "turret": {
+   "role": "turret",
+   "name": "Tourelle",
+   "hull": 400,
+   "radius": 14,
+   "weapons": [
+    {
+     "kind": "laser",
+     "range": 420,
+     "damage": 12,
+     "cooldown": 1,
+     "projectileSpeed": 900,
+     "mult": {
+      "small": 0.4
+     }
+    }
+   ]
+  },
+  "heavyTurret": {
+   "role": "heavyTurret",
+   "name": "Tourelle lourde",
+   "hull": 700,
+   "radius": 18,
+   "weapons": [
+    {
+     "kind": "laser",
+     "range": 520,
+     "damage": 30,
+     "cooldown": 2,
+     "projectileSpeed": 900,
+     "mult": {
+      "small": 0.4
+     }
+    }
+   ]
+  },
+  "hangar": {
+   "role": "hangar",
+   "name": "Hangar",
+   "hull": 600,
+   "radius": 20,
+   "weapons": [],
+   "hangar": {
+    "squadrons": [
+     {
+      "cls": "fighter",
+      "size": 3
+     },
+     {
+      "cls": "bomber",
+      "size": 2
+     }
+    ],
+    "cap": 8,
+    "interval": 20
+   }
+  },
+  "shield": {
+   "role": "shield",
+   "name": "Générateur de bouclier",
+   "hull": 500,
+   "radius": 16,
+   "weapons": []
+  },
+  "shipyard": {
+   "role": "shipyard",
+   "name": "Chantier naval",
+   "hull": 800,
+   "radius": 22,
+   "weapons": []
+  },
+  "engine": {
+   "role": "engine",
+   "name": "Réacteur",
+   "hull": 300,
+   "radius": 9,
+   "weapons": []
+  }
+ },
+ "station": {
+  "name": "Station spatiale",
+  "radius": 90,
+  "constructionRadius": 650,
+  "weapons": [
+   {
+    "kind": "bullet",
+    "range": 260,
+    "damage": 4,
+    "cooldown": 0.35,
+    "projectileSpeed": 700,
+    "mult": {
+     "small": 2,
+     "medium": 0.6,
+     "large": 0.3,
+     "structure": 0.3
+    }
+   }
+  ],
+  "levels": [
+   {
+    "income": 6,
+    "hull": 3000,
+    "shield": 1000,
+    "shieldRegen": 5,
+    "upgradeCost": 0,
+    "upgradeTime": 0,
+    "hardpoints": [
+     {
+      "role": "shipyard",
+      "x": 0,
+      "y": -100
+     },
+     {
+      "role": "hangar",
+      "x": 0,
+      "y": 100
+     },
+     {
+      "role": "shield",
+      "x": -70,
+      "y": 0
+     },
+     {
+      "role": "turret",
+      "x": 75,
+      "y": -70
+     },
+     {
+      "role": "turret",
+      "x": 75,
+      "y": 70
+     }
+    ]
+   },
+   {
+    "income": 8,
+    "hull": 4500,
+    "shield": 1500,
+    "shieldRegen": 7,
+    "upgradeCost": 1200,
+    "upgradeTime": 30,
+    "hardpoints": [
+     {
+      "role": "turret",
+      "x": -75,
+      "y": -70
+     },
+     {
+      "role": "turret",
+      "x": -75,
+      "y": 70
+     },
+     {
+      "role": "hangar",
+      "x": 105,
+      "y": 0
+     }
+    ]
+   },
+   {
+    "income": 10,
+    "hull": 6500,
+    "shield": 2200,
+    "shieldRegen": 10,
+    "upgradeCost": 2500,
+    "upgradeTime": 45,
+    "hardpoints": [
+     {
+      "role": "heavyTurret",
+      "x": 0,
+      "y": -150
+     },
+     {
+      "role": "heavyTurret",
+      "x": 0,
+      "y": 150
+     }
+    ]
+   }
+  ]
+ },
+ "buildables": {
+  "platform": {
+   "id": "platform",
+   "name": "Plateforme de défense",
+   "hull": 900,
+   "shield": 200,
+   "shieldRegen": 5,
+   "radius": 22,
+   "cost": 400,
+   "buildTime": 15,
+   "minStationLevel": 1,
+   "weapons": [
+    {
+     "kind": "laser",
+     "range": 450,
+     "damage": 12,
+     "cooldown": 1.2,
+     "projectileSpeed": 900,
+     "mult": {
+      "small": 0.4
+     }
+    },
+    {
+     "kind": "bullet",
+     "range": 260,
+     "damage": 4,
+     "cooldown": 0.35,
+     "projectileSpeed": 700,
+     "mult": {
+      "small": 2,
+      "medium": 0.6,
+      "large": 0.3,
+      "structure": 0.3
+     }
+    }
+   ],
+   "nearMines": true,
+   "tiers": [
+    {
+     "cost": 400,
+     "time": 20,
+     "hull": 1400,
+     "shield": 350,
+     "weapons": [
+      {
+       "kind": "laser",
+       "range": 470,
+       "damage": 18,
+       "cooldown": 1.2,
+       "projectileSpeed": 900,
+       "mult": {
+        "small": 0.4
+       }
+      },
+      {
+       "kind": "bullet",
+       "range": 260,
+       "damage": 4,
+       "cooldown": 0.35,
+       "projectileSpeed": 700,
+       "mult": {
+        "small": 2,
+        "medium": 0.6,
+        "large": 0.3,
+        "structure": 0.3
+       }
+      }
+     ]
+    },
+    {
+     "cost": 700,
+     "time": 30,
+     "hull": 2000,
+     "shield": 500,
+     "weapons": [
+      {
+       "kind": "laser",
+       "range": 500,
+       "damage": 22,
+       "cooldown": 1.2,
+       "projectileSpeed": 900,
+       "mult": {
+        "small": 0.4
+       }
+      },
+      {
+       "kind": "laser",
+       "range": 500,
+       "damage": 22,
+       "cooldown": 1.2,
+       "projectileSpeed": 900,
+       "mult": {
+        "small": 0.4
+       }
+      },
+      {
+       "kind": "bullet",
+       "range": 260,
+       "damage": 4,
+       "cooldown": 0.35,
+       "projectileSpeed": 700,
+       "mult": {
+        "small": 2,
+        "medium": 0.6,
+        "large": 0.3,
+        "structure": 0.3
+       }
+      }
+     ]
+    }
+   ]
+  },
+  "mine": {
+   "id": "mine",
+   "name": "Mine d'astéroïdes",
+   "hull": 700,
+   "shield": 0,
+   "shieldRegen": 0,
+   "radius": 26,
+   "cost": 500,
+   "buildTime": 20,
+   "minStationLevel": 1,
+   "weapons": [],
+   "income": 8
+  },
+  "outpost": {
+   "id": "outpost",
+   "name": "Avant-poste",
+   "hull": 1000,
+   "shield": 300,
+   "shieldRegen": 5,
+   "radius": 30,
+   "cost": 700,
+   "buildTime": 25,
+   "minStationLevel": 1,
+   "weapons": [
+    {
+     "kind": "bullet",
+     "range": 260,
+     "damage": 4,
+     "cooldown": 0.35,
+     "projectileSpeed": 700,
+     "mult": {
+      "small": 2,
+      "medium": 0.6,
+      "large": 0.3,
+      "structure": 0.3
+     }
+    }
+   ],
+   "zone": 450,
+   "tiers": [
+    {
+     "cost": 500,
+     "time": 20,
+     "hull": 1500,
+     "shield": 450,
+     "zone": 600,
+     "weapons": [
+      {
+       "kind": "bullet",
+       "range": 260,
+       "damage": 4,
+       "cooldown": 0.35,
+       "projectileSpeed": 700,
+       "mult": {
+        "small": 2,
+        "medium": 0.6,
+        "large": 0.3,
+        "structure": 0.3
+       }
+      },
+      {
+       "kind": "laser",
+       "range": 450,
+       "damage": 14,
+       "cooldown": 1.2,
+       "projectileSpeed": 900,
+       "mult": {
+        "small": 0.4
+       }
+      }
+     ]
+    },
+    {
+     "cost": 800,
+     "time": 30,
+     "hull": 2200,
+     "shield": 650,
+     "zone": 750,
+     "weapons": [
+      {
+       "kind": "bullet",
+       "range": 260,
+       "damage": 4,
+       "cooldown": 0.35,
+       "projectileSpeed": 700,
+       "mult": {
+        "small": 2,
+        "medium": 0.6,
+        "large": 0.3,
+        "structure": 0.3
+       }
+      },
+      {
+       "kind": "laser",
+       "range": 480,
+       "damage": 18,
+       "cooldown": 1.2,
+       "projectileSpeed": 900,
+       "mult": {
+        "small": 0.4
+       }
+      },
+      {
+       "kind": "laser",
+       "range": 480,
+       "damage": 18,
+       "cooldown": 1.2,
+       "projectileSpeed": 900,
+       "mult": {
+        "small": 0.4
+       }
+      }
+     ]
+    }
+   ]
+  },
+  "repairDock": {
+   "id": "repairDock",
+   "name": "Dock de réparation",
+   "hull": 900,
+   "shield": 200,
+   "shieldRegen": 5,
+   "radius": 30,
+   "cost": 600,
+   "buildTime": 20,
+   "minStationLevel": 1,
+   "weapons": [],
+   "repair": {
+    "range": 280,
+    "rate": 15
+   },
+   "nearMines": true
+  },
+  "ionCannon": {
+   "id": "ionCannon",
+   "name": "Canon ionique",
+   "hull": 1400,
+   "shield": 400,
+   "shieldRegen": 8,
+   "radius": 26,
+   "cost": 1500,
+   "buildTime": 35,
+   "minStationLevel": 3,
+   "weapons": [
+    {
+     "kind": "ray",
+     "range": 900,
+     "damage": 90,
+     "cooldown": 5,
+     "projectileSpeed": 1200,
+     "mult": {
+      "small": 0.1,
+      "medium": 0.8
+     }
+    }
+   ]
+  }
+ },
+ "abilities": {
+  "sprint": {
+   "id": "sprint",
+   "name": "Postcombustion",
+   "description": "Vitesse doublée pendant 5 s.",
+   "cooldown": 20,
+   "duration": 5,
+   "target": "self",
+   "color": 5941734
+  },
+  "repair": {
+   "id": "repair",
+   "name": "Réparation d'urgence",
+   "description": "Répare de 25 % les alliés proches.",
+   "cooldown": 40,
+   "duration": 0,
+   "target": "self",
+   "radius": 260,
+   "color": 7327884
+  },
+  "salvo": {
+   "id": "salvo",
+   "name": "Salve",
+   "description": "Cadence de tir triplée pendant 6 s.",
+   "cooldown": 30,
+   "duration": 6,
+   "target": "self",
+   "color": 15245626
+  },
+  "overcharge": {
+   "id": "overcharge",
+   "name": "Surcharge des boucliers",
+   "description": "Boucliers pleins, recharge ×4 pendant 8 s.",
+   "cooldown": 35,
+   "duration": 8,
+   "target": "self",
+   "color": 5941734
+  },
+  "barrage": {
+   "id": "barrage",
+   "name": "Tir de barrage",
+   "description": "Dégâts +50 % pendant 8 s.",
+   "cooldown": 40,
+   "duration": 8,
+   "target": "self",
+   "color": 14703178
+  },
+  "broadside": {
+   "id": "broadside",
+   "name": "Bordée",
+   "description": "Toutes les tourelles rechargées, dégâts ×2 pendant 5 s.",
+   "cooldown": 45,
+   "duration": 5,
+   "target": "self",
+   "color": 14703178
+  },
+  "spinal": {
+   "id": "spinal",
+   "name": "Rayon spinal",
+   "description": "Charge 2 s, puis un rayon de 1200 de long frappe tout ce qui est sur sa ligne (900 dégâts).",
+   "cooldown": 50,
+   "duration": 0,
+   "target": "point",
+   "range": 1200,
+   "color": 15245626
+  },
+  "orbitalStrike": {
+   "id": "orbitalStrike",
+   "name": "Bombardement orbital",
+   "description": "Après 2,5 s, une zone explose : 650 dégâts à tous les ennemis dedans. Le délai laisse le temps de fuir.",
+   "cooldown": 45,
+   "duration": 0,
+   "target": "point",
+   "range": 1000,
+   "radius": 220,
+   "color": 14703178
+  },
+  "huntMark": {
+   "id": "huntMark",
+   "name": "Marque du chasseur",
+   "description": "La cible subit +50 % de dégâts de toutes parts pendant 12 s.",
+   "cooldown": 25,
+   "duration": 0,
+   "target": "enemy",
+   "range": 700,
+   "color": 14703178
+  },
+  "fieldTurret": {
+   "id": "fieldTurret",
+   "name": "Tourelle de campagne",
+   "description": "Déploie une plateforme de défense armée pendant 45 s.",
+   "cooldown": 50,
+   "duration": 0,
+   "target": "point",
+   "range": 300,
+   "color": 15245626
+  },
+  "shieldDome": {
+   "id": "shieldDome",
+   "name": "Dôme de bouclier",
+   "description": "Les alliés sous le dôme subissent 50 % de dégâts en moins pendant 10 s.",
+   "cooldown": 50,
+   "duration": 10,
+   "target": "self",
+   "radius": 380,
+   "color": 5941734
+  },
+  "cloak": {
+   "id": "cloak",
+   "name": "Camouflage",
+   "description": "Invisible et intouchable pendant 8 s, dégâts ×2 en embuscade.",
+   "cooldown": 30,
+   "duration": 8,
+   "target": "self",
+   "color": 5941734
+  },
+  "emp": {
+   "id": "emp",
+   "name": "Impulsion IEM",
+   "description": "Les ennemis proches perdent leurs boucliers et restent paralysés 4 s.",
+   "cooldown": 45,
+   "duration": 0,
+   "target": "self",
+   "radius": 350,
+   "color": 5941734
+  },
+  "swarm": {
+   "id": "swarm",
+   "name": "Essaim",
+   "description": "Lâche 8 chasseurs organiques qui vivent 30 s.",
+   "cooldown": 50,
+   "duration": 0,
+   "target": "self",
+   "color": 7327884
+  },
+  "spores": {
+   "id": "spores",
+   "name": "Spores corrosives",
+   "description": "Ronge la coque de la cible, à travers les boucliers, pendant 8 s.",
+   "cooldown": 30,
+   "duration": 0,
+   "target": "enemy",
+   "range": 600,
+   "color": 7327884
+  },
+  "graft": {
+   "id": "graft",
+   "name": "Greffe",
+   "description": "Les alliés proches régénèrent 3 % de leur coque par seconde pendant 10 s.",
+   "cooldown": 50,
+   "duration": 10,
+   "target": "self",
+   "radius": 420,
+   "color": 7327884
+  }
+ },
+ "heroes": {
+  "klaed-admiral": {
+   "role": "admiral",
+   "base": "dreadnought",
+   "hull": 1.6,
+   "shield": 1.5,
+   "damage": 1.7,
+   "speed": 1.1,
+   "cost": 5000,
+   "buildTime": 60,
+   "minStationLevel": 3,
+   "respawn": 180,
+   "id": "klaed-admiral",
+   "faction": "klaed",
+   "ability": "orbitalStrike",
+   "name": "Vorrak",
+   "title": "Amiral",
+   "description": "Cuirassé de commandement aux canons renforcés. Appelle un bombardement orbital."
+  },
+  "klaed-ace": {
+   "role": "ace",
+   "base": "scout",
+   "hull": 12,
+   "shield": 15,
+   "damage": 5,
+   "speed": 1.3,
+   "cost": 1500,
+   "buildTime": 25,
+   "minStationLevel": 1,
+   "respawn": 90,
+   "id": "klaed-ace",
+   "faction": "klaed",
+   "ability": "huntMark",
+   "name": "Kesh",
+   "title": "As",
+   "description": "Éclaireur d'élite. Marque une proie que toute la flotte achève."
+  },
+  "klaed-engineer": {
+   "role": "engineer",
+   "base": "support",
+   "hull": 3.5,
+   "shield": 4,
+   "damage": 2,
+   "speed": 1.2,
+   "cost": 1800,
+   "buildTime": 30,
+   "minStationLevel": 2,
+   "respawn": 120,
+   "id": "klaed-engineer",
+   "faction": "klaed",
+   "ability": "fieldTurret",
+   "name": "Ondra",
+   "title": "Ingénieure",
+   "description": "Répare en continu et déploie des tourelles en pleine bataille."
+  },
+  "nairan-admiral": {
+   "role": "admiral",
+   "base": "dreadnought",
+   "hull": 1.6,
+   "shield": 2.2,
+   "damage": 1.4,
+   "speed": 1.1,
+   "cost": 5000,
+   "buildTime": 60,
+   "minStationLevel": 3,
+   "respawn": 180,
+   "id": "nairan-admiral",
+   "faction": "nairan",
+   "ability": "shieldDome",
+   "name": "Selis Vaun",
+   "title": "Amirale",
+   "description": "Cuirassé aux boucliers presque impénétrables. Couvre sa flotte d'un dôme."
+  },
+  "nairan-ace": {
+   "role": "ace",
+   "base": "scout",
+   "hull": 12,
+   "shield": 15,
+   "damage": 5,
+   "speed": 1.5,
+   "cost": 1500,
+   "buildTime": 25,
+   "minStationLevel": 1,
+   "respawn": 90,
+   "id": "nairan-ace",
+   "faction": "nairan",
+   "ability": "cloak",
+   "name": "Ilo Fenn",
+   "title": "As",
+   "description": "Pilote de chasse plus rapide que tout. Disparaît pour frapper par surprise."
+  },
+  "nairan-engineer": {
+   "role": "engineer",
+   "base": "support",
+   "hull": 3.5,
+   "shield": 4,
+   "damage": 2,
+   "speed": 1.2,
+   "cost": 1800,
+   "buildTime": 30,
+   "minStationLevel": 2,
+   "respawn": 120,
+   "id": "nairan-engineer",
+   "faction": "nairan",
+   "ability": "emp",
+   "name": "Tavi Qor",
+   "title": "Ingénieur",
+   "description": "Spécialiste des boucliers : son impulsion paralyse les vaisseaux ennemis."
+  },
+  "nautolan-admiral": {
+   "role": "admiral",
+   "base": "dreadnought",
+   "hull": 2.2,
+   "shield": 1.5,
+   "damage": 1.4,
+   "speed": 1.1,
+   "cost": 5000,
+   "buildTime": 60,
+   "minStationLevel": 3,
+   "respawn": 180,
+   "id": "nautolan-admiral",
+   "faction": "nautolan",
+   "ability": "swarm",
+   "name": "Ysh'ra",
+   "title": "Mère-nef",
+   "description": "Cuirassé vivant, à la coque immense, qui enfante des essaims."
+  },
+  "nautolan-ace": {
+   "role": "ace",
+   "base": "scout",
+   "hull": 16,
+   "shield": 15,
+   "damage": 5,
+   "speed": 1.3,
+   "cost": 1500,
+   "buildTime": 25,
+   "minStationLevel": 1,
+   "respawn": 90,
+   "id": "nautolan-ace",
+   "faction": "nautolan",
+   "ability": "spores",
+   "name": "Kael",
+   "title": "Rôdeur",
+   "description": "Chasseur organique et tenace. Ses spores rongent les coques."
+  },
+  "nautolan-engineer": {
+   "role": "engineer",
+   "base": "support",
+   "hull": 3.5,
+   "shield": 4,
+   "damage": 2,
+   "speed": 1.2,
+   "cost": 1800,
+   "buildTime": 30,
+   "minStationLevel": 2,
+   "respawn": 120,
+   "id": "nautolan-engineer",
+   "faction": "nautolan",
+   "ability": "graft",
+   "name": "Om",
+   "title": "Greffeur",
+   "description": "Fait repousser les coques de toute une flotte."
+  }
+ },
+ "techs": {
+  "weapons": {
+   "id": "weapons",
+   "name": "Armement",
+   "effect": "+10 % de dégâts par niveau",
+   "costs": [
+    600,
+    1200,
+    2000
+   ],
+   "times": [
+    30,
+    45,
+    60
+   ]
+  },
+  "shields": {
+   "id": "shields",
+   "name": "Boucliers",
+   "effect": "+15 % de bouclier et de recharge par niveau",
+   "costs": [
+    600,
+    1200,
+    2000
+   ],
+   "times": [
+    30,
+    45,
+    60
+   ]
+  },
+  "armor": {
+   "id": "armor",
+   "name": "Blindage",
+   "effect": "+10 % de coque par niveau",
+   "costs": [
+    600,
+    1200,
+    2000
+   ],
+   "times": [
+    30,
+    45,
+    60
+   ]
+  },
+  "engines": {
+   "id": "engines",
+   "name": "Propulsion",
+   "effect": "+10 % de vitesse par niveau",
+   "costs": [
+    400,
+    800,
+    1400
+   ],
+   "times": [
+    25,
+    35,
+    50
+   ]
+  },
+  "mining": {
+   "id": "mining",
+   "name": "Extraction",
+   "effect": "+20 % de revenu des mines par niveau",
+   "costs": [
+    500,
+    1000,
+    1600
+   ],
+   "times": [
+    25,
+    35,
+    50
+   ]
+  },
+  "hangars": {
+   "id": "hangars",
+   "name": "Hangars",
+   "effect": "+2 appareils par hangar et lancements 15 % plus rapides, par niveau",
+   "costs": [
+    500,
+    1000,
+    1600
+   ],
+   "times": [
+    25,
+    35,
+    50
+   ]
+  }
+ },
+ "derived": [
+  {
+   "cls": "scout",
+   "unitValue": 133.33333333333334,
+   "orderName": "3× Éclaireur",
+   "cost": {
+    "klaed": 400,
+    "nairan": 400,
+    "nautolan": 360
+   }
+  },
+  {
+   "cls": "fighter",
+   "unitValue": 0,
+   "orderName": "Chasseur",
+   "cost": {
+    "klaed": 0,
+    "nairan": 0,
+    "nautolan": 0
+   }
+  },
+  {
+   "cls": "bomber",
+   "unitValue": 166.66666666666666,
+   "orderName": "3× Bombardier",
+   "cost": {
+    "klaed": 500,
+    "nairan": 500,
+    "nautolan": 450
+   }
+  },
+  {
+   "cls": "support",
+   "unitValue": 400,
+   "orderName": "Soutien",
+   "cost": {
+    "klaed": 400,
+    "nairan": 400,
+    "nautolan": 360
+   }
+  },
+  {
+   "cls": "torpedo",
+   "unitValue": 500,
+   "orderName": "Torpilleur",
+   "cost": {
+    "klaed": 500,
+    "nairan": 500,
+    "nautolan": 450
+   }
+  },
+  {
+   "cls": "frigate",
+   "unitValue": 650,
+   "orderName": "Frégate",
+   "cost": {
+    "klaed": 650,
+    "nairan": 650,
+    "nautolan": 585
+   }
+  },
+  {
+   "cls": "battlecruiser",
+   "unitValue": 1400,
+   "orderName": "Croiseur",
+   "cost": {
+    "klaed": 1400,
+    "nairan": 1400,
+    "nautolan": 1260
+   }
+  },
+  {
+   "cls": "dreadnought",
+   "unitValue": 3000,
+   "orderName": "Cuirassé",
+   "cost": {
+    "klaed": 3000,
+    "nairan": 3000,
+    "nautolan": 2700
+   }
+  },
+  {
+   "cls": "titan",
+   "unitValue": 8000,
+   "orderName": "Titan",
+   "cost": {
+    "klaed": 8000,
+    "nairan": 8000,
+    "nautolan": 7200
+   }
+  }
+ ]
+}

@@ -1,0 +1,7 @@
+# Build output and Godot's caches; the .import files next to assets are kept.
+bin/
+obj/
+.godot/
+*.user
+TestResults/
+build/

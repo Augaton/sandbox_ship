@@ -1,0 +1,13 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- The simulation: pure C#, no Godot. Tested and measured on its own, like the web version's. -->
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <RootNamespace>SandboxShip.Sim</RootNamespace>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    <!-- A Godot export builds every project in ExportRelease, which the plain SDK does not know
+         and would leave unoptimized: the whole simulation ran several times slower in the game. -->
+    <Optimize Condition="'$(Configuration)' == 'ExportRelease'">true</Optimize>
+  </PropertyGroup>
+</Project>
