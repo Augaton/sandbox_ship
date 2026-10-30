@@ -87,6 +87,7 @@ public partial class Hud : CanvasLayer
         BuildBottombar();
         if (campaign is null) BuildSandbox(sandbox);
         BuildOverlays();
+        BuildModes();
         RefreshModes();
         Refresh();
     }
@@ -532,6 +533,7 @@ public partial class Hud : CanvasLayer
         PlaceTip();
         FadeToasts();
         Layout();
+        TickModes(delta);
         timer -= delta;
         // A new selection shows at once, not at the next refresh.
         var sel = scene.Selected;

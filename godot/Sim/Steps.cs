@@ -28,6 +28,7 @@ public static class Steps
         Combat.UpdateRepair(world, dt);
         Combat.UpdateShields(world, dt);
         Worlds.RemoveDead(world);
+        Modes.Update(world, dt);
         Worlds.CheckVictory(world);
     }
 

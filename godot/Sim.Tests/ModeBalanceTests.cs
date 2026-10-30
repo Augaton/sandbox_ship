@@ -1,0 +1,102 @@
+// The battle modes played out between AIs on normal difficulty, every pair of races, a few
+// seeds each: who wins, how, and how long it takes. A measure, not a check, and a long one: it
+// only runs when asked,
+//   BALANCE=1 dotnet test Sim.Tests --filter ModeBalance --logger "console;verbosity=detailed"
+using SandboxShip.Sim.Data;
+using Xunit;
+using Xunit.Abstractions;
+
+namespace SandboxShip.Sim.Tests;
+
+public class ModeBalanceTests(ITestOutputHelper output)
+{
+    const int Seeds = 4;
+    const double Limit = 60 * 60;
+    const double Dt = 1.0 / 30;
+
+    /// <summary>Plays a skirmish out between AIs; returns the world at its end, or at the time limit.</summary>
+    static World Play(SkirmishOptions o)
+    {
+        var w = Scenario.CreateSkirmish(o);
+        while (w.Winner is null && w.Time < Limit)
+        {
+            Steps.StepWorld(w, Dt);
+            w.Events.Clear();
+        }
+        return w;
+    }
+
+    static Slot Seat(Side side, Faction race, int team = 0) => new(side, race, team, Difficulty.Normal);
+
+    void Report(string mode, List<(string Game, World World, string Outcome)> games)
+    {
+        foreach (var (game, w, outcome) in games) output.WriteLine($"{mode} {game}: {outcome} en {Js.Round(w.Time / 60)} min");
+        var lengths = games.Select(g => g.World.Time / 60).Order().ToList();
+        output.WriteLine($"{mode}: médiane {Js.Round(lengths[lengths.Count / 2])} min, de {Js.Round(lengths[0])} à {Js.Round(lengths[^1])} min");
+    }
+
+    static List<(Faction A, Faction B, int Seed)> Pairs() =>
+        [.. from a in Factions.All from b in Factions.All where a != b from s in Enumerable.Range(1, Seeds) select (a, b, s)];
+
+    [Fact]
+    public void Measures_survival()
+    {
+        if (Environment.GetEnvironmentVariable("BALANCE") is null) return;
+        var games = Factions.All.SelectMany(a => Enumerable.Range(1, Seeds).SelectMany(s => new[]
+        {
+            ($"{a} seul, graine {s}", new SkirmishOptions { Mode = BattleMode.Survival, Slots = [Seat(a, a)], Seed = s * 101 }),
+            ($"{a} et {(Faction)(((int)a + 1) % 3)}, graine {s}", new SkirmishOptions
+            {
+                Mode = BattleMode.Survival, Slots = [Seat(a, a), Seat((Faction)(((int)a + 1) % 3), (Faction)(((int)a + 1) % 3))], Seed = s * 101,
+            }),
+        })).AsParallel().AsOrdered().Select(g =>
+        {
+            var w = Play(g.Item2);
+            var m = w.Mode;
+            return (g.Item1, w, Worlds.Won(w, g.Item2.Slots[0].Side) ? "victoire" : $"vague {m.Wave}, {m.Cleared} repoussées");
+        }).ToList();
+        Report("survie", games);
+    }
+
+    [Fact]
+    public void Measures_zones()
+    {
+        if (Environment.GetEnvironmentVariable("BALANCE") is null) return;
+        var games = Pairs().AsParallel().AsOrdered().Select(p =>
+        {
+            var w = Play(new SkirmishOptions { Mode = BattleMode.Zones, Slots = [Seat(p.A, p.A), Seat(p.B, p.B)], Seed = p.Seed * 101 });
+            var scores = string.Join(" / ", w.Mode.Scores.Values.Select(v => Js.Round(v)));
+            var how = w.Winner is Side s ? $"{Worlds.RaceOf(w, s)} {(ZoneControl.Score(w, s) >= w.Mode.ZoneTarget ? "aux points" : "par destruction")}" : "nul";
+            return ($"{p.A} contre {p.B}, graine {p.Seed}", w, $"{how} ({scores})");
+        }).ToList();
+        Report("zones", games);
+    }
+
+    [Fact]
+    public void Measures_assault()
+    {
+        if (Environment.GetEnvironmentVariable("BALANCE") is null) return;
+        var games = Pairs().AsParallel().AsOrdered().Select(p =>
+        {
+            var w = Play(new SkirmishOptions { Mode = BattleMode.Assault, Slots = [Seat(p.A, p.A, 1), Seat(p.B, p.B, 2)], Seed = p.Seed * 101 });
+            var how = w.Winner is Side s ? Worlds.TeamOf(w, s) == Assault.Defenders ? "défense" : "attaque" : "nul";
+            return ($"{p.A} défend contre {p.B}, graine {p.Seed}", w, how);
+        }).ToList();
+        Report("assaut", games);
+        output.WriteLine($"défense {games.Count(g => g.Item3 == "défense")}, attaque {games.Count(g => g.Item3 == "attaque")}");
+    }
+
+    [Fact]
+    public void Measures_regicide()
+    {
+        if (Environment.GetEnvironmentVariable("BALANCE") is null) return;
+        var games = Pairs().Where(p => p.Seed <= 2).Select(p => (Game: $"{p.A} contre {p.B}, graine {p.Seed}", Slots: new List<Slot> { Seat(p.A, p.A), Seat(p.B, p.B) }, p.Seed))
+            .Concat(Enumerable.Range(1, 3).Select(s => (Game: $"trois, graine {s}", Slots: Factions.All.Select(f => Seat(f, f)).ToList(), Seed: s)))
+            .AsParallel().AsOrdered().Select(g =>
+            {
+                var w = Play(new SkirmishOptions { Mode = BattleMode.Regicide, Slots = g.Slots, Seed = g.Seed * 101 });
+                return (g.Game, w, w.Winner is Side s ? Worlds.RaceOf(w, s).ToString() : "nul");
+            }).ToList();
+        Report("régicide", games);
+    }
+}

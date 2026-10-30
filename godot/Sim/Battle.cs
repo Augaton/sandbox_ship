@@ -65,7 +65,7 @@ public static class Battle
     public static double FleetValue(ShipCounts ships, IEnumerable<HeroId>? heroes = null) =>
         Data.Ships.All.Sum(c => ships.Of(c) * Data.Ships.UnitValue(c)) + (heroes ?? []).Sum(h => Data.Heroes.Defs[h].Cost);
 
-    static void PlaceShips(World world, BattleSide side, double x, double y, double angle)
+    internal static void PlaceShips(World world, BattleSide side, double x, double y, double angle)
     {
         var list = side.Heroes.Select(h => (Cls: Data.Heroes.Defs[h].Base, Hero: (HeroId?)h))
             .Concat(Data.Ships.All.SelectMany(c => Enumerable.Repeat((Cls: c, Hero: (HeroId?)null), side.Ships.Of(c))))

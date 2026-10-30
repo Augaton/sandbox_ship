@@ -28,7 +28,7 @@ mesure seule, et le rendu ne fait que la lire.
   premiers pas de simulation sont comparés à une tolérance près (les fonctions
   trigonométriques de V8 et de .NET peuvent différer au dernier bit).
 - L'équilibrage se mesure aussi en C# : `BALANCE=1 dotnet test Sim.Tests --filter Balance
-  --logger "console;verbosity=detailed"` (36 parties entre IA).
+  --logger "console;verbosity=detailed"` (36 parties entre IA ; `--filter ModeBalance` pour les modes de bataille).
 
 ## Étapes
 
@@ -161,6 +161,26 @@ tests de `FixtureTests` et `CrossTests` les listent.
   combattre. Les Errants (camp 3) restent ennemis de tous. Escarmouche et campagne se créent depuis des places
   (`Slot`) ; les anciennes sauvegardes se chargent. Sans équipes, les parties sont identiques à avant. Galaxies
   générées : 4 planètes de plus par joueur au-delà de trois (petite et moyenne), pour séparer les capitales.
+- Modes de bataille (`Sim/Modes/`), avec un panneau en haut du HUD, leurs alertes et leur texte de fin ; le salon
+  vérifie une partie avec `Scenario.Check(options)`, qui dit pourquoi elle ne peut pas se jouer.
+- Survie : toutes les places en une équipe contre des vagues d'Errants venues des bords, la première après 2 min 30,
+  puis toutes les 90 s, chacune plus grosse et plus lourde, un boss toutes les cinq (cuirassé, Titan, Léviathan,
+  Colosse). Repousser la 20e gagne, plus aucune station perd. L'IA défend les stations de toute l'équipe. Entre IA :
+  seule, vague 10 à 19 ; à deux, jusqu'à la 20e, sans abattre le Colosse.
+- Contrôle de zone : trois balises (le centre, deux points symétriques loin des stations) ; les vaisseaux d'un seul
+  camp en prennent une en 12 s (après avoir défait la prise adverse), deux camps la gèlent. Une balise tenue rapporte
+  0,1 point/s à son camp tant qu'il a une station ; le premier au score (100) gagne, détruire les stations aussi.
+  L'IA envoie ses vaisseaux inactifs à la balise la plus proche qu'elle ne tient pas. Entre IA : 8 à 14 min.
+- Assaut : l'équipe 1 tient une forteresse (station niveau 4, trois plateformes niveau 3, canon ionique, 9 vaisseaux),
+  l'équipe 2 arrive d'une tête de pont (station niveau 3 nue) avec une flotte de 12 000 cr et 30 cr/s de plus. La
+  défense gagne si une station tient au bout du temps (15 min), l'attaque en les détruisant toutes. L'IA défend sans
+  sortir ; en attaque, une vague dès 5 000 cr de vaisseaux prêts, tout dans les 3 dernières minutes. Entre IA : 13
+  victoires de la défense, 11 de l'attaque sur 24.
+- Régicide : chaque camp commence avec son amiral (héros) pour vaisseau amiral, couronné, connu de tous sur la
+  minicarte, jamais reconstruit ; le perdre élimine le camp, dont tout s'autodétruit sans prime. La dernière équipe
+  avec un vaisseau amiral gagne, les stations ne décident rien. L'IA le garde à 900 de sa station, sur le flanc
+  opposé aux ennemis, avec une escorte de 2 à 6 vaisseaux ; ses vagues plongent sur un vaisseau amiral ennemi en vue,
+  et après 20 min elle y jette tout. Entre IA : 6 parties sur 14 finies en 45 min (médiane 29 min).
 
 ## Ce qui change de technique
 

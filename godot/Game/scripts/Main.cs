@@ -48,7 +48,15 @@ public partial class Main : Node
         if (Dev.Dump is string dir) Ui.Logos.LogoImage(Ui.Loading.LogoScale).SavePng($"{dir}/boot.png");
         switch (Dev.Start)
         {
-            case "battle" or "raid": StartBattle(new BattleOptions { Player = Faction.Klaed, Slots = BattleOptions.Versus(Faction.Klaed, [Faction.Nairan]), Raid = true, Size = Dev.Size }); break;
+            case "battle" or "raid":
+                StartBattle(new BattleOptions
+                {
+                    Player = Faction.Klaed, Raid = true, Size = Dev.Size, Rules = Dev.Mode,
+                    // An assault needs its two teams: the player defends.
+                    Slots = Dev.Mode == BattleMode.Assault ? [new Slot(Faction.Klaed, Faction.Klaed, 1), new Slot(Faction.Nairan, Faction.Nairan, 2, Difficulty.Normal)]
+                        : BattleOptions.Versus(Faction.Klaed, [Faction.Nairan]),
+                });
+                break;
             case "sandbox" or "gallery": StartBattle(new BattleOptions { Player = Faction.Klaed, Slots = BattleOptions.Versus(Faction.Klaed, [Faction.Nairan]), Mode = GameMode.Sandbox, Size = Dev.Size }); break;
             case "campaign": StartCampaign(new MenuChoice { Mode = GameMode.Campaign, Size = Dev.Size }); break;
             case "stress": StartBattle(new BattleOptions { Player = Faction.Klaed, Slots = BattleOptions.Versus(Faction.Klaed, [Faction.Nairan, Faction.Nautolan]), Size = MapSize.Large, Seed = 7 }); break;

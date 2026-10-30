@@ -94,6 +94,7 @@ public partial class Minimap : Control
             DrawArc(at, 6 + 2 * pulse, 0, Mathf.Tau, 24, Palette.Of(w, e.Side, 0.5f + 0.4f * pulse), 2);
             DrawCircle(at, 2, Palette.Of(w, e.Side));
         }
+        scene.DrawModeMarks(this, sx, sy);
         // Recent alerts ping where they happened.
         foreach (var a in scene.Alerts)
         {

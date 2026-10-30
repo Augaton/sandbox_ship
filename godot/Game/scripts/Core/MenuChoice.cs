@@ -33,7 +33,8 @@ public sealed record MenuChoice
 /// (three large fleets in a fight, one step a frame, frame times logged before a --shot run quits), --skip=SECONDS (battle or galaxy played
 /// ahead, the player's side on the AI too), --zoom=Z, --shot=FILE.png and --frames=N (capture, then quit),
 /// --menu=home|new|skirmish|controls|credits|options (the menu screen opened first; skirmish:
-/// the setup with that mode chosen), --size=small|medium|large (the map, or the galaxy, of --start).
+/// the setup with that mode chosen), --size=small|medium|large (the map, or the galaxy, of --start),
+/// --mode=survival|zones|assault|regicide (the rules of --start=battle; in an assault, the player defends).
 /// </summary>
 public static class Dev
 {
@@ -46,6 +47,7 @@ public static class Dev
     public static Godot.Vector2? At;
     public static string Menu = "home";
     public static MapSize Size = MapSize.Medium;
+    public static BattleMode Mode = BattleMode.Standard;
 
     public static void Parse(IEnumerable<string> args)
     {
@@ -65,6 +67,7 @@ public static class Dev
                     break;
                 case "--menu": Menu = value; break;
                 case "--size": Size = Enum.Parse<MapSize>(value, true); break;
+                case "--mode": Mode = Enum.Parse<BattleMode>(value, true); break;
             }
         }
     }

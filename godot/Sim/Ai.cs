@@ -57,7 +57,7 @@ public static class Ai
     }
 
     /// <summary>Warships that answer to the AI: built ones, not hangar craft, not those falling back.</summary>
-    static List<Entity> Warships(World world, FactionState f)
+    internal static List<Entity> Warships(World world, FactionState f)
     {
         var out_ = new List<Entity>();
         foreach (var e in world.Entities)
@@ -153,7 +153,7 @@ public static class Ai
         var heading = ships.Exists(e => e.Order is { } o && o.Type != OrderType.Attack && Hypot(o.X - at.X, o.Y - at.Y) < near);
         if (heading) return Result.Fail(EscortOnTheWay);
         var spot = new Point(at.X, at.Y);
-        var escort = ships.Where(e => e.Order is null).OrderBy(e => Dist(e, spot)).FirstOrDefault();
+        var escort = ships.Where(e => e.Order is null && !Modes.Kept(world, e)).OrderBy(e => Dist(e, spot)).FirstOrDefault();
         if (escort is null) return Result.Fail("Aucune escorte");
         Movement.IssueMove(world, [escort.Id], at.X, at.Y);
         return Result.Fail(EscortOnTheWay);
@@ -345,7 +345,7 @@ public static class Ai
     static bool Command(World world, FactionState f, Entity station, Entity? enemy)
     {
         var ships = Warships(world, f);
-        var idle = ships.Where(e => e.Order is null).ToList();
+        var idle = ships.Where(e => e.Order is null && !Modes.Kept(world, e)).ToList();
         var threatened = false;
         foreach (var e in world.Entities)
         {
@@ -383,7 +383,7 @@ public static class Ai
         if (station is null) return;
         var enemy = NearestEnemyStation(world, f, station);
         RetreatDamaged(world, f);
-        var defensive = Command(world, f, station, enemy);
+        var defensive = Command(world, f, station, Modes.WaveTarget(world, f, enemy));
         Save(world, f, station, defensive, Difficulties[ai.Difficulty].Think);
         ai.Goal ??= ChooseGoal(world, f, station, defensive);
         if (ai.Goal is not null && Pursue(world, f, station, ai.Goal, enemy)) ai.Goal = null;
@@ -398,6 +398,7 @@ public static class Ai
             if (f.AI.Timer > 0) continue;
             f.AI.Timer = Difficulties[f.AI.Difficulty].Think;
             Think(world, f);
+            Modes.Think(world, f);
         }
     }
 }
