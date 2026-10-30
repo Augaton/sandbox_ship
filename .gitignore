@@ -7,3 +7,6 @@ assets/extracted/
 
 # Working copies of Claude Code agents.
 .claude/worktrees/
+
+# Hosting files kept on this machine (Pelican egg, server archive).
+hosting/

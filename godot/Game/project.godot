@@ -18,6 +18,7 @@ boot_splash/image="res://boot.png"
 boot_splash/stretch_mode=0
 boot_splash/use_filter=false
 run/main_scene="res://scenes/Main.tscn"
+run/flush_stdout_on_print=true
 config/features=PackedStringArray("4.7", "C#")
 
 [display]
