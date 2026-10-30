@@ -1,11 +1,11 @@
-// Main menu: a column on the left over a fight that plays behind it, then the setup of a new
-// game, the options, the controls and the credits in a wider panel that slides out from it.
-// Started as a port of src/ui/menu.ts; the layout and the backdrop fight are this version's.
+// Main menu: a column on the left over a fight that plays behind it, then the new game's modes
+// and lobby (Menu.Lobby.cs), the options, the controls and the credits in a wider panel that
+// slides out from it. Started as a port of src/ui/menu.ts; the layout and the backdrop fight
+// are this version's.
 using System.Globalization;
 using Godot;
 using SandboxShip.Battle;
 using SandboxShip.Core;
-using SandboxShip.Render;
 using SandboxShip.Sim;
 using SandboxShip.Sim.Data;
 
@@ -16,17 +16,10 @@ public partial class Menu : Node
     /// <summary>The game's version, as in package.json (which the web version reads at build time).</summary>
     public const string Version = "0.3.0";
 
-    enum Screen { Home, New, Options, Controls, Credits }
+    enum Screen { Home, Modes, Lobby, Options, Controls, Credits }
 
-    static readonly (GameMode Mode, string Name, string Description)[] Modes =
-    [
-        (GameMode.Campaign, "Campagne galactique", "Conquiers une galaxie planète après planète. Chaque rencontre se joue en bataille, ou se résout seule."),
-        (GameMode.Skirmish, "Escarmouche", "Une seule bataille : chacun sa station, le dernier à en garder une gagne."),
-        (GameMode.Sandbox, "Bac à sable", "IA coupée, 50 000 crédits : place ce que tu veux, où tu veux."),
-    ];
-
-    /// <summary>Width of the panel: the home column, and the wider panel of the other screens.</summary>
-    const float HomeWidth = 420, Width = 780;
+    /// <summary>Width of the panel: the home column, the wider panel of the other screens, a little more for the lobby's six rows.</summary>
+    const float HomeWidth = 420, Width = 780, LobbyWidth = 860;
     /// <summary>The panel's padding; on the right, the scroll bar takes the gutter.</summary>
     const float PadX = 48, PadTop = 44, PadBottom = 28, Gutter = 14;
     /// <summary>The veil fades out over this many pixels past the panel.</summary>
@@ -35,11 +28,6 @@ public partial class Menu : Node
 
     static int NewSeed() => Random.Shared.Next(1, 1_000_000);
 
-    MenuChoice c = new()
-    {
-        Player = Faction.Klaed, Enemies = [Faction.Nairan], Mode = GameMode.Campaign, Map = MapKind.Random, Seed = NewSeed(),
-        Size = MapSize.Medium, Difficulty = Difficulty.Normal,
-    };
     Screen screen;
     Control root = null!, veil = null!, frame = null!;
     VBoxContainer header = null!, body = null!;
@@ -122,16 +110,20 @@ public partial class Menu : Node
         foot.AddChild(footer);
         root.Resized += Fit;
 
+        foreach (var l in Remembered()) lobbies[l.Mode] = l;
         var start = Dev.Menu switch
         {
-            "new" or "skirmish" => Screen.New,
+            "new" => Screen.Modes,
             "controls" => Screen.Controls,
             "credits" => Screen.Credits,
             "options" => Screen.Options,
+            "skirmish" => Screen.Lobby,
+            var m when m.StartsWith("lobby-", StringComparison.Ordinal) => Screen.Lobby,
             _ => Screen.Home,
         };
-        if (Dev.Menu == "skirmish") c = c with { Mode = GameMode.Skirmish };
-        width = start == Screen.Home ? HomeWidth : Width;
+        if (start is Screen.Modes or Screen.Lobby) opener = "new";
+        if (start == Screen.Lobby) DevLobby(Dev.Menu == "skirmish" ? LobbyMode.Skirmish : Enum.Parse<LobbyMode>(Dev.Menu["lobby-".Length..], true));
+        width = WidthOf(start);
         Show(start, false);
     }
 
@@ -239,8 +231,18 @@ public partial class Menu : Node
         Fit();
     }
 
+    static float WidthOf(Screen s) => s switch { Screen.Home => HomeWidth, Screen.Lobby => LobbyWidth, _ => Width };
+
+    /// <summary>Esc, or "Retour": from the lobby to the modes, from anywhere else home; the entry that led there has the focus again.</summary>
     void Back()
     {
+        if (screen == Screen.Lobby)
+        {
+            Remember();
+            Show(Screen.Modes);
+            Settle(keyed.GetValueOrDefault($"mode:{mode}"), 0);
+            return;
+        }
         var from = opener;
         Show(Screen.Home);
         if (from is not null) Settle(keyed.GetValueOrDefault(from), 0);
@@ -251,7 +253,7 @@ public partial class Menu : Node
     {
         screen = next;
         Build();
-        var to = next == Screen.Home ? HomeWidth : Width;
+        var to = WidthOf(next);
         sliding?.Kill();
         appearing?.Kill();
         if (animate)
@@ -288,7 +290,8 @@ public partial class Menu : Node
         switch (screen)
         {
             case Screen.Home: Home(); break;
-            case Screen.New: Setup(); break;
+            case Screen.Modes: ModeCards(); break;
+            case Screen.Lobby: LobbyScreen(); break;
             case Screen.Options:
                 Titled("Options", "Les changements s'appliquent tout de suite.");
                 body.AddChild(Options.Body(true));
@@ -332,7 +335,7 @@ public partial class Menu : Node
         nav.AddThemeConstantOverride("separation", 2);
         if (save is not null)
         {
-            nav.AddChild(Nav("Continuer la campagne", () => Start(c with { Mode = GameMode.Campaign, Resume = true }), true));
+            nav.AddChild(Nav("Continuer la campagne", () => Main.Instance.StartCampaign(new MenuChoice { Resume = true }), true));
             var when = DateTimeOffset.FromUnixTimeMilliseconds(save.SavedAt).ToLocalTime().ToString("dd/MM/yyyy HH:mm", CultureInfo.InvariantCulture);
             var info = Paragraph($"{Factions.Defs[save.Race].Name}, {save.Planets} planète{(save.Planets > 1 ? "s" : "")}, le {when}", Palette.Muted, 13);
             var indent = new MarginContainer();
@@ -341,7 +344,7 @@ public partial class Menu : Node
             indent.AddChild(info);
             nav.AddChild(indent);
         }
-        nav.AddChild(Nav("Nouvelle partie", () => Open(Screen.New, "new"), save is null, "new"));
+        nav.AddChild(Nav("Nouvelle partie", () => Open(Screen.Modes, "new"), save is null, "new"));
         nav.AddChild(Nav("Options", () => Open(Screen.Options, "options"), key: "options"));
         nav.AddChild(Nav("Commandes", () => Open(Screen.Controls, "controls"), key: "controls"));
         nav.AddChild(Nav("Crédits", () => Open(Screen.Credits, "credits"), key: "credits"));
@@ -357,119 +360,16 @@ public partial class Menu : Node
         opener = from;
     }
 
-    void Start(MenuChoice choice) => Main.Instance.Start(choice);
-
-    void Setup()
-    {
-        var battle = c.Mode != GameMode.Campaign;
-        Titled("Nouvelle partie");
-
-        var modes = new HBoxContainer();
-        modes.AddThemeConstantOverride("separation", 8);
-        foreach (var (mode, name, description) in Modes)
-        {
-            modes.AddChild(Tile($"mode:{mode}", c.Mode == mode, () => c = c with { Mode = mode }, $"{name} : {description}", col =>
-            {
-                col.AddChild(Strong(name, c.Mode == mode));
-                col.AddChild(Small(description));
-            }));
-        }
-        body.AddChild(Section("Mode", modes));
-
-        var cards = new HBoxContainer();
-        cards.AddThemeConstantOverride("separation", 8);
-        foreach (var id in Factions.All) cards.AddChild(Card(id));
-        body.AddChild(Section("Ta faction", cards));
-
-        var foes = Flow();
-        foreach (var id in Factions.All.Where(id => id != c.Player))
-        {
-            var f = Btn(Factions.Defs[id].Name, () => Pick($"enemy:{id}", () => ToggleEnemy(id)), c.Enemies.Contains(id) ? On : null, $"enemy:{id}");
-            f.Icon = Logos.Emblem(id, 2);
-            f.CustomMinimumSize = new Vector2(0, 52);
-            foes.AddChild(f);
-        }
-        body.AddChild(Section("Adversaires", foes, Note("Un ou deux. À trois, chacun se bat contre tous.")));
-
-        var settings = new VBoxContainer { SizeFlagsHorizontal = Control.SizeFlags.ExpandFill };
-        settings.AddThemeConstantOverride("separation", 12);
-        settings.AddChild(Labelled("Type", Group("map", [(MapKind.Random, "Aléatoire"), (MapKind.Classic, "Classique")], c.Map, v => c = c with { Map = v },
-            v => v == MapKind.Classic && c.Enemies.Count > 1)));
-        var classic = c.Map == MapKind.Classic && !battle;
-        settings.AddChild(Labelled(battle ? "Taille de la carte" : "Taille de la galaxie",
-            Group("size", Scenario.MapSizes.Select(s => (s.Key, s.Value.Name)), c.Size, v => c = c with { Size = v }, _ => classic)));
-        settings.AddChild(SeedRow());
-        var (mapW, mapH) = battle ? (Scenario.MapSizes[c.Size].W, Scenario.MapSizes[c.Size].H) : (Layout(c).W, Layout(c).H);
-        preview = new Control
-        {
-            CustomMinimumSize = new Vector2(280, (float)Math.Round(280 * mapH / mapW)),
-            SizeFlagsHorizontal = Control.SizeFlags.ShrinkEnd, SizeFlagsVertical = Control.SizeFlags.ShrinkBegin, ClipContents = true,
-            AccessibilityName = battle ? "Aperçu de la carte : les carrés sont les stations de départ" : "Aperçu de la galaxie : les gros points sont les capitales",
-        };
-        var canvas = preview;
-        canvas.Draw += () => DrawPreview(canvas, c);
-        var map = new HBoxContainer();
-        map.AddThemeConstantOverride("separation", 20);
-        map.AddChild(settings);
-        map.AddChild(canvas);
-        body.AddChild(Section(battle ? "Carte" : "Galaxie", map,
-            Note("La même graine redonne la même carte." + (c.Enemies.Count > 1 ? " La carte classique est faite pour deux." : classic ? " La galaxie classique a sa taille." : ""))));
-
-        if (c.Mode == GameMode.Skirmish)
-        {
-            var raid = HudKit.Check("Un Colosse neutre garde un coin de la carte", c.Raid, on => c = c with { Raid = on });
-            raid.FocusMode = Control.FocusModeEnum.All;
-            body.AddChild(Section("Raid", raid, Note($"Le premier à l'abattre gagne {Raids.Bounty:0} crédits et un niveau de recherche.")));
-        }
-        if (c.Mode != GameMode.Sandbox)
-        {
-            body.AddChild(Section("Difficulté",
-                Group("difficulty", Worlds.Difficulties.Select(d => (d.Key, d.Value.Name)), c.Difficulty, v => c = c with { Difficulty = v }),
-                Note("Plus difficile : l'IA gagne plus de crédits et réagit plus vite.")));
-        }
-
-        var summary = Paragraph(Summary(), Palette.Muted, 13);
-        // A wrapped label needs a width to measure its height by, or it counts one letter a line.
-        summary.CustomMinimumSize = new Vector2(280, 0);
-        summary.SizeFlagsHorizontal = Control.SizeFlags.ExpandFill;
-        summary.SizeFlagsVertical = Control.SizeFlags.ShrinkCenter;
-        footer.AddChild(summary);
-        footer.AddChild(Btn("Retour", Back));
-        footer.AddChild(Btn("Lancer la partie", () => Start(c), Primary));
-    }
-
-    /// <summary>The game the choices make, in one line beside the launch button.</summary>
-    string Summary()
-    {
-        var mode = Modes.First(m => m.Mode == c.Mode).Name;
-        var foes = string.Join(" et ", c.Enemies.Select(f => Factions.Defs[f].Name));
-        var where = c.Mode == GameMode.Campaign
-            ? c.Map == MapKind.Classic ? "galaxie classique" : $"galaxie {Scenario.MapSizes[c.Size].Name.ToLowerInvariant()}"
-            : $"carte {Scenario.MapSizes[c.Size].Name.ToLowerInvariant()}";
-        var level = c.Mode == GameMode.Sandbox ? "" : $", difficulté {Worlds.Difficulties[c.Difficulty].Name.ToLowerInvariant()}";
-        return $"{mode} : {Factions.Defs[c.Player].Name} contre {foes}, {where}{level}";
-    }
-
-    void ToggleEnemy(Faction id)
-    {
-        var on = c.Enemies.Contains(id);
-        // Keep at least one opponent.
-        if (on && c.Enemies.Count > 1) c = c with { Enemies = [.. c.Enemies.Where(e => e != id)] };
-        if (!on) c = c with { Enemies = [.. c.Enemies, id] };
-        if (c.Enemies.Count > 1) c = c with { Map = MapKind.Random };
-    }
-
-    void PickPlayer(Faction id)
-    {
-        IReadOnlyList<Faction> enemies = [.. c.Enemies.Where(e => e != id)];
-        if (enemies.Count == 0) enemies = [Factions.All.First(f => f != id)];
-        c = c with { Player = id, Enemies = enemies };
-    }
-
-    /// <summary>Applies a choice, then rebuilds the setup screen with the focus on the button just pressed.</summary>
+    /// <summary>Applies a choice, then rebuilds the screen with the focus on the button just pressed.</summary>
     void Pick(string key, Action change)
     {
         change();
+        Rebuild(key);
+    }
+
+    /// <summary>Rebuilds the screen where it was scrolled to, with the focus on the button of that key.</summary>
+    void Rebuild(string key)
+    {
         var at = scroll.ScrollVertical;
         Build();
         Settle(keyed.GetValueOrDefault(key), at);
@@ -488,59 +388,11 @@ public partial class Menu : Node
         scroll.ScrollVertical = scrollTo;
     }
 
-    Control SeedRow()
-    {
-        var row = new HBoxContainer();
-        row.AddThemeConstantOverride("separation", 8);
-        var input = new LineEdit
-        {
-            Text = c.Seed.ToString(CultureInfo.InvariantCulture), MaxLength = 6, Editable = c.Map != MapKind.Classic,
-            CustomMinimumSize = new Vector2(120, 40), AccessibilityName = "Graine",
-        };
-        input.TextChanged += text =>
-        {
-            var digits = string.Concat(text.Where(char.IsAsciiDigit));
-            if (digits != text)
-            {
-                input.Text = digits;
-                input.CaretColumn = digits.Length;
-            }
-            c = c with { Seed = Math.Max(1, int.TryParse(digits, out var v) ? v : 1) };
-            preview?.QueueRedraw();
-        };
-        row.AddChild(input);
-        var reroll = Btn("Nouvelle graine", () => Pick("act:reroll", () => c = c with { Seed = NewSeed(), Map = MapKind.Random }), key: "act:reroll");
-        reroll.Disabled = c.Map == MapKind.Classic;
-        row.AddChild(reroll);
-        return Labelled("Graine", row);
-    }
-
-    /// <summary>A faction to play: emblem, name and frigate, then its trait.</summary>
-    Control Card(Faction id)
-    {
-        var f = Factions.Defs[id];
-        var on = c.Player == id;
-        return Tile($"player:{id}", on, () => PickPlayer(id), $"{f.Name} : {f.Trait.Name}, {f.Trait.Description}", col =>
-        {
-            var name = new HBoxContainer { MouseFilter = Control.MouseFilterEnum.Ignore };
-            name.AddThemeConstantOverride("separation", 10);
-            name.AddChild(Picture(Logos.Emblem(id, 3), new Vector2(40, 40)));
-            var label = Strong(f.Name, on);
-            label.SizeFlagsVertical = Control.SizeFlags.ShrinkCenter;
-            label.SizeFlagsHorizontal = Control.SizeFlags.ExpandFill;
-            name.AddChild(label);
-            if (Assets.ShipSprite(id, ShipClass.Frigate) is string key) name.AddChild(Picture(Assets.Frame(key), new Vector2(36, 36)));
-            col.AddChild(name);
-            col.AddChild(UiTheme.Text(f.Trait.Name, Palette.Accent, 14));
-            col.AddChild(Small(f.Trait.Description));
-        });
-    }
-
     /// <summary>A choice drawn as a card: a button under, its content on top; `on` outlines it in amber.</summary>
-    Control Tile(string key, bool on, Action pick, string name, Action<VBoxContainer> fill)
+    Control Tile(string key, bool on, Action act, string name, Action<VBoxContainer> fill)
     {
         var tile = new MarginContainer { SizeFlagsHorizontal = Control.SizeFlags.ExpandFill };
-        var button = Btn("", () => Pick(key, pick), on ? On : null, key);
+        var button = Btn("", act, on ? On : null, key);
         button.AccessibilityName = name;
         tile.AddChild(button);
         var pad = new MarginContainer { MouseFilter = Control.MouseFilterEnum.Ignore };
@@ -551,52 +403,6 @@ public partial class Menu : Node
         pad.AddChild(col);
         fill(col);
         return tile;
-    }
-
-    /// <summary>The galaxy the choices give, as GalaxyScreen makes it.</summary>
-    static GalaxyLayout Layout(MenuChoice c) =>
-        c.Map == MapKind.Classic && c.Enemies.Count == 1 ? GalaxyGen.Classic : GalaxyGen.GenerateLayout(c.Seed, 1 + c.Enemies.Count, c.Size);
-
-    /// <summary>
-    /// The map the choices give, before launching: the galaxy (planets, lanes, capitals in their
-    /// side's color) or the battlefield (stations and asteroid fields).
-    /// </summary>
-    static void DrawPreview(Control g, MenuChoice c)
-    {
-        var (w, h) = (g.Size.X, g.Size.Y);
-        g.DrawRect(new Rect2(0, 0, w, h), Palette.Bg);
-        var slots = c.Slots;
-        if (c.Mode == GameMode.Campaign)
-        {
-            var layout = Layout(c);
-            var (sx, sy) = (w / layout.W, h / layout.H);
-            Vector2 At(PlanetDef p) => new((float)(p.X * sx), (float)(p.Y * sy));
-            foreach (var lane in layout.Lanes) g.DrawLine(At(layout.Planets[lane.A]), At(layout.Planets[lane.B]), Palette.Line, 1, true);
-            for (var i = 0; i < layout.Planets.Count; i++)
-            {
-                var owner = -1;
-                for (var k = layout.Capitals.Count - 1; k >= 0; k--)
-                {
-                    if (layout.Capitals[k] == i) owner = k;
-                }
-                var color = owner >= 0 ? Palette.Hex(slots[owner].Color ?? Worlds.DefaultColor(slots[owner].Side, slots[owner].Race)) : Palette.Muted;
-                g.DrawCircle(At(layout.Planets[i]), owner >= 0 ? 6 : 3.5f, color, true, -1, true);
-            }
-        }
-        else
-        {
-            var world = Scenario.CreateSkirmish(new SkirmishOptions { Slots = [.. slots.Select(s => s with { AI = null })], Seed = c.Seed, Map = c.Map, Size = c.Size });
-            var (sx, sy) = (w / world.Width, h / world.Height);
-            foreach (var f in world.Fields)
-            {
-                g.DrawCircle(new Vector2((float)(f.X * sx), (float)(f.Y * sy)), (float)Math.Max(2, f.Radius * sx), Palette.Line, true, -1, true);
-            }
-            foreach (var e in world.Entities)
-            {
-                if (e.Type == "station") g.DrawRect(new Rect2((float)(e.X * sx - 5), (float)(e.Y * sy - 5), 10, 10), Palette.Of(world, e.Side));
-            }
-        }
-        g.DrawRect(new Rect2(0.5f, 0.5f, w - 1, h - 1), Palette.Line, false, 1);
     }
 
     // Building blocks, after the menu classes of src/ui/hud.css.
@@ -681,6 +487,9 @@ public partial class Menu : Node
         t.SetColor("caret_color", "LineEdit", Palette.Text);
         t.SetColor("selection_color", "LineEdit", Palette.Accent with { A = 0.35f });
 
+        t.SetStylebox("disabled", "OptionButton", UiTheme.Box(Palette.Raised with { A = 0.5f }));
+        t.SetColor("font_disabled_color", "OptionButton", Palette.Muted with { A = 0.6f });
+
         // A check box, focused from the keyboard: an amber frame around it.
         t.SetStylebox("focus", "CheckBox", UiTheme.Box(new Color(0, 0, 0, 0), Palette.Accent, 4));
         t.SetStylebox("focus", "HSlider", UiTheme.Box(new Color(0, 0, 0, 0), Palette.Accent, 2));
@@ -715,7 +524,7 @@ public partial class Menu : Node
     }
 
     /// <summary>Buttons side by side, one of which is on.</summary>
-    HFlowContainer Group<T>(string name, IEnumerable<(T Value, string Label)> items, T current, Action<T> set, Func<T, bool>? disabled = null) where T : struct, Enum
+    HFlowContainer Group<T>(string name, IEnumerable<(T Value, string Label)> items, T current, Action<T> set, Func<T, bool>? disabled = null) where T : struct
     {
         var flow = Flow();
         foreach (var (value, label) in items)

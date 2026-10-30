@@ -24,6 +24,8 @@ public sealed record BattleOptions
     public Difficulty Difficulty { get; init; } = Difficulty.Normal;
     /// <summary>A neutral colossus guards the far side of the map, with a bounty on it.</summary>
     public bool Raid { get; init; }
+    /// <summary>Fog of war in a skirmish; the sandbox goes without.</summary>
+    public bool Fog { get; init; } = true;
     /// <summary>The rules of a skirmish, and their settings.</summary>
     public BattleMode Rules { get; init; } = BattleMode.Standard;
     public int ZoneTarget { get; init; } = 100;

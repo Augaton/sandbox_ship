@@ -50,7 +50,7 @@ public partial class Main : Node
         {
             case "battle" or "raid": StartBattle(new BattleOptions { Player = Faction.Klaed, Slots = BattleOptions.Versus(Faction.Klaed, [Faction.Nairan]), Raid = true, Size = Dev.Size }); break;
             case "sandbox" or "gallery": StartBattle(new BattleOptions { Player = Faction.Klaed, Slots = BattleOptions.Versus(Faction.Klaed, [Faction.Nairan]), Mode = GameMode.Sandbox, Size = Dev.Size }); break;
-            case "campaign": StartCampaign(new MenuChoice { Mode = GameMode.Campaign, Size = Dev.Size }); break;
+            case "campaign": StartCampaign(new MenuChoice { Size = Dev.Size }); break;
             case "stress": StartBattle(new BattleOptions { Player = Faction.Klaed, Slots = BattleOptions.Versus(Faction.Klaed, [Faction.Nairan, Faction.Nautolan]), Size = MapSize.Large, Seed = 7 }); break;
             default: ShowMenu(); break;
         }
@@ -133,11 +133,21 @@ public partial class Main : Node
     /// <summary>The start screen: the main menu, which calls Start with what the player chose.</summary>
     public void ShowMenu() => Show(new Ui.Menu());
 
-    /// <summary>What the menu starts.</summary>
-    public void Start(MenuChoice c)
+    /// <summary>What the menu's lobby starts: the campaign, or a battle under its rules.</summary>
+    public void Start(Lobby lobby)
     {
-        if (c.Mode == GameMode.Campaign) StartCampaign(c);
-        else StartBattle(new BattleOptions { Player = c.Slots[0].Side, Slots = c.Slots, Mode = c.Mode, Seed = c.Seed, Map = c.Map, Size = c.Size, Difficulty = c.Difficulty, Raid = c.Raid && c.Mode == GameMode.Skirmish });
+        var me = lobby.SideOfPeer() ?? Lobby.SideOf(0);
+        if (lobby.Mode == LobbyMode.Campaign)
+        {
+            StartCampaign(new MenuChoice { Seats = lobby.Slots(), Me = me, Map = lobby.Map, Seed = lobby.Seed, Size = lobby.Size });
+            return;
+        }
+        var o = lobby.Skirmish();
+        StartBattle(new BattleOptions
+        {
+            Player = me, Slots = o.Slots, Mode = lobby.Mode == LobbyMode.Sandbox ? GameMode.Sandbox : GameMode.Skirmish,
+            Seed = o.Seed, Map = o.Map, Size = o.Size, Raid = o.Raid, Fog = o.Fog, Rules = o.Mode, ZoneTarget = o.ZoneTarget, AssaultMinutes = o.AssaultMinutes,
+        });
     }
 
     public void StartBattle(BattleOptions opts) => Show(BattleScreen.Create(opts));

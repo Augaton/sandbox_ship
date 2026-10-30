@@ -31,7 +31,9 @@ manquant, le bouton « Build » (marteau, en haut à droite) le compile.
 Options pour vérifier un écran sans passer par le menu, après `--` :
 `--start=menu|battle|sandbox|campaign|gallery` (`gallery` : chaque classe de vaisseau et chaque
 niveau de plateforme, en pause), `--skip=SECONDES` (partie jouée d'avance par l'IA), `--zoom=Z`,
-`--at=X,Y` (centre la vue de bataille), `--menu=home|new|skirmish|controls|credits|options`,
+`--at=X,Y` (centre la vue de bataille), `--menu=home|new|controls|credits|options|lobby-MODE` (`new` : les
+modes ; `lobby-skirmish`, `lobby-campaign`, `lobby-assault`… : le salon de ce mode, que `--seats=N` remplit
+d'IA et où `--teams=1,2,…` place les équipes dans l'ordre des places),
 `--size=small|medium|large` (carte ou galaxie de `--start`), `--shot=image.png --frames=N`
 (capture puis quitte ; les images se comptent une fois le chargement fini), `--dump=dossier`
 (sprites composés, et `boot.png`, le logo de l'écran de démarrage). Ajouter `--disable-vsync`

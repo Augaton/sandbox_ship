@@ -75,6 +75,8 @@ public partial class GalaxyScreen : Node
             ? GalaxyGen.Classic
             : GalaxyGen.GenerateLayout(opts.Seed, slots.Count, opts.Size);
         Galaxy = saved ?? Galaxies.CreateGalaxy(slots, opts.Seed, layout);
+        // The player may sit at any seat of the lobby, not only the first.
+        if (saved is null && opts.Me is Side me) Galaxy.Player = me;
         var player = Galaxy.Player;
         if (Dev.Skip > 0 && saved is null) PlayAhead(Dev.Skip);
         var home = Galaxy.Planets.FindIndex(p => p.Owner == player);

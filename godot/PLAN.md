@@ -161,6 +161,12 @@ tests de `FixtureTests` et `CrossTests` les listent.
   combattre. Les Errants (camp 3) restent ennemis de tous. Escarmouche et campagne se créent depuis des places
   (`Slot`) ; les anciennes sauvegardes se chargent. Sans équipes, les parties sont identiques à avant. Galaxies
   générées : 4 planètes de plus par joueur au-delà de trois (petite et moyenne), pour séparer les capitales.
+- Nouvelle partie : les modes en cartes (campagne, escarmouche, survie, contrôle de zone, assaut, régicide, bac à
+  sable), puis le salon du mode choisi : jusqu'à six places (toi, une IA à sa difficulté, ouverte, fermée ; joueur
+  distant viendra avec le réseau), race, équipe et couleur (unique) par place, l'ordre des places donnant les
+  positions ; carte, graine et aperçu numéroté ; règles du mode (objectif, durée, raid, brouillard). Le lancement
+  reste grisé, avec la raison, tant que la partie ne tient pas. Le salon est une donnée simple (`Sim/Lobby.cs`, prête
+  à passer sur le réseau) ; le dernier de chaque mode se garde dans `user://lobby.json`, avec une graine neuve.
 
 ## Ce qui change de technique
 
