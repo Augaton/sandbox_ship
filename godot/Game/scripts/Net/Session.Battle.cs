@@ -145,13 +145,15 @@ public sealed partial class Session
             case Message.State state when link is not null:
                 try
                 {
-                    link.Motion.Read(new BinaryReader(new MemoryStream(state.Snapshot)), link.World, clock);
+                    // Written against a snapshot this player no longer has: the next one will do.
+                    if (!link.Motion.Read(new BinaryReader(new MemoryStream(state.Snapshot)), link.World, clock)) return;
                 }
                 catch (Exception e) when (e is InvalidDataException or EndOfStreamException)
                 {
                     Close($"Instantané illisible : {e.Message}");
                     return;
                 }
+                Send(new Message.Ack(link.Motion.Frames.Latest));
                 // The battle is shown once there is something to show: its map, the player's base, the camera on it.
                 if (starting is { } lobby)
                 {

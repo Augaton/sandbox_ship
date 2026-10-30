@@ -302,7 +302,9 @@ public sealed partial class Session
                 OpenFront(b, e.Commands ? map.Side : Galaxies.Viewpoint(map.Galaxy, b, map.Side), !e.Commands);
                 return true;
             case Message.State state when front is not null:
-                if (!Read(() => front.Motion.Read(Reader(state.Snapshot), front.World, clock))) return true;
+                var applied = false;
+                if (!Read(() => applied = front.Motion.Read(Reader(state.Snapshot), front.World, clock)) || !applied) return true;
+                Send(new Message.Ack(front.Motion.Frames.Latest));
                 ShowFront();
                 return true;
             case Message.News n when front is not null:

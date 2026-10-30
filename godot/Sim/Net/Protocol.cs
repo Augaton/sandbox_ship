@@ -4,15 +4,16 @@
 // JSON. Reading never trusts the bytes: a malformed message throws InvalidDataException or
 // EndOfStreamException.
 //
-//   player -> host  Hello, Ask, Launch (leader), Order, Pause, Back (leader), Plan, Watch
+//   player -> host  Hello, Ask, Launch (leader), Order, Pause, Back (leader), Plan, Watch, Ack
 //   host -> player  Welcome, Bye, Room, Start, State, Refused, Pause, Notice, Back, News, Map, Tidings, Engage, Over
 //
 // A player joins: Hello with its versions and name; the host answers Welcome and sends the
 // Room to everyone, or Bye with the reason and closes. Every change to the lobby (Ask, applied
 // by LobbyRules) sends the Room again. Start opens the battle: from then on the player sends its
 // Orders, and the host a State (a snapshot) twenty times a second, unreliably, and Refused for
-// an order it would not apply. The events that must not be lost (a victory, a mode's news) come
-// apart, reliably, as News. Back returns everyone to the lobby.
+// an order it would not apply. The player acknowledges each snapshot it reads (Ack, unreliably):
+// the host writes the next ones against it. The events that must not be lost (a victory, a
+// mode's news) come apart, reliably, as News. Back returns everyone to the lobby.
 //
 // A campaign starts the same way. The player sends Plans (galaxy commands), and gets a Map (a
 // galaxy snapshot) a few times a second, unreliably, with its notices as Tidings, reliably.
@@ -64,6 +65,8 @@ public abstract record Message
     public sealed record Engage(int Battle, bool Commands) : Message;
     /// <summary>The player asks to watch a commanded battle of the campaign, or to stop.</summary>
     public sealed record Watch(int Battle, bool On) : Message;
+    /// <summary>The player read this battle snapshot (its number, Snapshot.Read): the host writes the next ones against it. Unreliable, like State.</summary>
+    public sealed record Ack(int Snapshot) : Message;
     /// <summary>The campaign battle the player commanded or watched is decided, or (no result) left to play on by itself: back to the galaxy.</summary>
     public sealed record Over(int Battle, BattleResult? Result) : Message;
 }
@@ -76,8 +79,9 @@ public static class Protocol
     /// <summary>
     /// Layout of the messages below: bumped with any change. Commands and battle snapshots have
     /// their own versions, checked as well; the galaxy snapshot's is part of this one. 2: the campaign.
+    /// 3: acknowledged battle snapshots (Ack).
     /// </summary>
-    public const int Version = 2;
+    public const int Version = 3;
     /// <summary>Where a host listens for players, unless told otherwise.</summary>
     public const int DefaultPort = 24680;
     /// <summary>Where hosts call out to the local network, and the join screen listens.</summary>
@@ -90,7 +94,7 @@ public static class Protocol
     const int MaxText = 200, MaxLobby = 64 * 1024, MaxMembers = 64;
     const uint BeaconMagic = 0x43425353;
 
-    enum Tag : byte { Hello = 1, Welcome, Bye, Room, Ask, Launch, Start, Order, State, Refused, Pause, Notice, Back, News, Plan, Map, Tidings, Engage, Watch, Over }
+    enum Tag : byte { Hello = 1, Welcome, Bye, Room, Ask, Launch, Start, Order, State, Refused, Pause, Notice, Back, News, Plan, Map, Tidings, Engage, Watch, Over, Ack }
 
     public static byte[] Encode(Message m)
     {
@@ -150,6 +154,7 @@ public static class Protocol
             case Message.Tidings t: w.Write((byte)Tag.Tidings); w.Write(t.Events); break;
             case Message.Engage e: w.Write((byte)Tag.Engage); w.Write7BitEncodedInt(e.Battle); w.Write(e.Commands); break;
             case Message.Watch watch: w.Write((byte)Tag.Watch); w.Write7BitEncodedInt(watch.Battle); w.Write(watch.On); break;
+            case Message.Ack a: w.Write((byte)Tag.Ack); w.Write7BitEncodedInt(a.Snapshot); break;
             case Message.Over o:
                 w.Write((byte)Tag.Over);
                 w.Write7BitEncodedInt(o.Battle);
@@ -180,6 +185,7 @@ public static class Protocol
         Tag.Tidings => new Message.Tidings(Rest(r)),
         Tag.Engage => new Message.Engage(r.Read7BitEncodedInt(), r.ReadBoolean()),
         Tag.Watch => new Message.Watch(r.Read7BitEncodedInt(), r.ReadBoolean()),
+        Tag.Ack => new Message.Ack(r.Read7BitEncodedInt()),
         Tag.Over => new Message.Over(r.Read7BitEncodedInt(), r.ReadByte() is var o && o != byte.MaxValue
             ? Enum.IsDefined((BattleResult)o) ? (BattleResult)o : throw new InvalidDataException($"Issue inconnue : {o}") : null),
         var tag => throw new InvalidDataException($"Message inconnu : {tag}"),

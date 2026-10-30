@@ -40,7 +40,9 @@ public class BattleHostTests(ITestOutputHelper output)
             {
                 case Message.State s:
                     var replica = Replicas[peer];
-                    Motions[peer].Read(new BinaryReader(new MemoryStream(s.Snapshot)), replica, Now);
+                    // Read, then acknowledged as a player does: the next snapshots are deltas against it.
+                    Assert.True(Motions[peer].Read(new BinaryReader(new MemoryStream(s.Snapshot)), replica, Now));
+                    Host.Acked(peer, ((Message.Ack)Protocol.Decode(Protocol.Encode(new Message.Ack(Motions[peer].Frames.Latest)))).Snapshot);
                     Heard[peer].AddRange(replica.Events);
                     replica.Events.Clear();
                     break;
@@ -208,18 +210,30 @@ public class BattleHostTests(ITestOutputHelper output)
         var big = Measure(stress, Nairan);
         output.WriteLine($"Duel at 5 min ({duel.Entities.Count} entities): {small.Rate:0.0} snapshots/s, {small.Bytes / 1024:0.0} KiB/s per player, {small.Ms:0.000} ms per snapshot");
         output.WriteLine($"Stress ({stress.Entities.Count} entities): {big.Rate:0.0} snapshots/s, {big.Bytes / 1024:0.0} KiB/s per player, {big.Ms:0.000} ms per snapshot");
-        // A duel gets every snapshot; a huge battle, as many as the budget allows.
+        // A duel gets every snapshot; a huge battle, as many as the budget allows: most of them, as deltas.
         Assert.InRange(small.Rate, 19, 21);
-        Expect.Less(small.Bytes, 100 * 1024);
-        Expect.Less(big.Rate, 8);
+        Expect.Less(small.Bytes, 20 * 1024);
+        Expect.Greater(big.Rate, 10);
         Expect.Less(big.Bytes, BattleHost.Budget * 1.1);
     }
 
-    /// <summary>Five seconds of a battle served to one player: the snapshots a second it gets, their bytes a second, the time each takes to write.</summary>
+    /// <summary>
+    /// Five seconds of a battle served to one player, who reads and acknowledges every snapshot at
+    /// once: the snapshots a second it gets, their bytes a second, the time each takes to write.
+    /// </summary>
     static (double Rate, double Bytes, double Ms) Measure(World w, Side player)
     {
         long bytes = 0;
-        var host = new BattleHost(w, (_, m) => bytes += Protocol.Encode(m).Length);
+        var (replica, motion) = (new World(), new ReplicaMotion());
+        BattleHost host = null!;
+        host = new BattleHost(w, (_, m) =>
+        {
+            bytes += Protocol.Encode(m).Length;
+            if (m is not Message.State s) return;
+            motion.Read(new BinaryReader(new MemoryStream(s.Snapshot)), replica, 0);
+            replica.Events.Clear();
+            host.Acked(Bob, motion.Frames.Latest);
+        });
         host.Add(Bob, player);
         void Frame()
         {

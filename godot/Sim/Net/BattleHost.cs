@@ -30,6 +30,8 @@ public sealed class BattleHost(World world, Action<int, Message> send)
         public readonly bool Watches = watches;
         public readonly DelayedSink<Command> Sink = sink;
         public readonly List<SimEvent> Events = [];
+        /// <summary>The snapshots sent, baselines of the next ones once acknowledged.</summary>
+        public readonly SnapshotFrames Frames = new();
         public long Bytes;
         /// <summary>Seconds until this player's next snapshot.</summary>
         public double Wait;
@@ -63,6 +65,12 @@ public sealed class BattleHost(World world, Action<int, Message> send)
     public void Receive(int peer, Command c)
     {
         if (remotes.TryGetValue(peer, out var r)) r.Sink.Send(c);
+    }
+
+    /// <summary>A player read one of its snapshots: the next ones are written against it.</summary>
+    public void Acked(int peer, int snapshot)
+    {
+        if (remotes.TryGetValue(peer, out var r)) r.Frames.Ack(snapshot);
     }
 
     /// <summary>Applies the commands that came since the last step, each player's in order, and tells each player those refused.</summary>
@@ -108,7 +116,7 @@ public sealed class BattleHost(World world, Action<int, Message> send)
         using (var w = new BinaryWriter(buffer, System.Text.Encoding.UTF8, true))
         using (var v = new BinaryWriter(news, System.Text.Encoding.UTF8, true))
         {
-            Snapshot.Write(world, r.Side, w, r.Events, v);
+            Snapshot.Write(world, r.Side, w, r.Events, v, r.Frames);
         }
         var bytes = buffer.ToArray();
         clock.Stop();

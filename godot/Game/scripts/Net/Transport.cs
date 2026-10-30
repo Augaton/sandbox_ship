@@ -91,8 +91,8 @@ public sealed class Transport
     {
         var bytes = Protocol.Encode(m);
         peer.SetTargetPeer(to);
-        // Snapshots, battle and galaxy, are replaced by the next one: unreliable. Everything else, the events that must not be lost included, is reliable.
-        peer.TransferMode = m is Message.State or Message.Map ? MultiplayerPeer.TransferModeEnum.UnreliableOrdered : MultiplayerPeer.TransferModeEnum.Reliable;
+        // Snapshots, battle and galaxy, are replaced by the next one, and so are their acknowledgements: unreliable. Everything else, the events that must not be lost included, is reliable.
+        peer.TransferMode = m is Message.State or Message.Map or Message.Ack ? MultiplayerPeer.TransferModeEnum.UnreliableOrdered : MultiplayerPeer.TransferModeEnum.Reliable;
         peer.PutPacket(bytes);
         Sent[to] = Sent.GetValueOrDefault(to) + bytes.Length;
     }

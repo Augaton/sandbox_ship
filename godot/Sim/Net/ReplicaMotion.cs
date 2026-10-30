@@ -26,12 +26,18 @@ public sealed class ReplicaMotion
     /// <summary>The time snapshots take to come, as measured: what a glide lasts.</summary>
     public double Interval => interval;
 
-    /// <summary>Reads a snapshot into the replica (Snapshot.Read), arrived at `now` seconds; everything is still shown where it was.</summary>
-    public void Read(BinaryReader r, World replica, double now)
+    /// <summary>The snapshots read, baselines of the next ones: the player tells the host the newest (Message.Ack).</summary>
+    public SnapshotFrames Frames { get; } = new();
+
+    /// <summary>
+    /// Reads a snapshot into the replica (Snapshot.Read), arrived at `now` seconds; everything is
+    /// still shown where it was. False when it could not be read for want of its baseline: nothing changed.
+    /// </summary>
+    public bool Read(BinaryReader r, World replica, double now)
     {
         shown.Clear();
         foreach (var e in replica.Entities) shown[e.Id] = (e.X, e.Y, e.Angle);
-        Snapshot.Read(r, replica);
+        if (!Snapshot.Read(r, replica, Frames)) return false;
         glides.Clear();
         foreach (var e in replica.Entities)
         {
@@ -46,6 +52,7 @@ public sealed class ReplicaMotion
         lastAt = now;
         since = 0;
         Advance(replica, 0);
+        return true;
     }
 
     /// <summary>`dt` seconds later: each entity that far along its glide, each shot that far along its flight.</summary>
@@ -60,6 +67,8 @@ public sealed class ReplicaMotion
             e.Y = g.FromY + (g.ToY - g.FromY) * k;
             e.Angle = g.FromAngle + Movement.WrapAngle(g.ToAngle - g.FromAngle) * k;
         }
+        // The parts of a ship stay on it as it turns, as they do on the host.
+        Worlds.AttachHardpoints(replica);
         // Shots are shown as far back as ships are, and fly on a little if the next snapshot is late.
         var t = Math.Min(since, interval + 0.25) - interval;
         foreach (var (p, x, y) in shots)

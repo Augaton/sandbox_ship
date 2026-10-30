@@ -234,6 +234,7 @@ public sealed partial class Session : Node
             case Message.Launch when from == room.Leader: Launch(); break;
             case Message.Back when from == room.Leader: BackToLobby(); break;
             case Message.Order order: Ordered(from, order.Command); break;
+            case Message.Ack ack: (battle ?? fight)?.Acked(from, ack.Snapshot); break;
             case Message.Pause pause: SetPause(pause.On, room.NameOf(from)); break;
             case Message.Plan plan: Planned(from, plan.Command); break;
             case Message.Watch watch: Watched(from, watch); break;

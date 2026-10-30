@@ -52,8 +52,10 @@ public class SnapshotTests(ITestOutputHelper output)
             var h = host.Entities.Get(r.Id)!;
             var what = $"{h.Type} {h.Id}";
             Assert.Equal((h.Kind, h.Type, h.Side, h.Race, h.Level, h.ParentId, h.Hero), (r.Kind, r.Type, r.Side, r.Race, r.Level, r.ParentId, r.Hero));
-            Near(h.X, r.X, 1e-6, what);
-            Near(h.Y, r.Y, 1e-6, what);
+            // A part of a ship is put on it by the replica, from the ship's place and angle as they came: within a fiftieth of a pixel.
+            var placed = h.ParentId is int parent && host.Entities.Get(parent)?.Kind == EntityKind.Ship;
+            Near(h.X, r.X, placed ? 0.02 / Math.Max(1, Math.Abs(h.X)) : 1e-6, what);
+            Near(h.Y, r.Y, placed ? 0.02 / Math.Max(1, Math.Abs(h.Y)) : 1e-6, what);
             Assert.Equal(Vision.IsVisible(host, viewer, h), Vision.IsVisible(replica, viewer, r));
             if (Foes(host, h.Side, viewer)) foes++;
             if (shown[r.Id])

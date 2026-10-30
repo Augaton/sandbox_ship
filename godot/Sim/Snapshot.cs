@@ -1,21 +1,23 @@
 // Battle snapshots (not in the web version): what one side's team may see of a battle, written
 // by the host for each player and read into the player's own copy of the world, its replica.
-// No step ever runs on a replica: it only changes when a snapshot is read into it. Every
-// snapshot is whole for now; deltas can come later. The writer is here, the reader in
-// SnapshotRead.cs.
+// No step ever runs on a replica: it only changes when a snapshot is read into it. Entities go
+// as deltas: a snapshot is written against one the player acknowledged (SnapshotFrames.cs),
+// with only the entities that changed since, and of each only the segments of its record that
+// changed; the rest of the snapshot is whole. The writer is here, the reader in SnapshotRead.cs.
 //
 // Layout, little-endian; "n" is a 7-bit encoded int (ids, counts, sides, levels):
-//   header    u32 magic "SSNP", u16 version, n viewer
+//   header    u32 magic "SSNP", u16 version, n viewer, n snapshot number (0: not kept), n baseline (0: none, all whole)
 //   world     f64 time, f64 width, f64 height, u8 flags (fog, sandbox tools, winner), [n winner], f64 last damage
 //   mode      n length, then the battle mode's state (see WriteMode): u8 kind and that mode's own fields
 //   sides     n count; each: n side, u8 race, n team, u32 color, u8 flags (had a station, has one, viewer),
 //             [n station id], n built, n lost, n kills, f32 damage, f32 earned; the viewer's own also
 //             its economy (credits, queues, research, loops, hero delays, rally point)
 //   fields    n count; each: n id, f32 x, f32 y, f32 radius, n mine id (-1: none)
-//   entities  n count; each: see WriteEntity. Foes the viewer's team does not see are left out,
-//             but for structures seen before (remembered), sent with only their place and level, and
-//             in regicide the flagships, whose place and hull everyone knows (sent the same way, with their
-//             hull, without their parts)
+//   entities  n count in this snapshot; n left out since the baseline, each its id as a gap from the last;
+//             n new or changed, each: its id as a gap, u8 segments that follow, then those segments of its
+//             record (see WriteRecord). Foes the viewer's team does not see are left out, but for structures
+//             seen before (remembered), sent with only their place and level, and in regicide the flagships,
+//             whose place and hull everyone knows (sent the same way, with their hull, without their parts)
 //   shots     n count; each: n id, n side, u8 kind, f32 x, y, vx, vy. Those far from any eye of the team are left out
 //   zones     n count; each: u8 kind, n side, f32 x, y, r
 //   strikes   n count; each: see WriteStrike. All of them: every side sees a blow coming
@@ -32,9 +34,10 @@ public static partial class Snapshot
 {
     /// <summary>
     /// Bumped with any change to the layout, the type table (a new ship class, structure or part)
-    /// included: a reader refuses any other version. 2: the battle modes' state and events.
+    /// included: a reader refuses any other version. 2: the battle modes' state and events. 3: deltas,
+    /// records in segments, the parts of a ship placed by the reader.
     /// </summary>
-    public const ushort Version = 2;
+    public const ushort Version = 3;
     const uint Magic = 0x504E5353;
 
     /// <summary>Room around the team's sight within which shots and blows still show: they fly in from the dark.</summary>
@@ -49,17 +52,24 @@ public static partial class Snapshot
     /// <summary>Angles go as 16 bits: a ten-thousandth of a turn is finer than any pixel.</summary>
     const double AngleUnit = Math.Tau / 65536;
 
-    // Entity head byte: kind (2 bits), size (2), then these.
-    const int Remembered = 1 << 4, HasHero = 1 << 5, HasParent = 1 << 6, Building = 1 << 7;
+    // Entity head byte: kind (2 bits), size (2), then these. A part that follows a ship has no place
+    // of its own: the reader puts it on its ship, as a step does (Worlds.AttachHardpoints).
+    const int Remembered = 1 << 4, HasHero = 1 << 5, HasParent = 1 << 6, Follows = 1 << 7;
 
-    // Entity flags, for what is often missing.
+    // Segments of an entity's record (see WriteRecord), as bits of the mask of a changed entity.
+    const int Who = 0, Motion = 1, Health = 2, Rest = 3, Segments = SnapshotFrames.Segments;
+
+    // Health flags.
+    const int HullKnown = 1, Shielded = 2, ShieldIsDown = 4, Building = 8;
+
+    // Flags of the rest of a record, for what is often missing. Tested with masks: Enum.HasFlag boxed.
     [Flags]
     enum Has : ushort
     {
-        Speed = 1, Shield = 1 << 1, Weapons = 1 << 2, Target = 1 << 3, Abilities = 1 << 4, Effects = 1 << 5, ShieldDown = 1 << 6,
-        Expires = 1 << 7, Hangar = 1 << 8, Income = 1 << 9, Engines = 1 << 10, ShieldGens = 1 << 11, Launched = 1 << 12,
+        Weapons = 1, Target = 1 << 1, Abilities = 1 << 2, Effects = 1 << 3, Expires = 1 << 4, Hangar = 1 << 5, Income = 1 << 6,
+        Engines = 1 << 7, ShieldGens = 1 << 8, Launched = 1 << 9,
         // Only for the viewer's own entities.
-        Pilot = 1 << 13, Order = 1 << 14, Range = 1 << 15,
+        Pilot = 1 << 10, Order = 1 << 11, Range = 1 << 12,
     }
 
     enum Tag : byte
@@ -88,13 +98,19 @@ public static partial class Snapshot
     /// Writes what `viewer`'s team may see of the battle. `events` are those since the previous
     /// snapshot to this viewer; by default the world's own, which the view clears every frame.
     /// With `vital`, the events that must reach the player (Vital) go there instead, a count then
-    /// the events, for the reliable channel; ReadEvents reads them.
+    /// the events, for the reliable channel; ReadEvents reads them. With `frames`, those sent to
+    /// this player, the snapshot is their next one, written against the newest the player
+    /// acknowledged; without, it goes whole and is not kept.
     /// </summary>
-    public static void Write(World world, Side viewer, BinaryWriter w, IReadOnlyList<SimEvent>? events = null, BinaryWriter? vital = null)
+    public static void Write(World world, Side viewer, BinaryWriter w, IReadOnlyList<SimEvent>? events = null, BinaryWriter? vital = null,
+        SnapshotFrames? frames = null)
     {
+        var (frame, baseline) = frames?.Next() ?? (new SnapshotFrames.Frame(), null);
         w.Write(Magic);
         w.Write(Version);
         w.Write7BitEncodedInt(viewer.Id);
+        w.Write7BitEncodedInt(frame.Seq);
+        w.Write7BitEncodedInt(baseline?.Seq ?? 0);
         w.Write(world.Time);
         w.Write(world.Width);
         w.Write(world.Height);
@@ -115,7 +131,8 @@ public static partial class Snapshot
             w.Write((float)f.Radius);
             w.Write7BitEncodedInt(f.MineId ?? -1);
         }
-        var shown = WriteEntities(world, viewer, w);
+        var shown = WriteEntities(world, viewer, w, frame, baseline, frames);
+        frames?.Keep(frame);
         var sight = new Sight(world, viewer);
         WriteShots(world, viewer, sight, w);
         var zones = world.Zones.Where(z => Allies(world, z.Side, viewer) || sight.Sees(z.X, z.Y)).ToList();
@@ -279,13 +296,18 @@ public static partial class Snapshot
     /// foes it sees, and the foes' structures it saw once (remembered). A part goes with what
     /// it is attached to: never the turrets of a ship that is hidden or cloaked. In regicide, a
     /// foe flagship out of sight goes as a remembered structure does, by its place and its hull,
-    /// for the minimap and the mode panel that show every flagship. Returns the ids written.
+    /// for the minimap and the mode panel that show every flagship. Each record goes into the
+    /// snapshot's frame; the snapshot gets those that changed since the baseline. Returns the ids written.
     /// </summary>
-    static HashSet<int> WriteEntities(World world, Side viewer, BinaryWriter w)
+    static HashSet<int> WriteEntities(World world, Side viewer, BinaryWriter w, SnapshotFrames.Frame frame, SnapshotFrames.Frame? baseline,
+        SnapshotFrames? frames)
     {
-        var shown = new HashSet<int>();
+        var shown = frames?.Shown ?? [];
+        var list = frames?.Listed ?? [];
+        shown.Clear();
+        list.Clear();
         HashSet<int>? placed = null;
-        var list = new List<(Entity E, bool Remembered)>();
+        var sorted = true;
         foreach (var e in world.Entities)
         {
             if (e.ParentId is int parent && (!shown.Contains(parent) || placed?.Contains(parent) == true)) continue;
@@ -299,64 +321,144 @@ public static partial class Snapshot
             }
             else continue;
             shown.Add(e.Id);
+            if (list.Count > 0 && list[^1].E.Id > e.Id) sorted = false;
             list.Add((e, remembered));
         }
-        w.Write7BitEncodedInt(list.Count);
-        foreach (var (e, remembered) in list) WriteEntity(w, e, viewer, remembered);
+        // By increasing ids, as deltas walk them: a replica holds its entities in the order they came into its sight.
+        if (!sorted) list.Sort((a, b) => a.E.Id.CompareTo(b.E.Id));
+        foreach (var (e, remembered) in list) WriteRecord(frame, world, e, viewer, remembered);
+        WriteDelta(w, frame, baseline, frames);
         // A flagship known only by its place tells nothing of what it does.
         if (placed is not null) shown.ExceptWith(placed);
         return shown;
     }
 
     /// <summary>
-    /// n id, u8 head (kind, size, remembered, hero, parent, building), u8 type (255: then its name),
-    /// n side, u8 race, f32 x, y, f16 radius, n level, [n parent], [u8 hero race, u8 role], [f32 build];
-    /// a remembered structure stops there, a remembered ship (a flagship out of sight) after its f32 hull,
-    /// max hull. Then u16 angle, u16 flags (Has) and what they announce, and f32 hull, max hull.
+    /// The entities of the frame against the baseline's: n count, the ids of the baseline left
+    /// out, then each entity new or changed with the segments that differ (a new one, all of
+    /// them). Without a baseline, every entity goes whole.
     /// </summary>
-    static void WriteEntity(BinaryWriter w, Entity e, Side viewer, bool remembered)
+    static void WriteDelta(BinaryWriter w, SnapshotFrames.Frame frame, SnapshotFrames.Frame? baseline, SnapshotFrames? frames)
     {
-        w.Write7BitEncodedInt(e.Id);
-        var head = (int)e.Kind | (int)e.Size << 2 | (remembered ? Remembered : 0) | (e.Hero is not null ? HasHero : 0)
-            | (e.ParentId is not null ? HasParent : 0) | (e.Build < 1 ? Building : 0);
-        w.Write((byte)head);
+        var masks = frames?.Masks ?? [];
+        var removed = frames?.Removed ?? [];
+        masks.Clear();
+        removed.Clear();
+        var changed = 0;
+        var j = 0;
+        var old = baseline?.Ids ?? [];
+        for (var i = 0; i < frame.Ids.Count; i++)
+        {
+            var id = frame.Ids[i];
+            while (j < old.Count && old[j] < id) removed.Add(old[j++]);
+            var b = j < old.Count && old[j] == id ? j++ : -1;
+            var mask = 0;
+            for (var k = 0; k < Segments; k++)
+            {
+                if (frame.Length(i, k) > 0 && (b < 0 || !frame.Segment(i, k).SequenceEqual(baseline!.Segment(b, k)))) mask |= 1 << k;
+            }
+            masks.Add((byte)mask);
+            if (mask != 0) changed++;
+        }
+        while (j < old.Count) removed.Add(old[j++]);
+        w.Write7BitEncodedInt(frame.Ids.Count);
+        w.Write7BitEncodedInt(removed.Count);
+        var last = 0;
+        foreach (var id in removed)
+        {
+            w.Write7BitEncodedInt(id - last);
+            last = id;
+        }
+        w.Write7BitEncodedInt(changed);
+        last = 0;
+        for (var i = 0; i < frame.Ids.Count; i++)
+        {
+            if (masks[i] == 0) continue;
+            w.Write7BitEncodedInt(frame.Ids[i] - last);
+            last = frame.Ids[i];
+            w.Write(masks[i]);
+            for (var k = 0; k < Segments; k++) if ((masks[i] & 1 << k) != 0) w.Write(frame.Segment(i, k));
+        }
+    }
+
+    /// <summary>
+    /// An entity's record, into the frame, in four segments that change apart. A segment left out
+    /// is empty: the place of a part that follows a ship, the rest of a remembered entity.
+    ///   who     u8 head (kind, size, remembered, hero, parent, follows), u8 type (255: then its name), n side,
+    ///           u8 race, f16 radius, n level, [n parent], [f32 offset x, y on a ship], [u8 hero race, u8 role]
+    ///   motion  f32 x, y; but for a remembered entity, u16 angle, f16 speed
+    ///   health  u8 flags, [f32 hull, max hull] (but for a remembered structure), [f32 shield, max shield],
+    ///           [f32 shield down], [f32 build]
+    ///   rest    u16 flags (Has) and what they announce
+    /// </summary>
+    static void WriteRecord(SnapshotFrames.Frame frame, World world, Entity e, Side viewer, bool remembered)
+    {
+        if (frame.Ids.Count > 0 && frame.Ids[^1] >= e.Id) throw new InvalidOperationException("Entities out of order");
+        frame.Ids.Add(e.Id);
+        var w = frame.Writer;
+        var follows = e.ParentId is int parent && world.Entities.Get(parent) is { Kind: EntityKind.Ship };
+        frame.Starts.Add((int)frame.Data.Length);
+        w.Write((byte)((int)e.Kind | (int)e.Size << 2 | (remembered ? Remembered : 0) | (e.Hero is not null ? HasHero : 0)
+            | (e.ParentId is not null ? HasParent : 0) | (follows ? Follows : 0)));
         WriteType(w, e.Type);
         w.Write7BitEncodedInt(e.Side.Id);
         w.Write((byte)e.Race);
-        w.Write((float)e.X);
-        w.Write((float)e.Y);
         w.Write((Half)e.Radius);
         w.Write7BitEncodedInt(e.Level);
-        if (e.ParentId is int parent) w.Write7BitEncodedInt(parent);
-        if (e.Hero is HeroId hero) WriteHero(w, hero);
-        if (e.Build < 1) w.Write((float)e.Build);
-        if (remembered)
+        if (e.ParentId is int p) w.Write7BitEncodedInt(p);
+        if (follows)
         {
-            if (e.Kind != EntityKind.Ship) return;
+            w.Write((float)e.Ox);
+            w.Write((float)e.Oy);
+        }
+        if (e.Hero is HeroId hero) WriteHero(w, hero);
+        frame.Starts.Add((int)frame.Data.Length);
+        if (!follows)
+        {
+            w.Write((float)e.X);
+            w.Write((float)e.Y);
+            if (!remembered)
+            {
+                w.Write(Angle(e.Angle));
+                w.Write((Half)e.Speed);
+            }
+        }
+        frame.Starts.Add((int)frame.Data.Length);
+        var hull = !remembered || e.Kind == EntityKind.Ship;
+        var shielded = !remembered && e.MaxShield > 0;
+        var down = !remembered && e.ShieldDown > 0;
+        w.Write((byte)((hull ? HullKnown : 0) | (shielded ? Shielded : 0) | (down ? ShieldIsDown : 0) | (e.Build < 1 ? Building : 0)));
+        if (hull)
+        {
             w.Write((float)e.Hull);
             w.Write((float)e.MaxHull);
-            return;
         }
-        w.Write(Angle(e.Angle));
-        var own = e.Side == viewer;
-        var fx = e.Effects;
-        var has = (e.Speed != 0 ? Has.Speed : 0) | (e.MaxShield > 0 ? Has.Shield : 0) | (e.Weapons.Count > 0 ? Has.Weapons : 0)
-            | (e.TargetId is not null ? Has.Target : 0) | (e.Abilities.Count > 0 ? Has.Abilities : 0)
-            | (fx.Marked > 0 || fx.Stunned > 0 || fx.Corroded > 0 || fx.Taunted > 0 ? Has.Effects : 0)
-            | (e.ShieldDown > 0 ? Has.ShieldDown : 0) | (e.Expires is not null ? Has.Expires : 0) | (e.Hangar is not null ? Has.Hangar : 0)
-            | (e.Income > 0 ? Has.Income : 0) | (e.Engines is not null ? Has.Engines : 0) | (e.ShieldGens is not null ? Has.ShieldGens : 0)
-            | (e.Launched ? Has.Launched : 0)
-            | (own && e.Pilot is not null ? Has.Pilot : 0) | (own && e.Order is not null ? Has.Order : 0) | (own ? Has.Range : 0);
-        w.Write((ushort)has);
-        if (has.HasFlag(Has.Speed)) w.Write((Half)e.Speed);
-        if (has.HasFlag(Has.Shield))
+        if (shielded)
         {
             w.Write((float)e.Shield);
             w.Write((float)e.MaxShield);
         }
-        if (has.HasFlag(Has.Weapons)) w.Write7BitEncodedInt(e.Weapons.Count);
+        if (down) w.Write((float)e.ShieldDown);
+        if (e.Build < 1) w.Write((float)e.Build);
+        frame.Starts.Add((int)frame.Data.Length);
+        if (!remembered) WriteRest(w, e, viewer);
+        frame.Starts.Add((int)frame.Data.Length);
+    }
+
+    static void WriteRest(BinaryWriter w, Entity e, Side viewer)
+    {
+        var own = e.Side == viewer;
+        var fx = e.Effects;
+        var has = (e.Weapons.Count > 0 ? Has.Weapons : 0) | (e.TargetId is not null ? Has.Target : 0) | (e.Abilities.Count > 0 ? Has.Abilities : 0)
+            | (fx.Marked > 0 || fx.Stunned > 0 || fx.Corroded > 0 || fx.Taunted > 0 ? Has.Effects : 0)
+            | (e.Expires is not null ? Has.Expires : 0) | (e.Hangar is not null ? Has.Hangar : 0)
+            | (e.Income > 0 ? Has.Income : 0) | (e.Engines is not null ? Has.Engines : 0) | (e.ShieldGens is not null ? Has.ShieldGens : 0)
+            | (e.Launched ? Has.Launched : 0)
+            | (own && e.Pilot is not null ? Has.Pilot : 0) | (own && e.Order is not null ? Has.Order : 0) | (own ? Has.Range : 0);
+        w.Write((ushort)has);
+        if ((has & Has.Weapons) != 0) w.Write7BitEncodedInt(e.Weapons.Count);
         if (e.TargetId is int target) w.Write7BitEncodedInt(target);
-        if (has.HasFlag(Has.Abilities))
+        if ((has & Has.Abilities) != 0)
         {
             w.Write7BitEncodedInt(e.Abilities.Count);
             foreach (var a in e.Abilities)
@@ -366,7 +468,7 @@ public static partial class Snapshot
                 w.Write((float)a.Active);
             }
         }
-        if (has.HasFlag(Has.Effects))
+        if ((has & Has.Effects) != 0)
         {
             w.Write((float)fx.Marked);
             w.Write((float)fx.Stunned);
@@ -374,7 +476,6 @@ public static partial class Snapshot
             w.Write((float)fx.Taunted);
             w.Write7BitEncodedInt(fx.TauntedBy ?? -1);
         }
-        if (has.HasFlag(Has.ShieldDown)) w.Write((float)e.ShieldDown);
         if (e.Expires is double expires) w.Write((float)expires);
         if (e.Hangar is { } hangar)
         {
@@ -382,14 +483,14 @@ public static partial class Snapshot
             w.Write7BitEncodedInt(hangar.Launched.Count);
             foreach (var id in hangar.Launched) w.Write7BitEncodedInt(id);
         }
-        if (has.HasFlag(Has.Income)) w.Write((float)e.Income);
+        if ((has & Has.Income) != 0) w.Write((float)e.Income);
         if (e.Engines is int engines)
         {
             w.Write7BitEncodedInt(engines);
             w.Write7BitEncodedInt(e.MaxEngines);
         }
         if (e.ShieldGens is int gens) w.Write7BitEncodedInt(gens);
-        if (has.HasFlag(Has.Pilot))
+        if ((has & Has.Pilot) != 0)
         {
             var p = e.Pilot!;
             w.Write((float)p.Thrust);
@@ -398,7 +499,7 @@ public static partial class Snapshot
             w.Write((float)p.AimY);
             w.Write(p.Firing);
         }
-        if (has.HasFlag(Has.Order))
+        if ((has & Has.Order) != 0)
         {
             var o = e.Order!;
             w.Write((byte)o.Type);
@@ -406,9 +507,7 @@ public static partial class Snapshot
             w.Write((float)o.Y);
             w.Write7BitEncodedInt(o.TargetId);
         }
-        if (has.HasFlag(Has.Range)) w.Write((float)e.Range);
-        w.Write((float)e.Hull);
-        w.Write((float)e.MaxHull);
+        if ((has & Has.Range) != 0) w.Write((float)e.Range);
     }
 
     static void WriteType(BinaryWriter w, string type)

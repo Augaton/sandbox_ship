@@ -1,6 +1,8 @@
 // Reading a battle snapshot into a replica (see Snapshot.cs for the layout): entities are
 // created, updated and removed by id, the rest replaced. Nothing of the simulation runs: the
-// replica holds what the host said, and only what the viewer's team may see.
+// replica holds what the host said, and only what the viewer's team may see. Every entity's
+// record is rebuilt, from the snapshot where it changed and from the baseline elsewhere, and
+// read whole into the replica: it holds the snapshot, whatever came in between.
 using SandboxShip.Sim.Data;
 
 namespace SandboxShip.Sim;
@@ -12,15 +14,40 @@ public static partial class Snapshot
 
     /// <summary>
     /// Brings `replica` to the snapshot: the battle as its viewer's team sees it, with the events
-    /// since the previous snapshot added to its Events. A snapshot of another version is refused
-    /// before anything changes. A snapshot cut short leaves the replica half updated; the next whole one mends it.
+    /// since the previous snapshot added to its Events; with `frames`, those this player read,
+    /// the snapshot is kept among them once read to its end, a baseline for the next ones. False,
+    /// and nothing changes, when its baseline is not one of them (a snapshot written against one
+    /// that was lost, or forgotten): the player waits for the next. A snapshot of another
+    /// version is refused before anything changes. A snapshot cut short leaves the replica half
+    /// updated and is not kept; the next one mends it. The stream must be seekable (a MemoryStream).
     /// </summary>
-    public static void Read(BinaryReader r, World replica)
+    public static bool Read(BinaryReader r, World replica, SnapshotFrames? frames = null)
     {
         if (r.ReadUInt32() != Magic) throw new InvalidDataException("Pas un instantané de bataille");
         var version = r.ReadUInt16();
         if (version != Version) throw new InvalidDataException($"Instantané en version {version}, version {Version} attendue");
         var viewer = new Side(r.Read7BitEncodedInt());
+        var seq = r.Read7BitEncodedInt();
+        var from = r.Read7BitEncodedInt();
+        var baseline = frames?.Find(from);
+        if (from != 0 && baseline is null) return false;
+        var frame = frames?.Take(seq) ?? new SnapshotFrames.Frame();
+        var whole = false;
+        try
+        {
+            ReadAll(r, replica, viewer, frame, baseline, frames);
+            whole = true;
+        }
+        finally
+        {
+            if (whole && seq > 0) frames?.Keep(frame);
+            else frames?.Discard(frame);
+        }
+        return true;
+    }
+
+    static void ReadAll(BinaryReader r, World replica, Side viewer, SnapshotFrames.Frame frame, SnapshotFrames.Frame? baseline, SnapshotFrames? frames)
+    {
         replica.Time = r.ReadDouble();
         replica.Width = r.ReadDouble();
         replica.Height = r.ReadDouble();
@@ -32,7 +59,7 @@ public static partial class Snapshot
         ReadMode(r, replica.Mode);
         ReadSides(r, replica, viewer);
         ReadFields(r, replica);
-        ReadEntities(r, replica, viewer);
+        ReadEntities(r, replica, viewer, frame, baseline, frames);
         ReadShots(r, replica);
         var zones = new List<Zone>();
         for (var n = Count(r); n > 0; n--)
@@ -194,39 +221,136 @@ public static partial class Snapshot
         for (var i = 0; i < fields.Count; i++) replica.Fields[i].MineId = fields[i].MineId;
     }
 
-    static void ReadEntities(BinaryReader r, World replica, Side viewer)
+    /// <summary>
+    /// The entities (see WriteDelta): the baseline's, but those left out, merged in id order with
+    /// those the snapshot brings, each record rebuilt into the frame and read into the replica.
+    /// The replica loses what is no longer listed, and its parts of ships go on their ships.
+    /// </summary>
+    static void ReadEntities(BinaryReader r, World replica, Side viewer, SnapshotFrames.Frame frame, SnapshotFrames.Frame? baseline,
+        SnapshotFrames? frames)
     {
-        var n = Count(r);
-        var present = new HashSet<int>(n);
-        var visible = new HashSet<int>();
-        var seen = new HashSet<int>();
-        for (var i = 0; i < n; i++)
-        {
-            var id = r.Read7BitEncodedInt();
-            var e = replica.Entities.Get(id);
-            if (e is null)
-            {
-                e = new Entity { Id = id };
-                replica.Entities.Add(e);
-            }
-            present.Add(id);
-            var remembered = ReadEntity(r, e, viewer);
-            if (Worlds.Allies(replica, e.Side, viewer)) continue;
-            if (!remembered) visible.Add(id);
-            if (e.Kind != EntityKind.Ship) seen.Add(id);
-        }
-        List<int>? gone = null;
-        foreach (var e in replica.Entities) if (!present.Contains(e.Id)) (gone ??= []).Add(e.Id);
-        foreach (var id in gone ?? []) replica.Entities.Remove(id);
+        var count = Count(r);
+        var removed = frames?.Removed ?? [];
+        removed.Clear();
+        var last = 0;
+        for (var n = Count(r); n > 0; n--) removed.Add(last = NextId(r, last));
+        var changes = Count(r);
         // Only the viewer's sight is known here: Vision.IsVisible and WasSeen answer for it as on the host.
-        replica.Visible.Clear();
-        replica.Seen.Clear();
-        replica.Visible[viewer] = visible;
-        replica.Seen[viewer] = seen;
+        var visible = SightOf(replica.Visible, viewer);
+        var seen = SightOf(replica.Seen, viewer);
+        var old = baseline?.Ids ?? [];
+        var change = changes > 0 ? NextId(r, 0) : int.MaxValue;
+        int b = 0, gone = 0;
+        while (b < old.Count || change != int.MaxValue)
+        {
+            var id = b < old.Count ? old[b] : int.MaxValue;
+            if (id < change)
+            {
+                if (gone < removed.Count && removed[gone] == id) gone++;
+                else ReadRecord(r, replica, viewer, frame, id, 0, baseline, b, visible, seen);
+                b++;
+                continue;
+            }
+            ReadRecord(r, replica, viewer, frame, change, r.ReadByte(), baseline, id == change ? b++ : -1, visible, seen);
+            change = --changes > 0 ? NextId(r, change) : int.MaxValue;
+        }
+        if (gone != removed.Count || frame.Ids.Count != count) throw new InvalidDataException("Entités mal formées");
+        List<int>? lost = null;
+        foreach (var e in replica.Entities) if (frame.IndexOf(e.Id) < 0) (lost ??= []).Add(e.Id);
+        foreach (var id in lost ?? []) replica.Entities.Remove(id);
+        Worlds.AttachHardpoints(replica);
     }
 
-    /// <summary>Reads one entity's record into it; true for a remembered structure, of which only the place and level came.</summary>
-    static bool ReadEntity(BinaryReader r, Entity e, Side viewer)
+    /// <summary>An id after `last`, written as the gap from it.</summary>
+    static int NextId(BinaryReader r, int last)
+    {
+        var gap = r.Read7BitEncodedInt();
+        return gap > 0 && gap < int.MaxValue - last ? last + gap : throw new InvalidDataException($"Écart d'identifiants de {gap}");
+    }
+
+    /// <summary>The replica's set of what its viewer sees (or saw), emptied for this snapshot: the replica knows no other side's.</summary>
+    static HashSet<int> SightOf(Dictionary<Side, HashSet<int>> sets, Side viewer)
+    {
+        var set = sets.GetValueOrDefault(viewer) ?? [];
+        sets.Clear();
+        set.Clear();
+        sets[viewer] = set;
+        return set;
+    }
+
+    /// <summary>
+    /// One entity's record, rebuilt into the frame and read into the replica: the segments in
+    /// `mask` from the snapshot, the others from the baseline's record (index `at`; -1 for an
+    /// entity new to it, which must bring all of them). Segments that its head says it has not
+    /// stay empty, and must not come.
+    /// </summary>
+    static void ReadRecord(BinaryReader r, World replica, Side viewer, SnapshotFrames.Frame frame, int id, int mask,
+        SnapshotFrames.Frame? baseline, int at, HashSet<int> visible, HashSet<int> seen)
+    {
+        if (mask >= 1 << Segments) throw new InvalidDataException($"Segments inconnus : {mask}");
+        var e = replica.Entities.Get(id);
+        if (e is null)
+        {
+            e = new Entity { Id = id };
+            replica.Entities.Add(e);
+        }
+        frame.Ids.Add(id);
+        BinaryReader From(int k)
+        {
+            frame.Starts.Add((int)frame.Data.Length);
+            if ((mask & 1 << k) != 0) return r;
+            if (at < 0 || baseline!.Length(at, k) == 0) throw new InvalidDataException($"Entité {id} incomplète");
+            return baseline.At(at, k);
+        }
+        void None(int k)
+        {
+            if ((mask & 1 << k) != 0) throw new InvalidDataException($"Entité {id} mal formée");
+            frame.Starts.Add((int)frame.Data.Length);
+        }
+        var s = From(Who);
+        var p = s.BaseStream.Position;
+        var head = ReadWho(s, e);
+        Copy(s, p, frame);
+        var remembered = (head & Remembered) != 0;
+        if ((head & Follows) != 0) None(Motion);
+        else
+        {
+            s = From(Motion);
+            p = s.BaseStream.Position;
+            ReadMotion(s, e, remembered);
+            Copy(s, p, frame);
+        }
+        s = From(Health);
+        p = s.BaseStream.Position;
+        ReadHealth(s, e, remembered);
+        Copy(s, p, frame);
+        if (remembered) None(Rest);
+        else
+        {
+            s = From(Rest);
+            p = s.BaseStream.Position;
+            ReadRest(s, e);
+            Copy(s, p, frame);
+        }
+        frame.Starts.Add((int)frame.Data.Length);
+        if (Worlds.Allies(replica, e.Side, viewer)) return;
+        if (!remembered) visible.Add(id);
+        if (e.Kind != EntityKind.Ship) seen.Add(id);
+    }
+
+    /// <summary>Appends to the frame what was just read from `from`, since `start`.</summary>
+    static void Copy(BinaryReader from, long start, SnapshotFrames.Frame into)
+    {
+        var s = from.BaseStream;
+        var n = (int)(s.Position - start);
+        var at = (int)into.Data.Length;
+        into.Data.SetLength(at + n);
+        s.Position = start;
+        s.ReadExactly(into.Data.GetBuffer().AsSpan(at, n));
+    }
+
+    /// <summary>Who an entity is (see WriteRecord); its head byte.</summary>
+    static int ReadWho(BinaryReader r, Entity e)
     {
         var head = r.ReadByte();
         e.Kind = (EntityKind)(head & 3);
@@ -234,35 +358,57 @@ public static partial class Snapshot
         e.Type = ReadType(r);
         e.Side = new Side(r.Read7BitEncodedInt());
         e.Race = (Faction)r.ReadByte();
-        e.X = r.ReadSingle();
-        e.Y = r.ReadSingle();
         e.Radius = (double)r.ReadHalf();
         e.Level = r.Read7BitEncodedInt();
         e.ParentId = (head & HasParent) != 0 ? r.Read7BitEncodedInt() : null;
-        e.Hero = (head & HasHero) != 0 ? ReadHero(r) : null;
-        e.Build = (head & Building) != 0 ? r.ReadSingle() : 1;
-        if ((head & Remembered) != 0)
+        if ((head & Follows) != 0)
         {
-            if (e.Kind != EntityKind.Ship) return true;
+            if (e.ParentId is null) throw new InvalidDataException($"Pièce {e.Id} sans vaisseau");
+            e.Ox = r.ReadSingle();
+            e.Oy = r.ReadSingle();
+        }
+        e.Hero = (head & HasHero) != 0 ? ReadHero(r) : null;
+        return head;
+    }
+
+    static void ReadMotion(BinaryReader r, Entity e, bool remembered)
+    {
+        e.X = r.ReadSingle();
+        e.Y = r.ReadSingle();
+        if (remembered) return;
+        e.Angle = r.ReadUInt16() * AngleUnit;
+        e.Speed = (double)r.ReadHalf();
+    }
+
+    /// <summary>Health; of a remembered entity, only what came (its build, a flagship's hull): the rest stays as last seen.</summary>
+    static void ReadHealth(BinaryReader r, Entity e, bool remembered)
+    {
+        var flags = r.ReadByte();
+        if ((flags & HullKnown) != 0)
+        {
             e.Hull = r.ReadSingle();
             e.MaxHull = r.ReadSingle();
-            return true;
         }
-        e.Angle = r.ReadUInt16() * AngleUnit;
-        var has = (Has)r.ReadUInt16();
-        e.Speed = has.HasFlag(Has.Speed) ? (double)r.ReadHalf() : 0;
-        if (has.HasFlag(Has.Shield))
+        if ((flags & Shielded) != 0)
         {
             e.Shield = r.ReadSingle();
             e.MaxShield = r.ReadSingle();
         }
-        else e.Shield = e.MaxShield = 0;
-        var weapons = has.HasFlag(Has.Weapons) ? Count(r) : 0;
+        else if (!remembered) e.Shield = e.MaxShield = 0;
+        if ((flags & ShieldIsDown) != 0) e.ShieldDown = r.ReadSingle();
+        else if (!remembered) e.ShieldDown = 0;
+        e.Build = (flags & Building) != 0 ? r.ReadSingle() : 1;
+    }
+
+    static void ReadRest(BinaryReader r, Entity e)
+    {
+        var has = (Has)r.ReadUInt16();
+        var weapons = (has & Has.Weapons) != 0 ? Count(r) : 0;
         if (e.Weapons.Count != weapons) e.Weapons = [.. Enumerable.Range(0, weapons).Select(_ => new WeaponState(Unknown))];
-        e.TargetId = has.HasFlag(Has.Target) ? r.Read7BitEncodedInt() : null;
-        ReadAbilities(r, e, has.HasFlag(Has.Abilities) ? Count(r) : 0);
+        e.TargetId = (has & Has.Target) != 0 ? r.Read7BitEncodedInt() : null;
+        ReadAbilities(r, e, (has & Has.Abilities) != 0 ? Count(r) : 0);
         var fx = e.Effects;
-        if (has.HasFlag(Has.Effects))
+        if ((has & Has.Effects) != 0)
         {
             fx.Marked = r.ReadSingle();
             fx.Stunned = r.ReadSingle();
@@ -275,9 +421,8 @@ public static partial class Snapshot
             fx.Marked = fx.Stunned = fx.Corroded = fx.Taunted = 0;
             fx.TauntedBy = null;
         }
-        e.ShieldDown = has.HasFlag(Has.ShieldDown) ? r.ReadSingle() : 0;
-        e.Expires = has.HasFlag(Has.Expires) ? r.ReadSingle() : null;
-        if (has.HasFlag(Has.Hangar))
+        e.Expires = (has & Has.Expires) != 0 ? r.ReadSingle() : null;
+        if ((has & Has.Hangar) != 0)
         {
             var cap = r.Read7BitEncodedInt();
             if (e.Hangar?.Def.Cap != cap) e.Hangar = new HangarState(new HangarDef([], cap, 0));
@@ -285,16 +430,16 @@ public static partial class Snapshot
             for (var n = Count(r); n > 0; n--) e.Hangar.Launched.Add(r.Read7BitEncodedInt());
         }
         else e.Hangar = null;
-        e.Income = has.HasFlag(Has.Income) ? r.ReadSingle() : 0;
-        if (has.HasFlag(Has.Engines))
+        e.Income = (has & Has.Income) != 0 ? r.ReadSingle() : 0;
+        if ((has & Has.Engines) != 0)
         {
             e.Engines = r.Read7BitEncodedInt();
             e.MaxEngines = r.Read7BitEncodedInt();
         }
         else (e.Engines, e.MaxEngines) = (null, 0);
-        e.ShieldGens = has.HasFlag(Has.ShieldGens) ? r.Read7BitEncodedInt() : null;
-        e.Launched = has.HasFlag(Has.Launched);
-        if (has.HasFlag(Has.Pilot))
+        e.ShieldGens = (has & Has.ShieldGens) != 0 ? r.Read7BitEncodedInt() : null;
+        e.Launched = (has & Has.Launched) != 0;
+        if ((has & Has.Pilot) != 0)
         {
             var p = e.Pilot ??= new Pilot();
             p.Thrust = r.ReadSingle();
@@ -304,11 +449,14 @@ public static partial class Snapshot
             p.Firing = r.ReadBoolean();
         }
         else e.Pilot = null;
-        e.Order = has.HasFlag(Has.Order) ? new Order((OrderType)r.ReadByte(), r.ReadSingle(), r.ReadSingle(), r.Read7BitEncodedInt()) : null;
-        e.Range = has.HasFlag(Has.Range) ? r.ReadSingle() : 0;
-        e.Hull = r.ReadSingle();
-        e.MaxHull = r.ReadSingle();
-        return false;
+        if ((has & Has.Order) != 0)
+        {
+            var (type, x, y, target) = ((OrderType)r.ReadByte(), r.ReadSingle(), r.ReadSingle(), r.Read7BitEncodedInt());
+            // The same order as before keeps its object: no garbage for every own ship at every snapshot.
+            if (e.Order is not { } o || o.Type != type || o.X != x || o.Y != y || o.TargetId != target) e.Order = new Order(type, x, y, target);
+        }
+        else e.Order = null;
+        e.Range = (has & Has.Range) != 0 ? r.ReadSingle() : 0;
     }
 
     /// <summary>Abilities in place when they are the same ones, so that what holds them keeps them.</summary>

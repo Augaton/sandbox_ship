@@ -39,6 +39,7 @@ public class ProtocolTests
         yield return new Message.Order(new Command.Move([4, 8, 15], 1200.5, 800.25, true));
         yield return new Message.Order(new Command.UseAbility(16, AbilityId.Cloak, new Aim(1, 2, 23)));
         yield return new Message.State([1, 2, 3, 250, 0]);
+        yield return new Message.Ack(123456);
         yield return new Message.Refused("Cible hors de vue");
         yield return new Message.Pause(true, "Bob");
         yield return new Message.Notice("Bob a quitté la partie : l'IA prend sa place.");
@@ -57,7 +58,7 @@ public class ProtocolTests
             Assert.Equal(bytes, Protocol.Encode(back));
             tags.Add(bytes[0]);
         }
-        Assert.Equal(13, tags.Count);
+        Assert.Equal(14, tags.Count);
         // Fields come back as sent, not only their bytes.
         var room = (Message.Room)Protocol.Decode(Protocol.Encode(Every().OfType<Message.Room>().First()));
         Assert.Equal([new Member(Lobby.Host, "Hôte"), new Member(77, "Bob")], room.Members);
