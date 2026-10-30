@@ -36,7 +36,8 @@ public sealed record MenuChoice
 /// --menu=home|new|controls|credits|options|lobby-MODE (the menu screen opened first; new: the
 /// modes; lobby-skirmish, lobby-campaign...: that mode's lobby, see LobbyMode; skirmish: lobby-skirmish),
 /// --seats=N and --teams=T,T... (that lobby's bots added up to N seats, then its teams in seat order),
-/// --size=small|medium|large (the map, or the galaxy, of --start).
+/// --size=small|medium|large (the map, or the galaxy, of --start),
+/// --mode=survival|zones|assault|regicide (the rules of --start=battle; in an assault, the player defends).
 /// </summary>
 public static class Dev
 {
@@ -51,6 +52,7 @@ public static class Dev
     public static MapSize Size = MapSize.Medium;
     public static int Seats;
     public static int[] Teams = [];
+    public static BattleMode Mode = BattleMode.Standard;
 
     public static void Parse(IEnumerable<string> args)
     {
@@ -72,6 +74,7 @@ public static class Dev
                 case "--size": Size = Enum.Parse<MapSize>(value, true); break;
                 case "--seats": Seats = int.Parse(value); break;
                 case "--teams": Teams = [.. value.Split(',').Select(int.Parse)]; break;
+                case "--mode": Mode = Enum.Parse<BattleMode>(value, true); break;
             }
         }
     }

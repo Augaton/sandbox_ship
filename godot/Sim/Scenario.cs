@@ -138,32 +138,68 @@ public static class Scenario
     public static List<Slot> SlotsOf(SkirmishOptions o) => o.Slots.Count > 0 ? o.Slots
         : [new Slot(o.Player, o.Player), .. o.Enemies.Select(e => new Slot(e, e, 0, o.EnemyAI ? o.Difficulty : null))];
 
-    /// <summary>Every side gets a station and two fields behind it; the rest of the fields are scattered.</summary>
+    /// <summary>
+    /// Whether a skirmish can be played as set up, and if not, why, for the lobby to say: 2 to
+    /// 6 seats (survival from 1), each on a side of its own and of a playable race, side 3 left
+    /// to the Errants when they come (raid, survival), two camps at war (survival aside: all
+    /// play together), and for an assault, every seat defending (team 1) or attacking (team 2),
+    /// at least one of each.
+    /// </summary>
+    public static Result Check(SkirmishOptions o)
+    {
+        var slots = SlotsOf(o);
+        var survival = o.Mode == BattleMode.Survival;
+        if (slots.Count < (survival ? 1 : 2) || slots.Count > 6) return Result.Fail(survival ? "De 1 à 6 joueurs" : "De 2 à 6 joueurs");
+        if (slots.Select(s => s.Side).Distinct().Count() != slots.Count) return Result.Fail("Deux places jouent le même camp");
+        if (slots.Exists(s => s.Race == Faction.Errant)) return Result.Fail("Les Errants ne sont pas jouables");
+        if ((survival || (o.Raid && Modes.AllowsRaid(o.Mode))) && slots.Exists(s => s.Side == Faction.Errant)) return Result.Fail("Le camp 3 revient aux Errants");
+        if (o.Mode == BattleMode.Zones && o.ZoneTarget < 1) return Result.Fail("Le score à atteindre doit être d'au moins 1");
+        if (o.Mode == BattleMode.Assault)
+        {
+            if (o.AssaultMinutes < 1) return Result.Fail("L'assaut doit durer au moins 1 min");
+            if (slots.Exists(s => s.Team is not (Assault.Defenders or Assault.Attackers))) return Result.Fail("En assaut, chaque joueur défend (équipe 1) ou attaque (équipe 2)");
+            if (!slots.Exists(s => s.Team == Assault.Defenders)) return Result.Fail("L'assaut demande au moins un défenseur (équipe 1)");
+            if (!slots.Exists(s => s.Team == Assault.Attackers)) return Result.Fail("L'assaut demande au moins un attaquant (équipe 2)");
+        }
+        if (!survival && !slots.Exists(a => slots.Exists(b => b != a && (a.Team == 0 || a.Team != b.Team)))) return Result.Fail("Il faut au moins deux camps adverses");
+        return Result.OK;
+    }
+
+    /// <summary>
+    /// Every side gets a station and two fields behind it; the rest of the fields are scattered.
+    /// A battle mode other than the standard one must pass Check, and adds its own (Modes.Setup).
+    /// </summary>
     public static World CreateSkirmish(SkirmishOptions o)
     {
         var slots = SlotsOf(o);
+        var raid = o.Raid && Modes.AllowsRaid(o.Mode);
         if (slots.Select(s => s.Side).Distinct().Count() != slots.Count) throw new ArgumentException("Two slots share a side.");
-        if (o.Raid && slots.Exists(s => s.Side == Faction.Errant)) throw new ArgumentException("The raid needs the Errants' side.");
+        if (raid && slots.Exists(s => s.Side == Faction.Errant)) throw new ArgumentException("The raid needs the Errants' side.");
+        if (o.Mode != BattleMode.Standard && Check(o) is { Ok: false } bad) throw new ArgumentException(bad.Reason);
+        // Survival: every seat on one team, against the waves.
+        if (o.Mode == BattleMode.Survival) slots = [.. slots.Select(s => s with { Team = 1 })];
         var size = MapSizes[o.Size];
         var world = CreateWorld(size.W, size.H, o.Seed);
         world.Fog = o.Fog;
         foreach (var s in slots) AddSide(world, s.Side, s.Race, o.Credits, s.Team, s.Color, s.AI is not null, s.AI ?? Difficulty.Normal);
         if (o.Map == MapKind.Classic && slots.Count == 2)
         {
-            SpawnStation(world, slots[0].Side, 700 * (size.W / 6000), size.H / 2);
-            SpawnStation(world, slots[1].Side, size.W - 700 * (size.W / 6000), size.H / 2);
+            SpawnStation(world, slots[0].Side, 700 * (size.W / 6000), size.H / 2, Modes.StartLevel(o, slots[0]));
+            SpawnStation(world, slots[1].Side, size.W - 700 * (size.W / 6000), size.H / 2, Modes.StartLevel(o, slots[1]));
             ClassicFields(world);
             GiveLabs(world);
-            if (o.Raid) Raids.Place(world);
+            if (raid) Raids.Place(world);
+            Modes.Setup(world, o);
             return world;
         }
-        var spots = StartPositions(world, slots.Count);
-        for (var i = 0; i < slots.Count; i++) SpawnStation(world, slots[i].Side, spots[i].X, spots[i].Y);
+        var spots = o.Mode == BattleMode.Assault ? Assault.Spots(world, slots) : StartPositions(world, slots.Count);
+        for (var i = 0; i < slots.Count; i++) SpawnStation(world, slots[i].Side, spots[i].X, spots[i].Y, Modes.StartLevel(o, slots[i]));
         foreach (var s in spots) BackFields(world, s);
         var area = size.W * size.H / (6000 * 4000);
         ScatterFields(world, (int)Js.Round((6 + Math.Floor(Rand(world) * 5)) * area), spots, 550);
         GiveLabs(world);
-        if (o.Raid) Raids.Place(world);
+        if (raid) Raids.Place(world);
+        Modes.Setup(world, o);
         return world;
     }
 

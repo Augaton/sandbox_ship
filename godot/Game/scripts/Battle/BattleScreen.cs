@@ -375,10 +375,9 @@ public partial class BattleScreen : Node
                     Explode(d.Id, d.X, d.Y, d.Radius);
                     Play(d.Radius >= 50 ? Sound.BigExplosion : Sound.Explosion, d.X, d.Y, Math.Min(1, 0.4 + d.Radius / 60));
                     if (d.Side == Opts.Player && d.Kind != EntityKind.Ship) Alert($"Perte : {Names.TypeName(d.EntityType)}", d.X, d.Y, true);
-                    // Out of a free-for-all before it ends, with no ally left holding a station: say so
-                    // now, the others may fight on for long.
-                    if (d.EntityType == "station" && d.Side == Opts.Player && Opts.Campaign is null && w.Winner is null && !defeated
-                        && !w.Factions.Values.Any(f => f.StationId is not null && Worlds.Allies(w, f.Id, Opts.Player)))
+                    // Out of a free-for-all before it ends, with no ally left holding a station (or in
+                    // regicide, a flagship): say so now, the others may fight on for long.
+                    if (d.EntityType == "station" && d.Side == Opts.Player && Opts.Campaign is null && w.Winner is null && !defeated && Modes.Out(w, Opts.Player))
                     {
                         defeated = true;
                         Hud.ShowEnd(false);
@@ -438,6 +437,9 @@ public partial class BattleScreen : Node
                 case StrikeLanded s:
                     StrikeShown(s.Strike);
                     Play(s.Strike.Kind == StrikeKind.Orbital ? Sound.BigExplosion : Sound.Beam, s.Strike.X2, s.Strike.Y2);
+                    break;
+                default:
+                    if (!Opts.Demo) ShowModeEvent(ev);
                     break;
             }
         }

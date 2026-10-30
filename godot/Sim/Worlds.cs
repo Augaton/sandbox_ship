@@ -367,11 +367,11 @@ public static class Worlds
     /// <summary>
     /// The last camp holding a station wins, once at least two camps had one. A camp is a team,
     /// or a side alone: a team wins together, whichever of its sides still holds a station. The
-    /// winner is the first of them to have joined.
+    /// winner is the first of them to have joined. A battle mode may decide first (Modes.Decide).
     /// </summary>
     public static void CheckVictory(World world)
     {
-        if (world.Winner is not null) return;
+        if (world.Winner is not null || Modes.Decide(world)) return;
         // Counted in place: this runs every step. Two camps or more show as a side outside the first one's.
         FactionState? contender = null, alive = null;
         bool contenders = false, rivals = false;
