@@ -23,6 +23,8 @@ public sealed record MenuChoice
     public MapSize Size { get; init; } = MapSize.Medium;
     /// <summary>Without Seats, the enemies' AI; with --skip, the player's while the galaxy plays ahead.</summary>
     public Difficulty Difficulty { get; init; } = Difficulty.Normal;
+    /// <summary>A campaign over the network: the host's galaxy, or a player's replica of it (Network.NetGalaxy); the rest is unused.</summary>
+    public Network.NetGalaxy? Net { get; init; }
 
     /// <summary>Who plays: the seats, or else the player against the enemies, one side per race.</summary>
     public IReadOnlyList<Slot> Slots => Seats.Count > 0 ? Seats : BattleOptions.Versus(Player, Enemies, Difficulty);
@@ -42,6 +44,13 @@ public sealed record MenuChoice
 /// once everyone is ready), --join=ADDRESS:PORT (joins it, and is ready once seated), --server (a dedicated server of --mode, with
 /// Godot's --headless), --port=N, --name=X (the player's, or the server's game), --order=SECONDS (the player's ships attack-move to
 /// the middle of the map once the battle is that old), --pause=SECONDS (then the player pauses the game for everyone).
+/// Campaign over the network (--host --mode=campaign, --join): --speed=N (the galaxy's speed, set by the host), --attack=SECONDS,...
+/// (at those galaxy ages, the player's fleets leave for the nearest planet of another human), --raid=SECONDS,... (for the Errants'
+/// planet), --choose=command|auto,... (the battle prompts answered in turn, the last answer repeated), --truce=SECONDS (a truce
+/// offered to another human), --answer=yes|no (the truce offers answered), --save=FILE (where the host saves the campaign, even
+/// with --shot; and what --resume reads), --resume (with --host: the saved campaign's lobby), --snap=DIR (captures at the key
+/// moments: prompts, battles, their end, offers, the lobby; numbered in turn), --watch (a battle others command is watched when
+/// offered), --leave=SECONDS (at that age of a campaign battle it commands, the player leaves it to the AI), --build=SECONDS,... (at those galaxy ages, frigates queued at every planet of the player, as credits allow), --pause=SECONDS (in the galaxy: at that galaxy age, the player pauses it for everyone, and sets it going 4 s later).
 /// </summary>
 public static class Dev
 {
@@ -61,6 +70,13 @@ public static class Dev
     public static string? Join, Name;
     public static int Port = Sim.Net.Protocol.DefaultPort;
     public static double Order, Pause;
+    public static bool Campaign, Resume, Watch;
+    public static double Speed, Truce, Leave;
+    public static double[] Attack = [], Raid = [], Build = [];
+    public static string[] Choose = [];
+    public static string? Answer, Snap, SavePath;
+
+    static double[] Ages(string value) => [.. value.Split(',').Select(v => double.Parse(v, System.Globalization.CultureInfo.InvariantCulture))];
 
     public static void Parse(IEnumerable<string> args)
     {
@@ -82,6 +98,7 @@ public static class Dev
                 case "--size": Size = Enum.Parse<MapSize>(value, true); break;
                 case "--seats": Seats = int.Parse(value); break;
                 case "--teams": Teams = [.. value.Split(',').Select(int.Parse)]; break;
+                case "--mode" when value == "campaign": Campaign = true; break;
                 case "--mode": Mode = Enum.Parse<BattleMode>(value, true); break;
                 case "--host": Host = true; break;
                 case "--server": Server = true; break;
@@ -90,6 +107,18 @@ public static class Dev
                 case "--port": Port = int.Parse(value); break;
                 case "--order": Order = double.Parse(value, System.Globalization.CultureInfo.InvariantCulture); break;
                 case "--pause": Pause = double.Parse(value, System.Globalization.CultureInfo.InvariantCulture); break;
+                case "--speed": Speed = double.Parse(value, System.Globalization.CultureInfo.InvariantCulture); break;
+                case "--attack": Attack = Ages(value); break;
+                case "--raid": Raid = Ages(value); break;
+                case "--build": Build = Ages(value); break;
+                case "--choose": Choose = value.Split(','); break;
+                case "--truce": Truce = double.Parse(value, System.Globalization.CultureInfo.InvariantCulture); break;
+                case "--answer": Answer = value; break;
+                case "--save": SavePath = value; break;
+                case "--resume": Resume = true; break;
+                case "--watch": Watch = true; break;
+                case "--leave": Leave = double.Parse(value, System.Globalization.CultureInfo.InvariantCulture); break;
+                case "--snap": Snap = value; break;
             }
         }
     }

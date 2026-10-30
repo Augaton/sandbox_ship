@@ -63,6 +63,22 @@ public partial class Menu
         return true;
     }
 
+    /// <summary>Hosts the campaign saved over the network again: its lobby keeps each player's seat for them.</summary>
+    void HostResume()
+    {
+        var saved = GalaxySave.Load(Campaign.GalaxyScreen.NetSavePath);
+        hostError = saved is null ? "Sauvegarde de la campagne illisible." : Session.Resume(saved, Dev.Port);
+        seenChanges = Session.Changes;
+        if (hostError is not null)
+        {
+            if (screen == Screen.Modes) Rebuild("resume");
+            return;
+        }
+        mode = LobbyMode.Campaign;
+        lobbies.TryAdd(mode, Lobby.Create(mode, NewSeed()));
+        if (screen == Screen.Modes) Show(Screen.Lobby);
+    }
+
     /// <summary>
     /// The screen the menu opens on: the lobby of the game under way (back from its battle), the
     /// join screen saying why the last one ended, or the dev runs' game.
@@ -88,6 +104,11 @@ public partial class Menu
         if (Dev.Host)
         {
             (hosting, opener) = (true, "host");
+            if (Dev.Resume)
+            {
+                HostResume();
+                return hostError is null ? Screen.Lobby : Screen.Modes;
+            }
             if (!HostLobby(Session.DevMode)) return Screen.Modes;
             mode = Session.DevMode;
             return Screen.Lobby;

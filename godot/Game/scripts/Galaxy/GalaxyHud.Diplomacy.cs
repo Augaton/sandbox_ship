@@ -50,7 +50,7 @@ public partial class GalaxyHud
         var parts = new List<Part>
         {
             HudKit.TextPart($"Une trêve dure {Minutes(Galaxies.TruceTime)} : aucun combat entre vous, ni sur les planètes ni en chemin, et aucune flotte "
-                + "envoyée chez l'autre. Une faction l'accepte quand elle se sent la plus faible, ou qu'elle se bat déjà ailleurs. "
+                + "envoyée chez l'autre. Une faction l'accepte quand elle se sent la plus faible, ou qu'elle se bat déjà ailleurs ; un joueur répond lui-même. "
                 + $"Rompue, elle refuse toute trêve pendant {Minutes(Galaxies.GrudgeTime)}. Jamais de trêve avec les Errants.", Palette.Muted, 13),
         };
         foreach (var r in Rivals())
@@ -122,6 +122,8 @@ public partial class GalaxyHud
         var r = scene.Sink.Send(new GalaxyCommand.OfferTruce(rival));
         // A truce signed says so itself (TruceSigned).
         if (!r.Ok) Notify($"{NameOf(rival)} refuse la trêve : {Lower(r.Reason)}");
+        // Over the network, another player answers in their own time.
+        else if (G.Humans.TryGetValue(rival, out var name) && rival != Player) Notify($"Trêve proposée à {name} : réponse sous {Left(Galaxies.OfferTime)}");
         RefreshSoon();
     }
 

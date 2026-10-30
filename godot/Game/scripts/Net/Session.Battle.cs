@@ -39,7 +39,12 @@ public sealed partial class Session
         }
         var room = Room!;
         var lobby = room.Lobby;
-        if (battle is not null || lobby.Problems().Count > 0) return;
+        if (battle is not null || campaign is not null || lobby.Problems().Count > 0) return;
+        if (lobby.Mode == LobbyMode.Campaign)
+        {
+            LaunchCampaign();
+            return;
+        }
         var world = Scenario.CreateSkirmish(lobby.Skirmish());
         battle = new BattleHost(world, net.Send);
         foreach (var m in room.Members) if (m.Peer != Lobby.Host && lobby.SideOfPeer(m.Peer) is { } side) battle.Add(m.Peer, side);
@@ -81,17 +86,24 @@ public sealed partial class Session
 
     void SetPause(bool on, string who)
     {
-        if (battle is null || paused == on) return;
+        if (battle is null && campaign is null || paused == on) return;
         paused = on;
         Broadcast(new Message.Pause(on, who));
         link?.Screen?.NetPaused(on, who);
+        CampaignPaused(on, who);
+        if (campaign is not null)
+        {
+            campaign.Clock = new GalaxyClock(galaxySpeed, paused);
+            campaign.SendAll();
+        }
         Log(on ? $"Pause : {who}" : $"Reprise : {who}");
     }
 
     void Ordered(int from, Command c)
     {
-        if (battle is null) return;
-        battle.Receive(from, c);
+        // A battle, or the campaign's battle in the battle view.
+        if ((battle ?? fight) is not { } host) return;
+        host.Receive(from, c);
         var who = Room!.NameOf(from);
         orders[who] = orders.GetValueOrDefault(who) + 1;
         if (Dev.Host && c is not Command.PilotInput) Log($"Ordre de {who} : {Describe(c)}");
@@ -106,6 +118,7 @@ public sealed partial class Session
     /// <summary>Host: a player left during the battle; the AI takes its side, and everyone is told.</summary>
     void PlayerLeft(int peer, string who)
     {
+        LeftCampaign(peer, who);
         if (battle?.SideOf(peer) is null) return;
         battle.Drop(peer);
         var text = $"{who} a quitté la partie : l'IA prend sa place.";
@@ -144,6 +157,16 @@ public sealed partial class Session
                 {
                     starting = null;
                     Main.Instance.Start(lobby, link);
+                }
+                break;
+            case Message.News n when link is not null:
+                try
+                {
+                    Snapshot.ReadEvents(new BinaryReader(new MemoryStream(n.Events)), link.World);
+                }
+                catch (Exception e) when (e is InvalidDataException or EndOfStreamException)
+                {
+                    Close($"Événements illisibles : {e.Message}");
                 }
                 break;
             case Message.Refused r: link?.Screen?.Hud.Toast(r.Reason); break;

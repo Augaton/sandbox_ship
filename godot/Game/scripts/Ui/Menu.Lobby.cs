@@ -105,8 +105,13 @@ public partial class Menu
 
     void ModeCards()
     {
-        // Hosting: the battles only, the sandbox's tools being for a game played alone.
-        if (hosting) Titled("Héberger une partie", "Choisis le mode : les joueurs te rejoignent dans son salon. Échap : retour");
+        // Hosting: every mode but the sandbox, whose tools are for a game played alone; and the
+        // campaign saved over the network, to resume with its players.
+        if (hosting)
+        {
+            Titled("Héberger une partie", "Choisis le mode : les joueurs te rejoignent dans son salon. Échap : retour");
+            body.AddChild(ResumeCard() is { } resume ? Section("Campagne", ModeCard(Modes[0]), resume) : Section("Campagne", ModeCard(Modes[0])));
+        }
         else
         {
             Titled("Nouvelle partie", "Choisis un mode. Échap : retour");
@@ -119,6 +124,23 @@ public partial class Menu
         body.AddChild(Section("Bataille", grid));
         if (hosting && hostError is not null) body.AddChild(Paragraph(hostError, Palette.Danger, 14));
         footer.AddChild(Btn("Retour", Back));
+    }
+
+    /// <summary>The campaign the host saved over the network, as a card that hosts it again; null without one.</summary>
+    Control? ResumeCard()
+    {
+        if (GalaxySave.Info(Campaign.GalaxyScreen.NetSavePath) is not { } save) return null;
+        var when = DateTimeOffset.FromUnixTimeMilliseconds(save.SavedAt).ToLocalTime().ToString("dd/MM/yyyy HH:mm", CultureInfo.InvariantCulture);
+        var about = $"{Factions.Defs[save.Race].Name}, {save.Planets} planète{(save.Planets > 1 ? "s" : "")}{(save.Others.Length > 0 ? $", avec {save.Others}" : "")}, le {when}";
+        return Tile("resume", false, HostResume, $"Reprendre la campagne : {about}", col =>
+        {
+            var name = UiTheme.Text("Reprendre la campagne");
+            name.AddThemeFontOverride("font", Bold);
+            col.AddChild(name);
+            var line = Small($"{about}. Chacun reprend sa place en rejoignant sous le même nom.");
+            line.CustomMinimumSize = new Vector2(0, 36);
+            col.AddChild(line);
+        });
     }
 
     Control ModeCard((LobbyMode Mode, string Name, string Description) m) =>
@@ -149,8 +171,9 @@ public partial class Menu
         Titled(name, NetTitle() ?? $"{description} Échap : retour");
 
         body.AddChild(Section($"Joueurs · {l.Seats.Count} sur {Lobby.MaxSeats}", SeatGrid(l), SeatActions(l)));
-        // The map and the rules are the host's to set: the others see them.
-        body.AddChild(Locked(MapSection(l)));
+        // The map and the rules are the host's to set: the others see them. A resumed campaign keeps its own.
+        body.AddChild(l.Resumed ? Section("Galaxie", Note("La galaxie, les camps et la partie de la campagne sauvegardée par l'hôte, là où elle s'était arrêtée."))
+            : Locked(MapSection(l)));
         if (RulesSection(l) is { } rules) body.AddChild(Locked(rules));
 
         var problems = l.Problems();
@@ -196,7 +219,7 @@ public partial class Menu
         var races = Factions.All;
         var race = Drop($"{key}:race", $"Race de la place {n}", races.Select(f => Factions.Defs[f].Name), races.ToList().IndexOf(seat.Race),
             i => Edit(new LobbyRequest.SetRace(seat.Id, races[i])), i => Logos.Emblem(races[i], 1, seat.Color));
-        race.Disabled = !plays || !Mine(seat);
+        race.Disabled = !plays || !Mine(seat) || l.Resumed;
         grid.AddChild(race);
 
         // Survival plays as one team; an assault, as the defense (team 1) against the attack (team 2).
@@ -208,7 +231,7 @@ public partial class Menu
         };
         var team = Drop($"{key}:team", $"Équipe de la place {n}", labels, Math.Max(0, Array.IndexOf(teams, seat.Team)),
             i => Edit(new LobbyRequest.SetTeam(seat.Id, teams[i])));
-        team.Disabled = !plays || l.TeamsLocked || !Mine(seat);
+        team.Disabled = !plays || l.TeamsLocked || !Mine(seat) || l.Resumed;
         if (l.TeamsLocked) team.TooltipText = "En survie, tout le monde fait équipe contre les vagues.";
         grid.AddChild(team);
 
@@ -221,7 +244,7 @@ public partial class Menu
             color.SetItemDisabled(i, true);
             color.SetItemTooltip(i, "Déjà prise");
         }
-        color.Disabled = !plays || !Mine(seat);
+        color.Disabled = !plays || !Mine(seat) || l.Resumed;
         grid.AddChild(color);
 
         // Once it is gone, the focus goes to the seat that takes its place, or to the one before.
@@ -229,7 +252,7 @@ public partial class Menu
         var next = at + 1 < l.Seats.Count ? l.Seats[at + 1] : at > 0 ? l.Seats[at - 1] : null;
         var remove = Btn("×", () => Pick(next is null ? "act:add" : $"seat:{next.Id}:remove", () => Edit(new LobbyRequest.Remove(seat.Id))), key: $"{key}:remove");
         remove.CustomMinimumSize = new Vector2(40, 40);
-        remove.Disabled = l.Seats.Count <= 1 || !Leads;
+        remove.Disabled = l.Seats.Count <= 1 || !Leads || l.Resumed;
         remove.TooltipText = "Retirer la place";
         remove.AccessibilityName = $"Retirer la place {n}";
         grid.AddChild(remove);
@@ -254,8 +277,9 @@ public partial class Menu
         var far = choices.Count;
         if (net is not null)
         {
-            var who = !remote ? "Joueur distant · libre"
-                : $"{net.NameOf(seat.Peer)} · {(seat.Peer == Lobby.Host ? "hôte" : seat.Ready ? "prêt" : "en attente")}";
+            // A resumed campaign keeps a seat for each player who played it, by name.
+            var free = seat.Reserved is { } name ? $"Réservée à {name} · absent" : "Joueur distant · libre";
+            var who = !remote ? free : $"{net.NameOf(seat.Peer)} · {(seat.Peer == Lobby.Host ? "hôte" : seat.Ready ? "prêt" : "en attente")}";
             choices.Add((who, new LobbyRequest.SetKind(seat.Id, SeatKind.Open), remote || seat.Kind == SeatKind.Open));
         }
         else
@@ -263,15 +287,17 @@ public partial class Menu
             choices.Add((remote ? $"Joueur distant · {(seat.Ready ? "prêt" : "en attente")}" : "Joueur distant", null, remote));
             choices.Add(("Ouvert", new LobbyRequest.SetKind(seat.Id, SeatKind.Open), seat.Kind == SeatKind.Open));
         }
-        choices.Add(("Fermé", new LobbyRequest.SetKind(seat.Id, SeatKind.Closed), seat.Kind == SeatKind.Closed));
+        if (!l.Resumed) choices.Add(("Fermé", new LobbyRequest.SetKind(seat.Id, SeatKind.Closed), seat.Kind == SeatKind.Closed));
         var drop = Drop($"{key}:kind", $"Place {n}", choices.Select(c => c.Label), choices.FindIndex(c => c.On), i =>
         {
             if (choices[i].Ask is { } ask) Edit(ask);
         });
-        var claim = !Leads && seat.Kind == SeatKind.Open;
+        var claim = !Leads && seat.Kind == SeatKind.Open && !l.Resumed;
         for (var i = 0; i < choices.Count; i++)
         {
-            if (choices[i].Ask is null || !Leads && !(claim && i == 0)) drop.SetItemDisabled(i, !choices[i].On);
+            // Resumed, the host only gives a player's seat to a bot, or keeps it for them.
+            var kept = l.Resumed && (seat.Reserved is null || i == 0);
+            if (choices[i].Ask is null || !Leads && !(claim && i == 0) || kept) drop.SetItemDisabled(i, !choices[i].On);
         }
         if (net is null) drop.SetItemTooltip(far, "Pour jouer à plusieurs : « Héberger une partie », au menu principal.");
         drop.Disabled = !Leads && !claim;
@@ -291,11 +317,12 @@ public partial class Menu
             // Full now: the focus goes to the seat just added.
             Rebuild(l.CanAdd || added is null ? "act:add" : $"seat:{added.Id}:kind");
         }, key: "act:add");
-        add.Disabled = !l.CanAdd || !Leads;
+        add.Disabled = !l.CanAdd || !Leads || l.Resumed;
         add.SizeFlagsVertical = Control.SizeFlags.ShrinkBegin;
         row.AddChild(add);
         var remote = Session.Current is null ? "" : " « Joueur distant » : une place libre pour qui rejoint ; un joueur qui part la libère.";
-        var note = Note(SeatsNote(l) + remote);
+        var note = Note(l.Resumed ? "Campagne reprise : chacun retrouve sa place, sa race et son équipe. Une place réservée attend son joueur, "
+            + "qui rejoint sous le même nom ; l'hôte peut la donner à un bot." : SeatsNote(l) + remote);
         note.SizeFlagsHorizontal = Control.SizeFlags.ExpandFill;
         note.CustomMinimumSize = new Vector2(200, 0);
         row.AddChild(note);
@@ -448,6 +475,7 @@ public partial class Menu
     static string Summary(Lobby l)
     {
         var playing = l.Playing.ToList();
+        if (l.Resumed) return $"Campagne reprise : {Camps(playing)}";
         static string Count(int n, string word) => $"{n} {word}{(n > 1 ? "s" : "")}";
         var who = l.Mode switch
         {

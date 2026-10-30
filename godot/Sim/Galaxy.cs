@@ -901,6 +901,12 @@ public static partial class Galaxies
         return humans;
     }
 
+    /// <summary>
+    /// Through whose eyes `side` sees a battle in the battle view: its own side's if it fights
+    /// there, or an ally's; else the defender's, who holds the ground (a battle stays two-sided).
+    /// </summary>
+    public static Side Viewpoint(Galaxy g, GalaxyBattle b, Side side) => Allies(g, b.Attacker, side) ? b.Attacker : b.Defender;
+
     /// <summary>What a side brings to a battle: from its world, or on a replica as the snapshot told.</summary>
     public static BattleForce ForceOf(GalaxyBattle b, Side side) =>
         b.Forces?.GetValueOrDefault(side) ?? new BattleForce(Battle.Survivors(b.World, side), Battle.HeroSurvivors(b.World, side),
