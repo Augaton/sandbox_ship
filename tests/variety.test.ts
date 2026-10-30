@@ -8,7 +8,7 @@ import { useAbility } from '../src/sim/abilities';
 import { MAP_SIZES, createSkirmish } from '../src/sim/scenario';
 import { survivors } from '../src/sim/battle';
 import {
-  applyTier, canBuildHero, cancelConstruction, canResearch, checkPlacement, enqueueHero, enqueueShip, enqueueUpgrade,
+  applyTier, canBuildHero, cancelConstruction, cancelResearch, canResearch, checkPlacement, enqueueHero, enqueueShip, enqueueUpgrade,
   placeStructure, startResearch, upgradeStructure,
 } from '../src/sim/structures';
 import { run, step } from '../src/sim/step';
@@ -57,10 +57,37 @@ describe('research', () => {
     const f = w.factions.get('klaed')!;
     expect(startResearch(w, 'klaed', 'weapons').ok).toBe(true);
     expect(f.credits).toBe(100000 - TECHS.weapons.costs[0]);
-    expect(canResearch(w, 'klaed', 'armor')).toEqual({ ok: false, reason: 'Recherche déjà en cours' });
+    // Its next level would need a level 2 station, even while level 1 is still underway.
+    expect(canResearch(w, 'klaed', 'weapons')).toEqual({ ok: false, reason: 'Station niveau 2 requise' });
     run(w, TECHS.weapons.times[0] + 0.5);
     expect(f.research.weapons).toBe(1);
     expect(canResearch(w, 'klaed', 'weapons')).toEqual({ ok: false, reason: 'Station niveau 2 requise' });
+  });
+
+  it('queues levels one after the other, each paid up front', () => {
+    const w = world();
+    spawnStation(w, 'klaed', 700, 2000, 3);
+    const f = w.factions.get('klaed')!;
+    expect(startResearch(w, 'klaed', 'weapons').ok).toBe(true);
+    expect(startResearch(w, 'klaed', 'weapons').ok).toBe(true);
+    expect(startResearch(w, 'klaed', 'armor').ok).toBe(true);
+    expect(f.credits).toBe(100000 - TECHS.weapons.costs[0] - TECHS.weapons.costs[1] - TECHS.armor.costs[0]);
+    run(w, TECHS.weapons.times[0] + TECHS.weapons.times[1] + TECHS.armor.times[0] + 1);
+    expect(f.research).toMatchObject({ weapons: 2, armor: 1 });
+    expect(f.researching).toBeNull();
+  });
+
+  it('cancelling a level takes back the later levels of that tech, and refunds them all', () => {
+    const w = world();
+    spawnStation(w, 'klaed', 700, 2000, 3);
+    const f = w.factions.get('klaed')!;
+    startResearch(w, 'klaed', 'weapons');
+    startResearch(w, 'klaed', 'armor');
+    startResearch(w, 'klaed', 'weapons');
+    cancelResearch(w, 'klaed', 0);
+    expect(f.credits).toBe(100000 - TECHS.armor.costs[0]);
+    expect(f.researching?.tech).toBe('armor');
+    expect(f.researchQueue).toHaveLength(0);
   });
 
   it('armor research thickens the hulls already in service', () => {

@@ -232,6 +232,8 @@ export interface FactionState {
   buildQueue: QueueItem[];
   research: ResearchLevels;
   researching: ResearchJob | null;
+  /** Research levels waiting their turn, already paid for. */
+  researchQueue: ResearchJob[];
   /** The AI uses this faction's ship abilities. */
   autoAbilities: boolean;
   /** Classes kept in production: one goes back in the queue as soon as none is in it. */
@@ -313,7 +315,7 @@ export function newAI(difficulty: Difficulty = 'normal'): AIState {
 
 export function addFaction(world: World, id: FactionId, credits: number, ai = false, difficulty: Difficulty = 'normal'): FactionState {
   const f: FactionState = {
-    id, credits, queue: [], buildQueue: [], research: noResearch(), researching: null, autoAbilities: ai, repeat: [], heroCooldowns: {},
+    id, credits, queue: [], buildQueue: [], research: noResearch(), researching: null, researchQueue: [], autoAbilities: ai, repeat: [], heroCooldowns: {},
     stats: { built: 0, lost: 0, kills: 0, damage: 0, earned: 0 },
     stationId: null, hadStation: false,
     rallyX: world.width / 2, rallyY: world.height / 2,

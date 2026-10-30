@@ -4,7 +4,7 @@
 // with the hull.
 import type Phaser from 'phaser';
 import { FACTION_IDS } from '../data/units';
-import { findAsset, type Manifest } from './sprites';
+import { findAsset, forgetLookups, type Manifest } from './sprites';
 
 /** Side of a composed frame, in texture pixels. */
 const SIZE = 192;
@@ -141,6 +141,7 @@ function register(scene: Phaser.Scene, m: Manifest, key: string, canvas: HTMLCan
   if (!tex) return;
   if (frames > 1) for (let i = 0; i < frames; i++) tex.add(i, 0, i * SIZE, 0, SIZE, SIZE);
   m[key] = { url: '', w: canvas.width, h: canvas.height, frameW: SIZE, frameH: SIZE, frames };
+  forgetLookups(m);
 }
 
 /** Adds each faction's titan textures, and their manifest entries, when its pack is there. */

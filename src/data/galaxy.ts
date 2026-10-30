@@ -66,6 +66,8 @@ export const GALAXY_RULES = {
   startCredits: 2000,
   /** Galaxy income of one mine, per second. */
   mineIncome: 3,
+  /** Galaxy income of each station level, per second. */
+  stationIncome: 1,
   stationCost: 1500,
   stationTime: 40,
   /** A lab is needed to research; it stays on the ground, out of space battles. */

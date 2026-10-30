@@ -12,6 +12,7 @@ import {
   canBuildHero, canBuildShip, canResearch, canUpgrade, canUpgradeStructure, cancelConstruction, cancelQueued, cancelResearch,
   enqueueHero, enqueueShip, enqueueUpgrade, startResearch, upgradeStructure,
 } from '../sim/structures';
+import { plannedLevel, researchJobs } from '../sim/research';
 import { childrenOf, newAI, stationOf, type Entity, type QueueItem, type Result } from '../sim/world';
 import { isVisible, wasSeen } from '../sim/vision';
 import { BATTLE_CONTROLS, controlsList } from './controls';
@@ -299,9 +300,9 @@ export class Hud {
       b.onclick = () => this.report(startResearch(this.world, this.player, tech));
       this.techButtons.set(tech, b);
     }
-    this.researchStatus = research.appendChild(el('div', { class: 'queue', 'aria-label': 'Recherche en cours' }));
-    this.researchStatus.addEventListener('click', (ev) => {
-      if ((ev.target as HTMLElement).closest('button')?.dataset.act === 'cancel-research') cancelResearch(this.world, this.player);
+    this.researchStatus = research.appendChild(el('div', { class: 'queue', 'aria-label': 'File de recherche' }));
+    onCancel(this.researchStatus, (b) => {
+      if (b.dataset.research != null) cancelResearch(this.world, this.player, Number(b.dataset.research));
     });
     this.showTab('ships');
   }
@@ -352,8 +353,10 @@ export class Hud {
       ? `Améliorer la station au niveau ${station.level + 1} (${next.upgradeCost} cr)${up.ok ? '' : ` : ${up.reason}`}`
       : 'Station au niveau maximum';
     for (const [tech, b] of this.techButtons) {
-      const level = f.research[tech];
-      b.querySelector('span')!.textContent = `${TECHS[tech].name} ${level}/${MAX_TECH_LEVEL}`;
+      // Levels already queued count: the button offers the one after them.
+      const level = plannedLevel(f, tech);
+      const queued = level - f.research[tech];
+      b.querySelector('span')!.textContent = `${TECHS[tech].name} ${f.research[tech]}/${MAX_TECH_LEVEL}${queued ? ` (+${queued})` : ''}`;
       const detail = level < MAX_TECH_LEVEL ? `${TECHS[tech].costs[level]} cr, ${TECHS[tech].times[level]} s` : 'Terminé';
       this.setButton(b, canResearch(w, this.player, tech), detail);
       b.title = `${TECHS[tech].effect}. ${b.title}`;
@@ -376,17 +379,12 @@ export class Hud {
       ...f.buildQueue.map((q, i) => ({ label: workName(q), attr: `data-index="${i}"`, progress: i === 0 ? 1 - q.remaining / q.total : 0 })),
       ...sites.map((e) => ({ label: entityName(e), attr: `data-site="${e.id}"`, progress: e.build })),
     ], 'Rien en construction.');
-    const job = f.researching;
-    const sig = job ? `job:${job.tech}` : 'none';
-    if (this.lists.get(this.researchStatus!) !== sig) {
-      this.lists.set(this.researchStatus!, sig);
-      this.researchStatus!.innerHTML = job
-        ? `<span>${TECHS[job.tech].name} niveau ${f.research[job.tech] + 1}</span>` +
-          '<button data-act="cancel-research" aria-label="Annuler la recherche">Annuler<span class="progress"></span></button>'
-        : '<span class="muted">Aucune recherche en cours. Chaque niveau demande une station du même niveau.</span>';
-    }
-    const bar = this.researchStatus!.querySelector<HTMLElement>('.progress');
-    if (bar && job) bar.style.width = pct(1 - job.remaining / job.total);
+    // Each queued level is named by the level it reaches.
+    const reached = { ...f.research };
+    this.renderList(this.researchStatus!, researchJobs(f).map((job, i) => ({
+      label: `${TECHS[job.tech].name} ${++reached[job.tech]}`,
+      attr: `data-research="${i}"`, progress: i === 0 ? 1 - job.remaining / job.total : 0,
+    })), 'Aucune recherche en file. Chaque niveau demande une station du même niveau.');
   }
 
   private buildSandbox(open: boolean): void {
@@ -548,7 +546,7 @@ export class Hud {
       this.drawMinimap();
       return;
     }
-    let income = station ? STATION.income : 0;
+    let income = station ? STATION.levels[station.level - 1].income : 0;
     for (const e of w.entities.values()) if (e.faction === this.player && e.build >= 1) income += e.income;
     this.credits.innerHTML = `Crédits <strong>${Math.floor(f.credits)}</strong> <span class="muted">+${income}/s</span>`;
     this.level.textContent = station ? `Station niveau ${station.level}` : 'Station détruite';

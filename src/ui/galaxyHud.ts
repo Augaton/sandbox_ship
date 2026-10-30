@@ -14,6 +14,7 @@ import {
   incomeOf, platformCap, researchSpeed, startTech, visiblePlanets,
   type BuildingKind, type Fleet, type GalaxyBattle, type GalaxyBuild, type GalaxyEvent, type Planet,
 } from '../sim/galaxy';
+import { plannedLevel, researchJobs } from '../sim/research';
 import { GALAXY_CONTROLS, controlsList } from './controls';
 import { el, pct, percent, shortReason, toast } from './dom';
 import { emblemUrl } from './logos';
@@ -77,10 +78,13 @@ export class GalaxyHud {
     this.panel = this.root.appendChild(el('aside', { class: 'galaxy-panel panel', 'aria-label': 'Planète' }));
     this.panel.addEventListener('click', (ev) => this.onPanelClick(ev));
     this.panel.addEventListener('contextmenu', (ev) => {
-      const b = (ev.target as HTMLElement).closest<HTMLElement>('[data-cancel]');
+      const b = (ev.target as HTMLElement).closest<HTMLElement>('[data-cancel], [data-research]');
       if (!b) return;
       ev.preventDefault();
-      this.cancel(b);
+      if (b.dataset.research != null) {
+        cancelTech(this.scene.galaxy, this.scene.opts.player, Number(b.dataset.research));
+        this.refresh();
+      } else this.cancel(b);
     });
     this.toasts = this.root.appendChild(el('div', { class: 'toasts', role: 'status', 'aria-live': 'polite' }));
     this.tip = this.root.appendChild(el('div', { class: 'tooltip panel', 'aria-hidden': 'true' }));
@@ -136,7 +140,7 @@ export class GalaxyHud {
     if (b.dataset.tab) this.tab = b.dataset.tab as Tab;
     // Queue items cancel on a right click (below), or on Enter or Space; a stray left click keeps them.
     if (b.dataset.cancel && ev.detail === 0) this.cancel(b);
-    if (b.dataset.act === 'cancel-research') cancelTech(g, player);
+    if (b.dataset.research != null && ev.detail === 0) cancelTech(g, player, Number(b.dataset.research));
     const item = this.buttons.find((x) => x.b === b);
     if (item && planet != null) {
       const r = enqueueBuild(g, player, planet, item.build);
@@ -170,7 +174,8 @@ export class GalaxyHud {
     this.credits.innerHTML = `Crédits <strong>${Math.floor(f.credits)}</strong> <span class="muted">+${Math.round(incomeOf(g, player))}/s</span>` +
       ` <span class="muted">${owned} planète${owned > 1 ? 's' : ''}</span>`;
     const job = f.researching;
-    this.researching.textContent = job ? `Recherche : ${TECHS[job.tech].name} ${percent(1 - job.remaining / job.total)}` : '';
+    const waiting = f.researchQueue.length;
+    this.researching.textContent = job ? `Recherche : ${TECHS[job.tech].name} ${percent(1 - job.remaining / job.total)}${waiting ? `, ${waiting} en file` : ''}` : '';
     const id = this.scene.selected;
     const p = id == null ? null : g.planets[id];
     const sig = this.signature(p);
@@ -185,7 +190,7 @@ export class GalaxyHud {
   private signature(p: Planet | null): string {
     const g = this.scene.galaxy;
     const f = g.factions.get(this.scene.opts.player)!;
-    const research = `${TECH_IDS.map((t) => f.research[t]).join('')}:${f.researching?.tech ?? ''}`;
+    const research = `${TECH_IDS.map((t) => f.research[t]).join('')}:${researchJobs(f).map((j) => j.tech).join(',')}`;
     if (!p) return `${this.tab}|none|${research}`;
     const fleets = fleetsAt(g, p.id).map((fl) => `${fl.faction}:${describeShips(fl.ships, fl.heroes)}`).join(';');
     const battle = g.battles.some((b) => b.planetId === p.id);
@@ -234,7 +239,8 @@ export class GalaxyHud {
       body.innerHTML = lines.join('');
       return;
     }
-    lines.push(`<div>Revenu +${p.income}/s, plus ${GALAXY_RULES.mineIncome * (p.special === 'rich' ? 2 : 1)}/s par mine</div>`);
+    const fromStation = p.station * GALAXY_RULES.stationIncome;
+    lines.push(`<div>Revenu +${p.income}/s${fromStation ? `, +${fromStation}/s de la station` : ''}, plus ${GALAXY_RULES.mineIncome * (p.special === 'rich' ? 2 : 1)}/s par mine</div>`);
     lines.push(`<div>Mines ${p.mines} / ${p.mineSlots}</div>`);
     lines.push(`<div>${p.station > 0 ? `Station niveau ${p.station}` : 'Pas de station'}, plateformes ${p.platforms} / ${platformCap(p)}</div>`);
     const extra = [p.lab && 'laboratoire', p.repairDock && 'dock de réparation', p.ionCannon && 'canon ionique'].filter(Boolean);
@@ -300,10 +306,15 @@ export class GalaxyHud {
       const b = grid.appendChild(el('button', { title: TECHS[tech].effect }, `<span>${TECHS[tech].name} ${f.research[tech]}/${MAX_TECH_LEVEL}</span><small></small>`));
       this.techButtons.set(tech, b);
     }
-    const job = f.researching;
-    body.appendChild(el('div', { class: 'queue' }, job
-      ? `<span>${TECHS[job.tech].name} niveau ${f.research[job.tech] + 1}</span><button data-act="cancel-research" aria-label="Annuler la recherche">Annuler<span class="progress"></span></button>`
-      : '<span class="muted">Aucune recherche en cours</span>'));
+    // Each queued level is named by the level it reaches.
+    const reached = { ...f.research };
+    const jobs = researchJobs(f).map((job, i) => {
+      const name = `${TECHS[job.tech].name} ${++reached[job.tech]}`;
+      return `<button data-research="${i}" aria-label="Annuler ${name}">${name}${i === 0 ? '<span class="progress"></span>' : ''}</button>`;
+    });
+    body.appendChild(el('div', { class: 'queue' }, jobs.length > 0
+      ? '<span class="muted">File (clic droit : annuler)</span>' + jobs.join('')
+      : '<span class="muted">Aucune recherche en file</span>'));
   }
 
   private updatePanel(p: Planet | null): void {
@@ -333,7 +344,9 @@ export class GalaxyHud {
       if (occ && p.occupation) occ.textContent = `Prise par ${FACTIONS[p.occupation.faction].name} dans ${Math.ceil(p.occupation.remaining)} s`;
     }
     for (const [tech, b] of this.techButtons) {
-      const level = f.research[tech];
+      const level = plannedLevel(f, tech);
+      const queued = level - f.research[tech];
+      b.querySelector('span')!.textContent = `${TECHS[tech].name} ${f.research[tech]}/${MAX_TECH_LEVEL}${queued ? ` (+${queued})` : ''}`;
       const r = canResearchTech(g, player, tech);
       b.disabled = !r.ok;
       const detail = level < MAX_TECH_LEVEL ? `${TECHS[tech].costs[level]} cr, ${TECHS[tech].times[level]} s` : 'Terminé';
@@ -341,7 +354,7 @@ export class GalaxyHud {
       b.title = `${TECHS[tech].effect}. ${r.ok ? detail : r.reason}`;
     }
     const job = f.researching;
-    const bar = this.panel.querySelector<HTMLElement>('[data-act=cancel-research] .progress');
+    const bar = this.panel.querySelector<HTMLElement>('[data-research="0"] .progress');
     if (bar && job) bar.style.width = pct(1 - job.remaining / job.total);
   }
 
@@ -366,7 +379,7 @@ export class GalaxyHud {
     if (p.station > 0) lines.push(`Station niveau ${p.station}`);
     if (p.platforms > 0) lines.push(`${p.platforms} plateforme${p.platforms > 1 ? 's' : ''}`);
     if (p.ionCannon > 0) lines.push('Canon ionique');
-    lines.push(`Revenu +${p.income + p.mines * GALAXY_RULES.mineIncome * (p.special === 'rich' ? 2 : 1)}/s`);
+    lines.push(`Revenu +${p.income + p.station * GALAXY_RULES.stationIncome + p.mines * GALAXY_RULES.mineIncome * (p.special === 'rich' ? 2 : 1)}/s`);
     for (const f of fleetsAt(g, p.id)) lines.push(`${FACTIONS[f.faction].name} : ${describeShips(f.ships, f.heroes)}${condition(f)}`);
     if (g.battles.some((b) => b.planetId === p.id)) lines.push('Combat en cours');
     else if (p.occupation) lines.push(`Prise par ${FACTIONS[p.occupation.faction].name} dans ${Math.ceil(p.occupation.remaining)} s`);

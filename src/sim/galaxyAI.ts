@@ -100,7 +100,7 @@ function wishes(g: Galaxy, faction: FactionId, hops: Map<number, number>): Wish[
   // Research: a lab in the rear once the empire grows, then one tech after another.
   const rear = byFront.at(-1);
   if (rear && own.length >= 3 && !own.some((p) => p.lab > 0)) infra.push(at(rear, { kind: 'lab' }));
-  if (own.some((p) => p.lab > 0)) infra.push({ tech: pickTech(g, faction) });
+  if (own.some((p) => p.lab > 0) && !g.factions.get(faction)!.researching) infra.push({ tech: pickTech(g, faction) });
   for (const p of byFront) {
     if (p.station === 0 || (hops.get(p.id) ?? 99) > 1) continue;
     infra.push(at(p, { kind: 'platform' }), at(p, { kind: 'repairDock' }), at(p, { kind: 'ionCannon' }));

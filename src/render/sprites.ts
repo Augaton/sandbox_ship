@@ -15,15 +15,40 @@ export interface AssetEntry {
 
 export type Manifest = Record<string, AssetEntry>;
 
+/**
+ * Each manifest's keys split into tokens, and the answers already given: the same few
+ * lookups come back with every shot fired.
+ */
+const indexes = new WeakMap<Manifest, { keys: { key: string; tokens: Set<string> }[]; answers: Map<string, string[]> }>();
+
+function indexOf(m: Manifest) {
+  let index = indexes.get(m);
+  if (!index) {
+    index = { keys: Object.keys(m).map((key) => ({ key, tokens: new Set(key.split('-')) })), answers: new Map() };
+    indexes.set(m, index);
+  }
+  return index;
+}
+
+/** To call after adding entries to a manifest that has already been searched. */
+export function forgetLookups(m: Manifest): void {
+  indexes.delete(m);
+}
+
 /** Keys whose tokens include all of `include` and none of `exclude`, shortest first. */
 export function matchAssets(m: Manifest, include: string[], exclude: string[] = []): string[] {
+  const index = indexOf(m);
+  const question = `${include.join('-')}/${exclude.join('-')}`;
+  const known = index.answers.get(question);
+  if (known) return known;
   const out: string[] = [];
-  for (const key of Object.keys(m)) {
-    const tokens = new Set(key.split('-'));
+  for (const { key, tokens } of index.keys) {
     if (tokens.has('preview')) continue;
     if (include.every((t) => tokens.has(t)) && !exclude.some((t) => tokens.has(t))) out.push(key);
   }
-  return out.sort((a, b) => a.length - b.length || (a < b ? -1 : 1));
+  out.sort((a, b) => a.length - b.length || (a < b ? -1 : 1));
+  index.answers.set(question, out);
+  return out;
 }
 
 export function findAsset(m: Manifest, include: string[], exclude: string[] = []): string | null {

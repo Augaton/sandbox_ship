@@ -47,7 +47,9 @@ qu'elle n'est pas tranchée ; en escarmouche à trois, la défaite s'affiche dè
 station tombe.
 Les trois factions ont chacune leur trait et trois héros uniques. La production passe par
 deux files, bâtiments et vaisseaux, et la recherche améliore armes, boucliers, blindage,
-propulsion, mines et hangars. Plateformes et avant-postes montent jusqu'au niveau 3, et les
+propulsion, mines et hangars ; elle a sa propre file, payée à l'ajout et remboursée à
+l'annulation. Chaque niveau de station rapporte un peu plus (6, 8 puis 10 crédits par
+seconde en bataille, +1 par niveau sur la carte galactique). Plateformes et avant-postes montent jusqu'au niveau 3, et les
 plateformes et docks peuvent se construire près des mines. En vue éloignée, les petits
 vaisseaux deviennent des chevrons et les tirs des traits. Un brouillard de guerre couvre
 les batailles et la carte, pour l'IA comme pour le joueur. Chaque carte, de campagne ou

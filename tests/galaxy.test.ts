@@ -129,7 +129,8 @@ describe('production', () => {
     f.credits = 0;
     runGalaxy(g, 10);
     const capital = PLANETS[WEST];
-    expect(f.credits).toBeCloseTo((capital.income + GALAXY_RULES.mineIncome) * 10, 0);
+    // The capital starts with a level 1 station, which brings a little too.
+    expect(f.credits).toBeCloseTo((capital.income + GALAXY_RULES.stationIncome + GALAXY_RULES.mineIncome) * 10, 0);
   });
 });
 
@@ -270,6 +271,22 @@ describe('planet production and research', () => {
     expect(f.research.weapons).toBe(1);
   });
 
+  it('research queues too, and an old save without a queue still loads', () => {
+    const g = spectated();
+    const f = g.factions.get('klaed')!;
+    f.credits = 100000;
+    g.planets[WEST].lab = 1;
+    expect(startTech(g, 'klaed', 'engines').ok).toBe(true);
+    expect(startTech(g, 'klaed', 'mining').ok).toBe(true);
+    expect(f.researchQueue).toHaveLength(1);
+    const old = JSON.parse(serializeGalaxy(g));
+    for (const faction of old.factions) delete faction.researchQueue;
+    const loaded = deserializeGalaxy(JSON.stringify(old))!;
+    expect(loaded.factions.get('klaed')!.researchQueue).toEqual([]);
+    runGalaxy(g, TECHS.engines.times[0] + TECHS.mining.times[0] + 1);
+    expect(f.research).toMatchObject({ engines: 1, mining: 1 });
+  });
+
   it('a battle fought at a planet uses both sides research', () => {
     const g = spectated();
     g.factions.get('klaed')!.research.armor = 2;
@@ -287,7 +304,7 @@ describe('planet production and research', () => {
     const nadir = g.planets[id('Nadir')];
     Object.assign(nadir, { owner: 'klaed', mines: 1 });
     const capital = g.planets[WEST];
-    expect(incomeOf(g, 'klaed')).toBe(capital.income + nadir.income + GALAXY_RULES.mineIncome * (capital.mines + 2));
+    expect(incomeOf(g, 'klaed')).toBe(capital.income + nadir.income + capital.station * GALAXY_RULES.stationIncome + GALAXY_RULES.mineIncome * (capital.mines + 2));
     // Orbital shipyard: ships 30 % faster.
     const kaldra = g.planets[id('Kaldra')];
     Object.assign(kaldra, { owner: 'klaed', station: 1 });

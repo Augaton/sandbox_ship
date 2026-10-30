@@ -6,6 +6,7 @@ import { FACTIONS, type FactionId } from '../data/units';
 import { STATION } from '../data/structures';
 import { SelectionController } from '../input/selection';
 import { opaqueSize } from '../render/opaque';
+import { disc, ring } from '../render/shapes';
 import { factionKey } from '../render/recolor';
 import { asteroidKeys, lookFor, projectileKey, type Layer, type Look, type Manifest } from '../render/sprites';
 import { STALEMATE, battleOutcome, updateBattleAI, type BattleResult } from '../sim/battle';
@@ -68,6 +69,7 @@ const MAX_CALLOUTS = 10;
 const SMOKING = 0.35;
 const SHIELD_FLASH_MS = 250;
 const SHOT_SOUND: Record<Projectile['kind'], Sound> = { bullet: 'bullet', laser: 'laser', torpedo: 'torpedo', ray: 'ray' };
+const QUIET_AFAR = new Set<Sound>(['bullet', 'laser', 'hit', 'shield']);
 const DEPTH = { field: 0, structure: 10, hardpoint: 12, ship: 20, shot: 30, fx: 40, fog: 45, overlay: 50 };
 const FOG_BRUSH = 256;
 /**
@@ -524,8 +526,12 @@ export class BattleScene extends Phaser.Scene {
     w.events.length = 0;
   }
 
-  /** Plays a sound from (x, y): panned to its side of the screen, and only if in view. */
+  /**
+   * Plays a sound from (x, y): panned to its side of the screen, and only if in view. Seen
+   * from afar, single shots and hits stay silent; explosions and abilities still carry.
+   */
   private sfx(s: Sound, x: number, y: number, gain = 1): void {
+    if (this.cameras.main.zoom < LOD.simple && QUIET_AFAR.has(s)) return;
     const v = this.viewRect();
     const w = v.right - v.x;
     const h = v.bottom - v.y;
@@ -631,22 +637,22 @@ export class BattleScene extends Phaser.Scene {
         continue;
       }
       if (!this.canSee(e)) continue;
-      g.fillStyle(0x7cc4ff, 0.12 * k).fillCircle(e.x, e.y, e.radius + 5 / z);
-      g.lineStyle(2 / z, 0x9fd4ff, 0.7 * k).strokeCircle(e.x, e.y, e.radius + 5 / z);
+      disc(g.fillStyle(0x7cc4ff, 0.12 * k), e.x, e.y, e.radius + 5 / z, z);
+      ring(g.lineStyle(2 / z, 0x9fd4ff, 0.7 * k), e.x, e.y, e.radius + 5 / z, z);
     }
     const pulse = 0.5 + 0.5 * Math.sin(this.time.now / 160);
     for (const zone of this.world.zones) {
       // An admiral's command shows only while the admiral is selected (see the overlay).
       if (zone.kind === 'command') continue;
       const color = zone.kind === 'dome' ? 0x5aa9e6 : 0x6fd08c;
-      g.fillStyle(color, 0.07).fillCircle(zone.x, zone.y, zone.r);
-      g.lineStyle(2 / z, color, 0.45 + 0.25 * pulse).strokeCircle(zone.x, zone.y, zone.r);
+      disc(g.fillStyle(color, 0.07), zone.x, zone.y, zone.r, z);
+      ring(g.lineStyle(2 / z, color, 0.45 + 0.25 * pulse), zone.x, zone.y, zone.r, z);
     }
     for (const s of this.world.strikes) {
       const k = 1 - s.delay / s.total;
       if (s.kind === 'orbital') {
-        g.fillStyle(0xe05a4a, 0.06 + 0.18 * k).fillCircle(s.x, s.y, s.radius);
-        g.lineStyle(2 / z, 0xe05a4a, 0.9).strokeCircle(s.x, s.y, s.radius).strokeCircle(s.x, s.y, s.radius * (1 - k));
+        disc(g.fillStyle(0xe05a4a, 0.06 + 0.18 * k), s.x, s.y, s.radius, z);
+        ring(ring(g.lineStyle(2 / z, 0xe05a4a, 0.9), s.x, s.y, s.radius, z), s.x, s.y, s.radius * (1 - k), z);
       } else {
         g.lineStyle(Math.max(1.5 / z, s.radius * 0.5 * k), 0xe8a13a, 0.25 + 0.45 * pulse).lineBetween(s.x, s.y, s.x2, s.y2);
       }
@@ -656,11 +662,11 @@ export class BattleScene extends Phaser.Scene {
       if (e.x < view.x - e.radius || e.x > view.right + e.radius || e.y < view.y - e.radius || e.y > view.bottom + e.radius) continue;
       if (!this.canSee(e)) continue;
       const a = e.ability;
-      if (a && a.active > 0) g.lineStyle(2 / z, ABILITIES[a.id].color, 0.4 + 0.5 * pulse).strokeCircle(e.x, e.y, e.radius + 7 / z);
+      if (a && a.active > 0) ring(g.lineStyle(2 / z, ABILITIES[a.id].color, 0.4 + 0.5 * pulse), e.x, e.y, e.radius + 7 / z, z);
       const fx = e.effects;
       const r = e.radius + 11 / z;
       if (fx.marked > 0) {
-        g.lineStyle(2 / z, 0xe05a4a, 0.9).strokeCircle(e.x, e.y, r);
+        ring(g.lineStyle(2 / z, 0xe05a4a, 0.9), e.x, e.y, r, z);
         for (let i = 0; i < 4; i++) {
           const c = Math.cos((i * Math.PI) / 2);
           const n = Math.sin((i * Math.PI) / 2);
@@ -669,10 +675,10 @@ export class BattleScene extends Phaser.Scene {
       }
       if (fx.stunned > 0) {
         // Crackling: a ring that flickers between two sizes.
-        g.lineStyle(2 / z, 0x9fd4ff, 0.5 + 0.5 * pulse).strokeCircle(e.x, e.y, r + (pulse > 0.5 ? 3 : -2) / z);
+        ring(g.lineStyle(2 / z, 0x9fd4ff, 0.5 + 0.5 * pulse), e.x, e.y, r + (pulse > 0.5 ? 3 : -2) / z, z);
       }
       if (fx.corroded > 0) {
-        g.fillStyle(0x6fd08c, 0.25 + 0.2 * pulse).fillCircle(e.x, e.y, e.radius);
+        disc(g.fillStyle(0x6fd08c, 0.25 + 0.2 * pulse), e.x, e.y, e.radius, z);
       }
     }
   }
@@ -725,10 +731,12 @@ export class BattleScene extends Phaser.Scene {
       if (e.x + r < view.x || e.x - r > view.right || e.y + r < view.y || e.y - r > view.bottom) continue;
       if (!this.canSee(e)) continue;
       const sel = this.selected.has(e.id);
-      if (e.hero) g.lineStyle(1.5 / z, 0xe8a13a, 0.8).strokeCircle(e.x, e.y, e.radius + 9 / z);
+      if (e.hero) ring(g.lineStyle(1.5 / z, 0xe8a13a, 0.8), e.x, e.y, e.radius + 9 / z, z);
       const color = FACTIONS[e.faction].color;
-      if (e.kind !== 'ship') g.lineStyle(1.5 / z, color, 0.45).strokeCircle(e.x, e.y, e.radius + 2 / z);
-      if (sel) g.lineStyle(2 / z, e.faction === player ? 0x6fd08c : 0xe05a4a, 0.9).strokeCircle(e.x, e.y, e.radius + 5 / z);
+      // Structures and station parts wear their faction's ring; ship parts go without, their ship shows.
+      const fixed = e.kind === 'structure' || (e.kind === 'hardpoint' && this.world.entities.get(e.parentId!)?.kind !== 'ship');
+      if (fixed) ring(g.lineStyle(1.5 / z, color, 0.45), e.x, e.y, e.radius + 2 / z, z);
+      if (sel) ring(g.lineStyle(2 / z, e.faction === player ? 0x6fd08c : 0xe05a4a, 0.9), e.x, e.y, e.radius + 5 / z, z);
       if (sel && e.order) {
         const t = e.order.type === 'attack' ? this.world.entities.get(e.order.targetId) : e.order;
         const c = e.order.type === 'move' ? 0x6fd08c : e.order.type === 'attack' ? 0xe05a4a : 0xe8a13a;
@@ -742,18 +750,18 @@ export class BattleScene extends Phaser.Scene {
     const c = this.controls;
     const over = c.mode.kind === 'select' && c.pilotId == null && !c.box && c.pointerOver ? c.hovered() : null;
     if (over && !this.selected.has(over.id) && this.canSee(over)) {
-      g.lineStyle(1.5 / z, over.faction === player ? 0x6fd08c : 0xe05a4a, 0.5).strokeCircle(over.x, over.y, over.radius + 5 / z);
+      ring(g.lineStyle(1.5 / z, over.faction === player ? 0x6fd08c : 0xe05a4a, 0.5), over.x, over.y, over.radius + 5 / z, z);
     }
 
     const piloted = this.controls.pilotId == null ? undefined : this.world.entities.get(this.controls.pilotId);
     if (piloted?.pilot) {
       const p = piloted.pilot;
       const t = aimedTarget(this.world, piloted, p, piloted.range);
-      g.lineStyle(2 / z, 0x6fd08c, 0.9).strokeCircle(piloted.x, piloted.y, piloted.radius + 6 / z);
-      g.lineStyle(1.5 / z, 0xe8a13a, 0.9).strokeCircle(p.aimX, p.aimY, 10 / z)
+      ring(g.lineStyle(2 / z, 0x6fd08c, 0.9), piloted.x, piloted.y, piloted.radius + 6 / z, z);
+      ring(g.lineStyle(1.5 / z, 0xe8a13a, 0.9), p.aimX, p.aimY, 10 / z, z)
         .lineBetween(p.aimX - 16 / z, p.aimY, p.aimX - 6 / z, p.aimY).lineBetween(p.aimX + 6 / z, p.aimY, p.aimX + 16 / z, p.aimY)
         .lineBetween(p.aimX, p.aimY - 16 / z, p.aimX, p.aimY - 6 / z).lineBetween(p.aimX, p.aimY + 6 / z, p.aimX, p.aimY + 16 / z);
-      if (t) g.lineStyle(2 / z, 0xe05a4a, p.firing ? 1 : 0.6).strokeCircle(t.x, t.y, t.radius + 6 / z);
+      if (t) ring(g.lineStyle(2 / z, 0xe05a4a, p.firing ? 1 : 0.6), t.x, t.y, t.radius + 6 / z, z);
     }
 
     const mode = this.controls.mode;
@@ -761,25 +769,25 @@ export class BattleScene extends Phaser.Scene {
     // An admiral's command, around the selected admirals.
     for (const id of this.selected) {
       const e = this.world.entities.get(id);
-      if (e?.hero && HEROES[e.hero].role === 'admiral') g.lineStyle(1.5 / z, 0xe8a13a, 0.3).strokeCircle(e.x, e.y, COMMAND_RADIUS);
+      if (e?.hero && HEROES[e.hero].role === 'admiral') ring(g.lineStyle(1.5 / z, 0xe8a13a, 0.3), e.x, e.y, COMMAND_RADIUS, z);
     }
 
     const station = stationOf(this.world, player);
     const ghost = this.controls.placementGhost();
     if (mode.kind === 'place' && mode.type !== 'mine') {
-      for (const zone of buildZones(this.world, player, mode.type)) g.lineStyle(1.5 / z, 0xe8a13a, 0.35).strokeCircle(zone.x, zone.y, zone.r);
+      for (const zone of buildZones(this.world, player, mode.type)) ring(g.lineStyle(1.5 / z, 0xe8a13a, 0.35), zone.x, zone.y, zone.r, z);
     } else if (station && this.selected.has(station.id)) {
-      g.lineStyle(1.5 / z, 0xe8a13a, 0.35).strokeCircle(station.x, station.y, STATION.constructionRadius);
+      ring(g.lineStyle(1.5 / z, 0xe8a13a, 0.35), station.x, station.y, STATION.constructionRadius, z);
     }
     if (station && this.selected.has(station.id)) {
       const f = this.world.factions.get(player)!;
       g.lineStyle(1 / z, 0x6fd08c, 0.6).lineBetween(station.x, station.y, f.rallyX, f.rallyY);
-      g.fillStyle(0x6fd08c, 0.8).fillCircle(f.rallyX, f.rallyY, 5 / z);
+      disc(g.fillStyle(0x6fd08c, 0.8), f.rallyX, f.rallyY, 5 / z, z);
     }
     if (ghost) {
       const c = ghost.ok ? 0x6fd08c : 0xe05a4a;
-      g.fillStyle(c, 0.2).fillCircle(ghost.x, ghost.y, ghost.radius);
-      g.lineStyle(2 / z, c, 0.9).strokeCircle(ghost.x, ghost.y, ghost.radius);
+      disc(g.fillStyle(c, 0.2), ghost.x, ghost.y, ghost.radius, z);
+      ring(g.lineStyle(2 / z, c, 0.9), ghost.x, ghost.y, ghost.radius, z);
     }
     const b = this.controls.box;
     if (b) {
@@ -813,16 +821,16 @@ export class BattleScene extends Phaser.Scene {
     const h = this.controls.hover;
     for (const s of this.controls.ownShips()) {
       if (s.ability?.id !== id) continue;
-      if (def.range) g.lineStyle(1.5 / z, def.color, 0.35).strokeCircle(s.x, s.y, def.range);
+      if (def.range) ring(g.lineStyle(1.5 / z, def.color, 0.35), s.x, s.y, def.range, z);
       if (id === 'spinal') {
         const a = Math.atan2(h.y - s.y, h.x - s.x);
         g.lineStyle(80, def.color, 0.15).lineBetween(s.x, s.y, s.x + Math.cos(a) * def.range!, s.y + Math.sin(a) * def.range!);
       }
     }
-    if (def.target === 'point' && def.radius) g.lineStyle(2 / z, def.color, 0.8).strokeCircle(h.x, h.y, def.radius);
+    if (def.target === 'point' && def.radius) ring(g.lineStyle(2 / z, def.color, 0.8), h.x, h.y, def.radius, z);
     if (def.target === 'enemy') {
       const t = this.controls.hovered();
-      if (t && t.faction !== this.opts.player) g.lineStyle(2 / z, def.color, 0.9).strokeCircle(t.x, t.y, t.radius + 10 / z);
+      if (t && t.faction !== this.opts.player) ring(g.lineStyle(2 / z, def.color, 0.9), t.x, t.y, t.radius + 10 / z, z);
     }
   }
 

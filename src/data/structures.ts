@@ -53,6 +53,8 @@ export interface HardpointSlot {
 }
 
 export interface StationLevel {
+  /** Credits per second the station brings in at this level. */
+  income: number;
   hull: number;
   shield: number;
   shieldRegen: number;
@@ -67,11 +69,10 @@ export const STATION = {
   name: 'Station spatiale',
   radius: 90,
   constructionRadius: 650,
-  income: 6,
   weapons: [flak] as WeaponDef[],
   levels: [
     {
-      hull: 3000, shield: 1000, shieldRegen: 5, upgradeCost: 0, upgradeTime: 0,
+      income: 6, hull: 3000, shield: 1000, shieldRegen: 5, upgradeCost: 0, upgradeTime: 0,
       hardpoints: [
         { role: 'shipyard', x: 0, y: -100 },
         { role: 'hangar', x: 0, y: 100 },
@@ -81,7 +82,7 @@ export const STATION = {
       ],
     },
     {
-      hull: 4500, shield: 1500, shieldRegen: 7, upgradeCost: 1200, upgradeTime: 30,
+      income: 8, hull: 4500, shield: 1500, shieldRegen: 7, upgradeCost: 1200, upgradeTime: 30,
       hardpoints: [
         { role: 'turret', x: -75, y: -70 },
         { role: 'turret', x: -75, y: 70 },
@@ -89,7 +90,7 @@ export const STATION = {
       ],
     },
     {
-      hull: 6500, shield: 2200, shieldRegen: 10, upgradeCost: 2500, upgradeTime: 45,
+      income: 10, hull: 6500, shield: 2200, shieldRegen: 10, upgradeCost: 2500, upgradeTime: 45,
       hardpoints: [
         { role: 'heavyTurret', x: 0, y: -150 },
         { role: 'heavyTurret', x: 0, y: 150 },

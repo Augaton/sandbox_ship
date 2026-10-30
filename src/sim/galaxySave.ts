@@ -45,7 +45,7 @@ export function deserializeGalaxy(text: string): Galaxy | null {
   return {
     time: s.time, player: s.player, planets: s.planets, lanes: s.lanes,
     fleets: new Map(s.fleets.map((f) => [f.id, f])),
-    factions: new Map(s.factions.map((f) => [f.id, f])),
+    factions: new Map(s.factions.map((f) => [f.id, { ...f, researchQueue: f.researchQueue ?? [] }])),
     battles: [], events: [], nextId: s.nextId, seed: s.seed, winner: s.winner,
   };
 }

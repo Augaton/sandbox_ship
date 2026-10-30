@@ -110,7 +110,7 @@ describe('economy and placement', () => {
     spawnStation(w, 'klaed', 700, 2000);
     spawnStructure(w, 'klaed', 'mine', 1500, 1500);
     run(w, 10);
-    const expected = (STATION.income + BUILDABLES.mine.income!) * 10;
+    const expected = (STATION.levels[0].income + BUILDABLES.mine.income!) * 10;
     expect(w.factions.get('klaed')!.credits).toBeCloseTo(expected, 0);
   });
 
@@ -120,7 +120,7 @@ describe('economy and placement', () => {
     addField(w, 1000, 1700, 150);
     expect(placeStructure(w, 'klaed', 'mine', 1020, 1690).ok).toBe(true);
     run(w, 5);
-    expect(w.factions.get('klaed')!.credits).toBeCloseTo(STATION.income * 5, 0);
+    expect(w.factions.get('klaed')!.credits).toBeCloseTo(STATION.levels[0].income * 5, 0);
   });
 
   it('mines need a free asteroid field and snap onto it', () => {

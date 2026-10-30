@@ -11,6 +11,7 @@ import {
   NO_DEFENSE, battleOutcome, countShips, createPlanetBattle, defenseLeft, fleetValue, heroSurvivors, survivorCondition, survivors, updateBattleAI,
   type BattleResult, type PlanetDefense, type ShipCounts,
 } from './battle';
+import { advanceResearch, cancelResearchAt, plannedLevel, queueResearch, researchJobs } from './research';
 import { CLASSIC, type GalaxyLayout } from './galaxyGen';
 import { step } from './step';
 import { DIFFICULTIES, dist, type Difficulty, type Result, type World } from './world';
@@ -95,6 +96,8 @@ export interface GalaxyFaction {
   eliminated: boolean;
   research: ResearchLevels;
   researching: ResearchJob | null;
+  /** Research levels waiting their turn, already paid for. */
+  researchQueue: ResearchJob[];
   /** Galaxy seconds before each fallen hero can be built again. */
   heroCooldowns: Partial<Record<HeroId, number>>;
 }
@@ -149,7 +152,7 @@ export function createGalaxy(
   for (const [faction, capital, ai] of sides) {
     g.factions.set(faction, {
       id: faction, credits: GALAXY_RULES.startCredits, ai: ai ? { timer: 0, want: null, difficulty } : null, eliminated: false,
-      research: noResearch(), researching: null, heroCooldowns: {},
+      research: noResearch(), researching: null, researchQueue: [], heroCooldowns: {},
     });
     Object.assign(g.planets[capital], { owner: faction, station: 1, mines: 1 });
     addShipsAt(g, faction, capital, { frigate: 2, scout: 2 });
@@ -524,7 +527,7 @@ export function incomeOf(g: Galaxy, faction: FactionId): number {
   const mining = 1 + TECH_BONUS.mining * (g.factions.get(faction)?.research.mining ?? 0);
   return g.planets
     .filter((p) => p.owner === faction)
-    .reduce((s, p) => s + p.income + p.mines * GALAXY_RULES.mineIncome * mining * (p.special === 'rich' ? 2 : 1), 0);
+    .reduce((s, p) => s + p.income + p.station * GALAXY_RULES.stationIncome + p.mines * GALAXY_RULES.mineIncome * mining * (p.special === 'rich' ? 2 : 1), 0);
 }
 
 const BUILDING_NAMES: Record<BuildingKind, string> = {
@@ -711,14 +714,15 @@ function updateProduction(g: Galaxy, dt: number): void {
 }
 
 /** Research needs a lab, and a station of the level about to be reached. */
+/** Whether the next level of this tech can join the queue: judged on the level it would reach. */
 export function canResearchTech(g: Galaxy, faction: FactionId, tech: TechId): Result {
   const f = g.factions.get(faction);
   if (!f) return fail('Faction inconnue');
   const own = g.planets.filter((p) => p.owner === faction);
-  const level = f.research[tech];
+  const level = plannedLevel(f, tech);
   if (!own.some((p) => p.lab > 0)) return fail('Laboratoire requis');
   if (level >= MAX_TECH_LEVEL) return fail('Niveau maximum');
-  if (f.researching) return fail('Recherche déjà en cours');
+  if (researchJobs(f).length >= MAX_QUEUE) return fail("File d'attente pleine");
   if (Math.max(0, ...own.map((p) => p.station)) < level + 1) return fail(`Station niveau ${level + 1} requise`);
   if (f.credits < TECHS[tech].costs[level]) return fail('Crédits insuffisants');
   return OK;
@@ -727,19 +731,14 @@ export function canResearchTech(g: Galaxy, faction: FactionId, tech: TechId): Re
 export function startTech(g: Galaxy, faction: FactionId, tech: TechId): Result {
   const r = canResearchTech(g, faction, tech);
   if (!r.ok) return r;
-  const f = g.factions.get(faction)!;
-  const level = f.research[tech];
-  const cost = TECHS[tech].costs[level];
-  f.credits -= cost;
-  f.researching = { tech, remaining: TECHS[tech].times[level], total: TECHS[tech].times[level], cost };
+  queueResearch(g.factions.get(faction)!, tech);
   return OK;
 }
 
-export function cancelTech(g: Galaxy, faction: FactionId): void {
+/** Cancels a research job, 0 being the running one; later levels of the same tech go too. */
+export function cancelTech(g: Galaxy, faction: FactionId, index = 0): void {
   const f = g.factions.get(faction);
-  if (!f?.researching) return;
-  f.credits += f.researching.cost;
-  f.researching = null;
+  if (f) cancelResearchAt(f, index);
 }
 
 /** Owning ancient archives speeds research up. */
@@ -749,11 +748,8 @@ export function researchSpeed(g: Galaxy, faction: FactionId): number {
 
 function updateResearch(g: Galaxy, dt: number): void {
   for (const f of g.factions.values()) {
-    const job = f.researching;
-    if (!job || (job.remaining -= dt * researchSpeed(g, f.id)) > 0) continue;
-    f.research[job.tech]++;
-    f.researching = null;
-    g.events.push({ type: 'researched', faction: f.id, tech: job.tech });
+    const done = advanceResearch(f, dt * researchSpeed(g, f.id));
+    if (done) g.events.push({ type: 'researched', faction: f.id, tech: done });
   }
 }
 

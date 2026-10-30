@@ -12,7 +12,10 @@ export function wrapAngle(a: number): number {
   return a - Math.PI;
 }
 
-function turnTowards(e: Entity, def: ShipDef, angle: number, dt: number): number {
+/** What steering needs of a ship: top speed, acceleration, turn rate and size. */
+type Motion = Pick<ShipDef, 'speed' | 'accel' | 'turnRate' | 'size'>;
+
+function turnTowards(e: Entity, def: Motion, angle: number, dt: number): number {
   const diff = wrapAngle(angle - e.angle);
   const step = def.turnRate * dt;
   e.angle = wrapAngle(e.angle + Math.max(-step, Math.min(step, diff)));
@@ -23,7 +26,7 @@ function turnTowards(e: Entity, def: ShipDef, angle: number, dt: number): number
  * Turns and throttles a ship towards a point, braking so that it stops at the point.
  * Returns true once the ship is within `arrive` of the point.
  */
-export function steerTo(e: Entity, def: ShipDef, x: number, y: number, dt: number, arrive: number): boolean {
+export function steerTo(e: Entity, def: Motion, x: number, y: number, dt: number, arrive: number): boolean {
   const d = Math.hypot(x - e.x, y - e.y);
   if (d <= arrive) {
     brake(e, def, dt);
@@ -39,11 +42,11 @@ export function steerTo(e: Entity, def: ShipDef, x: number, y: number, dt: numbe
   return false;
 }
 
-export function brake(e: Entity, def: ShipDef, dt: number): void {
+export function brake(e: Entity, def: Motion, dt: number): void {
   e.speed = Math.max(0, e.speed - def.accel * dt);
 }
 
-function engage(world: World, e: Entity, def: ShipDef, t: Entity, dt: number): void {
+function engage(world: World, e: Entity, def: Motion, t: Entity, dt: number): void {
   if (def.size === 'small') {
     // Small craft strafe: they keep circling the target instead of parking next to it.
     const orbit = t.radius + e.range * 0.6;
@@ -62,23 +65,25 @@ function engage(world: World, e: Entity, def: ShipDef, t: Entity, dt: number): v
  * research, the afterburner and an admiral's command change its top speed. A paralysed
  * ship only brakes.
  */
-function effectiveDef(world: World, e: Entity): ShipDef {
+function effectiveDef(world: World, e: Entity): Motion {
   const def = SHIPS[e.type as ShipClass];
   const engines = e.engines == null || e.maxEngines === 0 ? 1 : Math.max(0.15, e.engines / e.maxEngines);
   const boost = FACTIONS[e.faction].trait.speed * (1 + TECH_BONUS.engines * researchLevel(world, e.faction, 'engines'))
     * (isActive(world, e, 'sprint') ? 2 : 1) * (e.hero ? HEROES[e.hero].speed : 1) * (inCommandAura(world, e) ? 1.1 : 1);
   const stunned = e.effects.stunned > 0;
   if (engines === 1 && boost === 1 && !stunned) return def;
-  return {
-    ...def,
-    speed: stunned ? 0 : def.speed * engines * boost,
-    accel: def.accel * engines * boost,
-    turnRate: stunned ? 0 : def.turnRate * (0.5 + 0.5 * engines),
-  };
+  // One object reused ship after ship, read at once: no garbage every step for every ship.
+  scratch.speed = stunned ? 0 : def.speed * engines * boost;
+  scratch.accel = def.accel * engines * boost;
+  scratch.turnRate = stunned ? 0 : def.turnRate * (0.5 + 0.5 * engines);
+  scratch.size = def.size;
+  return scratch;
 }
 
+const scratch: Motion = { speed: 0, accel: 0, turnRate: 0, size: 'small' };
+
 /** Hand flying: the pilot sets thrust and turn; reverse is slower than full ahead. */
-function fly(e: Entity, def: ShipDef, dt: number): void {
+function fly(e: Entity, def: Motion, dt: number): void {
   const p = e.pilot!;
   e.angle = wrapAngle(e.angle + p.turn * def.turnRate * dt);
   const target = p.thrust >= 0 ? def.speed * p.thrust : def.speed * 0.35 * p.thrust;

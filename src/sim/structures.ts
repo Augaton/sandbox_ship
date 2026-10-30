@@ -7,6 +7,7 @@ import {
   DIFFICULTIES, shieldMult, spawnHero, spawnShip, spawnStructure, stationOf,
   type Entity, type FactionState, type Result, type World,
 } from './world';
+import { advanceResearch, cancelResearchAt, plannedLevel, queueResearch, researchJobs } from './research';
 
 const fail = (reason: string): Result => ({ ok: false, reason });
 const OK: Result = { ok: true };
@@ -72,7 +73,9 @@ export function updateEconomy(world: World, dt: number): void {
     f.stats.earned += amount;
   };
   for (const f of world.factions.values()) {
-    if (f.stationId != null) earn(f, STATION.income * incomeMult(f) * dt);
+    const station = stationOf(world, f.id);
+    // Each station level brings in a little more.
+    if (station) earn(f, STATION.levels[station.level - 1].income * incomeMult(f) * dt);
   }
   for (const e of world.entities.values()) {
     if (e.income > 0 && e.build >= 1) {
@@ -297,13 +300,14 @@ export function cancelConstruction(world: World, faction: FactionId, id: number)
 }
 
 /** Research levels past the first need a station of that level. */
+/** Whether the next level of this tech can join the queue: judged on the level it would reach. */
 export function canResearch(world: World, faction: FactionId, tech: TechId): Result {
   const f = world.factions.get(faction);
   const station = stationOf(world, faction);
   if (!f || !station) return fail('Aucune station');
-  const level = f.research[tech];
+  const level = plannedLevel(f, tech);
   if (level >= MAX_TECH_LEVEL) return fail('Niveau maximum');
-  if (f.researching) return fail('Recherche déjà en cours');
+  if (researchJobs(f).length >= MAX_QUEUE) return fail("File d'attente pleine");
   if (station.level < level + 1) return fail(`Station niveau ${level + 1} requise`);
   if (f.credits < TECHS[tech].costs[level]) return fail('Crédits insuffisants');
   return OK;
@@ -312,30 +316,25 @@ export function canResearch(world: World, faction: FactionId, tech: TechId): Res
 export function startResearch(world: World, faction: FactionId, tech: TechId): Result {
   const r = canResearch(world, faction, tech);
   if (!r.ok) return r;
-  const f = world.factions.get(faction)!;
-  const level = f.research[tech];
-  const cost = TECHS[tech].costs[level];
-  f.credits -= cost;
-  f.researching = { tech, remaining: TECHS[tech].times[level], total: TECHS[tech].times[level], cost };
+  queueResearch(world.factions.get(faction)!, tech);
   return OK;
 }
 
-export function cancelResearch(world: World, faction: FactionId): void {
+/** Cancels a research job, 0 being the running one; later levels of the same tech go too. */
+export function cancelResearch(world: World, faction: FactionId, index = 0): void {
   const f = world.factions.get(faction);
-  if (!f?.researching) return;
-  f.credits += f.researching.cost;
-  f.researching = null;
+  if (f) cancelResearchAt(f, index);
 }
 
 export function updateResearch(world: World, dt: number): void {
   for (const f of world.factions.values()) {
     const job = f.researching;
-    if (!job || (job.remaining -= dt) > 0) continue;
+    if (!job) continue;
     const before = job.tech === 'armor' ? hullMult(world, f.id) : shieldMult(world, f.id);
-    f.research[job.tech]++;
-    f.researching = null;
-    rescaleForResearch(world, f.id, job.tech, before);
-    world.events.push({ type: 'researched', faction: f.id, tech: job.tech });
+    const done = advanceResearch(f, dt);
+    if (!done) continue;
+    rescaleForResearch(world, f.id, done, before);
+    world.events.push({ type: 'researched', faction: f.id, tech: done });
   }
 }
 
