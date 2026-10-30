@@ -268,6 +268,28 @@ tests de `FixtureTests` et `CrossTests` les listent.
   les options (« Serveur en ligne ») ou par `--master`. Mesures en boucle locale (`--probe`) : aller-retour médian 0,04 ms en direct,
   2,4 à 3,4 ms par le relais (95 % sous 7 à 14 ms) ; pour une partie en bataille (un hôte, un joueur, 20 à 30 Kio/s par sens), le
   relais prend 5 à 8 % d'un cœur (2 % au repos) et 180 Mo de mémoire. Le reste du chemin est celui du réseau jusqu'au serveur.
+- Performances, passe finale (2026-10-30 ; protocole et instantanés de bataille en version 3, de galaxie en version 2) :
+  - Instantanés de bataille en deltas : chacun s'écrit contre le dernier que le joueur a acquitté (`Ack`, non fiable). Une entité
+    inchangée n'y figure pas ; d'une entité changée ne part que ce qui a bougé (qui elle est, sa place, sa santé, le reste). Les
+    pièces d'un vaisseau n'ont plus de place à elles : le lecteur les pose sur leur vaisseau. Un tir qui file droit n'est plus
+    réécrit : le lecteur le porte sur sa vitesse. Hôte et joueur gardent les 32 derniers (`Sim/SnapshotFrames.cs`). Un delta contre
+    un instantané que le joueur n'a plus ne change rien, le suivant le rattrape ; après une longue perte, l'instantané repart entier.
+  - Mesures en réseau réel : en duel, 7 à 12 Kio/s par joueur au lieu de 14 à 28 (6 à 10 compressés au lieu de 9 à 18), deltas de
+    0,35 Ko sous le MTU. Pour la bataille de mesure (1 200 entités, `--host --start=stress`), 46 Ko entier, 13 Ko en delta : 16 à 20
+    instantanés/s au lieu de 5, dans le même budget de 256 Kio/s par joueur, en direct comme par le serveur en ligne. Écriture
+    1,1 ms et 90 Kio au lieu de 1,6 ms et 590 ; lecture 1,1 ms et 60 Kio au lieu de 1,3 ms et 820 (Enum.HasFlag allouait).
+  - Galaxie : ce qui ne change jamais (taille, voies, nom, place, revenu et mines des planètes) part une fois, de façon fiable
+    (`Chart`), avant le premier instantané ; un instantané arrivé avant la carte attend le suivant. Instantané d'une grande galaxie
+    à six camps : 0,65 Ko au lieu de 1,3, sous le MTU ; 0,2 Ko en partie réelle.
+  - Simulation : grille spatiale en tableau plat au lieu d'un dictionnaire, même ordre de visite et mêmes parties ; 0,90 → 0,78 ms
+    par pas de la bataille de mesure. La vision garde ses ensembles d'une mise à jour à l'autre : 12 → 4 Kio de déchets par pas
+    (19 → 5 à six camps), 28 → 20 Kio par image dans le jeu.
+  - Serveur dédié : il sautait déjà la forge et le préchauffage (prêt en 0,45 s, 133 Mo). Un seul interrupteur sans fenêtre
+    (`Dev.Service` : `--server`, `--relay`, `--probe`) ; 15 images/s entre deux batailles, 60 en bataille.
+  - Mesuré et laissé : le rendu (images au plafond de 60 Hz, aucune partie de la vue au-dessus de 0,6 ms) ; la campagne (0,35 ms par
+    pas galactique, 7 ms au 99e centile avec des batailles résolues seules ; 60 Kio par pas, surtout le LINQ de l'IA galactique) ;
+    le découpage des instantanés sous le MTU : un delta de grosse bataille fait encore une dizaine de fragments, mais un instantané
+    perdu ne coûte plus qu'une image glissée et un delta un peu plus gros ensuite.
 
 ## Ce qui change de technique
 

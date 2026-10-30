@@ -103,7 +103,7 @@ Pour vérifier sans clic, après `--` : `--host` (héberge un salon de `--mode` 
 trois secondes après que tout le monde est prêt), `--join=ADRESSE:PORT` (rejoint, et se dit prêt une fois
 assis), `--name=NOM`, `--port=N`, `--order=SECONDES` (les vaisseaux du joueur, construits au départ, partent en
 attaque-mouvement vers le centre à cet âge de la bataille), `--pause=SECONDES` (le joueur met alors la partie
-en pause pour tous), `--menu=multiplayer` (l'écran « Multijoueur »), `--master=ADRESSE:PORT` (le serveur en ligne, à la
+en pause pour tous), `--start=stress` (avec `--host` : la bataille de mesure, servie au joueur), `--menu=multiplayer` (l'écran « Multijoueur »), `--master=ADRESSE:PORT` (le serveur en ligne, à la
 place de celui des options), `--online` (avec `--host` : héberge en ligne), `--join=online` (choisit dans la liste la
 première partie hébergée en ligne, puis la rejoint par le serveur en ligne), `--beacon=PORT` (les annonces du réseau
 local sur un autre port que 24681), `--probe` (mesure l'aller-retour d'un message, directement sur `--port` puis par
