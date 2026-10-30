@@ -40,6 +40,7 @@ public class ProtocolTests
         yield return new Message.Order(new Command.UseAbility(16, AbilityId.Cloak, new Aim(1, 2, 23)));
         yield return new Message.State([1, 2, 3, 250, 0]);
         yield return new Message.Ack(123456);
+        yield return new Message.Chart([71, 67, 72, 84, 2, 0]);
         yield return new Message.Refused("Cible hors de vue");
         yield return new Message.Pause(true, "Bob");
         yield return new Message.Notice("Bob a quitté la partie : l'IA prend sa place.");
@@ -58,7 +59,7 @@ public class ProtocolTests
             Assert.Equal(bytes, Protocol.Encode(back));
             tags.Add(bytes[0]);
         }
-        Assert.Equal(14, tags.Count);
+        Assert.Equal(15, tags.Count);
         // Fields come back as sent, not only their bytes.
         var room = (Message.Room)Protocol.Decode(Protocol.Encode(Every().OfType<Message.Room>().First()));
         Assert.Equal([new Member(Lobby.Host, "Hôte"), new Member(77, "Bob")], room.Members);
@@ -74,8 +75,8 @@ public class ProtocolTests
         foreach (var m in Every())
         {
             var bytes = Protocol.Encode(m);
-            // A snapshot's bytes are the snapshot reader's to check; cut anywhere else, a message does not read.
-            if (m is Message.State) continue;
+            // A snapshot's or a chart's bytes are their reader's to check; cut anywhere else, a message does not read.
+            if (m is Message.State or Message.Chart) continue;
             for (var cut = 0; cut < bytes.Length; cut++)
             {
                 var part = bytes[..cut];
@@ -111,7 +112,8 @@ public class ProtocolTests
         Assert.Null(Protocol.DecodeLanGame([1, 2, 3, 4, 5, 6]));
         var bytes = Protocol.Encode(b);
         Assert.Null(Protocol.DecodeLanGame(bytes[..^3]));
-        bytes[^5] = 200;
+        // The mode: before taken, seats, port and the dedicated flag.
+        bytes[^6] = 200;
         Assert.Null(Protocol.DecodeLanGame(bytes));
     }
 }

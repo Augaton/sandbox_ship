@@ -19,6 +19,10 @@ public sealed class Settings
     public string PlayerName { get; set; } = UserName();
     /// <summary>The last host joined by address, as "address:port".</summary>
     public string JoinAddress { get; set; } = $"127.0.0.1:{Sim.Net.Protocol.DefaultPort}";
+    /// <summary>The online server, "address:port": the games it lists, and the relay of those hosted online.</summary>
+    public string MasterAddress { get; set; } = DefaultMaster;
+
+    public const string DefaultMaster = "51.91.214.135:27029";
 
     const string Path = "user://settings.json";
 

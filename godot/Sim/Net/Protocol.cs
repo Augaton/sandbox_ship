@@ -74,8 +74,8 @@ public abstract record Message
     public sealed record Over(int Battle, BattleResult? Result) : Message;
 }
 
-/// <summary>A host on the local network, as it calls out on the beacon port every second.</summary>
-public sealed record LanGame(int Protocol, string Version, string Name, LobbyMode Mode, int Taken, int Seats, int Port);
+/// <summary>A host on the local network, as it calls out on the beacon port every second; Dedicated: a server nobody plays on (--server).</summary>
+public sealed record LanGame(int Protocol, string Version, string Name, LobbyMode Mode, int Taken, int Seats, int Port, bool Dedicated = false);
 
 public static class Protocol
 {
@@ -285,7 +285,7 @@ public static class Protocol
     };
 
     /// <summary>A string of at most `max` UTF-8 bytes: a broken message must not ask for a huge one.</summary>
-    static string Text(BinaryReader r, int max = MaxText)
+    internal static string Text(BinaryReader r, int max = MaxText)
     {
         var n = r.Read7BitEncodedInt();
         if (n < 0 || n > max) throw new InvalidDataException($"Texte de {n} octets");
@@ -307,6 +307,8 @@ public static class Protocol
             w.Write((byte)b.Taken);
             w.Write((byte)b.Seats);
             w.Write((ushort)b.Port);
+            // Last, so that a beacon without it (an older build) still reads.
+            w.Write(b.Dedicated);
         }
         return ms.ToArray();
     }
@@ -318,7 +320,8 @@ public static class Protocol
         {
             using var r = new BinaryReader(new MemoryStream(bytes));
             if (r.ReadUInt32() != BeaconMagic) return null;
-            var b = new LanGame(r.Read7BitEncodedInt(), Text(r), Text(r), (LobbyMode)r.ReadByte(), r.ReadByte(), r.ReadByte(), r.ReadUInt16());
+            var b = new LanGame(r.Read7BitEncodedInt(), Text(r), Text(r), (LobbyMode)r.ReadByte(), r.ReadByte(), r.ReadByte(), r.ReadUInt16(),
+                r.BaseStream.Position < bytes.Length && r.ReadBoolean());
             return Enum.IsDefined(b.Mode) ? b : null;
         }
         catch (Exception e) when (e is InvalidDataException or EndOfStreamException or FormatException)

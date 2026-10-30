@@ -109,7 +109,9 @@ public partial class Menu
         // campaign saved over the network, to resume with its players.
         if (hosting)
         {
-            Titled("Héberger une partie", "Choisis le mode : les joueurs te rejoignent dans son salon. Échap : retour");
+            Titled(online ? "Héberger en ligne" : "Héberger en local", online
+                ? "Choisis le mode : ta partie s'affiche chez tous les joueurs, par le serveur en ligne. Échap : retour"
+                : "Choisis le mode : les joueurs te rejoignent dans son salon. Échap : retour");
             body.AddChild(ResumeCard() is { } resume ? Section("Campagne", ModeCard(Modes[0]), resume) : Section("Campagne", ModeCard(Modes[0])));
         }
         else
@@ -299,7 +301,7 @@ public partial class Menu
             var kept = l.Resumed && (seat.Reserved is null || i == 0);
             if (choices[i].Ask is null || !Leads && !(claim && i == 0) || kept) drop.SetItemDisabled(i, !choices[i].On);
         }
-        if (net is null) drop.SetItemTooltip(far, "Pour jouer à plusieurs : « Héberger une partie », au menu principal.");
+        if (net is null) drop.SetItemTooltip(far, "Pour jouer à plusieurs : « Multijoueur », au menu principal.");
         drop.Disabled = !Leads && !claim;
         if (claim) drop.TooltipText = "Choisis « Toi » pour prendre cette place.";
         return drop;

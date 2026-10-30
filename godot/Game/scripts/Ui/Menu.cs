@@ -16,7 +16,7 @@ public partial class Menu : Node
     /// <summary>The game's version, as in package.json (which the web version reads at build time).</summary>
     public const string Version = "0.3.0";
 
-    enum Screen { Home, Modes, Lobby, Options, Controls, Credits, Join }
+    enum Screen { Home, Modes, Lobby, Options, Controls, Credits, Multiplayer }
 
     /// <summary>Width of the panel: the home column, the wider panel of the other screens, a little more for the lobby's six rows.</summary>
     const float HomeWidth = 420, Width = 780, LobbyWidth = 860;
@@ -117,7 +117,7 @@ public partial class Menu : Node
             "controls" => Screen.Controls,
             "credits" => Screen.Credits,
             "options" => Screen.Options,
-            "join" => Screen.Join,
+            "multiplayer" or "join" => Screen.Multiplayer,
             "skirmish" => Screen.Lobby,
             var m when m.StartsWith("lobby-", StringComparison.Ordinal) => Screen.Lobby,
             _ => Screen.Home,
@@ -234,7 +234,7 @@ public partial class Menu : Node
         Fit();
     }
 
-    static float WidthOf(Screen s) => s switch { Screen.Home => HomeWidth, Screen.Lobby => LobbyWidth, _ => Width };
+    static float WidthOf(Screen s) => s switch { Screen.Home => HomeWidth, Screen.Lobby or Screen.Multiplayer => LobbyWidth, _ => Width };
 
     /// <summary>Esc, or "Retour": from the lobby to the modes, from anywhere else home; the entry that led there has the focus again.</summary>
     void Back()
@@ -296,7 +296,7 @@ public partial class Menu : Node
             case Screen.Home: Home(); break;
             case Screen.Modes: ModeCards(); break;
             case Screen.Lobby: LobbyScreen(); break;
-            case Screen.Join: JoinScreen(); break;
+            case Screen.Multiplayer: MultiplayerScreen(); break;
             case Screen.Options:
                 Titled("Options", "Les changements s'appliquent tout de suite.");
                 body.AddChild(Options.Body(true));
@@ -350,8 +350,7 @@ public partial class Menu : Node
             nav.AddChild(indent);
         }
         nav.AddChild(Nav("Nouvelle partie", () => OpenModes(false), save is null, "new"));
-        nav.AddChild(Nav("Héberger une partie", () => OpenModes(true), key: "host"));
-        nav.AddChild(Nav("Rejoindre", () => Open(Screen.Join, "join"), key: "join"));
+        nav.AddChild(Nav("Multijoueur", () => Open(Screen.Multiplayer, "multi"), key: "multi"));
         nav.AddChild(Nav("Options", () => Open(Screen.Options, "options"), key: "options"));
         nav.AddChild(Nav("Commandes", () => Open(Screen.Controls, "controls"), key: "controls"));
         nav.AddChild(Nav("Crédits", () => Open(Screen.Credits, "credits"), key: "credits"));

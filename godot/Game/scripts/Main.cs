@@ -26,10 +26,13 @@ public partial class Main : Node
         Instance = this;
         RenderingServer.SetDefaultClearColor(Palette.Bg);
         Dev.Parse(OS.GetCmdlineUserArgs());
-        // A headless service (a dedicated server): no window needed, nothing to forge, draw or warm up, only the network.
+        // A headless service (a dedicated server; the online server and its measure, without even a game):
+        // no window needed, nothing to forge, draw or warm up, only the network.
         if (Dev.Service)
         {
-            Network.Session.RunServer();
+            if (Dev.Relay) Network.RelayServer.Run();
+            else if (Dev.Probe) Network.Probe.Run();
+            else Network.Session.RunServer();
             return;
         }
         // A capture window must not take the keyboard from whoever is typing elsewhere.
@@ -89,12 +92,14 @@ public partial class Main : Node
     /// <summary>
     /// Once the game is asked to quit, the process ends within a few seconds whatever happens
     /// in the engine's shutdown, so that a terminal never has to interrupt it. Nothing is lost:
-    /// the settings and the campaign are saved as they change.
+    /// the settings and the campaign are saved as they change. A game over the network is left
+    /// first: its players, or its host, hear of it at once rather than when the connection times out.
     /// </summary>
     void EnsureExit()
     {
         if (exiting) return;
         exiting = true;
+        Network.Session.Current?.Leave();
         new System.Threading.Thread(() =>
         {
             System.Threading.Thread.Sleep(3000);
