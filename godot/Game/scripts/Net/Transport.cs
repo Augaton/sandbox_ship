@@ -8,7 +8,7 @@ using SandboxShip.Sim.Net;
 
 namespace SandboxShip.Network;
 
-public sealed class Transport
+public sealed class Transport : ITransport
 {
     /// <summary>A player's peer number for its host.</summary>
     public const int HostPeer = 1;
@@ -17,7 +17,9 @@ public sealed class Transport
     readonly Queue<(int Peer, bool Up)> changes = [];
 
     /// <summary>Bytes of messages sent to each peer so far, before compression.</summary>
-    public readonly Dictionary<int, long> Sent = [];
+    public Dictionary<int, long> Sent { get; } = [];
+    /// <summary>A host listening by itself holds as long as this machine does.</summary>
+    public string? Lost => null;
     /// <summary>Bytes that left on the wire since the last call, compressed: ENet's own count.</summary>
     public double PopWireBytes() => Open ? peer.Host.PopStatistic(ENetConnection.HostStatistic.SentData) : 0;
 
@@ -91,11 +93,17 @@ public sealed class Transport
     {
         var bytes = Protocol.Encode(m);
         peer.SetTargetPeer(to);
-        // Snapshots, battle and galaxy, are replaced by the next one: unreliable. Everything else, the events that must not be lost included, is reliable.
-        peer.TransferMode = m is Message.State or Message.Map ? MultiplayerPeer.TransferModeEnum.UnreliableOrdered : MultiplayerPeer.TransferModeEnum.Reliable;
+        peer.TransferMode = Reliable(m) ? MultiplayerPeer.TransferModeEnum.Reliable : MultiplayerPeer.TransferModeEnum.UnreliableOrdered;
         peer.PutPacket(bytes);
         Sent[to] = Sent.GetValueOrDefault(to) + bytes.Length;
     }
+
+    /// <summary>
+    /// Snapshots, battle and galaxy, are replaced by the next one: unreliable (and in order).
+    /// Everything else, the events that must not be lost included, is reliable. Over the online
+    /// server too (RelayTransport).
+    /// </summary>
+    public static bool Reliable(Message m) => m is not (Message.State or Message.Map);
 
     /// <summary>Sends what waits now, before a connection closes on it.</summary>
     public void Flush()

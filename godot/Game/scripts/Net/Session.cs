@@ -2,6 +2,8 @@
 // Main, kept across screens, that polls the connection every frame. Three roles: a host who
 // plays (its lobby in the menu, its battle in the battle screen), a dedicated server (the
 // same, with no seat, no screen and no window: `--server`), and a player who joined either.
+// The connection is ENet straight between the machines (Transport), or the online server's
+// relay (RelayTransport: "Héberger en ligne", and the games it lists); the rest is the same.
 // The host keeps the lobby (LobbyRoom) and the battle (BattleHost); a player keeps copies.
 // The battle half is in Session.Battle.cs, the campaign half (a host who plays only) in
 // Session.Campaign.cs; the messages in Sim/Net/Protocol.cs.
@@ -27,6 +29,8 @@ public sealed partial class Session : Node
 
     /// <summary>The player's name: --name, or the options'.</summary>
     public static string PlayerName => LobbyRoom.CleanName(Dev.Name ?? Settings.Current.PlayerName);
+    /// <summary>The online server's address: --master, or the options'.</summary>
+    public static string MasterAddress => Dev.Master ?? Settings.Current.MasterAddress;
 
     public Role As { get; private set; }
     /// <summary>The lobby and who is in it; for a player, null until the host welcomes it.</summary>
@@ -42,8 +46,13 @@ public sealed partial class Session : Node
     /// <summary>This machine has the host's rights over the lobby: the host, or a dedicated server's leader.</summary>
     public bool Leads => Room is not null && Room.Leader == Me;
     public bool Hosting => As != Role.Client;
+    /// <summary>Played through the online server: nobody opens a port, and a host's game is listed there while it lasts.</summary>
+    public bool Online => relay is not null;
 
-    Transport net = null!;
+    ITransport net = null!;
+    /// <summary>The same connection, when it goes through the online server; a dedicated server's entry there (--public).</summary>
+    RelayTransport? relay;
+    MasterListing? listing;
     BeaconCaller? caller;
     /// <summary>Host: peers connected that have not said Hello yet, and since when.</summary>
     readonly Dictionary<int, double> strangers = [];
@@ -51,13 +60,13 @@ public sealed partial class Session : Node
     /// <summary>This machine's player's name; for a player, the address it joined.</summary>
     string name = "", target = "";
 
-    /// <summary>Hosts a game of a lobby, playing in its host seat; the reason it cannot, or null.</summary>
-    public static string? Host(Lobby lobby, int port)
+    /// <summary>Hosts a game of a lobby, playing in its host seat, on a port or (online) through the online server; the reason it cannot, or null.</summary>
+    public static string? Host(Lobby lobby, int port, bool online = false)
     {
-        var s = new Session { As = Role.Host, Port = port, name = PlayerName };
+        var s = new Session { As = Role.Host, Port = online ? 0 : port, name = PlayerName };
         s.Game = $"Partie de {s.name}";
         s.Room = new LobbyRoom(lobby) { Members = [new Member(Lobby.Host, s.name)] };
-        return s.Listen();
+        return online ? s.ListenOnline() : s.Listen();
     }
 
     /// <summary>A dedicated server of a mode: nobody plays on it, the first player in leads.</summary>
@@ -78,7 +87,12 @@ public sealed partial class Session : Node
         // The campaign needs a host who plays: its galaxy waits for its players' choices.
         var error = Dev.Campaign ? "La campagne se joue sur la machine d'un joueur : « Héberger une partie »."
             : Serve(DevMode, Dev.Name ?? "Serveur Sandbox Ship", Dev.Port);
-        if (error is null) return;
+        if (error is null)
+        {
+            // --public: listed by the online server too, joined at this machine's address.
+            if (Dev.Public is { } address) Current!.listing = new MasterListing(MasterAddress, address);
+            return;
+        }
         GD.PrintErr(error);
         Main.Instance.QuitGame();
     }
@@ -100,6 +114,30 @@ public sealed partial class Session : Node
         caller = new BeaconCaller();
         Begin();
         Log($"« {Game} » à l'écoute sur le port {Port}");
+        return null;
+    }
+
+    /// <summary>A host's game listed on the online server: it opens there, and its players come through it.</summary>
+    string? ListenOnline()
+    {
+        relay = RelayTransport.Host(MasterAddress, Announce(Room!), out var error);
+        if (relay is null) return error;
+        net = relay;
+        Status = $"Inscription au serveur en ligne {MasterAddress}…";
+        Begin();
+        Log($"« {Game} » ouverte par le serveur en ligne {MasterAddress}");
+        return null;
+    }
+
+    /// <summary>Joins a game the online server lists, through it; the menu follows the connection as for a host joined at its address.</summary>
+    public static string? JoinOnline(int room, string game)
+    {
+        var s = new Session { As = Role.Client, name = PlayerName, Me = -1, target = $"« {game} » par le serveur en ligne" };
+        s.Status = $"Connexion à {s.target}…";
+        s.relay = RelayTransport.Join(MasterAddress, room, out var error);
+        if (s.relay is null) return error;
+        s.net = s.relay;
+        s.Begin();
         return null;
     }
 
@@ -134,7 +172,23 @@ public sealed partial class Session : Node
         }
         else
         {
+            if (net.Lost is { } lost)
+            {
+                Close(lost);
+                return;
+            }
             if (battle is null && campaign is null && Room is { } room) caller?.Tick(delta, () => Announce(room));
+            if (Room is { } listed)
+            {
+                relay?.Advertise(Announce(listed), InBattle || InCampaign);
+                listing?.Tick(clock, Announce(listed), InBattle);
+            }
+            if (relay is { Room: > 0 } && Status.Length > 0)
+            {
+                Status = "";
+                Log($"Partie inscrite au serveur en ligne (n° {relay.Room})");
+                Changes++;
+            }
             foreach (var (peer, since) in strangers.ToList()) if (clock - since > HelloWait) Refuse(peer, "Pas de réponse.");
         }
         BattleFrame(delta);
@@ -146,7 +200,7 @@ public sealed partial class Session : Node
     {
         var seats = room.Lobby.Seats;
         return new LanGame(Protocol.Version, Ui.Menu.Version, Game, room.Lobby.Mode, seats.Count(s => s.Kind == SeatKind.Human),
-            seats.Count(s => s.Kind is SeatKind.Human or SeatKind.Open), Port);
+            seats.Count(s => s.Kind is SeatKind.Human or SeatKind.Open), Port, As == Role.Server);
     }
 
     public void Send(Message m)
@@ -327,6 +381,7 @@ public sealed partial class Session : Node
         (campaign, map, fight, fought, front, frontOpts) = (null, null, null, null, null, null);
         net.Close();
         caller?.Close();
+        listing?.Close();
         Changes++;
         QueueFree();
     }

@@ -32,6 +32,17 @@ public partial class Main : Node
             Network.Session.RunServer();
             return;
         }
+        // The online server, and its measure: the same, without even a game.
+        if (Dev.Relay)
+        {
+            Network.RelayServer.Run();
+            return;
+        }
+        if (Dev.Probe)
+        {
+            Network.Probe.Run();
+            return;
+        }
         // A capture window must not take the keyboard from whoever is typing elsewhere.
         if (Dev.Shot is not null) DisplayServer.WindowSetFlag(DisplayServer.WindowFlags.NoFocus, true);
         loading = new Ui.Loading();
@@ -88,12 +99,14 @@ public partial class Main : Node
     /// <summary>
     /// Once the game is asked to quit, the process ends within a few seconds whatever happens
     /// in the engine's shutdown, so that a terminal never has to interrupt it. Nothing is lost:
-    /// the settings and the campaign are saved as they change.
+    /// the settings and the campaign are saved as they change. A game over the network is left
+    /// first: its players, or its host, hear of it at once rather than when the connection times out.
     /// </summary>
     void EnsureExit()
     {
         if (exiting) return;
         exiting = true;
+        Network.Session.Current?.Leave();
         new System.Threading.Thread(() =>
         {
             System.Threading.Thread.Sleep(3000);

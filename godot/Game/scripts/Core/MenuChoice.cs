@@ -44,6 +44,11 @@ public sealed record MenuChoice
 /// once everyone is ready), --join=ADDRESS:PORT (joins it, and is ready once seated), --server (a dedicated server of --mode, with
 /// Godot's --headless), --port=N, --name=X (the player's, or the server's game), --order=SECONDS (the player's ships attack-move to
 /// the middle of the map once the battle is that old), --pause=SECONDS (then the player pauses the game for everyone).
+/// Online server: --relay (runs it, with Godot's --headless, on --port, 27029 by default), --master=HOST:PORT (the online server the
+/// game uses, instead of the options'), --online (with --host: hosts through the online server), --join=online (opens the multiplayer
+/// screen, picks the first game the online server relays, and joins it), --public[=ADDRESS] (with --server: listed by the online server,
+/// at ADDRESS or else where it sees the server from), --beacon=PORT (the local network's beacons, instead of 24681), --probe (measures
+/// round trips directly on --port and through --master, then quits).
 /// Campaign over the network (--host --mode=campaign, --join): --speed=N (the galaxy's speed, set by the host), --attack=SECONDS,...
 /// (at those galaxy ages, the player's fleets leave for the nearest planet of another human), --raid=SECONDS,... (for the Errants'
 /// planet), --choose=command|auto,... (the battle prompts answered in turn, the last answer repeated), --truce=SECONDS (a truce
@@ -66,9 +71,9 @@ public static class Dev
     public static int Seats;
     public static int[] Teams = [];
     public static BattleMode Mode = BattleMode.Standard;
-    public static bool Host, Server;
-    public static string? Join, Name;
-    public static int Port = Sim.Net.Protocol.DefaultPort;
+    public static bool Host, Server, Relay, Online, Probe;
+    public static string? Join, Name, Master, Public;
+    public static int Port = Sim.Net.Protocol.DefaultPort, Beacon = Sim.Net.Protocol.BeaconPort;
     public static double Order, Pause;
     public static bool Campaign, Resume, Watch;
     public static double Speed, Truce, Leave;
@@ -80,6 +85,7 @@ public static class Dev
 
     public static void Parse(IEnumerable<string> args)
     {
+        var port = false;
         foreach (var arg in args)
         {
             var (key, value) = arg.Split('=', 2) is [var k, var v] ? (k, v) : (arg, "");
@@ -104,7 +110,13 @@ public static class Dev
                 case "--server": Server = true; break;
                 case "--join": Join = value; break;
                 case "--name": Name = value; break;
-                case "--port": Port = int.Parse(value); break;
+                case "--port": (Port, port) = (int.Parse(value), true); break;
+                case "--relay": Relay = true; break;
+                case "--master": Master = value; break;
+                case "--online": Online = true; break;
+                case "--public": Public = value; break;
+                case "--beacon": Beacon = int.Parse(value); break;
+                case "--probe": Probe = true; break;
                 case "--order": Order = double.Parse(value, System.Globalization.CultureInfo.InvariantCulture); break;
                 case "--pause": Pause = double.Parse(value, System.Globalization.CultureInfo.InvariantCulture); break;
                 case "--speed": Speed = double.Parse(value, System.Globalization.CultureInfo.InvariantCulture); break;
@@ -121,5 +133,6 @@ public static class Dev
                 case "--snap": Snap = value; break;
             }
         }
+        if (Relay && !port) Port = Sim.Net.Relay.DefaultPort;
     }
 }

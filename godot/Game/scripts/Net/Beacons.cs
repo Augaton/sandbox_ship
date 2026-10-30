@@ -1,7 +1,9 @@
 // Games on the local network: a host calls out every second, by UDP broadcast on the beacon
-// port (Protocol.BeaconPort), with its name, mode, seats and game port; the join screen
-// listens there and lists what it hears. A firewall may stop them: joining by address still works.
+// port (Protocol.BeaconPort, or --beacon), with its name, mode, seats and game port; the
+// multiplayer screen listens there and lists what it hears. A firewall may stop them: joining by
+// address still works.
 using Godot;
+using SandboxShip.Core;
 using SandboxShip.Sim.Net;
 
 namespace SandboxShip.Network;
@@ -15,7 +17,7 @@ public sealed class BeaconCaller
     public BeaconCaller()
     {
         udp.SetBroadcastEnabled(true);
-        udp.SetDestAddress("255.255.255.255", Protocol.BeaconPort);
+        udp.SetDestAddress("255.255.255.255", Dev.Beacon);
     }
 
     public void Tick(double dt, Func<LanGame> game)
@@ -29,7 +31,7 @@ public sealed class BeaconCaller
     public void Close() => udp.Close();
 }
 
-/// <summary>The join screen's ear on the beacon port: the games heard in the last few seconds.</summary>
+/// <summary>The multiplayer screen's ear on the beacon port: the games heard in the last few seconds.</summary>
 public sealed class BeaconListener
 {
     /// <summary>A game not heard of for this long is gone.</summary>
@@ -47,8 +49,8 @@ public sealed class BeaconListener
 
     void Listen(double now)
     {
-        var ok = udp.Bind(Protocol.BeaconPort, "0.0.0.0") == Error.Ok;
-        Problem = ok ? null : $"Recherche impossible pour l'instant : le port {Protocol.BeaconPort} est pris par un autre jeu de cette machine.";
+        var ok = udp.Bind(Dev.Beacon, "0.0.0.0") == Error.Ok;
+        Problem = ok ? null : $"Recherche impossible pour l'instant : le port {Dev.Beacon} est pris par un autre jeu de cette machine.";
         retry = now + 1;
     }
 
