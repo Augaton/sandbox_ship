@@ -24,6 +24,10 @@ public static class Vision
 
     static int EyeKey(int cx, int cy) => ((cx + 64) << 10) | (cy + 64);
 
+    /// <summary>Bins of eyes, emptied at every use. Per thread: worlds run in parallel (tests, the warm-up).</summary>
+    [ThreadStatic] static Dictionary<int, List<Eye>>? eyes;
+    static Dictionary<int, List<Eye>> Eyes => eyes ??= [];
+
     /// <summary>How far an entity sees; hardpoints see through their parent.</summary>
     public static double VisionOf(Entity e) => e.Kind switch
     {
@@ -64,11 +68,13 @@ public static class Vision
         var all = world.Entities;
         // Eyes binned in cells as wide as the longest sight: a target only checks the 3x3 cells
         // around it, and stops at the first eye that sees it. Each eye keeps its sight, looked
-        // up once rather than for every target it is tested against.
-        var eyes = new Dictionary<int, List<Eye>>();
+        // up once rather than for every target it is tested against. The bins and each side's
+        // set of what it sees are kept from one update to the next: no garbage.
+        var eyes = Eyes;
         foreach (var side in world.Factions.Keys)
         {
-            var visible = new HashSet<int>();
+            var visible = world.Visible.TryGetValue(side, out var v) ? v : [];
+            visible.Clear();
             var seen = world.Seen.TryGetValue(side, out var s) ? s : [];
             foreach (var list in eyes.Values) list.Clear();
             // A side sees through its allies' eyes; what it and they own needs no eye at all.
