@@ -3,7 +3,9 @@
 # kept as the run's artifacts. Then both archives are published:
 # - a push on main or dev replaces that branch's pre-release (main-build, dev-build), whose
 #   archives keep the same names, so the same download addresses, from one commit to the next;
-# - a tag vX.Y.Z makes the version's release, once the version in the game matches the tag.
+# - a tag vX.Y.Z makes the version's release, once the version in the game matches the tag,
+#   and goes to itch.io if the repository names the game there (see the itch job).
+# Before anything is published, both exports are started without a window, each on its system.
 # Pull requests publish nothing.
 name: Build
 
@@ -108,6 +110,16 @@ jobs:
           test -x ../build/linux/SandboxShip.x86_64 && test -d ../build/linux/data_Game_linuxbsd_x86_64
           test -f ../build/windows/SandboxShip.exe && test -d ../build/windows/data_Game_windows_x86_64
 
+      # The export starts, without a window: a battle and the campaign play a few hundred
+      # frames each, then it quits by itself. "Capture" in its log says it got that far.
+      - name: Démarrage de l'export Linux
+        working-directory: godot/build/linux
+        run: |
+          for start in battle campaign; do
+            timeout 300 ./SandboxShip.x86_64 --headless --log-file "$RUNNER_TEMP/smoke-$start.log" -- --start=$start --shot="$RUNNER_TEMP/smoke.png" --frames=300
+            grep -q "^Capture" "$RUNNER_TEMP/smoke-$start.log" || { cat "$RUNNER_TEMP/smoke-$start.log"; echo "::error::l'export Linux n'a pas tenu jusqu'au bout ($start)"; exit 1; }
+          done
+
       # Each archive holds one folder, the executable and its data next to it; the Linux one
       # also serves a dedicated or online server (the Pelican egg takes it as it is).
       - name: Archives
@@ -131,10 +143,38 @@ jobs:
           path: dist/*
           if-no-files-found: error
 
+  # The Windows export, started on Windows itself, as the Linux one above.
+  smoke-windows:
+    name: Démarrage de l'export Windows
+    needs: export
+    runs-on: windows-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: sandbox-ship
+          path: dist
+      - name: Bataille et campagne sans fenêtre
+        shell: pwsh
+        run: |
+          $zip = Get-ChildItem dist -Filter "*-windows-x86_64.zip" | Select-Object -First 1
+          Expand-Archive $zip.FullName -DestinationPath game
+          $exe = Get-ChildItem game -Recurse -Filter SandboxShip.exe | Select-Object -First 1
+          foreach ($start in "battle", "campaign") {
+            $log = Join-Path $env:RUNNER_TEMP "smoke-$start.log"
+            $p = Start-Process -FilePath $exe.FullName -WorkingDirectory $exe.DirectoryName -Wait -PassThru `
+              -ArgumentList "--headless", "--log-file", "`"$log`"", "--", "--start=$start", "--shot=smoke.png", "--frames=300"
+            if (-not (Select-String -Path $log -Pattern "^Capture" -Quiet)) {
+              Get-Content $log
+              Write-Error "l'export Windows n'a pas tenu jusqu'au bout ($start, code $($p.ExitCode))"
+              exit 1
+            }
+          }
+
   release:
     name: Publication
     if: github.event_name != 'pull_request' && (startsWith(github.ref, 'refs/tags/v') || github.ref == 'refs/heads/main' || github.ref == 'refs/heads/dev')
-    needs: export
+    needs: [export, smoke-windows]
     runs-on: ubuntu-24.04
     permissions:
       contents: write
@@ -160,3 +200,31 @@ jobs:
           gh release create "$tag" dist/* --repo "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" \
             --prerelease --latest=false --title "Sandbox Ship, build de $GITHUB_REF_NAME" \
             --notes "Build automatique de \`$GITHUB_REF_NAME\` au commit ${GITHUB_SHA::7}, refait à chaque push sur cette branche. Les versions publiées sont les releases vX.Y.Z."
+
+  # A version also goes to itch.io, once the game's page is named in the repository's variable
+  # ITCH_GAME ("user/game") and butler's key is in the secret BUTLER_API_KEY. Without them,
+  # nothing happens.
+  itch:
+    name: Publication sur itch.io
+    if: startsWith(github.ref, 'refs/tags/v') && vars.ITCH_GAME != ''
+    needs: [export, smoke-windows]
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: sandbox-ship
+          path: dist
+      - name: butler
+        env:
+          BUTLER_API_KEY: ${{ secrets.BUTLER_API_KEY }}
+          ITCH_GAME: ${{ vars.ITCH_GAME }}
+        run: |
+          if [ -z "$BUTLER_API_KEY" ]; then echo "::warning::secret BUTLER_API_KEY absent : rien n'est envoyé sur itch.io"; exit 0; fi
+          curl -fsSL --retry 3 -o butler.zip https://broth.itch.zone/butler/linux-amd64/LATEST/archive/default
+          unzip -q butler.zip -d butler && chmod +x butler/butler
+          mkdir -p linux windows
+          tar -xzf dist/*-linux-x86_64.tar.gz -C linux --strip-components=1
+          unzip -q dist/*-windows-x86_64.zip -d windows-zip && mv windows-zip/*/* windows/
+          v="${GITHUB_REF_NAME#v}"
+          ./butler/butler push linux "$ITCH_GAME:linux" --userversion "$v"
+          ./butler/butler push windows "$ITCH_GAME:windows" --userversion "$v"

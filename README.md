@@ -93,6 +93,15 @@ garde les archives dans le run. Elle les publie ensuite :
   numéro ;
 - une pull request ne publie rien.
 
+Avant toute publication, les deux exports sont lancés sans fenêtre, chacun sur son système
+(Linux, puis Windows sur une machine Windows de GitHub) : une bataille et la campagne doivent
+tourner quelques centaines d'images et s'arrêter d'elles-mêmes.
+
+Une version part aussi sur itch.io si le dépôt nomme la page du jeu dans la variable
+`ITCH_GAME` (par exemple `augaton/sandbox-ship`, dans Settings, Secrets and variables, Actions,
+onglet Variables) et que la clé de butler est dans le secret `BUTLER_API_KEY` (créée sur
+<https://itch.io/user/settings/api-keys>). Les canaux sont `linux` et `windows`.
+
 `dev` reçoit le travail en cours, `main` les versions publiées. Pour publier une version :
 
 1. Sur `dev`, mettre le numéro dans `godot/Game/project.godot` (`config/version`),
