@@ -72,9 +72,12 @@ public static class HudKit
     }
 
     /// <summary>Changes a label's color, only when it differs: a theme change lays the label out again.</summary>
+    /// <summary>Made once: a string where Godot wants a StringName makes a new one at every call, and Paint runs for every line of the panels ten times a second.</summary>
+    static readonly StringName FontColor = "font_color";
+
     public static void Paint(Label l, Color c)
     {
-        if (l.GetThemeColor("font_color") != c) l.AddThemeColorOverride("font_color", c);
+        if (l.GetThemeColor(FontColor) != c) l.AddThemeColorOverride(FontColor, c);
     }
 
     public static HBoxContainer Row(int gap) => Gap(new HBoxContainer(), gap);

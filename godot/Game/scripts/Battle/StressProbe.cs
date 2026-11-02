@@ -17,11 +17,12 @@ public sealed class StressProbe
     readonly BattleScreen scene;
     readonly Rid main, fog;
     readonly List<double> frames = [];
-    readonly Dictionary<string, double> sections = [], worst = [];
+    readonly Dictionary<string, double> sections = [], worst = [], bytes = [];
     double process, physics, gpu, fogGpu, renderCpu, drawCalls, objects, primitives, entities;
     ulong last;
     int frame;
     long alloc0;
+    TimeSpan pause0;
     int gc0, gc1, gc2;
     bool measuring, done;
     /// <summary>The view measured: held whatever the pointer or the wheel do meanwhile.</summary>
@@ -40,15 +41,19 @@ public sealed class StressProbe
 
     public static void Detach() => Current = null;
 
-    public static long Start() => Current is { measuring: true } ? Stopwatch.GetTimestamp() : 0;
+    /// <summary>When a part of the frame started, and how much the main thread had allocated by then.</summary>
+    public readonly record struct Mark(long Ticks, long Bytes);
 
-    /// <summary>Adds the time since `t0` (from Start) to a named part of the frame.</summary>
-    public static void Stop(string name, long t0)
+    public static Mark Start() => Current is { measuring: true } ? new(Stopwatch.GetTimestamp(), GC.GetAllocatedBytesForCurrentThread()) : default;
+
+    /// <summary>Adds the time and the memory allocated since `m` (from Start) to a named part of the frame.</summary>
+    public static void Stop(string name, Mark m)
     {
-        if (Current is not { measuring: true } p || t0 == 0) return;
-        var ms = (Stopwatch.GetTimestamp() - t0) * 1000.0 / Stopwatch.Frequency;
+        if (Current is not { measuring: true } p || m.Ticks == 0) return;
+        var ms = (Stopwatch.GetTimestamp() - m.Ticks) * 1000.0 / Stopwatch.Frequency;
         p.sections[name] = p.sections.GetValueOrDefault(name) + ms;
         p.worst[name] = Math.Max(p.worst.GetValueOrDefault(name), ms);
+        p.bytes[name] = p.bytes.GetValueOrDefault(name) + GC.GetAllocatedBytesForCurrentThread() - m.Bytes;
     }
 
     /// <summary>Puts the camera back where the run started, after the controls had their turn.</summary>
@@ -82,6 +87,7 @@ public sealed class StressProbe
         {
             measuring = true;
             alloc0 = GC.GetTotalAllocatedBytes();
+            pause0 = GC.GetTotalPauseDuration();
             (gc0, gc1, gc2) = (GC.CollectionCount(0), GC.CollectionCount(1), GC.CollectionCount(2));
         }
         // Logged just before a capture run quits.
@@ -118,9 +124,10 @@ public sealed class StressProbe
         GD.Print($"  frame ms: avg {frames.Average():F2}, p50 {sorted[n / 2]:F2}, p95 {sorted[(int)(n * 0.95)]:F2}, p99 {sorted[(int)(n * 0.99)]:F2}, worst {sorted[^1]:F2}; over 33 ms: {frames.Count(f => f > 33.4)}");
         GD.Print($"  process (worst of each second) {process / n:F2} ms, physics {physics / n:F2} ms, render cpu {renderCpu / n:F2} ms, gpu {gpu / n:F2} ms (fog mask {fogGpu / n:F2})");
         GD.Print($"  draw calls {drawCalls / n:F0}, objects {objects / n:F0}, primitives {primitives / n:F0}");
-        GD.Print($"  allocated {(GC.GetTotalAllocatedBytes() - alloc0) / (double)n / 1024:F1} KiB/frame, GCs gen0 {GC.CollectionCount(0) - gc0}, gen1 {GC.CollectionCount(1) - gc1}, gen2 {GC.CollectionCount(2) - gc2}");
+        GD.Print($"  allocated {(GC.GetTotalAllocatedBytes() - alloc0) / (double)n / 1024:F1} KiB/frame, GCs gen0 {GC.CollectionCount(0) - gc0}, gen1 {GC.CollectionCount(1) - gc1}, gen2 {GC.CollectionCount(2) - gc2}, paused {(GC.GetTotalPauseDuration() - pause0).TotalMilliseconds:F1} ms in all");
         GD.Print("  average ms: " + string.Join(", ", sections.OrderByDescending(s => s.Value).Select(s => $"{s.Key} {s.Value / n:F2}")));
         GD.Print("  worst ms: " + string.Join(", ", worst.OrderByDescending(s => s.Value).Select(s => $"{s.Key} {s.Value:F1}")));
+        GD.Print("  allocated KiB/frame: " + string.Join(", ", bytes.Where(s => s.Value > 0).OrderByDescending(s => s.Value).Select(s => $"{s.Key} {s.Value / n / 1024:F2}")));
         int anims = 0, playing = 0, shown = 0;
         void Walk(Node node)
         {

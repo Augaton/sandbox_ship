@@ -290,6 +290,20 @@ tests de `FixtureTests` et `CrossTests` les listent.
     pas galactique, 7 ms au 99e centile avec des batailles résolues seules ; 60 Kio par pas, surtout le LINQ de l'IA galactique) ;
     le découpage des instantanés sous le MTU : un delta de grosse bataille fait encore une dizaine de fragments, mais un instantané
     perdu ne coûte plus qu'une image glissée et un delta un peu plus gros ensuite.
+- Performances, deuxième passe (2026-11-02, après les nouvelles armes et l'IA des vaisseaux), mesurée sur un export release
+  (`--start=stress`, que la sonde détaille maintenant aussi en allocations par partie et en pauses du ramasse-miettes) :
+  - Mémoire : les sprites ne gardent plus leurs pixels après le chargement (les tailles utiles sont calculées avant) ; la mémoire
+    de Godot passe de 160 à 63 Mio au menu.
+  - Déchets : 23 → 10,5 Kio par image dans la bataille de mesure, 10 → 6 collectes en 14 s. Les étincelles des touches sont une
+    simple liste au lieu de deux fonctions chacune ; le cache des animations a une clé sans chaîne ; deux `StringName` faits une
+    fois (« font_color » à chaque ligne des panneaux, « default » à chaque image d'une destruction) ; les boutons de production ne
+    changent que si ce qu'ils montrent change, et leurs lignes de prix sont faites une fois.
+  - IA : les zones de mines sont calculées une fois par réflexion au lieu d'une fois par champ d'astéroïdes.
+  - Fenêtre au second plan : 30 images/s, la simulation garde son pas.
+  - Mesuré et laissé : la simulation (1,5 à 1,8 ms par pas, dont 0,45 de ciblage ; ses 5 Kio par pas sont les tirs eux-mêmes) ;
+    le menu (0,7 ms par image pour la bataille du fond) ; la campagne (0,3 à 0,4 ms par pas). La taille de la première génération
+    du ramasse-miettes ne se règle que par variable d'environnement : `System.GC.Gen0Size` et `GCgen0size` dans la configuration
+    du projet restent sans effet. Les pointes d'image isolées suivent surtout la charge de la machine.
 
 ## Ce qui change de technique
 

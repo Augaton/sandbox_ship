@@ -88,7 +88,15 @@ public partial class BattleScreen
     DrawCanvas overlay = null!, lod = null!, fx = null!, trails = null!, transientsFx = null!, transientsTop = null!;
     Puffs debris = null!, smoke = null!;
     readonly List<Transient> fxList = [], topList = [];
-    int sparks, callouts;
+    int callouts;
+    /// <summary>
+    /// Sparks of the hits, drawn from a plain list rather than as moments of their own: a big
+    /// battle has a hundred a second, and a moment costs a few objects to make.
+    /// </summary>
+    readonly List<(double X, double Y, double Start)> sparkList = [];
+    const double SparkMs = 160;
+    /// <summary>The one animation of a strip's frames, named once: a string where Godot wants a StringName makes a new one at every call.</summary>
+    static readonly StringName DefaultAnim = "default";
     /// <summary>When each shield last took a hit, by entity id: a bubble lights up around it.</summary>
     readonly Dictionary<int, double> shieldFlash = [];
     /// <summary>Highest projectile id already heard: newer ones are new shots.</summary>
@@ -136,7 +144,11 @@ public partial class BattleScreen
         trails = Layer(Depth.Ship - 1, "trails", DrawTrails);
         lod = Layer(Depth.Shot, "lod", DrawLod);
         fx = Layer(Depth.Fx, "effects", DrawEffects);
-        transientsFx = Layer(Depth.Fx, "transients", g => PaintTransients(g, fxList));
+        transientsFx = Layer(Depth.Fx, "transients", g =>
+        {
+            PaintTransients(g, fxList);
+            PaintSparks(g);
+        });
         transientsTop = Layer(Depth.Overlay, "transients", g => PaintTransients(g, topList));
         overlay = Layer(Depth.Overlay, "overlay", DrawOverlay);
         BuildModeView();
@@ -634,11 +646,11 @@ public partial class BattleScreen
         if (views.TryGetValue(id, out var v) && v.Look.Destruction is string anim)
         {
             var frames = Assets.Anim(anim, false);
-            var count = frames.GetFrameCount("default");
+            var count = frames.GetFrameCount(DefaultAnim);
             var (rotation, scale) = (v.Root.Rotation, v.Scale);
             Add(fxList, count * 1000.0 / 12, (g, k) =>
             {
-                var tex = frames.GetFrameTexture("default", Math.Min(count - 1, (int)(k * count)));
+                var tex = frames.GetFrameTexture(DefaultAnim, Math.Min(count - 1, (int)(k * count)));
                 Draw.Sprite(g, tex, x, y, rotation, scale, Colors.White);
             });
             return;
@@ -657,10 +669,27 @@ public partial class BattleScreen
 
     void Spark(double x, double y)
     {
-        if (sparks >= MaxSparks || Zoom < LodSimple) return;
-        sparks++;
+        if (sparkList.Count >= MaxSparks || Zoom < LodSimple) return;
+        sparkList.Add((x, y, Now));
+    }
+
+    /// <summary>Each spark shrinks and fades out; the spent ones are dropped first, keeping the others in order.</summary>
+    void PaintSparks(CanvasItem g)
+    {
+        var now = Now;
+        var kept = 0;
+        for (var i = 0; i < sparkList.Count; i++)
+        {
+            if (now - sparkList[i].Start < SparkMs) sparkList[kept++] = sparkList[i];
+        }
+        sparkList.RemoveRange(kept, sparkList.Count - kept);
+        if (sparkList.Count == 0) return;
         var tex = Assets.Frame("ph-spark");
-        Add(fxList, 160, (g, k) => Draw.Sprite(g, tex, x, y, 0, 1.5 - k, new Color(1, 1, 1, (float)(1 - k))), () => sparks--);
+        foreach (var (x, y, start) in sparkList)
+        {
+            var k = Math.Max(0, (now - start) / SparkMs);
+            Draw.Sprite(g, tex, x, y, 0, 1.5 - k, new Color(1, 1, 1, (float)(1 - k)));
+        }
     }
 
     // Every frame: what abilities do, where they act; overlays; trails; fog.

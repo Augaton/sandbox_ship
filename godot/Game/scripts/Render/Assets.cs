@@ -18,11 +18,17 @@ public sealed record Look(IReadOnlyList<Layer> Layers, string? Engine, string? D
 
 public static class Assets
 {
-    sealed record Strip(Texture2D Texture, Image Image, int FrameW, int FrameH, int Frames);
+    sealed record Strip(Texture2D Texture, int FrameW, int FrameH, int Frames);
 
     static readonly Dictionary<string, Strip> strips = [];
+    /// <summary>
+    /// The sprites' pixels, only while the game loads: the faction copies and the opaque sizes
+    /// are made from them, then they are let go; the textures alone stay, on the graphics card.
+    /// </summary>
+    static readonly Dictionary<string, Image> pixels = [];
     static readonly Dictionary<string, Texture2D> frame0 = [];
-    static readonly Dictionary<string, SpriteFrames> anims = [];
+    /// <summary>Animations by strip, looping and pace: a key with no string to build, as a shot asks for one when it is fired.</summary>
+    static readonly Dictionary<(string Key, bool Loop, double Fps), SpriteFrames> anims = [];
     static readonly Dictionary<string, double> opaque = [];
     static readonly Dictionary<(Faction, ShipClass), Look> ships = [];
     static readonly Dictionary<string, Look> structures = [];
@@ -73,7 +79,8 @@ public static class Assets
             var tex = GD.Load<Texture2D>($"res://assets/{file}");
             var img = tex.GetImage();
             img.Convert(Image.Format.Rgba8);
-            strips[s.Name] = new Strip(tex, img, s.Value.GetProperty("frameW").GetInt32(), s.Value.GetProperty("frameH").GetInt32(), s.Value.GetProperty("frames").GetInt32());
+            strips[s.Name] = new Strip(tex, s.Value.GetProperty("frameW").GetInt32(), s.Value.GetProperty("frameH").GetInt32(), s.Value.GetProperty("frames").GetInt32());
+            pixels[s.Name] = img;
             if (i % 16 != 15) continue;
             Progress = 0.3 * i / sprites.Count + 0.6 * done / jobs.Length;
             await NextFrame();
@@ -114,6 +121,9 @@ public static class Assets
             Add(key, img, img.GetWidth(), img.GetHeight(), 1);
             lances[f] = new Look([new Layer(key, 1.15)], null, null, false);
         }
+        foreach (var key in strips.Keys) OpaqueSize(key);
+        foreach (var img in pixels.Values) img.Dispose();
+        pixels.Clear();
         Progress = 1;
     }
 
@@ -185,7 +195,7 @@ public static class Assets
     /// <summary>The frames of a strip as an animation, at 12 frames a second unless told otherwise.</summary>
     public static SpriteFrames Anim(string key, bool loop, double fps = 12)
     {
-        var name = $"{key}|{loop}|{fps}";
+        var name = (key, loop, fps);
         if (anims.TryGetValue(name, out var a)) return a;
         var s = strips[key];
         a = new SpriteFrames();
@@ -198,14 +208,17 @@ public static class Assets
 
     /// <summary>
     /// Longest side of the opaque part of a sprite's first frame, in texture pixels. Pack
-    /// sprites leave a lot of empty room around the ship, so sizes are matched on this.
+    /// sprites leave a lot of empty room around the ship, so sizes are matched on this. Worked
+    /// out for every sprite as the game loads, while their pixels are at hand.
     /// </summary>
     public static double OpaqueSize(string key)
     {
         if (opaque.TryGetValue(key, out var hit)) return hit;
         var s = strips[key];
-        var data = s.Image.GetData();
-        var stride = s.Image.GetWidth();
+        if (!pixels.TryGetValue(key, out var img)) return opaque[key] = Math.Max(s.FrameW, s.FrameH);
+        using var frame = img.GetRegion(new Rect2I(0, 0, s.FrameW, s.FrameH));
+        var data = frame.GetData();
+        var stride = s.FrameW;
         int minX = s.FrameW, minY = s.FrameH, maxX = -1, maxY = -1;
         for (var y = 0; y < s.FrameH; y++)
         {
@@ -228,7 +241,8 @@ public static class Assets
 
     static void Add(string key, Image img, int frameW, int frameH, int frames)
     {
-        strips[key] = new Strip(ImageTexture.CreateFromImage(img), img, frameW, frameH, frames);
+        strips[key] = new Strip(ImageTexture.CreateFromImage(img), frameW, frameH, frames);
+        pixels[key] = img;
     }
 
     // Faction colors on the parts.
@@ -266,12 +280,12 @@ public static class Assets
     /// <summary>Makes the faction copies of a part; red factions keep the original.</summary>
     static void RecolorPart(string key)
     {
-        if (!strips.TryGetValue(key, out var s)) return;
+        if (!strips.TryGetValue(key, out var s) || !pixels.TryGetValue(key, out var img)) return;
         foreach (var f in Enum.GetValues<Faction>())
         {
             var toHue = HueOf(Factions.Defs[f].Color);
             if (Math.Min(toHue, 360 - toHue) <= Trim) continue;
-            var data = s.Image.GetData();
+            var data = img.GetData();
             for (var i = 0; i < data.Length; i += 4)
             {
                 if (data[i + 3] == 0) continue;
@@ -279,7 +293,7 @@ public static class Assets
                 if (sat < 0.35 || Math.Min(h, 360 - h) > Trim) continue;
                 (data[i], data[i + 1], data[i + 2]) = Rgb(toHue, sat, l);
             }
-            Add($"{key}~{f}", Image.CreateFromData(s.Image.GetWidth(), s.Image.GetHeight(), false, Image.Format.Rgba8, data), s.FrameW, s.FrameH, s.Frames);
+            Add($"{key}~{f}", Image.CreateFromData(img.GetWidth(), img.GetHeight(), false, Image.Format.Rgba8, data), s.FrameW, s.FrameH, s.Frames);
         }
     }
 
@@ -298,7 +312,7 @@ public static class Assets
         Add($"{key}-destruction", s.Destruction, w, h, s.DestructionFrames);
         if (Core.Dev.Dump is string dir)
         {
-            foreach (var part in new[] { "base", "engine", "destruction" }) strips[$"{key}-{part}"].Image.SavePng($"{dir}/{key}-{part}.png");
+            foreach (var part in new[] { "base", "engine", "destruction" }) pixels[$"{key}-{part}"].SavePng($"{dir}/{key}-{part}.png");
         }
         ships[(f, c)] = new Look([new Layer($"{key}-base", 1.25)], $"{key}-engine", $"{key}-destruction", false);
     }

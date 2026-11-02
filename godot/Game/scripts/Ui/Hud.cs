@@ -62,7 +62,8 @@ public partial class Hud : CanvasLayer
     PanelContainer tip = null!;
     VBoxContainer tipLines = null!;
     double timer;
-    string selectionSig = "";
+    /// <summary>The selection last shown, by size and first ship: a new one refreshes the panel at once.</summary>
+    (int Count, int First) selectionSig;
 
     public Hud(BattleScreen scene, bool sandbox, string? campaign)
     {
@@ -528,7 +529,7 @@ public partial class Hud : CanvasLayer
         timer -= delta;
         // A new selection shows at once, not at the next refresh.
         var sel = scene.Selected;
-        var sig = $"{sel.Count}:{(sel.Count > 0 ? sel.First().ToString() : "")}";
+        var sig = (sel.Count, sel.Count > 0 ? sel.First() : 0);
         if (sig != selectionSig)
         {
             selectionSig = sig;
@@ -660,15 +661,37 @@ public partial class Hud : CanvasLayer
         minimap.QueueRedraw();
     }
 
-    void SetButton(LabelButton b, Result r, string detail)
+    /// <summary>What each production button shows: a refresh that would change nothing leaves it alone, ten times a second.</summary>
+    readonly Dictionary<LabelButton, (bool Ok, string Reason, string Detail, string? Before, string? After)> shown = [];
+    /// <summary>
+    /// The lines of the buttons, by what they describe, made once rather than at every refresh.
+    /// Kind: 0 a ship's price (Extra: in a loop), 1 a structure's, 2 a tech level's (Extra: the
+    /// level), 3 a tech's name (Extra: level and queued), 4 a hero's price, 5 a tech's effect.
+    /// </summary>
+    readonly Dictionary<(int Kind, int Id, int Extra), string> details = [];
+
+    /// <summary>A button's state and tooltip, `before` and `after` the detail or the reason.</summary>
+    void SetButton(LabelButton b, Result r, string detail, string? before = null, string? after = null)
     {
+        var state = (r.Ok, r.Reason, detail, before, after);
+        if (shown.TryGetValue(b, out var was) && was == state) return;
+        shown[b] = state;
         b.Disabled = !r.Ok;
         // Short of credits, the price still shows, in red: how far off it is matters.
         b.Poor = !r.Ok && r.Reason == "Crédits insuffisants";
         b.Line(1).Text = r.Ok || b.Poor ? detail : ShortReason(r.Reason);
-        b.TooltipText = r.Ok ? detail : r.Reason;
+        b.TooltipText = string.Concat(before, r.Ok ? detail : r.Reason, after);
         b.Paint();
     }
+
+    string Detail(int kind, int id, int extra, double cost, double time, string suffix = "")
+    {
+        if (!details.TryGetValue((kind, id, extra), out var s)) details[(kind, id, extra)] = s = $"{N(cost)} cr, {N(time)} s{suffix}";
+        return s;
+    }
+
+    /// <summary>Why a structure is out of reach, by the station level it needs.</summary>
+    static readonly string[] Locked = [.. Enumerable.Range(0, 6).Select(l => $"Station niveau {l} requise")];
 
     /// <summary>Shown only once the station is up to it: locked choices stay out of the way.</summary>
     static void Unlocked(Control b, int level, int needed)
@@ -686,19 +709,19 @@ public partial class Hud : CanvasLayer
             Unlocked(b, level, Ships.Defs[cls].MinStationLevel);
             var loop = f.Repeat.Contains(cls);
             b.SetColor(1, loop ? Palette.Ok : Palette.Accent);
-            SetButton(b, Structures.CanBuildShip(w, Player, cls), $"{N(Ships.Cost(cls, Race))} cr, {N(Ships.Defs[cls].BuildTime)} s{(loop ? ", en boucle" : "")}");
+            SetButton(b, Structures.CanBuildShip(w, Player, cls), Detail(0, (int)cls, loop ? 1 : 0, Ships.Cost(cls, Race), Ships.Defs[cls].BuildTime, loop ? ", en boucle" : ""),
+                after: ". Maj + clic : 5 d'un coup. Clic droit : production en boucle.");
             Outline(b, loop ? Palette.Ok : null, false);
-            b.TooltipText += ". Maj + clic : 5 d'un coup. Clic droit : production en boucle.";
         }
         foreach (var (type, b) in structureButtons)
         {
             var def = Buildables.Defs[type];
             Unlocked(b, level, def.MinStationLevel);
             // Without a station (an invasion force), what a level 1 station would allow.
-            var r = (station?.Level ?? 1) < def.MinStationLevel ? Result.Fail($"Station niveau {def.MinStationLevel} requise")
+            var r = (station?.Level ?? 1) < def.MinStationLevel ? Result.Fail(Locked[def.MinStationLevel])
                 : f.Credits < def.Cost ? Result.Fail("Crédits insuffisants")
                 : Result.OK;
-            SetButton(b, r, $"{N(def.Cost)} cr, {N(def.BuildTime)} s");
+            SetButton(b, r, Detail(1, (int)type, 0, def.Cost, def.BuildTime));
         }
         var next = station is not null && station.Level < Station.Levels.Count ? Station.Levels[station.Level] : null;
         var up = Structures.CanUpgrade(w, Player);
@@ -712,15 +735,17 @@ public partial class Hud : CanvasLayer
             var def = Techs.Defs[tech];
             var planned = ResearchQueue.PlannedLevel(f, tech);
             var queued = planned - f.Research[tech];
-            b.Line(0).Text = $"{def.Name} {f.Research[tech]}/{def.MaxLevel}{(queued > 0 ? $" (+{queued})" : "")}";
-            var detail = planned < def.MaxLevel ? $"{N(def.Costs[planned])} cr, {N(def.Times[planned])} s" : "Terminé";
-            SetButton(b, Structures.CanResearch(w, Player, tech), detail);
-            b.TooltipText = $"{def.Effect}. {b.TooltipText}";
+            if (!details.TryGetValue((3, (int)tech, f.Research[tech] * 100 + queued), out var name))
+                details[(3, (int)tech, f.Research[tech] * 100 + queued)] = name = $"{def.Name} {f.Research[tech]}/{def.MaxLevel}{(queued > 0 ? $" (+{queued})" : "")}";
+            b.Line(0).Text = name;
+            var detail = planned < def.MaxLevel ? Detail(2, (int)tech, planned, def.Costs[planned], def.Times[planned]) : "Terminé";
+            if (!details.TryGetValue((5, (int)tech, 0), out var effect)) details[(5, (int)tech, 0)] = effect = def.Effect + ". ";
+            SetButton(b, Structures.CanResearch(w, Player, tech), detail, before: effect);
         }
         foreach (var (id, b) in heroButtons)
         {
             Unlocked(b, level, Heroes.Defs[id].MinStationLevel);
-            SetButton(b, Structures.CanBuildHero(w, Player, id), $"{N(Heroes.Defs[id].Cost)} cr, {N(Heroes.Defs[id].BuildTime)} s");
+            SetButton(b, Structures.CanBuildHero(w, Player, id), Detail(4, (int)id.Faction * 16 + (int)id.Role, 0, Heroes.Defs[id].Cost, Heroes.Defs[id].BuildTime));
         }
 
         RenderList(unitsQueue!, f.Queue.Select((q, i) => new QueueEntry(

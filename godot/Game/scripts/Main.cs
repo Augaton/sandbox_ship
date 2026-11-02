@@ -86,10 +86,19 @@ public partial class Main : Node
         GetTree().Quit();
     }
 
-    /// <summary>Closing the window quits too (Godot accepts it by itself): the same guarantee.</summary>
+    /// <summary>Frames a second while another window has the focus: the game plays on, the machine is busy elsewhere.</summary>
+    const int UnfocusedFps = 30;
+
+    /// <summary>
+    /// Closing the window quits too (Godot accepts it by itself): the same guarantee. Behind other
+    /// windows the game draws half as often; the simulation keeps its fixed steps, two a frame.
+    /// </summary>
     public override void _Notification(int what)
     {
         if (what == NotificationWMCloseRequest) EnsureExit();
+        else if (Dev.Service || Dev.Shot is not null) return;
+        else if (what == NotificationApplicationFocusOut) Engine.MaxFps = UnfocusedFps;
+        else if (what == NotificationApplicationFocusIn) Engine.MaxFps = 0;
     }
 
     bool exiting;

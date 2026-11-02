@@ -135,16 +135,22 @@ public static class Ai
     static bool MineableField(World world, FactionState f)
     {
         var free = world.Fields.Where(fl => fl.MineId is null).ToList();
-        if (free.Exists(fl => InZones(world, f, fl))) return true;
+        var zones = MineZones(world, f);
+        if (free.Exists(fl => InZones(zones, fl))) return true;
         return free.Count > 0 && Warships(world, f).Exists(e => e.Order is null);
     }
 
-    static bool InZones(World world, FactionState f, AsteroidField fl) =>
-        BuildZones(world, f.Id, BuildableType.Mine).Exists(z => Dist(z, fl) <= z.R + fl.Radius);
+    /// <summary>Where the AI may build mines: worked out once for all the fields, each time a walk over every entity.</summary>
+    static List<Circle> MineZones(World world, FactionState f) => BuildZones(world, f.Id, BuildableType.Mine);
+
+    static bool InZones(List<Circle> zones, AsteroidField fl) => zones.Exists(z => Dist(z, fl) <= z.R + fl.Radius);
 
     /// <summary>Free fields beyond the build areas: where an outpost would open new ground.</summary>
-    static List<AsteroidField> FarFields(World world, FactionState f, Entity station) =>
-        world.Fields.Where(fl => fl.MineId is null && !InZones(world, f, fl)).OrderBy(fl => Dist(fl, station)).ToList();
+    static List<AsteroidField> FarFields(World world, FactionState f, Entity station)
+    {
+        var zones = MineZones(world, f);
+        return world.Fields.Where(fl => fl.MineId is null && !InZones(zones, fl)).OrderBy(fl => Dist(fl, station)).ToList();
+    }
 
     /// <summary>Sends the nearest idle warship to hold a spot, unless one is on its way already.</summary>
     static Result EscortTo(World world, FactionState f, IPoint at, double near)
