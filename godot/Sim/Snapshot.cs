@@ -21,6 +21,7 @@
 //   shots     n count in this snapshot; n left out since the baseline, each its id as a gap; n new or turned, each:
 //             its id as a gap, n side, u8 kind, f32 x, y, vx, vy. One that flies on as it did is not written: the
 //             reader carries it along its speed. Those far from any eye of the team are left out
+//   beams     n count; each: n from id, n to id, n side. Those between two entities of the snapshot
 //   zones     n count; each: u8 kind, n side, f32 x, y, r
 //   strikes   n count; each: see WriteStrike. All of them: every side sees a blow coming
 //   events    n count; each: u8 tag and its fields (see WriteEvent), those the viewer may know of
@@ -37,9 +38,10 @@ public static partial class Snapshot
     /// <summary>
     /// Bumped with any change to the layout, the type table (a new ship class, structure or part)
     /// included: a reader refuses any other version. 2: the battle modes' state and events. 3: deltas,
-    /// records in segments, the parts of a ship placed by the reader.
+    /// records in segments, the parts of a ship placed by the reader. 4: beams, and torpedoes and
+    /// missiles shot down.
     /// </summary>
-    public const ushort Version = 3;
+    public const ushort Version = 4;
     const uint Magic = 0x504E5353;
 
     /// <summary>Room around the team's sight within which shots and blows still show: they fly in from the dark.</summary>
@@ -77,7 +79,7 @@ public static partial class Snapshot
     enum Tag : byte
     {
         Destroyed = 1, Hit, Built, Delivered, Researched, AbilityUsed, StrikeLanded, Rebuilt, Victory, RaidWon, LanceOnline,
-        WaveIncoming, WaveCleared, BeaconTaken, BeaconLost, FlagshipLost, ClockWarning,
+        WaveIncoming, WaveCleared, BeaconTaken, BeaconLost, FlagshipLost, ClockWarning, Intercepted,
     }
 
     /// <summary>
@@ -137,6 +139,7 @@ public static partial class Snapshot
         var sight = new Sight(world, viewer);
         WriteShots(world, viewer, sight, w, frame, baseline, frames);
         frames?.Keep(frame);
+        WriteBeams(world, shown, w);
         var zones = world.Zones.Where(z => Allies(world, z.Side, viewer) || sight.Sees(z.X, z.Y)).ToList();
         w.Write7BitEncodedInt(zones.Count);
         foreach (var z in zones)
@@ -572,6 +575,23 @@ public static partial class Snapshot
         }
     }
 
+    /// <summary>
+    /// The beams holding this step between two entities of the snapshot, as n count, then n from
+    /// id, n to id, n side each. Whole every time: they hold a moment, and the reader draws them
+    /// between the entities, which it has.
+    /// </summary>
+    static void WriteBeams(World world, HashSet<int> shown, BinaryWriter w)
+    {
+        var told = world.Beams.Where(b => shown.Contains(b.From) && shown.Contains(b.To)).ToList();
+        w.Write7BitEncodedInt(told.Count);
+        foreach (var b in told)
+        {
+            w.Write7BitEncodedInt(b.From);
+            w.Write7BitEncodedInt(b.To);
+            w.Write7BitEncodedInt(b.Side.Id);
+        }
+    }
+
     /// <summary>n count, then increasing ids, each as the gap from the one before.</summary>
     static void WriteIds(BinaryWriter w, List<int> ids)
     {
@@ -608,6 +628,7 @@ public static partial class Snapshot
     {
         Destroyed d => Allies(world, d.Side, viewer) || sight.Sees(d.X, d.Y),
         Hit h => Allies(world, h.Side, viewer) || sight.Sees(h.X, h.Y),
+        Intercepted i => Allies(world, i.Side, viewer) || sight.Sees(i.X, i.Y),
         Built b => shown.Contains(b.Id) || world.Entities.Get(b.Id) is { Type: "starLance" },
         LanceOnline => true,
         Delivered d => shown.Contains(d.Id),
@@ -728,6 +749,12 @@ public static partial class Snapshot
             case ClockWarning cw:
                 w.Write((byte)Tag.ClockWarning);
                 w.Write((float)cw.Left);
+                break;
+            case Intercepted i:
+                w.Write((byte)Tag.Intercepted);
+                w.Write((float)i.X);
+                w.Write((float)i.Y);
+                w.Write7BitEncodedInt(i.Side.Id);
                 break;
         }
     }

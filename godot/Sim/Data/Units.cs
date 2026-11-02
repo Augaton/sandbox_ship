@@ -12,7 +12,11 @@ public enum Faction
 /// <summary>Damage multipliers are keyed by the size class of the target.</summary>
 public enum SizeClass { Small, Medium, Large, Structure }
 
-public enum WeaponKind { Bullet, Laser, Torpedo, Ray }
+/// <summary>
+/// The web version's four, then this version's: a beam that holds on its target (no projectile),
+/// swarm missiles, and ion bolts that tear down shields.
+/// </summary>
+public enum WeaponKind { Bullet, Laser, Torpedo, Ray, Beam, Missile, Ion }
 
 public enum ShipClass
 {
@@ -49,9 +53,15 @@ public sealed record SizeMult(double Small = 1, double Medium = 1, double Large 
     };
 }
 
+/// <summary>
+/// A weapon. A beam's Damage is per second. Not in the web version: a burst of `Burst` shots
+/// `BurstGap` seconds apart, Cooldown being the reload after it; point defense, which shoots
+/// down torpedoes and missiles in flight; and how hard it hits shields and hulls (ion bolts).
+/// </summary>
 public sealed record WeaponDef(
     WeaponKind Kind, double Range, double Damage, double Cooldown, double ProjectileSpeed,
-    bool Homing = false, SizeMult? Mult = null)
+    bool Homing = false, SizeMult? Mult = null,
+    int Burst = 1, double BurstGap = 0, bool PointDefense = false, double ShieldMult = 1, double HullMult = 1)
 {
     public SizeMult Multipliers => Mult ?? SizeMult.None;
 }
@@ -111,11 +121,25 @@ public static class Factions
 
 public static class Weapons
 {
+    /// <summary>Quick light guns, against small craft; they shoot torpedoes and missiles down too (not in the web version).</summary>
     public static readonly WeaponDef Flak = new(WeaponKind.Bullet, 260, 4, 0.35, 700,
-        Mult: new SizeMult(Small: 2, Medium: 0.6, Large: 0.3, Structure: 0.3));
+        Mult: new SizeMult(Small: 2, Medium: 0.6, Large: 0.3, Structure: 0.3), PointDefense: true);
     public static readonly WeaponDef Laser = new(WeaponKind.Laser, 400, 16, 1.2, 900, Mult: new SizeMult(Small: 0.4));
     public static readonly WeaponDef Torpedo = new(WeaponKind.Torpedo, 420, 45, 4, 320, Homing: true,
         Mult: new SizeMult(Small: 0.15, Large: 1.6, Structure: 1.6));
+
+    // Not in the web version.
+
+    /// <summary>A beam that holds on its target while it stays in reach: it never misses; damage per second.</summary>
+    public static readonly WeaponDef Beam = new(WeaponKind.Beam, 340, 12, 0, 0, Mult: new SizeMult(Small: 0.6, Structure: 0.8));
+    /// <summary>A burst cannon: six heavy rounds in half a second, then a long reload.</summary>
+    public static readonly WeaponDef Burst = new(WeaponKind.Bullet, 380, 10, 3.4, 850, Burst: 6, BurstGap: 0.1,
+        Mult: new SizeMult(Small: 0.5, Medium: 1.2));
+    /// <summary>Swarm missiles: a salvo of small homing missiles, deadly to small craft, then a long reload.</summary>
+    public static readonly WeaponDef Swarm = new(WeaponKind.Missile, 420, 7, 5, 420, Homing: true, Burst: 6, BurstGap: 0.08,
+        Mult: new SizeMult(Small: 2, Medium: 0.8, Large: 0.4, Structure: 0.3));
+    /// <summary>Ion bolts: twice their damage to shields, a scratch on the hull; they open the way for the rest.</summary>
+    public static readonly WeaponDef Ion = new(WeaponKind.Ion, 440, 20, 1.6, 800, ShieldMult: 2, HullMult: 0.2);
 
     public static double MaxRange(IEnumerable<WeaponDef> weapons) => weapons.Aggregate(0.0, (m, w) => Math.Max(m, w.Range));
 }
@@ -123,6 +147,7 @@ public static class Weapons
 public static class Ships
 {
     static readonly WeaponDef HeavyLaser = Weapons.Laser with { Range = 450, Damage = 22 };
+    static readonly WeaponDef HeavyBurst = Weapons.Burst with { Range = 450, Damage = 14 };
     static readonly WeaponDef LeviathanRay = new(WeaponKind.Ray, 700, 90, 2.5, 1100, Mult: new SizeMult(Small: 0.2));
     static readonly WeaponDef ColossusRay = new(WeaponKind.Ray, 800, 110, 2.5, 1200, Mult: new SizeMult(Small: 0.25));
     /// <summary>A carrier's hangar: fighters and bombers in turn, many and often.</summary>
@@ -161,7 +186,8 @@ public static class Ships
             FromHangar: false, Cost: 650, BuildTime: 16, MinStationLevel: 1,
             Weapons: [Weapons.Flak],
             Hardpoints: [
-                new(HardpointRole.Turret, 10, 0, Hull: 200, Radius: 7, Weapons: [Weapons.Laser]),
+                // A beam in this version, a laser in the web one.
+                new(HardpointRole.Turret, 10, 0, Hull: 200, Radius: 7, Weapons: [Weapons.Beam]),
                 new(HardpointRole.Shield, -12, 0, Hull: 220, Radius: 7),
             ],
             Ability: AbilityId.Overcharge),
@@ -171,7 +197,8 @@ public static class Ships
             Weapons: [],
             Hardpoints: [
                 new(HardpointRole.Turret, 14, -18, Hull: 250, Radius: 8, Weapons: [HeavyLaser]),
-                new(HardpointRole.Turret, 14, 18, Hull: 250, Radius: 8, Weapons: [HeavyLaser]),
+                // A burst cannon in this version, a second heavy laser in the web one.
+                new(HardpointRole.Turret, 14, 18, Hull: 250, Radius: 8, Weapons: [Weapons.Burst]),
                 new(HardpointRole.Turret, -8, 0, Hull: 200, Radius: 7, Weapons: [Weapons.Flak]),
                 new(HardpointRole.Shield, -24, 0, Hull: 350, Radius: 8),
                 new(HardpointRole.Engine, -42, -12),
@@ -206,7 +233,8 @@ public static class Ships
                 new(HardpointRole.HeavyTurret, 34, 0, Hull: 400, Radius: 11,
                     Weapons: [new(WeaponKind.Ray, 560, 60, 2.5, 1100, Mult: new SizeMult(Small: 0.2))]),
                 new(HardpointRole.Turret, 10, -24, Hull: 250, Radius: 8, Weapons: [HeavyLaser]),
-                new(HardpointRole.Turret, 10, 24, Hull: 250, Radius: 8, Weapons: [HeavyLaser]),
+                // An ion cannon in this version, a second heavy laser in the web one.
+                new(HardpointRole.Turret, 10, 24, Hull: 250, Radius: 8, Weapons: [Weapons.Ion]),
                 new(HardpointRole.Turret, -16, -22, Hull: 200, Radius: 7, Weapons: [Weapons.Flak]),
                 new(HardpointRole.Turret, -16, 22, Hull: 200, Radius: 7, Weapons: [Weapons.Flak]),
                 new(HardpointRole.Hangar, -8, 0, Hull: 400, Radius: 10,
@@ -228,8 +256,8 @@ public static class Ships
                     Weapons: [new(WeaponKind.Ray, 600, 70, 2.5, 1100, Mult: new SizeMult(Small: 0.2))]),
                 new(HardpointRole.Turret, 20, -46, Hull: 300, Radius: 9, Weapons: [Weapons.Laser with { Range = 470, Damage = 24 }]),
                 new(HardpointRole.Turret, 20, 46, Hull: 300, Radius: 9, Weapons: [Weapons.Laser with { Range = 470, Damage = 24 }]),
-                new(HardpointRole.Turret, -22, -52, Hull: 300, Radius: 9, Weapons: [Weapons.Laser with { Range = 470, Damage = 24 }]),
-                new(HardpointRole.Turret, -22, 52, Hull: 300, Radius: 9, Weapons: [Weapons.Laser with { Range = 470, Damage = 24 }]),
+                new(HardpointRole.Turret, -22, -52, Hull: 300, Radius: 9, Weapons: [Weapons.Swarm]),
+                new(HardpointRole.Turret, -22, 52, Hull: 300, Radius: 9, Weapons: [Weapons.Swarm]),
                 new(HardpointRole.Hangar, -14, 0, Hull: 500, Radius: 11,
                     Hangar: new([new(ShipClass.Fighter, 3), new(ShipClass.Bomber, 2)], Cap: 8, Interval: 20)),
                 new(HardpointRole.Shield, -40, -14, Hull: 400, Radius: 9),
@@ -251,8 +279,8 @@ public static class Ships
                 new(HardpointRole.HeavyTurret, 40, 0, Hull: 700, Radius: 13, Weapons: [LeviathanRay]),
                 new(HardpointRole.Turret, 30, -72, Hull: 350, Radius: 9, Weapons: [Weapons.Laser with { Range = 480, Damage = 26 }]),
                 new(HardpointRole.Turret, 30, 72, Hull: 350, Radius: 9, Weapons: [Weapons.Laser with { Range = 480, Damage = 26 }]),
-                new(HardpointRole.Turret, -34, -84, Hull: 350, Radius: 9, Weapons: [Weapons.Laser with { Range = 480, Damage = 26 }]),
-                new(HardpointRole.Turret, -34, 84, Hull: 350, Radius: 9, Weapons: [Weapons.Laser with { Range = 480, Damage = 26 }]),
+                new(HardpointRole.Turret, -34, -84, Hull: 350, Radius: 9, Weapons: [HeavyBurst]),
+                new(HardpointRole.Turret, -34, 84, Hull: 350, Radius: 9, Weapons: [HeavyBurst]),
                 new(HardpointRole.Turret, -70, -62, Hull: 250, Radius: 8, Weapons: [Weapons.Flak]),
                 new(HardpointRole.Turret, -70, 62, Hull: 250, Radius: 8, Weapons: [Weapons.Flak]),
                 new(HardpointRole.Hangar, -10, -36, Hull: 600, Radius: 11, Hangar: CarrierHangar with { Interval = 16 }),

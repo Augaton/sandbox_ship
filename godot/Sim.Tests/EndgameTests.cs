@@ -52,6 +52,8 @@ public class EndgameTests
         lance.Abilities[0].Cooldown = 0;
         var station = StationOf(w, Faction.Nairan)!;
         var frigate = SpawnShip(w, Faction.Nairan, ShipClass.Frigate, 5150, 2150);
+        // Flown by hand with nothing pressed: it stays under the blow instead of getting out of the way.
+        frigate.Pilot = new Pilot();
         // Across the whole map: no range to speak of.
         Assert.True(UseAbility(w, lance, new Aim(station.X, station.Y)).Ok);
         var strike = Assert.Single(w.Strikes);

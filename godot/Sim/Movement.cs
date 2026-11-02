@@ -1,6 +1,7 @@
-// Steering, piloting, separation and orders. Port of src/sim/movement.ts, plus two rules of
-// this version only: ships ordered together move as one fleet (MoveGroup), and launched craft
-// escort their carrier and go for what it fights.
+// Steering, piloting, separation and orders. Port of src/sim/movement.ts, plus rules of this
+// version only: ships ordered together move as one fleet (MoveGroup), launched craft escort
+// their carrier and go for what it fights, and ships keep out of reach of what they outrange,
+// get out of the way of blows coming down, and fall back to be repaired.
 using SandboxShip.Sim.Data;
 using static SandboxShip.Sim.Worlds;
 
@@ -78,6 +79,12 @@ public static class Movement
 
     public static void Brake(Entity e, Motion def, double dt) => e.Speed = Math.Max(0, e.Speed - def.Accel * dt);
 
+    /// <summary>
+    /// Room kept outside the reach of a target with a shorter reach (kiting, not in the web version),
+    /// and the least room between its reach and ours for keeping away to be worth it.
+    /// </summary>
+    const double KiteMargin = 25, KiteRoom = 20;
+
     static void Engage(World world, Entity e, Motion def, Entity t, double dt)
     {
         if (def.Size == SizeClass.Small)
@@ -86,8 +93,21 @@ public static class Movement
             var orbit = t.Radius + e.Range * 0.6;
             var a = world.Time * (def.Speed * 0.8 / orbit) + e.Id;
             SteerTo(e, def, t.X + Math.Cos(a) * orbit, t.Y + Math.Sin(a) * orbit, dt, 0);
+            return;
         }
-        else if (Dist(e, t) - t.Radius > e.Range * 0.85)
+        // A ship that outranges its target and can outrun it keeps out of its reach while still
+        // in its own: it backs off to between the two. A part threatens with its ship's reach.
+        var foe = AbilitySystem.OwnerOf(world, t);
+        var dist = Dist(e, t);
+        var safe = foe.Range + e.Radius + KiteMargin;
+        var hit = e.Range * 0.9 + t.Radius;
+        if (foe.Range > 0 && hit > safe + KiteRoom && dist < safe && dist > 0
+            && (foe.Kind != EntityKind.Ship || def.Speed >= CruiseSpeed(world, foe) * 0.8))
+        {
+            var away = (safe + hit) / 2;
+            SteerTo(e, def, t.X + (e.X - t.X) / dist * away, t.Y + (e.Y - t.Y) / dist * away, dt, 0);
+        }
+        else if (dist - t.Radius > e.Range * 0.85)
         {
             SteerTo(e, def, t.X, t.Y, dt, 0);
         }
@@ -179,6 +199,109 @@ public static class Movement
         return t is not null && Foes(world, e.Side, t.Side) ? t : null;
     }
 
+    /// <summary>Room a ship leaves between itself and a blow coming down when it gets out of the way.</summary>
+    const double DodgeRoom = 40;
+
+    /// <summary>
+    /// Where to go to get out of a blow coming down on the ship (an orbital strike, a star lance,
+    /// a spinal beam charging up), not in the web version: straight out of a blast, sideways out of
+    /// a beam. Null when none threatens it; blows of its side and its allies spare it.
+    /// </summary>
+    static Point? Dodge(World world, Entity e)
+    {
+        foreach (var s in world.Strikes)
+        {
+            if (s.Delay <= 0 || Allies(world, s.Side, e.Side)) continue;
+            var clear = s.Radius + e.Radius + DodgeRoom;
+            if (s.Kind == StrikeKind.Beam)
+            {
+                // The nearest point of the beam, then away from it, square to it.
+                var (bx, by) = (s.X2 - s.X, s.Y2 - s.Y);
+                var len2 = bx * bx + by * by;
+                var k = len2 > 0 ? Math.Clamp(((e.X - s.X) * bx + (e.Y - s.Y) * by) / len2, 0, 1) : 0;
+                var (nx, ny) = (s.X + bx * k, s.Y + by * k);
+                var d = Hypot(e.X - nx, e.Y - ny);
+                if (d >= clear) continue;
+                var (ux, uy) = d > 0 ? ((e.X - nx) / d, (e.Y - ny) / d) : (-by / Math.Sqrt(len2), bx / Math.Sqrt(len2));
+                return new Point(nx + ux * (clear + DodgeRoom), ny + uy * (clear + DodgeRoom));
+            }
+            var r = Hypot(e.X - s.X, e.Y - s.Y);
+            if (r >= clear) continue;
+            var (dx, dy) = r > 0 ? ((e.X - s.X) / r, (e.Y - s.Y) / r) : (Math.Cos(e.Angle), Math.Sin(e.Angle));
+            return new Point(s.X + dx * (clear + DodgeRoom), s.Y + dy * (clear + DodgeRoom));
+        }
+        return null;
+    }
+
+    /// <summary>Below this share of its hull a ship falls back to be repaired (Mend); it comes back at Mended.</summary>
+    const double Wounded = 0.3, Mended = 0.8;
+
+    /// <summary>
+    /// What may repair a ship, the nearest first: a support ship or a repair dock of its side or
+    /// an ally's; for a race whose hulls mend by themselves, its station, out of the fight.
+    /// </summary>
+    static Entity? Mender(World world, Entity e)
+    {
+        Entity? best = null;
+        var bestD = double.PositiveInfinity;
+        var heals = Factions.Trait(e.Race).HullRegen > 0;
+        foreach (var t in world.Entities)
+        {
+            if (t == e || t.Build < 1 || !Allies(world, t.Side, e.Side)) continue;
+            var mends = t.Kind == EntityKind.Ship ? Ships.Defs[t.Cls].Repair is not null && !t.Mending
+                : t.Type == "repairDock" || (heals && t.Type == "station" && t.Side == e.Side);
+            if (!mends) continue;
+            var d = Dist(e, t);
+            if (d < bestD)
+            {
+                bestD = d;
+                best = t;
+            }
+        }
+        return best;
+    }
+
+    /// <summary>How close to what repairs it a ship waits: well within a support's or a dock's reach, beside a station.</summary>
+    static double MendingRange(Entity mender) => mender.Kind == EntityKind.Ship ? Ships.Defs[mender.Cls].Repair!.Range * 0.6
+        : Ids.IsBuildable(mender.Type, out var b) && Buildables.Defs[b].Repair is { } r ? r.Range * 0.6 : mender.Radius + 150;
+
+    /// <summary>
+    /// A badly damaged ship with no order of its player's (or, on a human side, out on an attack
+    /// move) falls back by itself to what can repair it, and returns once mended: to its guard
+    /// post, or to its attack move. Not in the web version. An AI's wave answers to the AI's own
+    /// call (Ai.RetreatDamaged); craft from hangars and summoned ones never fall back. Returns
+    /// whether the ship is falling back this step.
+    /// </summary>
+    static bool Mend(World world, Entity e, Motion def, double dt)
+    {
+        var o = e.Order;
+        var free = o is null || (o.Type == OrderType.AttackMove && world.Factions.GetValueOrDefault(e.Side)?.AI is null);
+        if (!free || e.Launched || e.Expires is not null || e.Retreating || (e.Mending && e.Hull >= e.MaxHull * Mended))
+        {
+            e.Mending = false;
+            return false;
+        }
+        if (!e.Mending && e.Hull >= e.MaxHull * Wounded) return false;
+        var mender = world.Entities.Get(e.MenderId);
+        if (mender is null || mender.Mending)
+        {
+            // Looking costs a walk over every entity: twice a second at most.
+            if (world.Time < e.MendLook)
+            {
+                e.Mending = false;
+                return false;
+            }
+            e.MendLook = world.Time + 0.5;
+            mender = Mender(world, e);
+            e.MenderId = mender?.Id;
+        }
+        e.Mending = mender is not null;
+        if (mender is null) return false;
+        if (Dist(e, mender) > MendingRange(mender)) SteerTo(e, def, mender.X, mender.Y, dt, 0);
+        else Brake(e, def, dt);
+        return true;
+    }
+
     static void UpdateShip(World world, Entity e, double dt)
     {
         var def = EffectiveDef(world, e);
@@ -189,6 +312,13 @@ public static class Movement
         }
         var o = e.Order;
         var arrive = Math.Max(6, e.Radius * 0.3);
+        // Out of a blow coming down first, unless the player said where to go.
+        if (o?.Type != OrderType.Move && Dodge(world, e) is { } way)
+        {
+            SteerTo(e, def, way.X, way.Y, dt, 0);
+            return;
+        }
+        if (Mend(world, e, def, dt)) return;
 
         if (o?.Type == OrderType.Attack)
         {

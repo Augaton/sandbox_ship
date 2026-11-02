@@ -19,6 +19,12 @@ public class FixtureTests
     static IEnumerable<AbilityId> WebAbilities => Enum.GetValues<AbilityId>().Where(a => !NewAbilities.Contains(a));
     /// <summary>Warships of the web version made dearer and slower to build here: small craft stay worth it longer.</summary>
     static readonly HashSet<ShipClass> Dearer = [ShipClass.Battlecruiser, ShipClass.Dreadnought, ShipClass.Titan];
+    /// <summary>
+    /// Warships of the web version with this version's weapons on turrets: a beam on the frigate, a
+    /// burst cannon on the battlecruiser, an ion cannon on the dreadnought, swarm missiles aft on
+    /// the titan. Their turrets keep their places and their number of weapons.
+    /// </summary>
+    static readonly HashSet<ShipClass> Rearmed = [ShipClass.Frigate, ShipClass.Battlecruiser, ShipClass.Dreadnought, ShipClass.Titan];
     /// <summary>Techs of this version only; the web's go further here, their first three levels unchanged.</summary>
     static readonly HashSet<TechId> NewTechs = [TechId.Logistics, TechId.Repair, TechId.Fortification, TechId.Energy];
     static IEnumerable<BuildableType> WebBuildables => Buildables.All.Where(b => b is not (BuildableType.Lab or BuildableType.StarLance));
@@ -74,7 +80,8 @@ public class FixtureTests
         }
     }
 
-    static void SameSlots(JsonElement j, IReadOnlyList<HardpointSlot>? slots)
+    /// <summary>`rearmed`: only the number of each slot's weapons is compared, not what they are.</summary>
+    static void SameSlots(JsonElement j, IReadOnlyList<HardpointSlot>? slots, bool rearmed = false)
     {
         if (j.ValueKind != JsonValueKind.Array)
         {
@@ -92,8 +99,9 @@ public class FixtureTests
             Assert.Equal(e.GetProperty("y").GetDouble(), s.Y);
             Assert.Equal(Optional(e, "hull"), s.Hull);
             Assert.Equal(Optional(e, "radius"), s.Radius);
-            if (e.TryGetProperty("weapons", out var w)) SameWeapons(w, s.Weapons!);
-            else Assert.Null(s.Weapons);
+            if (!e.TryGetProperty("weapons", out var w)) Assert.Null(s.Weapons);
+            else if (rearmed) Assert.Equal(w.GetArrayLength(), s.Weapons!.Count);
+            else SameWeapons(w, s.Weapons!);
             SameHangar(e.TryGetProperty("hangar", out var h) ? h : default, s.Hangar);
         }
     }
@@ -160,7 +168,7 @@ public class FixtureTests
             Assert.Equal(j.GetProperty("minStationLevel").GetInt32(), d.MinStationLevel);
             Assert.Equal(j.GetProperty("source").GetString() == "hangar", d.FromHangar || built);
             SameWeapons(j.GetProperty("weapons"), d.Weapons);
-            SameSlots(j.TryGetProperty("hardpoints", out var hp) ? hp : default, d.Hardpoints);
+            SameSlots(j.TryGetProperty("hardpoints", out var hp) ? hp : default, d.Hardpoints, Rearmed.Contains(cls));
             if (j.TryGetProperty("ability", out var a)) SameName(a, d.Ability!.Value);
             else Assert.Null(d.Ability);
             Assert.Equal(j.TryGetProperty("squad", out var sq) ? sq.GetInt32() : (int?)null, built ? null : d.Squad);

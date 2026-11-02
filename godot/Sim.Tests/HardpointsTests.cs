@@ -75,6 +75,8 @@ public class HardpointsTests
         var w = NewWorld();
         var bc = SpawnShip(w, Faction.Klaed, ShipClass.Battlecruiser, 1000, 1000);
         var turret = Part(w, bc.Id, "turret");
+        // Unarmed: its flak would shoot the torpedo down.
+        foreach (var part in ChildrenOf(w, bc.Id)) part.Weapons = [];
         // A torpedo bomber's shot lands on a turret: the ship's shields take it.
         var bomber = SpawnShip(w, Faction.Nairan, ShipClass.Torpedo, 1300, 1000, Math.PI);
         bomber.Weapons[0].Cooldown = 0;

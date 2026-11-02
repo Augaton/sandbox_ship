@@ -416,6 +416,10 @@ public partial class BattleScreen : Node
                     Play(h.ShieldId is not null ? Sound.Shield : Sound.Hit, h.X, h.Y, 0.6);
                     if (h.Side == Opts.Player) UnderFire(h.TargetId, h.X, h.Y);
                     break;
+                case Intercepted i:
+                    Spark(i.X, i.Y);
+                    Play(Sound.Hit, i.X, i.Y, 0.35);
+                    break;
                 case RaidWon rw:
                     var tech = rw.Tech is TechId t ? $", {Techs.Defs[t].Name} niveau {World.Factions[rw.Side].Research[t]}" : "";
                     if (rw.Side == Opts.Player)

@@ -131,12 +131,13 @@ public class FocusFireTests
         {
             var before = w.Projectiles.Select(p => p.Id).ToHashSet();
             StepWorld(w);
-            foreach (var p in w.Projectiles.Where(p => p.Side == titan.Side && !before.Contains(p.Id)))
+            // The weapons made for big ships; flak and swarm missiles choose their own targets (ShipAiTests).
+            foreach (var p in w.Projectiles.Where(p => p.Side == titan.Side && !before.Contains(p.Id) && p.Kind is WeaponKind.Ray or WeaponKind.Laser))
             {
                 aimed[p.TargetId] = aimed.GetValueOrDefault(p.TargetId) + 1;
             }
         }
-        // Every turret shot goes to the ordered target, though the other cruiser is closer.
+        // Every such shot goes to the ordered target, though the other cruiser is closer.
         Assert.True(aimed.GetValueOrDefault(ordered.Id) > 0);
         Assert.Equal(0, aimed.GetValueOrDefault(near.Id));
     }

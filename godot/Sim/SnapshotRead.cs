@@ -61,6 +61,9 @@ public static partial class Snapshot
         ReadFields(r, replica);
         ReadEntities(r, replica, viewer, frame, baseline, frames);
         ReadShots(r, replica, frame, baseline, frames);
+        var beams = new List<BeamLine>();
+        for (var n = Count(r); n > 0; n--) beams.Add(new BeamLine(r.Read7BitEncodedInt(), r.Read7BitEncodedInt(), new Side(r.Read7BitEncodedInt())));
+        replica.Beams = beams;
         var zones = new List<Zone>();
         for (var n = Count(r); n > 0; n--)
         {
@@ -562,6 +565,7 @@ public static partial class Snapshot
         Tag.BeaconLost => new BeaconLost(r.Read7BitEncodedInt(), new Side(r.Read7BitEncodedInt())),
         Tag.FlagshipLost => new FlagshipLost(new Side(r.Read7BitEncodedInt()), r.ReadSingle(), r.ReadSingle()),
         Tag.ClockWarning => new ClockWarning(r.ReadSingle()),
+        Tag.Intercepted => new Intercepted(r.ReadSingle(), r.ReadSingle(), new Side(r.Read7BitEncodedInt())),
         var tag => throw new InvalidDataException($"Événement inconnu : {tag}"),
     };
 }
