@@ -27,6 +27,7 @@ public static class Options
         var focus = focusable ? Control.FocusModeEnum.All : Control.FocusModeEnum.None;
         var box = new VBoxContainer();
         box.AddThemeConstantOverride("separation", 18);
+        box.AddChild(LanguagePart(s, focus));
         box.AddChild(DisplayPart(s, focus));
         var toggles = Toggles;
         foreach (var group in toggles.Select(t => t.Group).Distinct())
@@ -65,6 +66,26 @@ public static class Options
         part.AddChild(Field("Nom du joueur", s.PlayerName, "", Sim.Net.LobbyRoom.MaxName, text => s.PlayerName = text));
         // Where the online server is, only in a developer build: a player's always uses the default.
         if (OS.IsDebugBuild()) part.AddChild(Field("Serveur en ligne", s.MasterAddress, Settings.DefaultMaster, 100, text => s.MasterAddress = text.Trim()));
+        return part;
+    }
+
+    /// <summary>The languages, each named in itself.</summary>
+    static readonly (string Code, string Name)[] Languages = [(Lang.French, "Français"), (Lang.English, "English")];
+
+    /// <summary>The language of the game, changed at once everywhere.</summary>
+    static VBoxContainer LanguagePart(Settings s, Control.FocusModeEnum focus)
+    {
+        var part = new VBoxContainer();
+        part.AddThemeConstantOverride("separation", 6);
+        part.AddChild(UiTheme.Text("Langue", Palette.Muted, 14));
+        var row = Choice("Langue du jeu", Languages.Select(l => l.Name), Array.FindIndex(Languages, l => l.Code == Lang.Current), focus, i =>
+        {
+            s.Language = Languages[i].Code;
+            Lang.Apply(s.Language);
+        });
+        // Each language keeps its own name, in any language.
+        row.GetChild<OptionButton>(1).AutoTranslateMode = Node.AutoTranslateModeEnum.Disabled;
+        part.AddChild(row);
         return part;
     }
 

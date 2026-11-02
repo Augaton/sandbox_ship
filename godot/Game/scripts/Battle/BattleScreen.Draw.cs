@@ -558,10 +558,12 @@ public partial class BattleScreen
             callouts++;
             var (x, y) = (e.X, e.Y - e.Radius - 10 / z);
             var color = Palette.Hex(def.Color);
+            // Drawn on the battlefield, not by a control: translated here.
+            var name = Lang.T(def.Name);
             Add(topList, 1400, (g, k) =>
             {
                 var c = EaseInCubic(k);
-                Draw.Text(g, UiTheme.Mono, def.Name, x, y - 40 / z * c, 14, color with { A = (float)(1 - c) }, z, Palette.Bg with { A = (float)(1 - c) });
+                Draw.Text(g, UiTheme.Mono, name, x, y - 40 / z * c, 14, color with { A = (float)(1 - c) }, z, Palette.Bg with { A = (float)(1 - c) });
             }, () => callouts--);
         }
         if (def.Target == AbilityTarget.Self && def.Radius is double radius && def.Duration == 0) Ripple(e.X, e.Y, radius, Palette.Hex(def.Color));

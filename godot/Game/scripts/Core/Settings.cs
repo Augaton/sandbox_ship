@@ -35,6 +35,8 @@ public sealed class Settings
     public int MaxFps { get; set; }
     /// <summary>Calmer motion: no growing cards at the start, no sliding menus, no shaking view.</summary>
     public bool ReduceMotion { get; set; }
+    /// <summary>"fr" or "en"; empty, the system's language when it is English, French otherwise (Lang).</summary>
+    public string Language { get; set; } = "";
     /// <summary>The keys the player chose, by command; the others keep their default (Bindings).</summary>
     public Dictionary<string, Bindings.Combo> Keys { get; set; } = [];
 
