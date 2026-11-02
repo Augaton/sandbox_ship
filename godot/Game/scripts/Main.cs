@@ -73,6 +73,8 @@ public partial class Main : Node
                 break;
             case "sandbox" or "gallery": StartBattle(new BattleOptions { Player = Faction.Klaed, Slots = BattleOptions.Versus(Faction.Klaed, [Faction.Nairan]), Mode = GameMode.Sandbox, Size = Dev.Size }); break;
             case "campaign": StartCampaign(new MenuChoice { Size = Dev.Size }); break;
+            case "tutorial": StartBattle(Ui.Tutorial.Options()); break;
+            case "replay" when Dev.Replay is string file && ReplayStore.Load(file, out _) is { } replay: StartBattle(BattleOptions.Watch(replay)); break;
             // With --host, the lobby first: the battle is served (Session.Launch).
             case "stress" when !Dev.Host: StartBattle(new BattleOptions { Player = Faction.Klaed, Slots = BattleOptions.Versus(Faction.Klaed, [Faction.Nairan, Faction.Nautolan]), Size = MapSize.Large, Seed = 7 }); break;
             default: ShowMenu(); break;

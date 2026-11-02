@@ -36,6 +36,8 @@ public sealed record MenuChoice
 /// (three large fleets in a fight, one step a frame, frame times logged before a --shot run quits), --skip=SECONDS (battle or galaxy played
 /// ahead, the player's side on the AI too), --zoom=Z, --shot=FILE.png and --frames=N (capture, then quit),
 /// --intro (the opening, which a capture or a start into a screen skips),
+/// --start=tutorial (the guided first battle), --start=replay with --replay=FILE (that replay played), --menu=replays and
+/// --replays=DIR (the list of replays, kept in DIR rather than user://replays),
 /// --menu=home|new|controls|credits|options|lobby-MODE (the menu screen opened first; new: the
 /// modes; lobby-skirmish, lobby-campaign...: that mode's lobby, see LobbyMode; skirmish: lobby-skirmish),
 /// --seats=N and --teams=T,T... (that lobby's bots added up to N seats, then its teams in seat order),
@@ -88,6 +90,8 @@ public static class Dev
     public static double[] Attack = [], Raid = [], Build = [];
     public static string[] Choose = [];
     public static string? Answer, Snap, SavePath;
+    /// <summary>--replays=DIR: where replays are listed and kept, instead of user://replays; --replay=FILE: the replay --start=replay plays.</summary>
+    public static string? Replays, Replay;
 
     static double[] Ages(string value) => [.. value.Split(',').Select(v => double.Parse(v, System.Globalization.CultureInfo.InvariantCulture))];
 
@@ -136,6 +140,8 @@ public static class Dev
                 case "--truce": Truce = double.Parse(value, System.Globalization.CultureInfo.InvariantCulture); break;
                 case "--answer": Answer = value; break;
                 case "--save": SavePath = value; break;
+                case "--replays": Replays = value; break;
+                case "--replay": Replay = value; break;
                 case "--resume": Resume = true; break;
                 case "--watch": Watch = true; break;
                 case "--leave": Leave = double.Parse(value, System.Globalization.CultureInfo.InvariantCulture); break;
