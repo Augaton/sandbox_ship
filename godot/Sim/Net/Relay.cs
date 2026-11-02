@@ -180,13 +180,16 @@ public static class Relay
         return r.ReadBytes((int)n);
     }
 
+    /// <summary>The bit of a game's mode byte that says it is locked: a server of an older build carries it along with the mode, unread.</summary>
+    const int LockedBit = 0x80;
+
     /// <summary>A game as its host says it, the mode left as it is: a newer game's mode is still listed, as of another version.</summary>
     static void WriteGame(BinaryWriter w, LanGame g)
     {
         w.Write7BitEncodedInt(g.Protocol);
         w.Write(g.Version);
         w.Write(g.Name);
-        w.Write((byte)g.Mode);
+        w.Write((byte)((int)g.Mode | (g.Locked ? LockedBit : 0)));
         w.Write((byte)g.Taken);
         w.Write((byte)g.Seats);
         w.Write((ushort)g.Port);
@@ -195,7 +198,8 @@ public static class Relay
 
     static LanGame ReadGame(BinaryReader r)
     {
-        var g = new LanGame(Count(r), Protocol.Text(r), Protocol.Text(r), (LobbyMode)r.ReadByte(), r.ReadByte(), r.ReadByte(), r.ReadUInt16(), r.ReadBoolean());
+        var (protocol, version, name, mode) = (Count(r), Protocol.Text(r), Protocol.Text(r), r.ReadByte());
+        var g = new LanGame(protocol, version, name, (LobbyMode)(mode & ~LockedBit), r.ReadByte(), r.ReadByte(), r.ReadUInt16(), r.ReadBoolean(), (mode & LockedBit) != 0);
         if (g.Seats > MaxSeats || g.Taken > g.Seats) throw new InvalidDataException($"{g.Taken} joueurs sur {g.Seats}");
         return g;
     }

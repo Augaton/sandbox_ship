@@ -90,6 +90,8 @@ public static class Dev
     public static string? Answer, Snap, SavePath;
     /// <summary>--say=TEXT: a dev run writes this line in the chat once in the lobby.</summary>
     public static string? Say;
+    /// <summary>--password=WORD: the game a dev run or a dedicated server hosts is locked with it; a dev run that joins answers with it.</summary>
+    public static string? Password;
 
     static double[] Ages(string value) => [.. value.Split(',').Select(v => double.Parse(v, System.Globalization.CultureInfo.InvariantCulture))];
 
@@ -122,6 +124,7 @@ public static class Dev
                 case "--join": Join = value; break;
                 case "--name": Name = value; break;
                 case "--say": Say = value; break;
+                case "--password": Password = value; break;
                 case "--port": (Port, port) = (int.Parse(value), true); break;
                 case "--relay": Relay = true; break;
                 case "--master": Master = value; break;

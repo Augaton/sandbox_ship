@@ -23,6 +23,7 @@ public class ProtocolTests
     static IEnumerable<Message> Every()
     {
         yield return Protocol.Hello("0.3.0", "Aurélien");
+        yield return new Message.Challenge([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16]);
         yield return new Message.Welcome(123456789, "Partie d'Aurélien");
         yield return new Message.Bye("La partie est complète.");
         yield return new Message.Room(SomeLobby(), [new Member(Lobby.Host, "Hôte"), new Member(77, "Bob")]);
@@ -61,7 +62,7 @@ public class ProtocolTests
             Assert.Equal(bytes, Protocol.Encode(back));
             tags.Add(bytes[0]);
         }
-        Assert.Equal(17, tags.Count);
+        Assert.Equal(18, tags.Count);
         // Fields come back as sent, not only their bytes.
         var room = (Message.Room)Protocol.Decode(Protocol.Encode(Every().OfType<Message.Room>().First()));
         Assert.Equal([new Member(Lobby.Host, "Hôte"), new Member(77, "Bob")], room.Members);
@@ -114,8 +115,8 @@ public class ProtocolTests
         Assert.Null(Protocol.DecodeLanGame([1, 2, 3, 4, 5, 6]));
         var bytes = Protocol.Encode(b);
         Assert.Null(Protocol.DecodeLanGame(bytes[..^3]));
-        // The mode: before taken, seats, port and the dedicated flag.
-        bytes[^6] = 200;
+        // The mode: before taken, seats, port, the dedicated flag and the lock.
+        bytes[^7] = 200;
         Assert.Null(Protocol.DecodeLanGame(bytes));
     }
 }

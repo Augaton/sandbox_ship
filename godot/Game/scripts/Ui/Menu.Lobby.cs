@@ -113,6 +113,7 @@ public partial class Menu
             Titled(online ? "Héberger en ligne" : "Héberger en local", online
                 ? "Choisis le mode : ta partie s'affiche chez tous les joueurs, par le serveur en ligne. Échap : retour"
                 : "Choisis le mode : les joueurs te rejoignent dans son salon. Échap : retour");
+            body.AddChild(PasswordField("Mot de passe de la partie, facultatif", hostPassword, "aucun : qui la voit peut la rejoindre", text => hostPassword = text));
             body.AddChild(ResumeCard() is { } resume ? Section("Campagne", ModeCard(Modes[0]), resume) : Section("Campagne", ModeCard(Modes[0])));
         }
         else

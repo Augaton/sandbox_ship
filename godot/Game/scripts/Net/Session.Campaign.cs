@@ -43,11 +43,11 @@ public sealed partial class Session
     /// <summary>The battle in the battle view this machine's player may watch: one it does not command.</summary>
     public int? Watchable => map?.Galaxy.Battles.Find(b => b.Status == BattleStatus.Tactical && !b.Commanders.Contains(map.Side))?.Id;
 
-    /// <summary>Hosts a campaign saved over the network, its players' seats kept for them (Lobby.Resume), on a port or online; the reason it cannot, or null.</summary>
-    public static string? Resume(Galaxy saved, int port, bool online = false)
+    /// <summary>Hosts a campaign saved over the network, its players' seats kept for them (Lobby.Resume), on a port or online, with a password if given; the reason it cannot, or null.</summary>
+    public static string? Resume(Galaxy saved, int port, bool online = false, string? password = null)
     {
         if (Lobby.Resume(saved, Random.Shared.Next(1, 1_000_000)) is not { } lobby) return "Cette sauvegarde ne se reprend pas en réseau.";
-        var error = Host(lobby, port, online);
+        var error = Host(lobby, port, online, password);
         if (error is null) Current!.resume = saved;
         return error;
     }
