@@ -31,7 +31,7 @@ IDENT = re.compile(r"^[A-Za-z_][A-Za-z0-9_.:/-]*$")
 CODE_WORDS = {"Button", "Label", "LineEdit", "Panel", "PanelContainer", "PopupMenu", "Linux", "Windows", "Mono", "Bold",
               "Default", "Master", "Dummy", "Shader", "Text", "Control", "Node"}
 # Texts no player reads: shaders, date formats, the measuring probe, dev and server traces.
-IGNORE = re.compile(r"shader_type|^dd/MM|HH:mm|^battle process$|musique prête|^avant la musique$")
+IGNORE = re.compile(r"shader_type|^dd/MM|HH:mm|^battle process$|musique prête|^avant la musique$|\\[bdsw]|^\^.*\$$")
 CHAR = re.compile(r"'(\\.|[^\\'])'")
 
 
