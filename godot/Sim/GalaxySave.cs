@@ -9,9 +9,10 @@ namespace SandboxShip.Sim;
 
 /// <summary>
 /// What the menu shows of a save: when, whose (its side and race), how many planets it holds;
-/// for a campaign played over the network, the names of the other players, "Bob, Eve".
+/// for a campaign played over the network, the names of the other players, "Bob, Eve"; the
+/// name the player gave it, if any.
 /// </summary>
-public sealed record SaveInfo(long SavedAt, Side Player, Faction Race, int Planets, string Others = "");
+public sealed record SaveInfo(long SavedAt, Side Player, Faction Race, int Planets, string Others = "", string? Name = null);
 
 public static class GalaxySave
 {
@@ -52,6 +53,8 @@ public static class GalaxySave
         public List<Incident> Ongoing = [];
         /// <summary>A campaign played over the network: the sides people played, by the name of each (none in older saves).</summary>
         public Dictionary<Side, string> Humans = [];
+        /// <summary>The name the player gave the save (SaveSlots); none for the automatic one, nor in older saves.</summary>
+        public string? Name;
     }
 
     static readonly JsonSerializerOptions Options = new()
@@ -61,7 +64,7 @@ public static class GalaxySave
         Converters = { new JsonStringEnumConverter(JsonNamingPolicy.CamelCase), new SideConverter(), new HeroIdConverter(), new ResearchLevelsConverter() },
     };
 
-    public static string Serialize(Galaxy g, long? savedAt = null)
+    public static string Serialize(Galaxy g, long? savedAt = null, string? name = null)
     {
         var save = new SavedGalaxy
         {
@@ -75,7 +78,7 @@ public static class GalaxySave
             }).ToList(),
             Factions = [.. g.Factions.Values], NextId = g.NextId, Seed = g.Seed, Winner = g.Winner, Sides = true,
             Truces = g.Truces, Offers = g.Offers, Incidents = g.Incidents, NextIncident = g.NextIncident, IncidentSeed = g.IncidentSeed, Ongoing = g.Ongoing,
-            Humans = g.Humans,
+            Humans = g.Humans, Name = name,
         };
         return JsonSerializer.Serialize(save, Options);
     }
@@ -116,14 +119,14 @@ public static class GalaxySave
         return g;
     }
 
-    /// <summary>Returns false when the file cannot be written (disk full, no rights).</summary>
-    public static bool Save(Galaxy g, string path)
+    /// <summary>Returns false when the file cannot be written (disk full, no rights). `name`: the one the player gave it, if any.</summary>
+    public static bool Save(Galaxy g, string path, string? name = null, long? savedAt = null)
     {
         try
         {
             // Written aside first, then moved over: a crash mid-write never eats the old save.
             var temp = path + ".tmp";
-            File.WriteAllText(temp, Serialize(g));
+            File.WriteAllText(temp, Serialize(g, savedAt, name));
             File.Move(temp, path, true);
             return true;
         }
@@ -153,7 +156,7 @@ public static class GalaxySave
         if (s is null || s.Version != Version) return null;
         var race = s.Sides ? s.Factions.Find(f => f.Id == s.Player)?.Race ?? (Faction)s.Player.Id : (Faction)s.Player.Id;
         var others = string.Join(", ", s.Humans.Where(h => h.Key != s.Player).Select(h => h.Value));
-        return new SaveInfo(s.SavedAt, s.Player, race, s.Planets.Count(p => p.Owner == s.Player), others);
+        return new SaveInfo(s.SavedAt, s.Player, race, s.Planets.Count(p => p.Owner == s.Player), others, s.Name);
     }
 
     public static void Clear(string path)

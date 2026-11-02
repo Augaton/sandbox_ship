@@ -7,12 +7,13 @@ namespace SandboxShip.Ui;
 
 public static class Options
 {
-    static readonly (string Group, string Label, Func<Settings, bool> Get, Action<Settings, bool> Set)[] Toggles =
+    /// <summary>Made when the options are shown: a label may name a key the player has changed.</summary>
+    static (string Group, string Label, Func<Settings, bool> Get, Action<Settings, bool> Set)[] Toggles =>
     [
         ("Vue", "Déplacer la vue quand le pointeur touche un bord de l'écran", s => s.EdgePan, (s, v) => s.EdgePan = v),
         ("Vue", "Toujours afficher les barres de coque et de bouclier", s => s.AlwaysBars, (s, v) => s.AlwaysBars = v),
         ("Combat", "Mes vaisseaux utilisent leurs capacités seuls quand c'est utile", s => s.AutoAbilities, (s, v) => s.AutoAbilities = v),
-        ("Son", "Couper le son (touche M en bataille)", s => s.Muted, (s, v) => s.Muted = v),
+        ("Son", $"Couper le son (touche {Bindings.Label(Bindings.Mute)} en bataille)", s => s.Muted, (s, v) => s.Muted = v),
         ("Accessibilité", "Réduire les animations : ouverture, menus, secousses de la vue", s => s.ReduceMotion, (s, v) => s.ReduceMotion = v),
     ];
 
@@ -27,12 +28,13 @@ public static class Options
         var box = new VBoxContainer();
         box.AddThemeConstantOverride("separation", 18);
         box.AddChild(DisplayPart(s, focus));
-        foreach (var group in Toggles.Select(t => t.Group).Distinct())
+        var toggles = Toggles;
+        foreach (var group in toggles.Select(t => t.Group).Distinct())
         {
             var part = new VBoxContainer();
             part.AddThemeConstantOverride("separation", 2);
             part.AddChild(UiTheme.Text(group, Palette.Muted, 14));
-            foreach (var (_, label, get, set) in Toggles.Where(t => t.Group == group))
+            foreach (var (_, label, get, set) in toggles.Where(t => t.Group == group))
             {
                 var check = HudKit.Check(label, get(s), on =>
                 {

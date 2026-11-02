@@ -26,8 +26,13 @@ public partial class GalaxyScreen : Node
     /// <summary>Planet tints, so that the placeholder planets do not all look alike.</summary>
     static readonly uint[] Tints = [0xffffff, 0xffd2a8, 0xc8f0c8, 0xffc0c0, 0xd8ccff, 0xfff0b0];
 
-    /// <summary>Where the campaign is saved: what the menu's "Continuer la campagne" reads.</summary>
-    public static string SavePath => ProjectSettings.GlobalizePath("user://campaign.json");
+    /// <summary>
+    /// The campaign's saves (SaveSlots): the automatic one and those the player names; "Continuer
+    /// la campagne" takes the most recent, "Charger une partie" lists them all.
+    /// </summary>
+    public static string SaveDir => ProjectSettings.GlobalizePath("user://saves");
+    /// <summary>The single save of older versions, moved into SaveDir once (MigrateSaves).</summary>
+    static string LegacySavePath => ProjectSettings.GlobalizePath("user://campaign.json");
     /// <summary>Where the host saves a campaign played over the network, apart: what "Reprendre la campagne" hosts again.</summary>
     public static string NetSavePath => Dev.SavePath ?? ProjectSettings.GlobalizePath("user://campaign-net.json");
 
@@ -88,10 +93,13 @@ public partial class GalaxyScreen : Node
         Build();
     }
 
-    /// <summary>A galaxy of its own: new, resumed from the save, or played ahead (--skip).</summary>
+    /// <summary>A galaxy of its own: new, loaded from a save (the most recent one to continue), or played ahead (--skip).</summary>
     void Begin(MenuChoice opts)
     {
-        var saved = opts.Resume ? GalaxySave.Load(SavePath) : null;
+        var file = opts.Load ?? (opts.Resume ? SaveSlots.Latest(SaveDir)?.Path : null);
+        var saved = file is not null ? GalaxySave.Load(file) : null;
+        // Another campaign is about to take the automatic save: the one there keeps a file of its own.
+        if (SaveFile is not null && file != SaveSlots.PathOf(SaveDir, SaveSlots.Auto)) SaveSlots.KeepAuto(SaveDir);
         var slots = opts.Slots;
         var layout = opts.Map == MapKind.Classic && slots.Count == 2
             ? GalaxyGen.Classic
@@ -173,7 +181,6 @@ public partial class GalaxyScreen : Node
     {
         box = null;
         panFrom = null;
-        keys.Clear();
         ProcessMode = ProcessModeEnum.Disabled;
         foreach (var layer in GetChildren().OfType<CanvasLayer>()) layer.Visible = false;
     }
@@ -218,11 +225,7 @@ public partial class GalaxyScreen : Node
             pointerInside = false;
             Hud?.Tooltip(null, Vector2.Zero);
         }
-        else if (what == NotificationApplicationFocusOut)
-        {
-            keys.Clear();
-            panFrom = null;
-        }
+        else if (what == NotificationApplicationFocusOut) panFrom = null;
     }
 
     /// <summary>Clicks and moves that no panel took: they are on the map.</summary>
@@ -349,12 +352,14 @@ public partial class GalaxyScreen : Node
             GetViewport().SetInputAsHandled();
             return;
         }
+        if (Bindings.Pressed(ev, Bindings.Pause))
+        {
+            TogglePause();
+            GetViewport().SetInputAsHandled();
+            return;
+        }
         switch (ev.Keycode)
         {
-            case Key.Space:
-                TogglePause();
-                GetViewport().SetInputAsHandled();
-                break;
             case Key.Escape:
                 // A lance's target or the rally point being picked first, then the drawer, then the selection.
                 if (CancelLance()) Hud.Toast("Tir annulé");
@@ -452,19 +457,39 @@ public partial class GalaxyScreen : Node
     }
 
     /// <summary>
-    /// Where this campaign is saved, if anywhere: alone, the save "Continuer la campagne" reads;
-    /// over the network, the host's own (a player keeps none). A capture run (--shot) leaves the
-    /// player's saves as they were, unless --save names a file of its own.
+    /// Where this campaign is saved as it goes, if anywhere: alone, the automatic save; over the
+    /// network, the host's own (a player keeps none). A capture run (--shot) leaves the player's
+    /// saves as they were, unless --save names a file of its own.
     /// </summary>
     string? SaveFile => Opts.Net is { Replica: true } ? null
         : Opts.Net is not null ? Dev.Shot is null || Dev.SavePath is not null ? NetSavePath : null
-        : Dev.Shot is null ? SavePath : null;
+        : Dev.Shot is null ? SaveSlots.PathOf(SaveDir, SaveSlots.Auto) : null;
 
     /// <summary>Saves the campaign, unless it is over.</summary>
     public void Save()
     {
-        if (SaveFile is string file && Galaxy.Winner is null && !GalaxySave.Save(Galaxy, file)) Hud.Toast("Sauvegarde impossible");
+        if (SaveFile is string file && Galaxy.Winner is null && !(Opts.Net is null ? SaveSlots.SaveAuto(Galaxy, SaveDir) : GalaxySave.Save(Galaxy, file)))
+            Hud.Toast("Sauvegarde impossible");
         saveTimer = 0;
+    }
+
+    /// <summary>What a save of this campaign is called unless the player names it: race, planets, now.</summary>
+    public string DefaultSaveName() => SaveSlots.DefaultName(Galaxy.Factions[Player].Race, Galaxy.Planets.Count(p => p.Owner == Player), DateTimeOffset.Now);
+
+    /// <summary>
+    /// Saves the campaign under the player's name, beside the automatic save. Not over the network,
+    /// once it is over, nor in a capture run: false then, as when it cannot be written.
+    /// </summary>
+    public bool SaveAs(string name)
+    {
+        if (Opts.Net is not null || Dev.Shot is not null || Galaxy.Winner is not null) return false;
+        return SaveSlots.SaveAs(Galaxy, SaveDir, name.Trim().Length > 0 ? name : DefaultSaveName()) is not null;
+    }
+
+    /// <summary>At the start: the single save of older versions moves into SaveDir, the old file kept aside. Never in a capture run.</summary>
+    public static void MigrateSaves()
+    {
+        if (Dev.Shot is null && !Dev.Service) SaveSlots.Migrate(LegacySavePath, SaveDir);
     }
 
     /// <summary>Back to the menu; over the network, out of the game (a player's side goes to the AI, a host closes it for all).</summary>

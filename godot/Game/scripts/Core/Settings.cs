@@ -33,6 +33,8 @@ public sealed class Settings
     public int MaxFps { get; set; }
     /// <summary>Calmer motion: no growing cards at the start, no sliding menus, no shaking view.</summary>
     public bool ReduceMotion { get; set; }
+    /// <summary>The keys the player chose, by command; the others keep their default (Bindings).</summary>
+    public Dictionary<string, Bindings.Combo> Keys { get; set; } = [];
 
     public const string DefaultMaster = "51.91.214.135:27029";
 

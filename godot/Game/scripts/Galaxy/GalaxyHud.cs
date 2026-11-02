@@ -273,7 +273,7 @@ public partial class GalaxyHud : CanvasLayer
         var speeds = HudKit.Row(4);
         row.AddChild(speeds);
         var pause = Btn("Pause", scene.TogglePause);
-        pause.TooltipText = "Pause (Espace)";
+        pause.TooltipText = $"Pause ({Bindings.Label(Bindings.Pause)})";
         speedButtons.Add((pause, 0));
         foreach (var s in Speeds) speedButtons.Add((Btn($"×{s}", () => scene.SetSpeed(s)), s));
         foreach (var (b, _) in speedButtons) speeds.AddChild(b);
@@ -346,7 +346,7 @@ public partial class GalaxyHud : CanvasLayer
         {
             HudKit.Outline(b, (s == 0 ? scene.Paused : !scene.Paused && scene.Speed == s) ? Palette.Accent : null);
             if (s != 0) b.Disabled = !host;
-            b.TooltipText = s == 0 ? scene.PausedBy is { } who ? $"En pause, demandée par {who} (Espace)" : "Pause (Espace)"
+            b.TooltipText = s == 0 ? scene.PausedBy is { } who ? $"En pause, demandée par {who} ({Bindings.Label(Bindings.Pause)})" : $"Pause ({Bindings.Label(Bindings.Pause)})"
                 : host ? $"Vitesse ×{s}" : "L'hôte règle la vitesse pour tous";
         }
     }
@@ -917,16 +917,40 @@ public partial class GalaxyHud : CanvasLayer
         tip.Position = new Vector2(Math.Min(at.X + 16, screen.X - size.X - 8), Math.Min(at.Y + 16, screen.Y - size.Y - 8));
     }
 
+    /// <summary>
+    /// The campaign's menu. Alone: a save under a name of the player's, the options, back to the
+    /// main menu. Over the network: leaving, and what becomes of the game then.
+    /// </summary>
     void ConfirmMenu()
     {
         var (p, box) = Dialog();
         var net = scene.Opts.Net;
-        box.AddChild(Heading(net is null ? "Retour au menu ?" : "Quitter la partie ?", null, 22));
-        box.AddChild(HudKit.Para(net is null ? "La campagne est sauvegardée : « Continuer la campagne » la reprend où tu l'as laissée."
-            : !net.Replica ? "La partie s'arrête pour tous les joueurs. Elle est sauvegardée : « Multijoueur », héberger, puis « Reprendre la campagne », "
+        if (net is null)
+        {
+            box.AddChild(Heading("Menu", null, 22));
+            box.AddChild(HudKit.Para("La campagne se sauvegarde seule ; « Continuer la campagne » reprend la sauvegarde la plus récente. "
+                + "Tu peux aussi en garder une sous le nom de ton choix.", Palette.Muted, max: 460));
+            var row = HudKit.Row(8);
+            var name = new LineEdit { Text = scene.DefaultSaveName(), MaxLength = 60, CustomMinimumSize = new Vector2(340, 40), AccessibilityName = "Nom de la sauvegarde" };
+            void SaveNamed()
+            {
+                var ok = scene.SaveAs(name.Text);
+                Toast(ok ? $"Sauvegardée : {(name.Text.Trim().Length > 0 ? name.Text.Trim() : scene.DefaultSaveName())}" : "Sauvegarde impossible");
+                if (ok) CloseModal();
+            }
+            name.TextSubmitted += _ => SaveNamed();
+            row.AddChild(name);
+            row.AddChild(Btn("Sauvegarder", SaveNamed));
+            box.AddChild(row);
+            box.AddChild(Actions(Btn("Options", () => OpenModal(Options.Panel(ConfirmMenu))), Btn("Annuler", CloseModal), Btn("Menu principal", scene.ToMenu, primary: true)));
+            OpenModal(p);
+            return;
+        }
+        box.AddChild(Heading("Quitter la partie ?", null, 22));
+        box.AddChild(HudKit.Para(!net.Replica ? "La partie s'arrête pour tous les joueurs. Elle est sauvegardée : « Multijoueur », héberger, puis « Reprendre la campagne », "
                 + "la rouvre, chacun reprenant sa place."
             : "L'IA prend ta place jusqu'à la fin."));
-        box.AddChild(Actions(Btn("Annuler", CloseModal), Btn(net is null ? "Menu" : "Quitter", scene.ToMenu, primary: true)));
+        box.AddChild(Actions(Btn("Annuler", CloseModal), Btn("Quitter", scene.ToMenu, primary: true)));
         OpenModal(p);
     }
 

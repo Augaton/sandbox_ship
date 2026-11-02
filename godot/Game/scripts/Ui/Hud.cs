@@ -121,7 +121,7 @@ public partial class Hud : CanvasLayer
         level = row.Add(Text("", Palette.Muted));
         row.AddChild(Ignore(new Control { SizeFlagsHorizontal = Control.SizeFlags.ExpandFill }));
         var speeds = row.Add(Row(4));
-        pauseButton = speeds.Add(Button("Pause", scene.TogglePause, "Pause (Espace)"));
+        pauseButton = speeds.Add(Button("Pause", scene.TogglePause, $"Pause ({Bindings.Label(Bindings.Pause)})"));
         // Over the network, everyone plays at ×1.
         if (scene.Opts.Net is null)
         {
@@ -503,7 +503,7 @@ public partial class Hud : CanvasLayer
         if (piloted is not null)
         {
             pilotText.Text = $"[b]Pilotage : {Names.EntityName(piloted)}[/b] " +
-                "[color=#949eb0]ZQSD (ou WASD) ou flèches : piloter. Clic gauche maintenu : tirer sur la cible marquée. P ou Échap : rendre la main.[/color]";
+                $"[color=#949eb0]{Bindings.Movement()} ou flèches : piloter. Clic gauche maintenu : tirer sur la cible marquée. {Bindings.Label(Bindings.Pilot)} ou Échap : rendre la main.[/color]";
         }
         Outline(pauseButton, scene.Paused ? Palette.Accent : null);
         pauseButton.Text = scene.PausedBy is { } who ? $"Pause · {who}" : "Pause";
@@ -615,8 +615,8 @@ public partial class Hud : CanvasLayer
             parts.Add(QuickButton($"group:{n}", n.ToString(), count.ToString(), $"Groupe {n} (touche {n}, deux fois : centrer)", false, () => c.RecallGroup(n)));
         }
         var idle = c.IdleShips().Count;
-        parts.Add(QuickButton("idle", "Inactifs", idle.ToString(), "Vaisseaux inactifs (I : le suivant, Maj + I : tous)", idle == 0, () => c.SelectIdle(Input.IsKeyPressed(Key.Shift))));
-        parts.Add(QuickButton("alert", "Alerte", null, "Aller à la dernière alerte (Retour arrière)", scene.Alerts.Count == 0, scene.JumpToAlert));
+        parts.Add(QuickButton("idle", "Inactifs", idle.ToString(), $"Vaisseaux inactifs ({Bindings.Label(Bindings.Idle)} : le suivant, Maj + {Bindings.Label(Bindings.Idle)} : tous)", idle == 0, () => c.SelectIdle(Input.IsKeyPressed(Key.Shift))));
+        parts.Add(QuickButton("alert", "Alerte", null, $"Aller à la dernière alerte ({Bindings.Label(Bindings.LastAlert)})", scene.Alerts.Count == 0, scene.JumpToAlert));
         Sync(quickbar, parts);
     }
 

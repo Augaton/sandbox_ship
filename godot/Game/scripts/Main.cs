@@ -38,6 +38,8 @@ public partial class Main : Node
         // A capture window must not take the keyboard from whoever is typing elsewhere.
         if (Dev.Shot is not null) DisplayServer.WindowSetFlag(DisplayServer.WindowFlags.NoFocus, true);
         Display.Apply();
+        Bindings.Apply();
+        Campaign.GalaxyScreen.MigrateSaves();
         loading = new Ui.Loading();
         AddChild(loading);
         loading.Begin("Forge de la flotte", () => Assets.Progress);

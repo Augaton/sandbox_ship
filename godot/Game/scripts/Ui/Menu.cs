@@ -17,7 +17,7 @@ public partial class Menu : Node
     /// <summary>The game's version, as in package.json (which the web version reads at build time).</summary>
     public const string Version = "0.4.0";
 
-    enum Screen { Home, Modes, Lobby, Options, Controls, Credits, Multiplayer }
+    enum Screen { Home, Modes, Lobby, Options, Controls, Credits, Multiplayer, Load }
 
     /// <summary>Width of the panel: the home column, the wider panel of the other screens, a little more for the lobby's six rows.</summary>
     const float HomeWidth = 420, Width = 780, LobbyWidth = 860;
@@ -124,6 +124,7 @@ public partial class Menu : Node
             "new" => Screen.Modes,
             "controls" => Screen.Controls,
             "credits" => Screen.Credits,
+            "load" => Screen.Load,
             "options" => Screen.Options,
             "multiplayer" or "join" => Screen.Multiplayer,
             "skirmish" => Screen.Lobby,
@@ -360,11 +361,13 @@ public partial class Menu : Node
                 footer.AddChild(Btn("Retour", Back));
                 break;
             case Screen.Controls:
-                Titled("Commandes");
-                body.AddChild(Section("Bataille", Controls.List(Controls.Battle, 330)));
-                body.AddChild(Section("Carte galactique", Controls.List(Controls.Galaxy, 330)));
+                Titled("Commandes", "Clique une touche, puis appuie sur la nouvelle. Échap : retour");
+                body.AddChild(new KeysEditor());
+                body.AddChild(Section("Souris et touches fixes, en bataille", Controls.List(Controls.BattleFixed, 330)));
+                body.AddChild(Section("Souris et touches fixes, sur la carte galactique", Controls.List(Controls.GalaxyFixed, 330)));
                 footer.AddChild(Btn("Retour", Back));
                 break;
+            case Screen.Load: LoadScreen(); break;
             case Screen.Credits:
                 Titled("Crédits");
                 body.AddChild(Paragraph("Sprites : packs Void (flottes, environnement, vaisseau principal) de Foozle, et Space Breaker de zintoki, tous en CC0. Merci à eux."));
@@ -387,7 +390,7 @@ public partial class Menu : Node
     void Home()
     {
         opener = null;
-        var save = GalaxySave.Info(Campaign.GalaxyScreen.SavePath);
+        var latest = SaveSlots.Latest(Campaign.GalaxyScreen.SaveDir);
         body.AddChild(Spacer(1.3f));
         var logo = Picture(Logos.Logo(5), new Vector2(345, 45));
         logo.AccessibilityName = "Sandbox Ship";
@@ -399,17 +402,16 @@ public partial class Menu : Node
 
         var nav = new VBoxContainer();
         nav.AddThemeConstantOverride("separation", 0);
-        if (save is not null)
+        if (latest is not null)
         {
-            nav.AddChild(Nav("Continuer la campagne", () => Main.Instance.StartCampaign(new MenuChoice { Resume = true }), true));
-            var when = DateTimeOffset.FromUnixTimeMilliseconds(save.SavedAt).ToLocalTime().ToString("dd/MM/yyyy HH:mm", CultureInfo.InvariantCulture);
-            var info = Paragraph($"{Factions.Defs[save.Race].Name}, {save.Planets} planète{(save.Planets > 1 ? "s" : "")}, le {when}", Palette.Muted, 13);
+            nav.AddChild(Nav("Continuer la campagne", () => Main.Instance.StartCampaign(new MenuChoice { Load = latest.Path }), true));
             var under = new MarginContainer();
             under.AddThemeConstantOverride("margin_bottom", 12);
-            under.AddChild(info);
+            under.AddChild(Paragraph(SaveLine(latest), Palette.Muted, 13));
             nav.AddChild(under);
+            nav.AddChild(Nav("Charger une partie", () => Open(Screen.Load, "load"), key: "load"));
         }
-        nav.AddChild(Nav("Nouvelle partie", () => OpenModes(false), save is null, "new"));
+        nav.AddChild(Nav("Nouvelle partie", () => OpenModes(false), latest is null, "new"));
         nav.AddChild(Nav("Multijoueur", () => Open(Screen.Multiplayer, "multi"), key: "multi"));
         nav.AddChild(Nav("Options", () => Open(Screen.Options, "options"), key: "options"));
         nav.AddChild(Nav("Commandes", () => Open(Screen.Controls, "controls"), key: "controls"));
@@ -418,6 +420,69 @@ public partial class Menu : Node
         body.AddChild(nav);
         body.AddChild(Spacer(0.5f));
         footer.AddChild(UiTheme.Text($"Version {Version}", Palette.Muted, 13));
+    }
+
+    /// <summary>What a save holds: its name if the player gave it one, then race, planets and date.</summary>
+    static string SaveLine(SaveSlots.Slot s)
+    {
+        var when = DateTimeOffset.FromUnixTimeMilliseconds(s.Info.SavedAt).ToLocalTime().ToString("dd/MM/yyyy HH:mm", CultureInfo.InvariantCulture);
+        var what = $"{Factions.Defs[s.Info.Race].Name}, {s.Info.Planets} planète{(s.Info.Planets > 1 ? "s" : "")}, le {when}";
+        return string.IsNullOrWhiteSpace(s.Info.Name) ? what : $"« {s.Info.Name.Trim()} », {what}";
+    }
+
+    /// <summary>The save whose "Supprimer" was pressed once: a second press deletes it.</summary>
+    string? deleting;
+
+    /// <summary>The saves, the most recent first: a click on one loads it; "Supprimer", twice, deletes it.</summary>
+    void LoadScreen()
+    {
+        Titled("Charger une partie", "La plus récente en premier. Échap : retour");
+        var slots = SaveSlots.List(Campaign.GalaxyScreen.SaveDir);
+        if (slots.Count == 0)
+        {
+            body.AddChild(Paragraph("Aucune sauvegarde. Une campagne se sauvegarde seule en cours de partie ; « Sauvegarder », dans son menu, en garde une de plus.", Palette.Muted, 14));
+        }
+        var list = new VBoxContainer();
+        list.AddThemeConstantOverride("separation", 8);
+        foreach (var s in slots)
+        {
+            var row = new HBoxContainer();
+            row.AddThemeConstantOverride("separation", 8);
+            var title = s.IsAuto ? "Sauvegarde automatique" : string.IsNullOrWhiteSpace(s.Info.Name) ? "Sauvegarde" : s.Info.Name.Trim();
+            row.AddChild(Tile($"load:{s.Id}", false, () => Main.Instance.StartCampaign(new MenuChoice { Load = s.Path }), $"Charger : {title}", col =>
+            {
+                var name = UiTheme.Text(title);
+                name.AddThemeFontOverride("font", Bold);
+                name.AutowrapMode = TextServer.AutowrapMode.WordSmart;
+                col.AddChild(name);
+                var when = DateTimeOffset.FromUnixTimeMilliseconds(s.Info.SavedAt).ToLocalTime().ToString("dd/MM/yyyy HH:mm", CultureInfo.InvariantCulture);
+                col.AddChild(Small($"{Factions.Defs[s.Info.Race].Name}, {s.Info.Planets} planète{(s.Info.Planets > 1 ? "s" : "")}, le {when}"));
+            }));
+            var confirm = deleting == s.Id;
+            var delete = Btn(confirm ? "Confirmer" : "Supprimer", () => DeleteSave(s.Id), key: $"delete:{s.Id}");
+            delete.SizeFlagsVertical = Control.SizeFlags.ShrinkCenter;
+            delete.CustomMinimumSize = new Vector2(130, 40);
+            if (confirm) delete.AddThemeColorOverride("font_color", Palette.Danger);
+            delete.TooltipText = confirm ? "Supprimer pour de bon" : "Supprimer cette sauvegarde (il faut confirmer)";
+            row.AddChild(delete);
+            list.AddChild(row);
+        }
+        body.AddChild(list);
+        footer.AddChild(Btn("Retour", Back));
+    }
+
+    /// <summary>A first press asks to confirm; the second deletes the save.</summary>
+    void DeleteSave(string id)
+    {
+        if (deleting != id)
+        {
+            deleting = id;
+            Rebuild($"delete:{id}");
+            return;
+        }
+        deleting = null;
+        SaveSlots.Delete(Campaign.GalaxyScreen.SaveDir, id);
+        Rebuild("");
     }
 
     void Open(Screen next, string from)
