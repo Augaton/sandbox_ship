@@ -1,7 +1,10 @@
 # Tests, exports and releases of the native game (godot/).
 # Every push and pull request: the simulation's tests, then the Linux and Windows exports,
-# kept as the run's artifacts. A tag vX.Y.Z: the same, then a GitHub release with both
-# archives, once the version in the game matches the tag.
+# kept as the run's artifacts. Then both archives are published:
+# - a push on main or dev replaces that branch's pre-release (main-build, dev-build), whose
+#   archives keep the same names, so the same download addresses, from one commit to the next;
+# - a tag vX.Y.Z makes the version's release, once the version in the game matches the tag.
+# Pull requests publish nothing.
 name: Build
 
 on:
@@ -110,7 +113,11 @@ jobs:
       - name: Archives
         working-directory: godot/build
         run: |
-          if [[ "$GITHUB_REF" == refs/tags/v* ]]; then v="$GITHUB_REF_NAME"; else v="dev-${GITHUB_SHA::7}"; fi
+          # The tag, the branch for main and dev (the names their pre-releases keep), else the commit.
+          case "$GITHUB_REF" in
+            refs/tags/v*|refs/heads/main|refs/heads/dev) v="$GITHUB_REF_NAME" ;;
+            *) v="build-${GITHUB_SHA::7}" ;;
+          esac
           mkdir -p ../../dist
           mv linux "SandboxShip-$v-linux-x86_64"
           tar -czf "../../dist/SandboxShip-$v-linux-x86_64.tar.gz" "SandboxShip-$v-linux-x86_64"
@@ -126,7 +133,7 @@ jobs:
 
   release:
     name: Publication
-    if: startsWith(github.ref, 'refs/tags/v')
+    if: github.event_name != 'pull_request' && (startsWith(github.ref, 'refs/tags/v') || github.ref == 'refs/heads/main' || github.ref == 'refs/heads/dev')
     needs: export
     runs-on: ubuntu-24.04
     permissions:
@@ -140,6 +147,16 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          gh release create "$GITHUB_REF_NAME" dist/* --repo "$GITHUB_REPOSITORY" --verify-tag \
-            --title "Sandbox Ship $GITHUB_REF_NAME" --generate-notes \
-            || gh release upload "$GITHUB_REF_NAME" dist/* --repo "$GITHUB_REPOSITORY" --clobber
+          if [[ "$GITHUB_REF" == refs/tags/v* ]]; then
+            gh release create "$GITHUB_REF_NAME" dist/* --repo "$GITHUB_REPOSITORY" --verify-tag \
+              --title "Sandbox Ship $GITHUB_REF_NAME" --generate-notes \
+              || gh release upload "$GITHUB_REF_NAME" dist/* --repo "$GITHUB_REPOSITORY" --clobber
+            exit 0
+          fi
+          # The branch's pre-release, made again on this commit: its tag moves with it. A tag
+          # pushed with this token starts no workflow, and these do not match v* anyway.
+          tag="$GITHUB_REF_NAME-build"
+          gh release delete "$tag" --repo "$GITHUB_REPOSITORY" --cleanup-tag --yes 2>/dev/null || true
+          gh release create "$tag" dist/* --repo "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" \
+            --prerelease --latest=false --title "Sandbox Ship, build de $GITHUB_REF_NAME" \
+            --notes "Build automatique de \`$GITHUB_REF_NAME\` au commit ${GITHUB_SHA::7}, refait à chaque push sur cette branche. Les versions publiées sont les releases vX.Y.Z."

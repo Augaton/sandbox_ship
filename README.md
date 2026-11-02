@@ -39,8 +39,9 @@ seul contre l'IA ou jusqu'à six joueurs en réseau, par équipes.
 
 ## Jouer
 
-Les archives de chaque version sont sur la page [Releases](../../releases). L'exécutable et son
-dossier `data_Game_*` restent côte à côte.
+Les archives de chaque version sont sur la page [Releases](../../releases). Les pré-releases
+`main-build` et `dev-build` portent le dernier état de chaque branche, refait à chaque push.
+L'exécutable et son dossier `data_Game_*` restent côte à côte.
 
 - **Linux** : extraire l'archive, puis lancer `./SandboxShip.x86_64`.
 - **Windows** : extraire le zip, puis lancer `SandboxShip.exe`. L'exécutable n'est pas signé :
@@ -82,9 +83,15 @@ Les options de lancement, le jeu en réseau et les serveurs sont décrits dans
 ## Intégration continue et versions
 
 La CI GitHub ([.github/workflows/build.yml](.github/workflows/build.yml)) lance les tests, puis
-les exports Linux et Windows, à chaque push sur `main` ou `dev` et à chaque pull request ; les
-archives restent attachées au run. Un tag `vX.Y.Z` publie en plus une release avec les deux
-archives, après avoir vérifié que le jeu porte bien ce numéro.
+les exports Linux et Windows, à chaque push sur `main` ou `dev` et à chaque pull request, et
+garde les archives dans le run. Elle les publie ensuite :
+
+- un push sur `main` ou `dev` refait la pré-release de la branche (`main-build`, `dev-build`).
+  Ses archives gardent le même nom d'un commit à l'autre, donc la même adresse de
+  téléchargement, par exemple `releases/download/dev-build/SandboxShip-dev-linux-x86_64.tar.gz` ;
+- un tag `vX.Y.Z` publie la release de la version, après avoir vérifié que le jeu porte bien ce
+  numéro ;
+- une pull request ne publie rien.
 
 `dev` reçoit le travail en cours, `main` les versions publiées. Pour publier une version :
 
