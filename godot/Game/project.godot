@@ -14,6 +14,7 @@ config/name="Sandbox Ship"
 config/version="0.4.0"
 config/icon="res://icon.png"
 boot_splash/bg_color=Color(0.043137256, 0.050980393, 0.07058824, 1)
+boot_splash/show_image=false
 boot_splash/image="res://boot.png"
 boot_splash/stretch_mode=0
 boot_splash/use_filter=false

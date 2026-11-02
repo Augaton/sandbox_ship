@@ -93,7 +93,7 @@ public static class Logos
         ],
     };
 
-    /// <summary>5x7 pixel font, only the letters of the title.</summary>
+    /// <summary>5x7 pixel font, only the letters of the title and of the signature.</summary>
     public static readonly IReadOnlyDictionary<char, string[]> Glyphs = new Dictionary<char, string[]>
     {
         ['S'] = [".###.", "#...#", "#....", ".###.", "....#", "#...#", ".###."],
@@ -106,6 +106,9 @@ public static class Logos
         ['H'] = ["#...#", "#...#", "#...#", "#####", "#...#", "#...#", "#...#"],
         ['I'] = ["#####", "..#..", "..#..", "..#..", "..#..", "..#..", "#####"],
         ['P'] = ["####.", "#...#", "#...#", "####.", "#....", "#....", "#...."],
+        ['U'] = ["#...#", "#...#", "#...#", "#...#", "#...#", "#...#", ".###."],
+        ['G'] = [".###.", "#...#", "#....", "#.###", "#...#", "#...#", ".###."],
+        ['T'] = ["#####", "..#..", "..#..", "..#..", "..#..", "..#..", "..#.."],
     };
 
     static readonly Color Outline = Palette.Bg;
@@ -134,9 +137,11 @@ public static class Logos
     }
 
     /// <summary>"SANDBOX SHIP": light letters fading to amber, with a dark outline.</summary>
-    public static Image LogoImage(int scale = 4)
+    public static Image LogoImage(int scale = 4) => WordsImage(["SANDBOX", "SHIP"], scale);
+
+    /// <summary>Words in the title's letters: light fading to amber, with a dark outline.</summary>
+    static Image WordsImage(string[] words, int scale)
     {
-        string[] words = ["SANDBOX", "SHIP"];
         // One empty row and column all around leaves room for the outline.
         var rows = new string[9];
         for (var y = 0; y < 9; y++)
@@ -174,4 +179,7 @@ public static class Logos
         Cached($"{faction}:{scale}:{color}", () => EmblemImage(faction, scale, color));
 
     public static Texture2D Logo(int scale = 4) => Cached($"logo:{scale}", () => LogoImage(scale));
+
+    /// <summary>The author's name, in the title's letters, for the opening.</summary>
+    public static Texture2D Signature(int scale = 4) => Cached($"signature:{scale}", () => WordsImage(["AUGATON"], scale));
 }

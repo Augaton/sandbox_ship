@@ -40,6 +40,10 @@ public partial class Main : Node
         loading = new Ui.Loading();
         AddChild(loading);
         loading.Begin("Forge de la flotte", () => Assets.Progress);
+        // The opening plays over it while the game loads; a launch with options (a capture, a
+        // start straight into a screen, a network test) goes without, unless it asks for it.
+        var intro = Dev.Intro || OS.GetCmdlineUserArgs().Length == 0 ? new Ui.Intro() : null;
+        if (intro is not null) AddChild(intro);
         // The simulation's code compiled out of sight meanwhile, so that no first decision stalls a frame.
         _ = Task.Run(() =>
         {
@@ -54,6 +58,7 @@ public partial class Main : Node
         });
         Sfx.Attach(this);
         await Assets.Load();
+        if (intro is not null) await intro.Done;
         if (Dev.Dump is string dir) Ui.Logos.LogoImage(Ui.Loading.LogoScale).SavePng($"{dir}/boot.png");
         switch (Dev.Start)
         {

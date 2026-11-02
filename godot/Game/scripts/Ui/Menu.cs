@@ -25,7 +25,12 @@ public partial class Menu : Node
     const float PadX = 48, PadTop = 44, PadBottom = 28, Gutter = 14;
     /// <summary>The veil fades out over this many pixels past the panel.</summary>
     const float Fade = 220;
-    const double Slide = 0.24, Appear = 0.18;
+    /// <summary>
+    /// A new screen: the panel slides to its width while the content comes in from the left;
+    /// its parts fade in one after the other, top to bottom.
+    /// </summary>
+    const double Slide = 0.28, Rise = 0.22, Stagger = 0.04, StaggerMax = 0.4;
+    const float Enter = 28;
 
     static int NewSeed() => Random.Shared.Next(1, 1_000_000);
 
@@ -35,6 +40,8 @@ public partial class Menu : Node
     HBoxContainer footer = null!;
     ScrollContainer scroll = null!;
     float width = HomeWidth;
+    /// <summary>How far left of its place the content is, sliding in; how much the panel's edge glows amber, fading.</summary>
+    float shift, glow;
     Tween? sliding, appearing;
     Control? preview;
     /// <summary>The buttons of the screen shown: the first one, and those a click rebuilds the screen from.</summary>
@@ -127,7 +134,7 @@ public partial class Menu : Node
         if (start == Screen.Lobby) DevLobby(Dev.Menu == "skirmish" ? LobbyMode.Skirmish : Enum.Parse<LobbyMode>(Dev.Menu["lobby-".Length..], true));
         start = NetStart(start);
         width = WidthOf(start);
-        Show(start, false);
+        Show(start);
     }
 
     public override void _Input(InputEvent e)
@@ -223,7 +230,7 @@ public partial class Menu : Node
         var edge = width * panel;
         if (edge > 0) veil.DrawRect(new Rect2(0, 0, edge, h), solid);
         veil.DrawPolygon([new(edge, 0), new(width + Fade, 0), new(width + Fade, h), new(edge, h)], [solid, clear, clear, solid]);
-        if (panel > 0) veil.DrawLine(new Vector2(width, 0), new Vector2(width, h), Palette.Line with { A = 0.35f * panel }, 1);
+        if (panel > 0) veil.DrawLine(new Vector2(width, 0), new Vector2(width, h), Palette.Line.Lerp(Palette.Accent, glow) with { A = (0.35f + 0.5f * glow) * panel }, 1);
     }
 
     // Screens.
@@ -231,7 +238,8 @@ public partial class Menu : Node
     /// <summary>The panel follows its width; the veil, and the fight's framing, with it.</summary>
     void Fit()
     {
-        frame.OffsetRight = width;
+        frame.OffsetLeft = shift;
+        frame.OffsetRight = width + shift;
         veil.QueueRedraw();
     }
 
@@ -239,6 +247,18 @@ public partial class Menu : Node
     {
         width = w;
         Fit();
+    }
+
+    void SetShift(float s)
+    {
+        shift = s;
+        Fit();
+    }
+
+    void SetGlow(float g)
+    {
+        glow = g;
+        veil.QueueRedraw();
     }
 
     static float WidthOf(Screen s) => s switch { Screen.Home => HomeWidth, Screen.Lobby or Screen.Multiplayer => LobbyWidth, _ => Width };
@@ -259,34 +279,61 @@ public partial class Menu : Node
         if (from is not null) Settle(keyed.GetValueOrDefault(from), 0);
     }
 
-    /// <summary>Shows a screen: the panel slides to its width, the content fades in.</summary>
+    /// <summary>Shows a screen: the panel slides to its width, its edge flares amber, the content slides and fades in.</summary>
     void Show(Screen next, bool animate = true)
     {
         screen = next;
         Build();
         var to = WidthOf(next);
         sliding?.Kill();
-        appearing?.Kill();
         if (animate)
         {
-            sliding = CreateTween().SetEase(Tween.EaseType.Out).SetTrans(Tween.TransitionType.Cubic);
+            sliding = CreateTween().SetParallel().SetEase(Tween.EaseType.Out).SetTrans(Tween.TransitionType.Cubic);
             sliding.TweenMethod(Callable.From<float>(SetWidth), width, to, Slide);
-            frame.Modulate = Colors.Transparent;
-            appearing = CreateTween();
-            appearing.TweenProperty(frame, "modulate:a", 1.0, Appear).SetDelay(Slide * 0.4);
+            sliding.TweenMethod(Callable.From<float>(SetShift), -Enter, 0f, Slide + 0.12).SetTrans(Tween.TransitionType.Expo);
+            sliding.TweenMethod(Callable.From<float>(SetGlow), 1f, 0f, 0.6);
+            Appear();
         }
         else
         {
+            shift = glow = 0;
             SetWidth(to);
-            frame.Modulate = Colors.White;
         }
         scroll.ScrollVertical = 0;
         Settle(first, 0);
     }
 
+    /// <summary>The parts of the screen fade in one after the other: title, note, sections, cards and entries, then the footer.</summary>
+    void Appear()
+    {
+        appearing = CreateTween().SetParallel();
+        var i = 0;
+        foreach (var part in Parts(header, 0).Concat(Parts(body, 0)).Concat(Parts(footer, 2)))
+        {
+            part.Modulate = part.Modulate with { A = 0 };
+            appearing.TweenProperty(part, "modulate:a", 1.0, Rise).SetDelay(Math.Min(i++ * Stagger, StaggerMax));
+        }
+        if (i == 0) appearing.Kill();
+    }
+
+    /// <summary>The children of a container, those of its columns and grids taken one by one, two levels down.</summary>
+    static IEnumerable<Control> Parts(Control container, int depth)
+    {
+        foreach (var child in container.GetChildren().OfType<Control>())
+        {
+            if (depth < 2 && child is VBoxContainer or GridContainer)
+            {
+                foreach (var part in Parts(child, depth + 1)) yield return part;
+            }
+            else yield return child;
+        }
+    }
+
     /// <summary>Fills the header, the body and the footer for the screen shown.</summary>
     void Build()
     {
+        // A screen rebuilt shows at once: what was fading in is gone.
+        appearing?.Kill();
         foreach (var part in new Control[] { header, body, footer })
         {
             foreach (var child in part.GetChildren())

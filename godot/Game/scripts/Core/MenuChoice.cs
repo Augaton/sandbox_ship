@@ -35,6 +35,7 @@ public sealed record MenuChoice
 /// command line: --start=menu|battle|sandbox|campaign|gallery (every ship class and platform level, paused)|raid (a battle centered on the colossus)|stress
 /// (three large fleets in a fight, one step a frame, frame times logged before a --shot run quits), --skip=SECONDS (battle or galaxy played
 /// ahead, the player's side on the AI too), --zoom=Z, --shot=FILE.png and --frames=N (capture, then quit),
+/// --intro (the opening, which a capture or a start into a screen skips),
 /// --menu=home|new|controls|credits|options|lobby-MODE (the menu screen opened first; new: the
 /// modes; lobby-skirmish, lobby-campaign...: that mode's lobby, see LobbyMode; skirmish: lobby-skirmish),
 /// --seats=N and --teams=T,T... (that lobby's bots added up to N seats, then its teams in seat order),
@@ -81,6 +82,8 @@ public static class Dev
     public static int Port = Sim.Net.Protocol.DefaultPort, Beacon = Sim.Net.Protocol.BeaconPort;
     public static double Order, Pause;
     public static bool Campaign, Resume, Watch;
+    /// <summary>--intro: the opening plays even for a capture or a start straight into a screen.</summary>
+    public static bool Intro;
     public static double Speed, Truce, Leave;
     public static double[] Attack = [], Raid = [], Build = [];
     public static string[] Choose = [];
@@ -112,6 +115,7 @@ public static class Dev
                 case "--mode" when value == "campaign": Campaign = true; break;
                 case "--mode": Mode = Enum.Parse<BattleMode>(value, true); break;
                 case "--host": Host = true; break;
+                case "--intro": Intro = true; break;
                 case "--server": Server = true; break;
                 case "--join": Join = value; break;
                 case "--name": Name = value; break;

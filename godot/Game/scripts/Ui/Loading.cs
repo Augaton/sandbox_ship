@@ -1,6 +1,7 @@
 // The loading screen: over everything while the game loads, then for a moment between two
-// screens while the next one is built. The boot splash (boot.png) is the same logo at the same
-// spot, so that the start reads as one screen; a tip of the game waits at the bottom.
+// screens while the next one is built. At the start the opening (Intro) plays over it, and lifts
+// off its logo as the title; the boot splash is only the background's color. A tip of the game
+// waits at the bottom.
 using Godot;
 using SandboxShip.Core;
 
