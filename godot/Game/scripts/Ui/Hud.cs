@@ -684,6 +684,15 @@ public partial class Hud : CanvasLayer
         b.Paint();
     }
 
+    readonly Dictionary<ShipClass, string> shipTips = [];
+
+    /// <summary>What a ship button's tooltip says after its price: its weapons, then how to order it.</summary>
+    string ShipTip(ShipClass cls)
+    {
+        if (!shipTips.TryGetValue(cls, out var s)) shipTips[cls] = s = $". Armes : {Names.Armament(cls)}. Maj + clic : 5 d'un coup. Clic droit : production en boucle.";
+        return s;
+    }
+
     string Detail(int kind, int id, int extra, double cost, double time, string suffix = "")
     {
         if (!details.TryGetValue((kind, id, extra), out var s)) details[(kind, id, extra)] = s = $"{N(cost)} cr, {N(time)} s{suffix}";
@@ -710,7 +719,7 @@ public partial class Hud : CanvasLayer
             var loop = f.Repeat.Contains(cls);
             b.SetColor(1, loop ? Palette.Ok : Palette.Accent);
             SetButton(b, Structures.CanBuildShip(w, Player, cls), Detail(0, (int)cls, loop ? 1 : 0, Ships.Cost(cls, Race), Ships.Defs[cls].BuildTime, loop ? ", en boucle" : ""),
-                after: ". Maj + clic : 5 d'un coup. Clic droit : production en boucle.");
+                after: ShipTip(cls));
             Outline(b, loop ? Palette.Ok : null, false);
         }
         foreach (var (type, b) in structureButtons)
