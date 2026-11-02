@@ -26,6 +26,9 @@ public partial class Main : Node
         Instance = this;
         RenderingServer.SetDefaultClearColor(Palette.Bg);
         Dev.Parse(OS.GetCmdlineUserArgs());
+        // A capture is silent: whoever works next to it hears nothing, whatever the audio driver.
+        // Recording the game's sound is the one capture that keeps it, through its own bus effect.
+        if ((Dev.Shot is not null || Dev.Snap is not null) && Dev.MusicRecord is null) AudioServer.SetBusMute(0, true);
         if (Dev.MusicDump is string dump)
         {
             Music.Dump(dump);
