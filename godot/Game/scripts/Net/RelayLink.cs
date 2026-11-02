@@ -40,14 +40,18 @@ public sealed class RelayLink
 
     RelayLink(ENetConnection host, ENetPacketPeer server, string address, RelayFrame hello) => (this.host, this.server, Address, this.hello) = (host, server, address, hello);
 
-    /// <summary>Starts connecting to the server at "host:port", saying `hello` once up; null with the reason when it cannot start.</summary>
-    public static RelayLink? Open(string address, RelayFrame hello, out string? error)
+    /// <summary>
+    /// Starts connecting to the server at "host:port", saying `hello` once up; with room for
+    /// `straight` connections besides, that others open toward the same socket (see Punch); null
+    /// with the reason when it cannot start.
+    /// </summary>
+    public static RelayLink? Open(string address, RelayFrame hello, out string? error, int straight = 0)
     {
         var (name, port) = Relay.Address(address, Relay.DefaultPort);
         error = name.Length == 0 ? "Aucun serveur en ligne : son adresse se règle dans les options." : null;
         if (error is not null) return null;
         var host = new ENetConnection();
-        var err = host.CreateHost(1, Relay.Channels);
+        var err = host.CreateHost(1 + straight, Relay.Channels);
         if (err != Error.Ok)
         {
             error = $"Connexion impossible ({err}).";
@@ -68,13 +72,31 @@ public sealed class RelayLink
         return new RelayLink(host, server, address, hello);
     }
 
-    /// <summary>Takes what came, in order, until nothing waits or the link is closed under it.</summary>
-    public void Poll(Action<RelayFrame> got)
+    /// <summary>
+    /// Takes what came, in order, until nothing waits or the link is closed under it: the
+    /// server's frames for `got`; on the straight connections, one that `came` (with its
+    /// connection's data), what one sent (`straight`), one that `went`.
+    /// </summary>
+    public void Poll(Action<RelayFrame> got, Action<ENetPacketPeer, int>? came = null, Action<ENetPacketPeer, byte[]>? straight = null,
+        Action<ENetPacketPeer>? went = null)
     {
         while (!closed && !Down)
         {
             var e = host.Service();
-            switch ((ENetConnection.EventType)e[0].AsInt32())
+            var type = (ENetConnection.EventType)e[0].AsInt32();
+            if (type is ENetConnection.EventType.Connect or ENetConnection.EventType.Receive or ENetConnection.EventType.Disconnect
+                && e[1].AsGodotObject() is ENetPacketPeer other && other.GetInstanceId() != server.GetInstanceId())
+            {
+                if (type == ENetConnection.EventType.Connect) came?.Invoke(other, e[2].AsInt32());
+                else if (type == ENetConnection.EventType.Receive)
+                {
+                    var payload = other.GetPacket();
+                    straight?.Invoke(other, payload);
+                }
+                else went?.Invoke(other);
+                continue;
+            }
+            switch (type)
             {
                 case ENetConnection.EventType.None: return;
                 case ENetConnection.EventType.Connect:
@@ -112,6 +134,17 @@ public sealed class RelayLink
     }
 
     public double PopSentBytes() => closed ? 0 : host.PopStatistic(ENetConnection.HostStatistic.SentData);
+
+    static readonly byte[] PunchBytes = "SSHP"u8.ToArray();
+
+    /// <summary>
+    /// A few bytes to `address:port` from this link's socket, which ENet on the other end drops:
+    /// they open the way out through this machine's box, toward one doing the same.
+    /// </summary>
+    public void Punch(string address, int port)
+    {
+        if (!closed) host.SocketSend(address, port, PunchBytes);
+    }
 
     /// <summary>Sends what waits, says goodbye at once, and lets the connection go.</summary>
     public void Close()

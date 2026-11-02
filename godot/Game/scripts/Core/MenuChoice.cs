@@ -94,6 +94,8 @@ public static class Dev
     public static string? Password;
     /// <summary>--spectate: a dev run that joins (--join) comes only to watch.</summary>
     public static bool Spectate;
+    /// <summary>--no-direct: through the online server, never a straight connection: everything stays relayed.</summary>
+    public static bool NoDirect;
 
     static double[] Ages(string value) => [.. value.Split(',').Select(v => double.Parse(v, System.Globalization.CultureInfo.InvariantCulture))];
 
@@ -128,6 +130,7 @@ public static class Dev
                 case "--say": Say = value; break;
                 case "--password": Password = value; break;
                 case "--spectate": Spectate = true; break;
+                case "--no-direct": NoDirect = true; break;
                 case "--port": (Port, port) = (int.Parse(value), true); break;
                 case "--relay": Relay = true; break;
                 case "--master": Master = value; break;

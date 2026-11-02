@@ -60,6 +60,15 @@ public sealed partial class Session : Node
     /// <summary>Host: players join only with the game's password.</summary>
     public bool Locked => Hosting && password is not null;
 
+    /// <summary>
+    /// Through the online server, how the messages go, in words: a player's with its host,
+    /// straight or relayed; a host's, how many players it reaches straight. Null otherwise.
+    /// </summary>
+    public string? Path => relay is null ? null
+        : As == Role.Client ? relay.Straight(Transport.HostPeer) ? "liaison directe avec l'hôte" : "liaison par le serveur en ligne"
+        : relay.StraightCount switch { 0 => null, 1 => "un joueur en liaison directe", var n => $"{n} joueurs en liaison directe" };
+    int straightSeen;
+
     ITransport net = null!;
     /// <summary>The same connection, when it goes through the online server; a dedicated server's entry there (--public).</summary>
     RelayTransport? relay;
@@ -213,6 +222,12 @@ public sealed partial class Session : Node
         net.Poll(Came, Went, Received, Broken);
         if (Current != this) return;
         if (As == Role.Server) Engine.MaxFps = battle is null ? IdleFps : BattleFps;
+        // A straight connection up or down: the lobby says how the messages go.
+        if (relay is not null && relay.StraightCount != straightSeen)
+        {
+            straightSeen = relay.StraightCount;
+            Changes++;
+        }
         if (As == Role.Client)
         {
             if (Room is null && net.Status == MultiplayerPeer.ConnectionStatus.Disconnected) Close($"Impossible de joindre {target}.");

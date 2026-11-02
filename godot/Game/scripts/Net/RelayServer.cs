@@ -127,7 +127,7 @@ public sealed partial class RelayServer : Node
                 // A peer that stops answering is let go within 15 s; a host's round trip, listed, settles in seconds.
                 peer.SetTimeout(32, 5000, 15000);
                 peer.PingInterval(100);
-                hub.Connected(id, peer.GetRemoteAddress(), now);
+                hub.Connected(id, peer.GetRemoteAddress(), now, peer.GetRemotePort());
                 break;
             case ENetConnection.EventType.Disconnect:
                 if (!ids.Remove(peer.GetInstanceId(), out var gone)) return;

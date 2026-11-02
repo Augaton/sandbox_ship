@@ -31,6 +31,7 @@ public class RelayTests
         yield return new RelayFrame.FromPlayer(2, [1, 2, 3]);
         yield return new RelayFrame.FromHost([4, 5]);
         yield return new RelayFrame.Closed("L'hôte a quitté la partie.");
+        yield return new RelayFrame.Meet(2, "203.0.113.9", 40002, 77);
     }
 
     [Fact]
@@ -45,7 +46,7 @@ public class RelayTests
             Assert.Equal(bytes, Relay.Encode(back));
             tags.Add(bytes[0]);
         }
-        Assert.Equal(15, tags.Count);
+        Assert.Equal(16, tags.Count);
         var games = (RelayFrame.Games)Relay.Decode(Relay.Encode(Every().OfType<RelayFrame.Games>().Single()));
         Assert.Equal(Every().OfType<RelayFrame.Games>().Single().Listed, games.Listed);
     }

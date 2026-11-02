@@ -8,7 +8,7 @@
 //   menu -> server    List
 //   host -> server    Open, Update, ToPlayer, Kick
 //   player -> server  Join, ToHost
-//   server -> them    Games, Opened, Joined, Came, Went, FromPlayer, FromHost, Closed
+//   server -> them    Games, Opened, Joined, Came, Went, FromPlayer, FromHost, Closed, Meet
 //
 // The multiplayer screen asks for the List and gets the Games. A host Opens its game and keeps
 // the connection: the game is listed while it lasts, and Updates say how full it is. A player
@@ -16,6 +16,13 @@
 // on carries ToHost as FromPlayer and ToPlayer as FromHost. Either leaving tells the other
 // (Went, or Closed with the reason); the server says Closed, and why, before it lets anyone go.
 // A dedicated server Opens as Public: listed with its own address, joined directly.
+//
+// From relay format 2 on, a host and a player who Joins its game are each told where the other
+// is, as the server sees them (Meet), with a token: each sends a few packets to the other from the
+// connection it holds with the server, which opens the way through their boxes, and the player
+// then connects straight to its host, the token in its connection's data. Their messages then go
+// that way; the relay stays, for when it does not get through. A machine of format 1 is never
+// introduced, and relayed as before.
 using System.Text;
 using SandboxShip.Sim.Data;
 
@@ -55,6 +62,11 @@ public abstract record RelayFrame
     public sealed record FromHost(byte[] Payload) : RelayFrame;
     /// <summary>The server lets this connection go, and says why; it closes after it.</summary>
     public sealed record Closed(string Reason) : RelayFrame;
+    /// <summary>
+    /// To a host: one of its players (Player) is at Address:Port as the server sees it; to a
+    /// player: its host (Player 1) is. Token binds the straight connection the player then opens.
+    /// </summary>
+    public sealed record Meet(int Player, string Address, int Port, int Token) : RelayFrame;
 }
 
 /// <summary>
@@ -65,8 +77,11 @@ public sealed record OnlineGame(int Room, bool Relayed, LanGame Game, bool Playi
 
 public static class Relay
 {
-    /// <summary>Layout of the frames above: bumped with any change. The games carried keep their own versions, which the server does not need to know.</summary>
-    public const int Wire = 1;
+    /// <summary>
+    /// Layout of the frames above: bumped with any change. The games carried keep their own
+    /// versions, which the server does not need to know. 2: Meet. A server takes MinWire on.
+    /// </summary>
+    public const int Wire = 2, MinWire = 1;
     /// <summary>Where the online server listens, unless told otherwise.</summary>
     public const int DefaultPort = 27029;
     /// <summary>As Godot's own ENet peer: reliable messages on channel 0, unreliable ones on 1.</summary>
@@ -80,7 +95,7 @@ public static class Relay
 
     const int MaxGames = 1024, MaxSeats = 64;
 
-    enum Tag : byte { List = 1, Open, Update, Join, ToPlayer, ToHost, Kick, Games = 32, Opened, Joined, Came, Went, FromPlayer, FromHost, Closed }
+    enum Tag : byte { List = 1, Open, Update, Join, ToPlayer, ToHost, Kick, Games = 32, Opened, Joined, Came, Went, FromPlayer, FromHost, Closed, Meet }
 
     public static byte[] Encode(RelayFrame f)
     {
@@ -141,6 +156,13 @@ public static class Relay
             case RelayFrame.FromPlayer p: w.Write((byte)Tag.FromPlayer); w.Write7BitEncodedInt(p.Player); w.Write(p.Payload); break;
             case RelayFrame.FromHost h: w.Write((byte)Tag.FromHost); w.Write(h.Payload); break;
             case RelayFrame.Closed c: w.Write((byte)Tag.Closed); w.Write(c.Reason); break;
+            case RelayFrame.Meet m:
+                w.Write((byte)Tag.Meet);
+                w.Write7BitEncodedInt(m.Player);
+                w.Write(m.Address);
+                w.Write((ushort)m.Port);
+                w.Write(m.Token);
+                break;
             default: throw new ArgumentException($"Message sans format : {f.GetType().Name}");
         }
     }
@@ -162,6 +184,7 @@ public static class Relay
         Tag.FromPlayer => new RelayFrame.FromPlayer(Count(r), Payload(r)),
         Tag.FromHost => new RelayFrame.FromHost(Payload(r)),
         Tag.Closed => new RelayFrame.Closed(Protocol.Text(r)),
+        Tag.Meet => new RelayFrame.Meet(Count(r), Protocol.Text(r), r.ReadUInt16(), r.ReadInt32()),
         var tag => throw new InvalidDataException($"Message inconnu : {tag}"),
     };
 

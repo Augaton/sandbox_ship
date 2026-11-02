@@ -223,11 +223,12 @@ public partial class Menu
     string? NetTitle()
     {
         if (Session.Current is not { Room: not null } s) return null;
-        if (!s.Hosting) return $"{s.Game}{(s.Watching ? " : tu regardes, sans place" : s.Leads ? " : tu as la main sur le salon" : ", réglée par l'hôte")}. Échap : quitter";
+        var path = s.Path is { } p ? $" ({p})" : "";
+        if (!s.Hosting) return $"{s.Game}{(s.Watching ? " : tu regardes, sans place" : s.Leads ? " : tu as la main sur le salon" : ", réglée par l'hôte")}{path}. Échap : quitter";
         if (s.Online)
         {
             return s.Status.Length > 0 ? $"{s.Status} Échap : fermer la partie"
-                : "Partie en ligne : tous les joueurs la trouvent dans « Multijoueur », sans rien ouvrir. Échap : fermer la partie";
+                : $"Partie en ligne : tous les joueurs la trouvent dans « Multijoueur », sans rien ouvrir{path}. Échap : fermer la partie";
         }
         // The home network's addresses first: 172.16 to 172.31 are as often a container's bridge.
         static int Rank(string a) => a.StartsWith("192.168.", StringComparison.Ordinal) ? 0 : a.StartsWith("10.", StringComparison.Ordinal) ? 1 : a.StartsWith("172.", StringComparison.Ordinal) ? 3 : 2;
