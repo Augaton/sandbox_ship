@@ -1,7 +1,7 @@
 // Mouse and keyboard in battle: selection, orders, control groups, camera, hand flying, and
-// the sandbox's spawning. Port of src/input/selection.ts. Letter shortcuts follow the
-// keyboard layout (P is P on AZERTY too); camera keys are physical positions: ZQSD on AZERTY,
-// WASD on QWERTY.
+// the sandbox's spawning. Port of src/input/selection.ts. The keys are the player's
+// (Bindings): letter shortcuts follow the keyboard layout (P is P on AZERTY too), camera keys
+// are physical positions (ZQSD on AZERTY, WASD on QWERTY); Échap and the groups' digits stay.
 using Godot;
 using SandboxShip.Core;
 using SandboxShip.Sim;
@@ -46,8 +46,6 @@ public partial class Selection : Node
     /// <summary>Zoom level the camera eases towards, and the screen point that stays put meanwhile.</summary>
     (float Zoom, Vector2 At) zoomGoal;
     bool firing;
-    /// <summary>Physical keys held down.</summary>
-    readonly HashSet<Key> keys = [];
     (int Id, double Time) lastClick = (-1, 0);
     /// <summary>Which idle ship I selects next.</summary>
     int idleTurn;
@@ -120,7 +118,6 @@ public partial class Selection : Node
         else if (what == NotificationWMMouseExit) pointerInside = false;
         else if (what == NotificationApplicationFocusOut)
         {
-            keys.Clear();
             firing = false;
             Box = null;
             panFrom = null;
@@ -148,7 +145,7 @@ public partial class Selection : Node
         }
     }
 
-    /// <summary>Moves, releases and held keys: seen before the HUD, so that a drag can cross it.</summary>
+    /// <summary>Moves and releases: seen before the HUD, so that a drag can cross it. Held keys are the InputMap's (Bindings).</summary>
     public override void _Input(InputEvent ev)
     {
         switch (ev)
@@ -158,12 +155,6 @@ public partial class Selection : Node
                 break;
             case InputEventMouseButton { Pressed: false } mb:
                 OnUp(mb);
-                break;
-            case InputEventKey { Pressed: true } k:
-                keys.Add(k.PhysicalKeycode);
-                break;
-            case InputEventKey { Pressed: false } k:
-                keys.Remove(k.PhysicalKeycode);
                 break;
         }
     }
@@ -392,26 +383,26 @@ public partial class Selection : Node
         if (pts.Count > 0) scene.CenterOn(pts.Average(e => e!.X), pts.Average(e => e!.Y));
     }
 
+    /// <summary>The keys of the battle: Échap and the groups' digits as they are, the others as the player set them (Bindings).</summary>
     void OnKey(InputEventKey ev)
     {
-        var key = ev.Keycode;
-        if (key == Key.P)
+        if (Bindings.Pressed(ev, Bindings.Pilot))
         {
             TogglePilot();
             return;
         }
-        if (key == Key.E)
+        if (Bindings.Pressed(ev, Bindings.Ability))
         {
             UseAbilities();
             return;
         }
         if (PilotId is not null)
         {
-            if (key == Key.Escape) StopPilot();
-            else if (key == Key.Space) scene.TogglePause();
+            if (ev.Keycode == Key.Escape) StopPilot();
+            else if (Bindings.Pressed(ev, Bindings.Pause)) scene.TogglePause();
             return;
         }
-        if (key == Key.A && ev.CtrlPressed)
+        if (Bindings.Pressed(ev, Bindings.SelectAll))
         {
             foreach (var e in World.Entities) if (e.Kind == EntityKind.Ship && e.Side == Player) scene.Selected.Add(e.Id);
             return;
@@ -424,47 +415,34 @@ public partial class Selection : Node
             return;
         }
         var center = scene.ScreenSize / 2;
-        switch (key)
+        if (ev.Keycode == Key.Escape)
         {
-            case Key.Space:
-                scene.TogglePause();
-                break;
-            case Key.Escape:
-                // A dialog first, then the current mode, then the selection; with nothing left, the pause menu.
-                if (scene.Hud.Escape()) return;
-                if (Mode is not SelectMode) SetMode(new SelectMode());
-                else if (scene.Selected.Count > 0) scene.Selected.Clear();
-                else scene.Hud.PauseMenu();
-                break;
-            case Key.F when OwnShips().Count > 0:
-                SetMode(new AttackMoveMode());
-                break;
-            case Key.X:
-                Sink.Send(new Command.Stop([.. OwnShips().Select(s => s.Id)]));
-                break;
-            case Key.C:
-                CenterOnSelection();
-                break;
-            case Key.Backspace:
-                scene.JumpToAlert();
-                break;
-            case Key.I:
-                SelectIdle(ev.ShiftPressed);
-                break;
-            case Key.M:
-                Settings.Current.Muted = !Settings.Current.Muted;
-                Settings.Current.Save();
-                scene.Hud.Toast(Settings.Current.Muted ? "Son coupé" : "Son rétabli");
-                break;
-            case Key.Plus or Key.Equal or Key.KpAdd:
-                ZoomStep(1, center);
-                break;
-            case Key.Minus or Key.KpSubtract:
-                ZoomStep(-1, center);
-                break;
-            case Key.H:
-                if (Worlds.StationOf(World, Player) is { } st) scene.CenterOn(st.X, st.Y);
-                break;
+            // A dialog first, then the current mode, then the selection; with nothing left, the pause menu.
+            if (scene.Hud.Escape()) return;
+            if (Mode is not SelectMode) SetMode(new SelectMode());
+            else if (scene.Selected.Count > 0) scene.Selected.Clear();
+            else scene.Hud.PauseMenu();
+        }
+        else if (Bindings.Pressed(ev, Bindings.Pause)) scene.TogglePause();
+        else if (Bindings.Pressed(ev, Bindings.AttackMove))
+        {
+            if (OwnShips().Count > 0) SetMode(new AttackMoveMode());
+        }
+        else if (Bindings.Pressed(ev, Bindings.Stop)) Sink.Send(new Command.Stop([.. OwnShips().Select(s => s.Id)]));
+        else if (Bindings.Pressed(ev, Bindings.CenterSelection)) CenterOnSelection();
+        else if (Bindings.Pressed(ev, Bindings.LastAlert)) scene.JumpToAlert();
+        else if (Bindings.Pressed(ev, Bindings.Idle)) SelectIdle(ev.ShiftPressed);
+        else if (Bindings.Pressed(ev, Bindings.Mute))
+        {
+            Settings.Current.Muted = !Settings.Current.Muted;
+            Settings.Current.Save();
+            scene.Hud.Toast(Settings.Current.Muted ? "Son coupé" : "Son rétabli");
+        }
+        else if (Bindings.Pressed(ev, Bindings.ZoomIn)) ZoomStep(1, center);
+        else if (Bindings.Pressed(ev, Bindings.ZoomOut)) ZoomStep(-1, center);
+        else if (Bindings.Pressed(ev, Bindings.CenterStation))
+        {
+            if (Worlds.StationOf(World, Player) is { } st) scene.CenterOn(st.X, st.Y);
         }
     }
 
@@ -562,8 +540,6 @@ public partial class Selection : Node
         scene.Hud.RefreshModes();
     }
 
-    bool Held(params Key[] codes) => codes.Any(keys.Contains);
-
     /// <summary>The controls, sent whenever they change; the world may not show them flown yet (a host answers later).</summary>
     void UpdatePilot()
     {
@@ -574,8 +550,8 @@ public partial class Selection : Node
             scene.Hud.Toast("Vaisseau perdu");
             return;
         }
-        var thrust = (Held(Key.W, Key.Up) ? 1 : 0) - (Held(Key.S, Key.Down) ? 1 : 0);
-        var turn = (Held(Key.D, Key.Right) ? 1 : 0) - (Held(Key.A, Key.Left) ? 1 : 0);
+        var thrust = (Bindings.Held(Bindings.PanUp) ? 1 : 0) - (Bindings.Held(Bindings.PanDown) ? 1 : 0);
+        var turn = (Bindings.Held(Bindings.PanRight) ? 1 : 0) - (Bindings.Held(Bindings.PanLeft) ? 1 : 0);
         var aim = scene.WorldPoint(GetViewport().GetMousePosition());
         var input = new Command.PilotInput(s.Id, thrust, turn, aim.X, aim.Y, firing);
         if (input != sentInput)
@@ -600,17 +576,17 @@ public partial class Selection : Node
         }
         var p = GetViewport().GetMousePosition();
         var size = scene.ScreenSize;
-        var fast = Held(Key.Shift) ? PanFast : 1;
+        var fast = Input.IsKeyPressed(Key.Shift) ? PanFast : 1;
         var step = (float)(PanSpeed * fast * delta / 1000) / scene.Zoom;
         // A capture window (--shot) is not being played: wherever the pointer is, the view stays.
         var edge = Settings.Current.EdgePan && PointerOver && panFrom is null && Dev.Shot is null;
-        // Ctrl + A selects everything: do not pan while Ctrl is down.
-        var letters = !Held(Key.Ctrl);
+        // Ctrl + a key gives an order (Ctrl + A selects everything): the view keys rest while Ctrl is down.
+        var keys = !Input.IsKeyPressed(Key.Ctrl);
         var c = scene.Center;
-        if (Held(Key.Left) || (letters && Held(Key.A)) || (edge && p.X < Edge)) c.X -= step;
-        if (Held(Key.Right) || (letters && Held(Key.D)) || (edge && p.X > size.X - Edge)) c.X += step;
-        if (Held(Key.Up) || (letters && Held(Key.W)) || (edge && p.Y < Edge)) c.Y -= step;
-        if (Held(Key.Down) || (letters && Held(Key.S)) || (edge && p.Y > size.Y - Edge)) c.Y += step;
+        if ((keys && Bindings.Held(Bindings.PanLeft)) || (edge && p.X < Edge)) c.X -= step;
+        if ((keys && Bindings.Held(Bindings.PanRight)) || (edge && p.X > size.X - Edge)) c.X += step;
+        if ((keys && Bindings.Held(Bindings.PanUp)) || (edge && p.Y < Edge)) c.Y -= step;
+        if ((keys && Bindings.Held(Bindings.PanDown)) || (edge && p.Y > size.Y - Edge)) c.Y += step;
         scene.Center = c;
     }
 

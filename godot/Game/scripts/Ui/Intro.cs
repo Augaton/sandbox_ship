@@ -32,6 +32,8 @@ public partial class Intro : CanvasLayer
         root.AddChild(dark);
 
         tween = CreateTween();
+        // With calmer motion asked for, the cards only fade in and out.
+        var grow = Settings.Current.ReduceMotion ? 1f : 1.04f;
         Control[] cards = [Signature(), MadeWith(), Art()];
         for (var i = 0; i < cards.Length; i++)
         {
@@ -39,7 +41,7 @@ public partial class Intro : CanvasLayer
             var name = $"intro-{i + 1}";
             tween.TweenInterval(Gap);
             tween.TweenProperty(card, "modulate:a", 1.0, In).SetTrans(Tween.TransitionType.Sine).SetEase(Tween.EaseType.InOut);
-            tween.Parallel().TweenProperty(card, "scale", Vector2.One * 1.04f, In + Hold + Out).From(Vector2.One);
+            tween.Parallel().TweenProperty(card, "scale", Vector2.One * grow, In + Hold + Out).From(Vector2.One);
             tween.Parallel().TweenProperty(card, "modulate:a", 0.0, Out).SetDelay(In + Hold).SetTrans(Tween.TransitionType.Sine).SetEase(Tween.EaseType.InOut);
             tween.Parallel().TweenCallback(Callable.From(() => Main.Instance.Snap(name, 1))).SetDelay(In + Hold / 2);
         }

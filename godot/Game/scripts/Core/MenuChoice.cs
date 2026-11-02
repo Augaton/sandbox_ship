@@ -15,8 +15,10 @@ public sealed record MenuChoice
     public IReadOnlyList<Slot> Seats { get; init; } = [];
     /// <summary>The local player's side among the seats; null: the first seat's.</summary>
     public Side? Me { get; init; }
-    /// <summary>Continue the saved campaign instead of starting a new one.</summary>
+    /// <summary>Continue the most recent saved campaign instead of starting a new one.</summary>
     public bool Resume { get; init; }
+    /// <summary>The save to load instead, picked on the "Charger une partie" screen (its path).</summary>
+    public string? Load { get; init; }
     /// <summary>The galaxy of a new game: generated from the seed, or the hand-made classic one (two players).</summary>
     public MapKind Map { get; init; } = MapKind.Random;
     public int Seed { get; init; } = 1;

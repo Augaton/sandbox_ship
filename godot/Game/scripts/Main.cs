@@ -37,6 +37,9 @@ public partial class Main : Node
         }
         // A capture window must not take the keyboard from whoever is typing elsewhere.
         if (Dev.Shot is not null) DisplayServer.WindowSetFlag(DisplayServer.WindowFlags.NoFocus, true);
+        Display.Apply();
+        Bindings.Apply();
+        Campaign.GalaxyScreen.MigrateSaves();
         loading = new Ui.Loading();
         AddChild(loading);
         loading.Begin("Forge de la flotte", () => Assets.Progress);
@@ -88,19 +91,15 @@ public partial class Main : Node
         GetTree().Quit();
     }
 
-    /// <summary>Frames a second while another window has the focus: the game plays on, the machine is busy elsewhere.</summary>
-    const int UnfocusedFps = 30;
-
     /// <summary>
     /// Closing the window quits too (Godot accepts it by itself): the same guarantee. Behind other
-    /// windows the game draws half as often; the simulation keeps its fixed steps, two a frame.
+    /// windows the game draws fewer frames (Display.Fps); the simulation keeps its fixed steps.
     /// </summary>
     public override void _Notification(int what)
     {
         if (what == NotificationWMCloseRequest) EnsureExit();
-        else if (Dev.Service || Dev.Shot is not null) return;
-        else if (what == NotificationApplicationFocusOut) Engine.MaxFps = UnfocusedFps;
-        else if (what == NotificationApplicationFocusIn) Engine.MaxFps = 0;
+        else if (what == NotificationApplicationFocusOut) Display.Focus(false);
+        else if (what == NotificationApplicationFocusIn) Display.Focus(true);
     }
 
     bool exiting;

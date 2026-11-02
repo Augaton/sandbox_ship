@@ -39,8 +39,6 @@ public partial class GalaxyScreen
     /// <summary>Zoom the view eases towards, and the screen point that stays put meanwhile.</summary>
     (double Zoom, Vector2 At) zoomGoal = (1, Vector2.Zero);
     Vector2? panFrom;
-    /// <summary>Physical keys held down.</summary>
-    readonly HashSet<Key> keys = [];
 
     /// <summary>Screen space the HUD leaves for the map: under the top bar, left of the planet panel.</summary>
     Rect2 MapArea() => new(24, Top + 16, Math.Max(1, laidOut.X - PanelW - 48), Math.Max(1, laidOut.Y - Top - 32));
@@ -140,8 +138,6 @@ public partial class GalaxyScreen
         ApplyView();
     }
 
-    bool Held(params Key[] codes) => codes.Any(keys.Contains);
-
     /// <summary>Per frame: eased zoom, then panning with the keys and the screen edges.</summary>
     void TickView(double delta)
     {
@@ -156,17 +152,16 @@ public partial class GalaxyScreen
         }
         var p = GetViewport().GetMousePosition();
         var size = laidOut;
-        var step = PanSpeed * (Held(Key.Shift) ? PanFast : 1) * delta / s;
+        var step = PanSpeed * (Input.IsKeyPressed(Key.Shift) ? PanFast : 1) * delta / s;
         // A capture run (--shot) does not follow the pointer, which may rest anywhere.
         var edge = Settings.Current.EdgePan && PointerOverMap && panFrom is null && Dev.Shot is null;
-        // Keys typed in a quantity box are not for the map; nor are letters with Ctrl down.
-        var arrows = GetViewport().GuiGetFocusOwner() is not LineEdit;
-        var letters = arrows && !Held(Key.Ctrl);
+        // Keys typed in a quantity box are not for the map; nor are keys with Ctrl down.
+        var keys = GetViewport().GuiGetFocusOwner() is not LineEdit && !Input.IsKeyPressed(Key.Ctrl);
         double dx = 0, dy = 0;
-        if ((arrows && Held(Key.Left)) || (letters && Held(Key.A)) || (edge && p.X < Edge)) dx -= step;
-        if ((arrows && Held(Key.Right)) || (letters && Held(Key.D)) || (edge && p.X > size.X - Edge)) dx += step;
-        if ((arrows && Held(Key.Up)) || (letters && Held(Key.W)) || (edge && p.Y < Edge)) dy -= step;
-        if ((arrows && Held(Key.Down)) || (letters && Held(Key.S)) || (edge && p.Y > size.Y - Edge)) dy += step;
+        if ((keys && Bindings.Held(Bindings.PanLeft)) || (edge && p.X < Edge)) dx -= step;
+        if ((keys && Bindings.Held(Bindings.PanRight)) || (edge && p.X > size.X - Edge)) dx += step;
+        if ((keys && Bindings.Held(Bindings.PanUp)) || (edge && p.Y < Edge)) dy -= step;
+        if ((keys && Bindings.Held(Bindings.PanDown)) || (edge && p.Y > size.Y - Edge)) dy += step;
         if (dx != 0 || dy != 0)
         {
             cx += dx;
@@ -199,47 +194,23 @@ public partial class GalaxyScreen
             case InputEventMouseButton { Pressed: false, ButtonIndex: MouseButton.Middle }:
                 panFrom = null;
                 break;
-            case InputEventKey { Pressed: true } k:
-                keys.Add(k.PhysicalKeycode);
-                break;
-            case InputEventKey { Pressed: false } k:
-                keys.Remove(k.PhysicalKeycode);
-                break;
         }
     }
 
-    /// <summary>Keys of the view, the fleets and the drawer; false for any other key.</summary>
+    /// <summary>Keys of the view, the fleets and the drawer, as the player set them (Bindings); false for any other key.</summary>
     bool ViewKey(InputEventKey ev)
     {
         var mid = FreeArea().GetCenter();
-        switch (ev.Keycode)
-        {
-            case Key.Plus or Key.Equal or Key.KpAdd:
-                ZoomStep(1, mid);
-                return true;
-            case Key.Minus or Key.KpSubtract:
-                ZoomStep(-1, mid);
-                return true;
-            case Key.H or Key.Home:
-                FitView();
-                return true;
-            case Key.X when SelectedFleet is not null:
-                StopFleet();
-                return true;
-            case Key.F:
-                Hud.ToggleDrawer(GalaxyHud.Drawer.Fleets);
-                return true;
-            case Key.E:
-                Hud.ToggleDrawer(GalaxyHud.Drawer.Empire);
-                return true;
-            case Key.J:
-                Hud.ToggleDrawer(GalaxyHud.Drawer.Log);
-                return true;
-            case Key.T:
-                Hud.ToggleDrawer(GalaxyHud.Drawer.Diplomacy);
-                return true;
-        }
-        return false;
+        if (Bindings.Pressed(ev, Bindings.ZoomIn)) ZoomStep(1, mid);
+        else if (Bindings.Pressed(ev, Bindings.ZoomOut)) ZoomStep(-1, mid);
+        else if (Bindings.Pressed(ev, Bindings.Overview)) FitView();
+        else if (Bindings.Pressed(ev, Bindings.Stop) && SelectedFleet is not null) StopFleet();
+        else if (Bindings.Pressed(ev, Bindings.Fleets)) Hud.ToggleDrawer(GalaxyHud.Drawer.Fleets);
+        else if (Bindings.Pressed(ev, Bindings.Empire)) Hud.ToggleDrawer(GalaxyHud.Drawer.Empire);
+        else if (Bindings.Pressed(ev, Bindings.Log)) Hud.ToggleDrawer(GalaxyHud.Drawer.Log);
+        else if (Bindings.Pressed(ev, Bindings.Diplomacy)) Hud.ToggleDrawer(GalaxyHud.Drawer.Diplomacy);
+        else return false;
+        return true;
     }
 
     /// <summary>Where a fleet on the move is, in map coordinates.</summary>

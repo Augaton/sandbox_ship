@@ -21,6 +21,20 @@ public sealed class Settings
     public string JoinAddress { get; set; } = $"127.0.0.1:{Sim.Net.Protocol.DefaultPort}";
     /// <summary>The online server, "address:port": the games it lists, and the relay of those hosted online.</summary>
     public string MasterAddress { get; set; } = DefaultMaster;
+    /// <summary>The window: framed, the whole screen, or borderless over the screen (Display).</summary>
+    public DisplayMode Display { get; set; } = DisplayMode.Windowed;
+    /// <summary>The framed window's size, in pixels.</summary>
+    public int WindowWidth { get; set; } = 1280;
+    public int WindowHeight { get; set; } = 800;
+    /// <summary>The scale of what is drawn, 1 as made: the interface, and the view with it.</summary>
+    public double UiScale { get; set; } = 1;
+    public bool VSync { get; set; } = true;
+    /// <summary>Frames a second at most; 0 for no cap.</summary>
+    public int MaxFps { get; set; }
+    /// <summary>Calmer motion: no growing cards at the start, no sliding menus, no shaking view.</summary>
+    public bool ReduceMotion { get; set; }
+    /// <summary>The keys the player chose, by command; the others keep their default (Bindings).</summary>
+    public Dictionary<string, Bindings.Combo> Keys { get; set; } = [];
 
     public const string DefaultMaster = "51.91.214.135:27029";
 
