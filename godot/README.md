@@ -145,8 +145,11 @@ Les modèles d'export 4.7.2 .NET sont dans `~/.local/share/godot/export_template
 
 ```bash
 cd godot/Game
+mkdir -p ../build/linux ../build/windows   # Godot ne crée pas le dossier d'export
 godot --headless --export-release "Linux" ../build/linux/SandboxShip.x86_64
 godot --headless --export-release "Windows" ../build/windows/SandboxShip.exe
 ```
 
-Chaque export donne l'exécutable et un dossier `data_Game_*` à garder à côté de lui.
+Chaque export donne l'exécutable et un dossier `data_Game_*` à garder à côté de lui. La CI
+(`.github/workflows/build.yml`) fait les mêmes exports depuis un clone neuf, après
+`godot --headless --import` ; un tag `vX.Y.Z` les publie en release (voir le README à la racine).

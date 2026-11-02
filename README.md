@@ -1,121 +1,115 @@
-# Sandbox Ship
+<p align="center">
+  <img src="docs/images/banner.png" alt="Sandbox Ship" width="100%">
+</p>
 
-Jeu de stratégie spatiale 2D en temps réel, en bac à sable. Trois modes, à deux ou à
-trois factions (à trois, chacun se bat contre tous) :
+**Sandbox Ship** est un jeu de stratégie spatiale en temps réel, en pixel art. On bâtit une
+station, on la défend, on lance des flottes et on conquiert une galaxie planète après planète,
+seul contre l'IA ou jusqu'à six joueurs en réseau, par équipes.
 
-- **Campagne galactique** : une carte de planètes reliées par des routes. On y gagne des
-  crédits, on bâtit des stations, des mines et des plateformes, on produit des vaisseaux et
-  on déplace ses flottes. Quand deux camps se rencontrent sur une planète, la bataille se
-  commande dans la vue tactique ou se résout seule. On perd quand on n'a plus de planète.
-- **Escarmouche** : une seule bataille contre l'IA, sur une carte petite, moyenne ou grande.
-  Chaque camp a une station améliorable avec deux champs d'astéroïdes juste derrière, des
-  hangars qui lancent des chasseurs et un chantier naval. On gagne en détruisant la station
-  adverse, point d'attache par point d'attache.
-- **Bac à sable** : la même bataille, IA coupée, placement libre de n'importe quelle unité.
+**[Télécharger la dernière version](../../releases/latest)** pour Linux ou Windows.
 
-Les frégates, croiseurs et cuirassés ont des pièces destructibles, comme les stations :
-tourelles, réacteurs (le vaisseau ralentit), générateur de bouclier, hangar. Au sommet, le
-Titan (un seul à la fois par faction) porte un rayon spinal ; son sprite est composé au
-démarrage à partir du cuirassé et des croiseurs de sa faction (`src/render/capitals.ts`).
-N'importe quel vaisseau se pilote à la main (touche P). Chaque classe a une capacité, et
-chaque héros un pouvoir à lui (bombardement orbital, dôme de bouclier, camouflage,
-impulsion IEM, essaim...). Le panneau de sélection dit ce qu'elle fait et si elle est prête,
-active ou en recharge ; E la déclenche, puis un clic la vise si besoin. En mode
-« Automatique », les vaisseaux s'en servent seuls.
-Éclaireurs et bombardiers sortent du chantier par escouades de trois. On construit autour
-de la station et des avant-postes : un avant-poste se pose loin de la base, là où un de tes
-vaisseaux tient la position hors combat, et ouvre une nouvelle zone de construction. Une
-mine se pose sur un champ dans une zone, ou tenu par un de tes vaisseaux, jamais en plein
-combat. L'IA s'adapte : elle répond à ce qu'elle a vu (frégates anti-chasseurs contre les
-essaims, torpilleurs contre les gros vaisseaux), se replie quand elle est dépassée et
-attaque quand elle a l'avantage. Trois difficultés changent ses revenus et sa réactivité.
-Confort : une alerte signale les attaques et les pertes hors de vue (Retour arrière y
-mène), les groupes et les vaisseaux inactifs sont à un clic, Maj + clic commande cinq
-vaisseaux, un clic droit met une classe en production en boucle ou annule un élément de
-file. Les sons sont synthétisés par le jeu (`src/audio/sfx.ts`, touche M pour couper) ;
-explosions, impacts sur les boucliers, fumée et traînées rendent les combats lisibles.
-Échap met en pause (options, commandes, recommencer) ; la fin d'une bataille montre les
-statistiques de chaque faction et propose de rejouer la même carte ou une nouvelle. Le menu
-montre un aperçu de la carte avant de lancer. En campagne, une flotte garde ses dégâts
-d'une bataille à l'autre et se répare à quai sur une planète alliée, plus vite avec une
-station ou un dock de réparation.
-Rien ne peut bloquer une partie : une station reconstruit ses pièces perdues (chantier
-naval compris) quand plus personne ne l'attaque ; une bataille de campagne où plus aucun
-tir ne touche pendant 4 minutes se termine sur le repli de l'attaquant, et le menu pause
-permet de laisser l'IA la finir ; une bataille en attente de ton choix est reposée tant
-qu'elle n'est pas tranchée ; en escarmouche à trois, la défaite s'affiche dès que ta
-station tombe.
-Les trois factions ont chacune leur trait et trois héros uniques. La production passe par
-deux files, bâtiments et vaisseaux, et la recherche améliore armes, boucliers, blindage,
-propulsion, mines et hangars ; elle a sa propre file, payée à l'ajout et remboursée à
-l'annulation. Chaque niveau de station rapporte un peu plus (6, 8 puis 10 crédits par
-seconde en bataille, +1 par niveau sur la carte galactique). Plateformes et avant-postes montent jusqu'au niveau 3, et les
-plateformes et docks peuvent se construire près des mines. En vue éloignée, les petits
-vaisseaux deviennent des chevrons et les tirs des traits. Un brouillard de guerre couvre
-les batailles et la carte, pour l'IA comme pour le joueur. Chaque carte, de campagne ou
-d'escarmouche, se génère à partir d'une graine (la carte classique reste disponible). Sur la
-carte, certaines planètes ont un bonus. La campagne se sauvegarde toute seule dans le
-navigateur.
+| | |
+|---|---|
+| ![Le menu principal, une bataille se joue derrière](docs/images/menu.webp) | ![Une grande bataille à trois camps](docs/images/bataille.webp) |
+| ![La carte de la campagne galactique](docs/images/campagne.webp) | ![Le salon d'une escarmouche à quatre, en deux équipes](docs/images/salon.webp) |
 
-## Lancer
+## Le jeu
 
-```bash
-npm install
-npm run play       # la dernière version publiée : http://localhost:4173
-npm run dev        # la version en cours de développement : http://localhost:5173
-npm test           # tests de la simulation
-npm run balance    # l'IA contre elle-même, toutes les paires de factions (quelques minutes)
-npm run build      # vérification des types + build de production dans dist/
-```
+- **Campagne galactique** : des planètes reliées par des routes, sur une galaxie petite, moyenne
+  ou grande. Revenus, stations, mines et plateformes, recherche par paliers, trêves entre
+  camps, flottes qui s'interceptent sur les routes. Chaque rencontre se commande en bataille ou
+  se résout seule.
+- **Escarmouche**, et ses variantes : Survie (des vagues d'Errants), Contrôle de zone (des
+  balises à tenir), Assaut (une forteresse à prendre à temps), Régicide (chacun son vaisseau
+  amiral).
+- **Bac à sable** : IA coupée, crédits en abondance, on pose ce qu'on veut où on veut.
+- **Trois races** jouables, chacune avec son trait et trois héros : les Kla'ed (armes +10 %),
+  les Nairan (boucliers +40 %), les Nautolan (coques qui se régénèrent). Les Errants, neutres,
+  gardent les sites de raid.
+- **Treize classes de vaisseaux**, de l'éclaireur au Colosse. Les gros ont des pièces
+  destructibles : tourelles, réacteurs, générateurs de bouclier, hangars. Balles, lasers,
+  torpilles, rayons, faisceaux continus, rafales à recharge, essaims de missiles et canons à
+  ions ; la flak abat les missiles en vol. En fin de partie, la Lance stellaire frappe n'importe
+  où sur la carte.
+- **Une IA** qui s'adapte à ce qu'elle voit, et des vaisseaux qui choisissent leurs cibles,
+  tiennent leurs distances, esquivent les frappes annoncées et se replient pour se faire réparer.
+- **En réseau**, jusqu'à six joueurs, campagne comprise : en réseau local (les parties
+  s'affichent d'elles-mêmes), par le serveur en ligne (rien à ouvrir chez soi) ou sur un
+  serveur dédié.
 
-Les commandes du jeu sont dans le menu (« Commandes ») et dans le bouton « Aide ». La vue
-se déplace avec ZQSD (WASD en QWERTY), les flèches ou les bords de l'écran.
+## Jouer
 
-## Versions : dev et main
+Les archives de chaque version sont sur la page [Releases](../../releases). L'exécutable et son
+dossier `data_Game_*` restent côte à côte.
 
-Deux branches git :
+- **Linux** : extraire l'archive, puis lancer `./SandboxShip.x86_64`.
+- **Windows** : extraire le zip, puis lancer `SandboxShip.exe`. L'exécutable n'est pas signé :
+  si Windows affiche « Windows a protégé votre ordinateur », choisir « Informations
+  complémentaires », puis « Exécuter quand même ».
 
-- `dev` reçoit le travail en cours ; `npm run dev` le lance.
-- `main` ne contient que des versions finies. Elle ne bouge qu'à la publication d'une
-  nouvelle version.
+Les commandes principales en bataille ; toutes sont dans le jeu, menu « Commandes » :
 
-`npm run play` sert le dossier `release/`, qui ne change qu'à la publication. Le travail
-sur `dev` n'y touche donc pas. Pour publier une version :
+| Touche | Effet |
+|---|---|
+| Clic gauche, glisser | Sélectionner |
+| Clic droit | Déplacer, ou attaquer la cible visée |
+| F puis clic | Attaque-mouvement : engage tout ce qui croise la route |
+| E | Capacité des vaisseaux sélectionnés |
+| P | Piloter le vaisseau sélectionné |
+| Ctrl + 1 à 9, puis 1 à 9 | Créer un groupe, puis le rappeler |
+| ZQSD ou flèches, molette | Déplacer la vue, zoomer |
+| Espace | Pause |
+
+## Compiler
+
+Il faut le SDK .NET 10 et Godot 4.7.2 .NET, avec ses modèles d'export pour exporter.
 
 ```bash
-git switch main
-git merge dev
-npm run release    # tests, types, puis build dans release/ (refuse hors de main)
-git tag v0.3.0     # avec le numéro de package.json, monté sur dev avant la fusion
-git switch dev
+dotnet test godot/Sim.Tests       # tests de la simulation, sans Godot
+godot --path godot/Game           # lance le jeu
+godot -e --path godot/Game        # ouvre l'éditeur
+
+cd godot/Game                     # exports
+mkdir -p ../build/linux ../build/windows
+godot --headless --export-release "Linux" ../build/linux/SandboxShip.x86_64
+godot --headless --export-release "Windows" ../build/windows/SandboxShip.exe
 ```
 
-## Ajouter les sprites
+Les options de lancement, le jeu en réseau et les serveurs sont décrits dans
+[godot/README.md](godot/README.md) ; l'avancement et les règles propres à cette version, dans
+[godot/PLAN.md](godot/PLAN.md).
 
-Sans pack importé, le jeu dessine des formes provisoires. Pour les vrais sprites :
+## Intégration continue et versions
 
-1. Télécharger les packs (gratuits, CC0) depuis itch.io :
-   - Foozle, Void - Fleet Pack 1, 2 et 3 : <https://foozlecc.itch.io/void-fleet-pack-1>,
-     <https://foozlecc.itch.io/void-fleet-pack-2>, <https://foozlecc.itch.io/void-fleet-pack-3>
-   - Foozle, Void - Environment Pack : <https://foozlecc.itch.io/void-environment-pack>
-   - zintoki, Space Breaker : <https://zintoki.itch.io/space-breaker>
-2. Déposer les `.zip` tels quels dans `assets/raw/`. Un dossier déjà extrait marche aussi.
-3. Lancer `npm run import-assets`.
+La CI GitHub ([.github/workflows/build.yml](.github/workflows/build.yml)) lance les tests, puis
+les exports Linux et Windows, à chaque push sur `main` ou `dev` et à chaque pull request ; les
+archives restent attachées au run. Un tag `vX.Y.Z` publie en plus une release avec les deux
+archives, après avoir vérifié que le jeu porte bien ce numéro.
 
-Le script extrait les archives avec `7z`, copie les PNG dans `public/assets/` et écrit
-`public/assets/manifest.json`. Une bande horizontale de frames carrées devient une
-animation. Si un fichier est mal découpé, corrige-le dans `assets/overrides.json` :
-`{ "<clé du manifest>": { "frameW": 64, "frameH": 64 } }`.
+`dev` reçoit le travail en cours, `main` les versions publiées. Pour publier une version :
 
-Le jeu trouve les sprites par mots-clés dans le nom des fichiers, par exemple
-`klaed` + `fighter` + `base` (voir `src/render/sprites.ts`). Ce qui ne correspond à rien
-reste en forme provisoire.
+1. Sur `dev`, mettre le numéro dans `godot/Game/project.godot` (`config/version`),
+   `godot/Game/scripts/Ui/Menu.cs` (`Version`) et `godot/Game/export_presets.cfg`
+   (`file_version` et `product_version`, avec un `.0` de plus), puis commiter.
+2. Avancer `main` sur `dev`, poser le tag et pousser :
 
-## Organisation
+```bash
+git push . dev:main
+git tag v0.5.0 main
+git push origin main dev v0.5.0
+```
 
-- `src/data/` : statistiques des vaisseaux, de la station et des structures.
-- `src/data/galaxy.ts` : planètes, routes et règles de la campagne.
-- `src/sim/` : simulation en TypeScript pur, à pas fixe, sans Phaser. `galaxy.ts` pour la
-  carte, `battle.ts` pour les batailles de planète, qui tournent dans la même simulation
-  que l'escarmouche, en accéléré quand elles se résolvent seules.
-- `src/scenes/`, `src/render/`, `src/input/`, `src/ui/` : rendu Phaser, entrées et HUD en HTML.
+## Le dépôt
+
+- `godot/` : le jeu, en Godot 4.7 et C#.
+  - `Sim/` : la simulation, en C# pur, déterministe et à pas fixe.
+  - `Sim.Tests/` : ses tests (xUnit).
+  - `Game/` : le projet Godot, avec le rendu, l'interface et le réseau.
+- `src/` et `tests/` : la [version web](docs/version-web.md), en TypeScript et Phaser, gelée ;
+  elle sert de référence aux tests de la simulation.
+- `docs/` : les images de ce README et la documentation de la version web.
+
+## Crédits
+
+Sprites : les packs Void de Foozle et Space Breaker de zintoki, en CC0. Logo de Godot Engine :
+Andrea Calabró, en CC BY 4.0. Le détail est dans [CREDITS.md](CREDITS.md).

@@ -1,0 +1,145 @@
+# Tests, exports and releases of the native game (godot/).
+# Every push and pull request: the simulation's tests, then the Linux and Windows exports,
+# kept as the run's artifacts. A tag vX.Y.Z: the same, then a GitHub release with both
+# archives, once the version in the game matches the tag.
+name: Build
+
+on:
+  push:
+    branches: [main, dev]
+    tags: ["v*"]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: build-${{ github.ref }}
+  cancel-in-progress: ${{ !startsWith(github.ref, 'refs/tags/') }}
+
+env:
+  GODOT_VERSION: "4.7.2"
+  DOTNET_VERSION: "10.0.x"
+  DOTNET_CLI_TELEMETRY_OPTOUT: "1"
+  DOTNET_NOLOGO: "1"
+
+jobs:
+  test:
+    name: Tests de la simulation
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: ${{ env.DOTNET_VERSION }}
+      - name: Tests
+        run: dotnet test godot/Sim.Tests -c Release
+
+  export:
+    name: Exports Linux et Windows
+    needs: test
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Version du jeu et tag
+        if: startsWith(github.ref, 'refs/tags/v')
+        run: |
+          v="${GITHUB_REF_NAME#v}"
+          ok=1
+          grep -qx "config/version=\"$v\"" godot/Game/project.godot || { echo "::error file=godot/Game/project.godot::config/version n'est pas $v"; ok=0; }
+          grep -q "Version = \"$v\";" godot/Game/scripts/Ui/Menu.cs || { echo "::error file=godot/Game/scripts/Ui/Menu.cs::Menu.Version n'est pas $v"; ok=0; }
+          grep -qx "application/product_version=\"$v.0\"" godot/Game/export_presets.cfg || { echo "::error file=godot/Game/export_presets.cfg::product_version n'est pas $v.0"; ok=0; }
+          [ "$ok" = 1 ]
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: ${{ env.DOTNET_VERSION }}
+
+      - name: Cache de Godot
+        id: godot-cache
+        uses: actions/cache@v4
+        with:
+          path: ~/godot
+          key: godot-${{ env.GODOT_VERSION }}-mono-linux-templates
+
+      # The official archives, checked against the SHA-512 sums Godot publishes with the release.
+      # Only the templates the two presets use are kept: the whole set weighs about a gigabyte.
+      - name: Godot et ses modèles d'export
+        if: steps.godot-cache.outputs.cache-hit != 'true'
+        run: |
+          base="https://github.com/godotengine/godot/releases/download/${GODOT_VERSION}-stable"
+          editor="Godot_v${GODOT_VERSION}-stable_mono_linux_x86_64.zip"
+          templates="Godot_v${GODOT_VERSION}-stable_mono_export_templates.tpz"
+          mkdir -p ~/godot/templates && cd ~/godot
+          curl -fsSL --retry 3 -o "$editor" "$base/$editor"
+          curl -fsSL --retry 3 -o "$templates" "$base/$templates"
+          sha512sum -c - <<EOF
+          1855960b27ee3ef5e66e5e228cced69d55637b24334a7411162687dcd077d8f9f645348cdb8eae984bec8135d49ed855a1e3a16476786b8bce60774fd8402d13  $editor
+          bb5c41d72370ed743660361f6228006f808ab04ca33abdc545d740b044f3fe057f32ae8cb7873a1bc86ddcd82ae683b9f6dfdfe4179852f2c0f1acde2ff6bd5a  $templates
+          EOF
+          unzip -q "$editor"
+          unzip -q -j "$templates" templates/version.txt templates/icudt_godot.dat \
+            templates/linux_release.x86_64 templates/windows_release_x86_64.exe -d templates
+          rm "$editor" "$templates"
+
+      - name: Installation de Godot
+        run: |
+          dir="$HOME/.local/share/godot/export_templates/${GODOT_VERSION}.stable.mono"
+          mkdir -p "$dir"
+          cp ~/godot/templates/* "$dir/"
+          echo "GODOT=$HOME/godot/Godot_v${GODOT_VERSION}-stable_mono_linux_x86_64/Godot_v${GODOT_VERSION}-stable_mono_linux.x86_64" >> "$GITHUB_ENV"
+
+      - name: Import du projet
+        working-directory: godot/Game
+        run: '"$GODOT" --headless --import'
+
+      - name: Exports
+        working-directory: godot/Game
+        run: |
+          # Godot does not make the folder it exports into.
+          mkdir -p ../build/linux ../build/windows
+          "$GODOT" --headless --export-release "Linux" ../build/linux/SandboxShip.x86_64
+          "$GODOT" --headless --export-release "Windows" ../build/windows/SandboxShip.exe
+          test -x ../build/linux/SandboxShip.x86_64 && test -d ../build/linux/data_Game_linuxbsd_x86_64
+          test -f ../build/windows/SandboxShip.exe && test -d ../build/windows/data_Game_windows_x86_64
+
+      # Each archive holds one folder, the executable and its data next to it; the Linux one
+      # also serves a dedicated or online server (the Pelican egg takes it as it is).
+      - name: Archives
+        working-directory: godot/build
+        run: |
+          if [[ "$GITHUB_REF" == refs/tags/v* ]]; then v="$GITHUB_REF_NAME"; else v="dev-${GITHUB_SHA::7}"; fi
+          mkdir -p ../../dist
+          mv linux "SandboxShip-$v-linux-x86_64"
+          tar -czf "../../dist/SandboxShip-$v-linux-x86_64.tar.gz" "SandboxShip-$v-linux-x86_64"
+          mv windows "SandboxShip-$v-windows-x86_64"
+          zip -qr "../../dist/SandboxShip-$v-windows-x86_64.zip" "SandboxShip-$v-windows-x86_64"
+          ls -l ../../dist
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: sandbox-ship
+          path: dist/*
+          if-no-files-found: error
+
+  release:
+    name: Publication
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: export
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: sandbox-ship
+          path: dist
+      - name: Release GitHub
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "$GITHUB_REF_NAME" dist/* --repo "$GITHUB_REPOSITORY" --verify-tag \
+            --title "Sandbox Ship $GITHUB_REF_NAME" --generate-notes \
+            || gh release upload "$GITHUB_REF_NAME" dist/* --repo "$GITHUB_REPOSITORY" --clobber
