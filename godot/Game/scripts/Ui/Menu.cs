@@ -367,6 +367,7 @@ public partial class Menu : Node
                 body.AddChild(Paragraph("Sprites : packs Void (flottes, environnement, vaisseau principal) de Foozle, et Space Breaker de zintoki, tous en CC0. Merci à eux."));
                 body.AddChild(Paragraph("Vaisseaux des Errants, Rempart, Transporteur, Titan, Léviathan et Colosse : dessinés par le jeu dans la manière de ces packs."));
                 body.AddChild(Paragraph("Emblèmes, logo et jeu : Sandbox Ship."));
+                body.AddChild(Paragraph("Fait avec Godot Engine. Logo Godot : Andrea Calabró, CC BY 4.0 ; son texte est éclairci pour le fond sombre."));
                 footer.AddChild(Btn("Retour", Back));
                 break;
         }

@@ -108,9 +108,14 @@ public partial class Intro : CanvasLayer
         return Card(name, Space(4), Line("présente", Palette.Muted, 16));
     }
 
+    /// <summary>The engine's logo (Andrea Calabró, CC BY 4.0, its text lightened for the dark), or its name without it.</summary>
+    const string GodotLogo = "res://assets/credits/godot-logo.svg";
+
     Control MadeWith() => Card(
         Line("Propulsé par", Palette.Muted, 14),
-        Line("Godot Engine", Palette.Text, 30, true),
+        ResourceLoader.Exists(GodotLogo)
+            ? new TextureRect { Texture = GD.Load<Texture2D>(GodotLogo), MouseFilter = Control.MouseFilterEnum.Ignore, AccessibilityName = "Godot Engine" }
+            : Line("Godot Engine", Palette.Text, 30, true),
         Rule(),
         Line("C# et .NET", Palette.Muted, 15));
 

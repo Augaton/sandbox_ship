@@ -11,3 +11,15 @@ obligatoire ; elle est faite par courtoisie.
 | Space Breaker | zintoki | CC0 | <https://zintoki.itch.io/space-breaker> |
 
 Les noms de faction Kla'ed, Nairan et Nautolan viennent des packs de Foozle.
+
+## Moteur
+
+L'ouverture de la version native montre le logo de Godot Engine. Sa licence demande
+l'attribution ; elle est dans `godot/Game/assets/credits/LICENSE-godot-logo.txt`.
+
+| Œuvre | Auteur | Licence | Lien |
+|---|---|---|---|
+| Logo Godot Engine | Andrea Calabró | CC BY 4.0 | <https://github.com/godotengine/godot/tree/master/misc/logo> |
+
+Modification : le mot « GODOT » et la ligne « Game engine » sont éclaircis pour se lire sur
+le fond sombre du jeu.

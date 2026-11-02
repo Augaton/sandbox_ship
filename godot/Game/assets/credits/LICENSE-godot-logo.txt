@@ -1,0 +1,9 @@
+Godot Engine Logo
+Copyright (c) 2017 Andrea Calabró
+
+This work is licensed under the Creative Commons Attribution 4.0 International
+license (CC BY 4.0 International): https://creativecommons.org/licenses/by/4.0/
+
+Source: https://github.com/godotengine/godot/blob/master/misc/logo/logo.svg
+Changed for Sandbox Ship: the "GODOT" wordmark and the "Game engine" line are
+lightened (#e9edf3 and #949eb0) to read on the game's dark background.
