@@ -116,7 +116,9 @@ git push origin main dev v0.5.0
   elle sert de référence aux tests de la simulation.
 - `docs/` : les images de ce README et la documentation de la version web.
 
-## Crédits
+## Crédits et licence
 
 Sprites : les packs Void de Foozle et Space Breaker de zintoki, en CC0. Logo de Godot Engine :
 Andrea Calabró, en CC BY 4.0. Le détail est dans [CREDITS.md](CREDITS.md).
+
+Le code du jeu est sous licence [MIT](LICENSE). Les œuvres citées ci-dessus gardent la leur.
