@@ -47,6 +47,10 @@ public sealed partial class Session : Node
     public int Port { get; private set; }
     /// <summary>A player's connection, in words, until the host welcomes it.</summary>
     public string Status { get; private set; } = "";
+    /// <summary>The lines of chat of this game, from the lobby on (Sim/Net/Chat.cs).</summary>
+    public ChatLog Chat { get; } = new();
+    /// <summary>Seconds since the session began: what a line of chat's time is counted in.</summary>
+    public double Clock => clock;
 
     /// <summary>This machine has the host's rights over the lobby: the host, or a dedicated server's leader.</summary>
     public bool Leads => Room is not null && Room.Leader == Me;
@@ -61,6 +65,10 @@ public sealed partial class Session : Node
     BeaconCaller? caller;
     /// <summary>Host: peers connected that have not said Hello yet, and since when.</summary>
     readonly Dictionary<int, double> strangers = [];
+    /// <summary>Host: how fast each player writes in the chat.</summary>
+    readonly ChatGate gate = new();
+    /// <summary>Lines of chat one who joins gets, the newest.</summary>
+    const int History = 12;
     double clock;
     /// <summary>This machine's player's name; for a player, the address it joined.</summary>
     string name = "", target = "";
@@ -242,6 +250,7 @@ public sealed partial class Session : Node
             return;
         }
         strangers.Remove(peer);
+        gate.Forget(peer);
         if (Room?.Members.Find(m => m.Peer == peer) is not { } member) return;
         Room.Leave(peer);
         Log($"{member.Name} a quitté la partie");
@@ -276,6 +285,8 @@ public sealed partial class Session : Node
                 return;
             }
             net.Send(from, new Message.Welcome(from, Game));
+            // The chat's recent lines, for one who comes in on a conversation.
+            foreach (var l in Chat.Lines.TakeLast(History)) net.Send(from, new Message.Said(l.Who, l.Text));
             Log($"{room.NameOf(from)} a rejoint la partie");
             AfterChange();
             Changes++;
@@ -300,7 +311,35 @@ public sealed partial class Session : Node
             case Message.Pause pause: SetPause(pause.On, room.NameOf(from)); break;
             case Message.Plan plan: Planned(from, plan.Command); break;
             case Message.Watch watch: Watched(from, watch); break;
+            case Message.Say say: Heard(from, say.Text); break;
         }
+    }
+
+    /// <summary>
+    /// A line of chat from this machine's player: the host relays it at once; a player sends it
+    /// to its host, and sees it when the host relays it back. A dedicated server has nobody to write.
+    /// </summary>
+    public void Say(string text)
+    {
+        if (Sim.Net.Chat.Clean(text) is not { } line || Room is null) return;
+        if (!Hosting) Send(new Message.Say(line));
+        else if (As == Role.Host) Spoke(Room.NameOf(Me), line);
+    }
+
+    /// <summary>Host: a player's line, relayed unless it writes too fast (it alone is then told to wait).</summary>
+    void Heard(int from, string text)
+    {
+        if (Sim.Net.Chat.Clean(text) is not { } line) return;
+        if (gate.Allow(from, clock)) Spoke(Room!.NameOf(from), line);
+        else net.Send(from, new Message.Said("", "Trop de messages d'un coup : attends un peu."));
+    }
+
+    /// <summary>Host: a line for everyone, into its own chat too; a dedicated server writes it in its log.</summary>
+    void Spoke(string who, string line)
+    {
+        Chat.Add(new ChatLine(who, line, clock));
+        Broadcast(new Message.Said(who, line));
+        if (As == Role.Server) Log($"{who} : {line}");
     }
 
     void FromHost(Message m)
@@ -312,6 +351,9 @@ public sealed partial class Session : Node
                 break;
             case Message.Bye bye:
                 Close(bye.Reason);
+                break;
+            case Message.Said said:
+                Chat.Add(new ChatLine(said.Who, said.Text, clock));
                 break;
             case Message.Room r:
                 var same = Room is not null && Same(Room.Lobby, r.Lobby) && Room.Members.SequenceEqual(r.Members);
@@ -401,7 +443,7 @@ public sealed partial class Session : Node
     /// The dev runs (--host, --join): the player is ready once seated; the leader launches once
     /// everyone has been ready for three seconds, time for a capture of the full lobby.
     /// </summary>
-    bool devReady, devLaunched, devWaiting;
+    bool devReady, devLaunched, devWaiting, devSaid;
     double devAllReady = double.NaN;
 
     void DevAuto()
@@ -419,6 +461,13 @@ public sealed partial class Session : Node
             devReady = true;
             Edit(new LobbyRequest.SetReady(true));
             Main.Instance.Snap("salon", 60);
+        }
+        // --say: a line in the chat, once seated, and the lobby with it a moment later.
+        if (Dev.Say is { } line && !devSaid && (Hosting || own is not null))
+        {
+            devSaid = true;
+            Say(line);
+            Main.Instance.Snap("discussion", 45);
         }
         if (!Leads || devLaunched) return;
         var all = Room.Members.Exists(m => m.Peer != Lobby.Host && m.Peer != Me) && Room.Lobby.Problems().Count == 0;

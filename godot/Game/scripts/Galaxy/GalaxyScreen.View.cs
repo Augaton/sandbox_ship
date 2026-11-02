@@ -199,7 +199,8 @@ public partial class GalaxyScreen
             case InputEventMouseButton { Pressed: false, ButtonIndex: MouseButton.Middle }:
                 panFrom = null;
                 break;
-            case InputEventKey { Pressed: true } k:
+            // A key typed into a line of text (the chat) does not move the view.
+            case InputEventKey { Pressed: true } k when GetViewport().GuiGetFocusOwner() is not LineEdit:
                 keys.Add(k.PhysicalKeycode);
                 break;
             case InputEventKey { Pressed: false } k:

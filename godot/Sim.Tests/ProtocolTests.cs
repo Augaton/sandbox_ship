@@ -45,6 +45,8 @@ public class ProtocolTests
         yield return new Message.Pause(true, "Bob");
         yield return new Message.Notice("Bob a quitté la partie : l'IA prend sa place.");
         yield return new Message.Back();
+        yield return new Message.Say("On attaque au nord ?");
+        yield return new Message.Said("Bob", new string('é', Chat.MaxText));
     }
 
     [Fact]
@@ -59,7 +61,7 @@ public class ProtocolTests
             Assert.Equal(bytes, Protocol.Encode(back));
             tags.Add(bytes[0]);
         }
-        Assert.Equal(15, tags.Count);
+        Assert.Equal(17, tags.Count);
         // Fields come back as sent, not only their bytes.
         var room = (Message.Room)Protocol.Decode(Protocol.Encode(Every().OfType<Message.Room>().First()));
         Assert.Equal([new Member(Lobby.Host, "Hôte"), new Member(77, "Bob")], room.Members);

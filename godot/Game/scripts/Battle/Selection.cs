@@ -159,7 +159,8 @@ public partial class Selection : Node
             case InputEventMouseButton { Pressed: false } mb:
                 OnUp(mb);
                 break;
-            case InputEventKey { Pressed: true } k:
+            // A key typed into a line of text (the chat) does not move the view.
+            case InputEventKey { Pressed: true } k when GetViewport().GuiGetFocusOwner() is not LineEdit:
                 keys.Add(k.PhysicalKeycode);
                 break;
             case InputEventKey { Pressed: false } k:

@@ -22,6 +22,7 @@ public partial class BattleScreen
         var net = Opts.Net!;
         net.Screen = this;
         Paused = net.Session.Paused;
+        Hud.ShowChat();
         if (Opts.Campaign is not null) Main.Instance.Snap(net.Watching ? "bataille-regardee" : "bataille-commandee", 120);
         // --order: ships to send, built first (a campaign battle has no shipyard for its attacker).
         if (Dev.Order > 0 && Opts.Campaign is null)

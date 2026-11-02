@@ -4,8 +4,8 @@
 // JSON. Reading never trusts the bytes: a malformed message throws InvalidDataException or
 // EndOfStreamException.
 //
-//   player -> host  Hello, Ask, Launch (leader), Order, Pause, Back (leader), Plan, Watch, Ack
-//   host -> player  Welcome, Bye, Room, Start, State, Refused, Pause, Notice, Back, News, Chart, Map, Tidings, Engage, Over
+//   player -> host  Hello, Ask, Launch (leader), Order, Pause, Back (leader), Plan, Watch, Ack, Say
+//   host -> player  Welcome, Bye, Room, Start, State, Refused, Pause, Notice, Back, News, Chart, Map, Tidings, Engage, Over, Said
 //
 // A player joins: Hello with its versions and name; the host answers Welcome and sends the
 // Room to everyone, or Bye with the reason and closes. Every change to the lobby (Ask, applied
@@ -20,6 +20,9 @@
 // unreliably, with its notices as Tidings, reliably.
 // When a battle is commanded, Engage opens it on the screen of those who command it, and of
 // those who asked to Watch it; State and News follow, as in a battle, until Over.
+//
+// At any time, in the lobby as in a game, a player's line of chat goes to the host (Say), which
+// relays it to everyone, its writer included (Said; Chat.cs).
 using System.Text;
 using System.Text.Json;
 using SandboxShip.Sim.Data;
@@ -72,6 +75,10 @@ public abstract record Message
     public sealed record Chart(byte[] Bytes) : Message;
     /// <summary>The campaign battle the player commanded or watched is decided, or (no result) left to play on by itself: back to the galaxy.</summary>
     public sealed record Over(int Battle, BattleResult? Result) : Message;
+    /// <summary>A line of chat the player writes, for the host to relay.</summary>
+    public sealed record Say(string Text) : Message;
+    /// <summary>A line of chat, relayed to everyone: who wrote it (empty: the game itself, to that player alone) and what.</summary>
+    public sealed record Said(string Who, string Text) : Message;
 }
 
 /// <summary>A host on the local network, as it calls out on the beacon port every second; Dedicated: a server nobody plays on (--server).</summary>
@@ -82,9 +89,9 @@ public static class Protocol
     /// <summary>
     /// Layout of the messages below: bumped with any change. Commands and battle snapshots have
     /// their own versions, checked as well; the galaxy snapshot's is part of this one. 2: the campaign.
-    /// 3: acknowledged battle snapshots (Ack), the campaign's chart apart (Chart).
+    /// 3: acknowledged battle snapshots (Ack), the campaign's chart apart (Chart). 4: the chat (Say, Said).
     /// </summary>
-    public const int Version = 3;
+    public const int Version = 4;
     /// <summary>Where a host listens for players, unless told otherwise.</summary>
     public const int DefaultPort = 24680;
     /// <summary>Where hosts call out to the local network, and the join screen listens.</summary>
@@ -97,7 +104,7 @@ public static class Protocol
     const int MaxText = 200, MaxLobby = 64 * 1024, MaxMembers = 64;
     const uint BeaconMagic = 0x43425353;
 
-    enum Tag : byte { Hello = 1, Welcome, Bye, Room, Ask, Launch, Start, Order, State, Refused, Pause, Notice, Back, News, Plan, Map, Tidings, Engage, Watch, Over, Ack, Chart }
+    enum Tag : byte { Hello = 1, Welcome, Bye, Room, Ask, Launch, Start, Order, State, Refused, Pause, Notice, Back, News, Plan, Map, Tidings, Engage, Watch, Over, Ack, Chart, Say, Said }
 
     public static byte[] Encode(Message m)
     {
@@ -164,6 +171,8 @@ public static class Protocol
                 w.Write7BitEncodedInt(o.Battle);
                 w.Write(o.Result is BattleResult result ? (byte)result : byte.MaxValue);
                 break;
+            case Message.Say s: w.Write((byte)Tag.Say); w.Write(s.Text); break;
+            case Message.Said s: w.Write((byte)Tag.Said); w.Write(s.Who); w.Write(s.Text); break;
             default: throw new ArgumentException($"Message sans format : {m.GetType().Name}");
         }
     }
@@ -193,6 +202,8 @@ public static class Protocol
         Tag.Chart => new Message.Chart(Rest(r)),
         Tag.Over => new Message.Over(r.Read7BitEncodedInt(), r.ReadByte() is var o && o != byte.MaxValue
             ? Enum.IsDefined((BattleResult)o) ? (BattleResult)o : throw new InvalidDataException($"Issue inconnue : {o}") : null),
+        Tag.Say => new Message.Say(Text(r, Chat.MaxBytes)),
+        Tag.Said => new Message.Said(Text(r), Text(r, Chat.MaxBytes)),
         var tag => throw new InvalidDataException($"Message inconnu : {tag}"),
     };
 

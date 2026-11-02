@@ -19,6 +19,8 @@ public partial class GalaxyScreen
     readonly HashSet<int> answered = [];
     /// <summary>The battle commanded in the battle view this screen last offered to watch: offered once.</summary>
     int toldFight = -1;
+    /// <summary>The chat over the galaxy, at the bottom left, once the screen is built.</summary>
+    Ui.ChatBox? chat;
 
     void NetReady()
     {
@@ -31,6 +33,7 @@ public partial class GalaxyScreen
     void NetFrame(double delta)
     {
         var net = Opts.Net!;
+        if (chat is null) AddChild(chat = new Ui.ChatBox(false));
         if (net.Replica) net.Motion.Advance(Galaxy, delta);
         var clock = net.Clock;
         if (clock.Speed != Speed || clock.Paused != Paused)

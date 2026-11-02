@@ -133,8 +133,18 @@ public partial class Menu
     }
 
     /// <summary>Every frame: the games heard and listed, and what the game over the network changed.</summary>
+    /// <summary>The chat of the game joined or hosted, beside its lobby.</summary>
+    ChatBox? lobbyChat;
+
     void NetTick()
     {
+        var chatting = screen == Screen.Lobby && Session.Current is { Room: not null };
+        if (chatting && lobbyChat is null) AddChild(lobbyChat = new ChatBox(true));
+        else if (!chatting && lobbyChat is not null)
+        {
+            lobbyChat.QueueFree();
+            lobbyChat = null;
+        }
         if (screen != Screen.Multiplayer)
         {
             listener?.Close();
