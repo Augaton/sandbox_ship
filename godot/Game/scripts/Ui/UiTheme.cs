@@ -31,6 +31,35 @@ public static class UiTheme
         return s;
     }
 
+    /// <summary>
+    /// A button's face, drawn as an image: `from` on the left fading to `to` on the right, a
+    /// one-pixel border fading with it, and on the left an amber `bar` when lit (the menus' buttons). Stretched to any
+    /// size: the middle of the image stretches, its edges keep their width.
+    /// </summary>
+    public static StyleBoxTexture Shaded(Color from, Color to, Color border, Color? bar = null)
+    {
+        const int W = 128, H = 8, Bar = 3;
+        var img = Image.CreateEmpty(W, H, false, Image.Format.Rgba8);
+        for (var x = 0; x < W; x++)
+        {
+            var f = x / (W - 1f);
+            var fill = from.Lerp(to, f);
+            var line = border with { A = border.A * (1 - 0.7f * f) };
+            for (var y = 0; y < H; y++)
+            {
+                var edge = y == 0 || y == H - 1 || x == W - 1 || (x == 0 && bar is null);
+                img.SetPixel(x, y, bar is { } b && x < Bar ? b : edge ? line : fill);
+            }
+        }
+        var s = new StyleBoxTexture
+        {
+            Texture = ImageTexture.CreateFromImage(img),
+            TextureMarginLeft = bar is null ? 1 : Bar, TextureMarginRight = 1, TextureMarginTop = 1, TextureMarginBottom = 1,
+            ContentMarginLeft = 12, ContentMarginRight = 12, ContentMarginTop = 6, ContentMarginBottom = 6,
+        };
+        return s;
+    }
+
     /// <summary>The shared theme: set it on each screen's root Control.</summary>
     public static Theme Get()
     {

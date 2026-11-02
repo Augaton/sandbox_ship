@@ -498,35 +498,6 @@ public partial class Menu : Node
 
     static Theme? theme;
 
-    /// <summary>
-    /// A button's face, drawn as an image: `from` on the left fading to `to` on the right, a
-    /// one-pixel border fading with it, and on the left an amber `bar` when lit. Stretched to any
-    /// size: the middle of the image stretches, its edges keep their width.
-    /// </summary>
-    static StyleBoxTexture Shaded(Color from, Color to, Color border, Color? bar = null)
-    {
-        const int W = 128, H = 8, Bar = 3;
-        var img = Image.CreateEmpty(W, H, false, Image.Format.Rgba8);
-        for (var x = 0; x < W; x++)
-        {
-            var f = x / (W - 1f);
-            var fill = from.Lerp(to, f);
-            var line = border with { A = border.A * (1 - 0.7f * f) };
-            for (var y = 0; y < H; y++)
-            {
-                var edge = y == 0 || y == H - 1 || x == W - 1 || (x == 0 && bar is null);
-                img.SetPixel(x, y, bar is { } b && x < Bar ? b : edge ? line : fill);
-            }
-        }
-        var s = new StyleBoxTexture
-        {
-            Texture = ImageTexture.CreateFromImage(img),
-            TextureMarginLeft = bar is null ? 1 : Bar, TextureMarginRight = 1, TextureMarginTop = 1, TextureMarginBottom = 1,
-            ContentMarginLeft = 12, ContentMarginRight = 12, ContentMarginTop = 6, ContentMarginBottom = 6,
-        };
-        return s;
-    }
-
     /// <summary>A home entry: bare text, brighter or amber under the pointer or the keys, as in the menus of the older shooters.</summary>
     static StyleBoxEmpty Bare() => new() { ContentMarginLeft = 0, ContentMarginRight = 12, ContentMarginTop = 4, ContentMarginBottom = 4 };
 
@@ -569,6 +540,9 @@ public partial class Menu : Node
         return art;
     }
 
+    /// <summary>The menus' look, for the dialogs of a battle or of the galaxy too: their buttons as the menu's.</summary>
+    public static Theme Look => MenuTheme();
+
     /// <summary>The shared theme, in 16 pixels as the web menu, with its variations.</summary>
     static Theme MenuTheme()
     {
@@ -580,27 +554,27 @@ public partial class Menu : Node
         var raised = Palette.Raised;
         foreach (var type in new[] { "Button", "OptionButton" })
         {
-            t.SetStylebox("normal", type, Shaded(raised with { A = 0.95f }, raised with { A = 0.35f }, Palette.Line));
-            t.SetStylebox("hover", type, Shaded(raised.Lightened(0.1f), raised with { A = 0.5f }, Palette.Line.Lightened(0.2f), Palette.Accent with { A = 0.8f }));
-            t.SetStylebox("pressed", type, Shaded(raised.Darkened(0.25f), raised.Darkened(0.25f) with { A = 0.5f }, Palette.Line, Palette.Accent));
-            t.SetStylebox("hover_pressed", type, Shaded(raised.Darkened(0.25f), raised.Darkened(0.25f) with { A = 0.5f }, Palette.Line, Palette.Accent));
-            t.SetStylebox("disabled", type, Shaded(raised with { A = 0.45f }, raised with { A = 0.12f }, Palette.Line with { A = 0.5f }));
+            t.SetStylebox("normal", type, UiTheme.Shaded(raised with { A = 0.95f }, raised with { A = 0.35f }, Palette.Line));
+            t.SetStylebox("hover", type, UiTheme.Shaded(raised.Lightened(0.1f), raised with { A = 0.5f }, Palette.Line.Lightened(0.2f), Palette.Accent with { A = 0.8f }));
+            t.SetStylebox("pressed", type, UiTheme.Shaded(raised.Darkened(0.25f), raised.Darkened(0.25f) with { A = 0.5f }, Palette.Line, Palette.Accent));
+            t.SetStylebox("hover_pressed", type, UiTheme.Shaded(raised.Darkened(0.25f), raised.Darkened(0.25f) with { A = 0.5f }, Palette.Line, Palette.Accent));
+            t.SetStylebox("disabled", type, UiTheme.Shaded(raised with { A = 0.45f }, raised with { A = 0.12f }, Palette.Line with { A = 0.5f }));
         }
         t.SetConstant("h_separation", "Button", 8);
 
         t.SetTypeVariation(Primary, "Button");
         var accent = Palette.Accent;
-        t.SetStylebox("normal", Primary, Shaded(accent, accent.Darkened(0.4f), accent));
-        t.SetStylebox("hover", Primary, Shaded(accent.Lightened(0.15f), accent.Darkened(0.25f), Palette.Text));
-        t.SetStylebox("pressed", Primary, Shaded(accent.Darkened(0.2f), accent.Darkened(0.5f), accent));
-        t.SetStylebox("hover_pressed", Primary, Shaded(accent.Darkened(0.2f), accent.Darkened(0.5f), accent));
+        t.SetStylebox("normal", Primary, UiTheme.Shaded(accent, accent.Darkened(0.4f), accent));
+        t.SetStylebox("hover", Primary, UiTheme.Shaded(accent.Lightened(0.15f), accent.Darkened(0.25f), Palette.Text));
+        t.SetStylebox("pressed", Primary, UiTheme.Shaded(accent.Darkened(0.2f), accent.Darkened(0.5f), accent));
+        t.SetStylebox("hover_pressed", Primary, UiTheme.Shaded(accent.Darkened(0.2f), accent.Darkened(0.5f), accent));
         t.SetStylebox("focus", Primary, UiTheme.Box(new Color(0, 0, 0, 0), Palette.Text, 12));
         foreach (var c in new[] { "font_color", "font_hover_color", "font_pressed_color", "font_focus_color", "font_hover_pressed_color" }) t.SetColor(c, Primary, Palette.Bg);
         t.SetFont("font", Primary, Bold);
 
         t.SetTypeVariation(On, "Button");
-        t.SetStylebox("normal", On, Shaded(accent with { A = 0.24f }, accent with { A = 0.04f }, accent with { A = 0.85f }, accent));
-        t.SetStylebox("hover", On, Shaded(accent with { A = 0.32f }, accent with { A = 0.08f }, accent, accent));
+        t.SetStylebox("normal", On, UiTheme.Shaded(accent with { A = 0.24f }, accent with { A = 0.04f }, accent with { A = 0.85f }, accent));
+        t.SetStylebox("hover", On, UiTheme.Shaded(accent with { A = 0.32f }, accent with { A = 0.08f }, accent, accent));
         foreach (var c in new[] { "font_color", "font_hover_color", "font_pressed_color", "font_focus_color", "font_hover_pressed_color" }) t.SetColor(c, On, Palette.Accent);
 
         foreach (var nav in new[] { NavItem, NavMain })

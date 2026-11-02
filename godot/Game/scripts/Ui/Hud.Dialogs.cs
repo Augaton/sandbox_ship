@@ -25,7 +25,8 @@ public partial class Hud
         // From one dialog to the next, the shade stays: only the panel changes.
         var shaded = modal is not null;
         DropModal();
-        var m = new Control { MouseFilter = Control.MouseFilterEnum.Stop };
+        // The menus' look: their buttons fade as the main menu's do.
+        var m = new Control { MouseFilter = Control.MouseFilterEnum.Stop, Theme = Menu.Look };
         m.SetAnchorsPreset(Control.LayoutPreset.FullRect);
         var shade = Ignore(new ColorRect { Color = Palette.Bg with { A = 0.7f } });
         shade.SetAnchorsPreset(Control.LayoutPreset.FullRect);
@@ -104,7 +105,8 @@ public partial class Hud
         var inCampaign = campaign is not null;
         var retreat = inCampaign && scene.Opts.Campaign?.Attacker == Player;
         var list = Column(8);
-        list.CustomMinimumSize = new Vector2(240, 0);
+        // Wide enough for "Bataille en cours depuis 12 min 05 s." on one line.
+        list.CustomMinimumSize = new Vector2(320, 0);
         void Item(string label, Action act, string tip = "", bool primary = false)
         {
             var b = Button(label, act, tip, 44);

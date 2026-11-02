@@ -1009,7 +1009,8 @@ public partial class GalaxyHud : CanvasLayer
         // From one dialog to the next, the shade stays: only the panel changes.
         var shaded = modal is not null;
         modal?.QueueFree();
-        var m = HudKit.Ignore(new Control());
+        // The menus' look: their buttons fade as the main menu's do.
+        var m = HudKit.Ignore(new Control { Theme = Ui.Menu.Look });
         m.SetAnchorsPreset(Control.LayoutPreset.FullRect);
         var shade = new ColorRect { Color = Palette.Bg with { A = 0.7f }, MouseFilter = Control.MouseFilterEnum.Stop };
         shade.SetAnchorsPreset(Control.LayoutPreset.FullRect);

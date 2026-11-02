@@ -146,12 +146,14 @@ public static class HudKit
     /// <summary>Runs `act` when the button is pressed (the click sound comes from Sfx, for every button).</summary>
     public static void OnPress(BaseButton b, Action act) => b.Pressed += act;
 
-    /// <summary>The main action of a dialog: amber, dark bold text.</summary>
+    /// <summary>The main action of a dialog: amber fading to the right as on the menus, dark bold text.</summary>
     public static Button Primary(Button b)
     {
-        b.AddThemeStyleboxOverride("normal", UiTheme.Box(Palette.Accent, Palette.Accent));
-        b.AddThemeStyleboxOverride("hover", UiTheme.Box(Palette.Accent.Lightened(0.12f), Palette.Accent));
-        b.AddThemeStyleboxOverride("pressed", UiTheme.Box(Palette.Accent.Darkened(0.12f), Palette.Accent));
+        var accent = Palette.Accent;
+        b.AddThemeStyleboxOverride("normal", UiTheme.Shaded(accent, accent.Darkened(0.4f), accent));
+        b.AddThemeStyleboxOverride("hover", UiTheme.Shaded(accent.Lightened(0.15f), accent.Darkened(0.25f), Palette.Text));
+        b.AddThemeStyleboxOverride("pressed", UiTheme.Shaded(accent.Darkened(0.2f), accent.Darkened(0.5f), accent));
+        b.AddThemeStyleboxOverride("hover_pressed", UiTheme.Shaded(accent.Darkened(0.2f), accent.Darkened(0.5f), accent));
         foreach (var key in new[] { "font_color", "font_hover_color", "font_pressed_color" }) b.AddThemeColorOverride(key, Palette.Bg);
         b.AddThemeFontOverride("font", Bold);
         return b;
