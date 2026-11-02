@@ -422,7 +422,8 @@ public class GalaxyNetTests(ITestOutputHelper output)
         Assert.Contains(told.Events, e => e is Victory);
         Assert.Contains(told.Events, e => e is Destroyed { EntityType: "station" });
         var replica = new World();
-        Snapshot.Read(new BinaryReader(new MemoryStream(sent.OfType<Message.State>().Single().Snapshot)), replica);
+        var frames = new SnapshotFrames();
+        foreach (var s in sent.OfType<Message.State>()) Snapshot.ReadPart(new BinaryReader(new MemoryStream(s.Snapshot)), replica, frames);
         Assert.DoesNotContain(replica.Events, e => e is Victory or Destroyed { EntityType: "station" });
         Assert.Equal(w.Winner, replica.Winner);
     }

@@ -60,17 +60,25 @@ public sealed class Transport : ITransport
     public MultiplayerPeer.ConnectionStatus Status => peer.GetConnectionStatus();
 
     /// <summary>
-    /// Takes what came since the last call: peers that came and went, then their messages in
-    /// order. A message that does not read is `broken`'s: a host drops that player.
+    /// Takes what came since the last call: peers that came, their messages in order, then
+    /// peers that went, so that the last words of one that left (a host's Bye and its reason)
+    /// are read before its departure. A message that does not read is `broken`'s: a host drops that player.
     /// </summary>
     public void Poll(Action<int> came, Action<int> went, Action<int, Message> received, Action<int, Exception> broken)
     {
         peer.Poll();
+        List<int>? gone = null;
         while (changes.TryDequeue(out var c))
         {
             if (c.Up) came(c.Peer);
-            else went(c.Peer);
+            else (gone ??= []).Add(c.Peer);
         }
+        Receive(received, broken);
+        foreach (var p in gone ?? []) went(p);
+    }
+
+    void Receive(Action<int, Message> received, Action<int, Exception> broken)
+    {
         while (peer.GetAvailablePacketCount() > 0)
         {
             var from = peer.GetPacketPeer();

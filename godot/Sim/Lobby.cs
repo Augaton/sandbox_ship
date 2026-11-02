@@ -74,6 +74,8 @@ public sealed class Lobby
     public int AssaultMinutes { get; set; } = 15;
     /// <summary>Set up on a dedicated server: nobody plays on the host, so no seat is Host's (see Sim/Net/LobbyRoom.cs).</summary>
     public bool Dedicated { get; set; }
+    /// <summary>Over the network: players may come in to watch, without a seat, the lobby as the battle.</summary>
+    public bool Spectators { get; set; } = true;
     /// <summary>
     /// A saved campaign played over the network, resumed (Resume): its seats are the save's sides
     /// in order, with their races, teams and colors, and the map is the save's; nothing of that

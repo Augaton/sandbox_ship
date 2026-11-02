@@ -131,6 +131,17 @@ public sealed class GalaxyHost(Galaxy galaxy, Action<int, Message> send)
     {
         if (remotes.Remove(peer, out var r)) Galaxies.HandToAI(galaxy, r.Side);
     }
+
+    /// <summary>
+    /// A player who left comes back to its side, under its name: a human's again, the AI that held
+    /// it let go; it is served from the chart on, as when the campaign began.
+    /// </summary>
+    public void Return(int peer, Side side, string name)
+    {
+        galaxy.Humans[side] = name;
+        if (galaxy.Factions.TryGetValue(side, out var f)) f.AI = null;
+        Add(peer, side);
+    }
 }
 
 /// <summary>

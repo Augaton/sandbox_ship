@@ -38,6 +38,8 @@ public sealed class RelayHub
         public readonly int Id = id;
         public readonly string Address = address;
         public readonly double Since = now;
+        /// <summary>The port the server sees it from, and the relay format it speaks (that of its first frame).</summary>
+        public int Port, Wire = Relay.MinWire;
         public Role Role;
         public Room? Room;
         /// <summary>A player's number in its game.</summary>
@@ -93,9 +95,10 @@ public sealed class RelayHub
     public IReadOnlyList<OnlineGame> Games =>
         [.. rooms.Values.Select(r => new OnlineGame(r.Id, r.Relayed, r.Game, r.Playing, r.Address, r.Relayed ? ping(r.Host.Id) : -1))];
 
-    public void Connected(int conn, string address, double now)
+    /// <summary>A connection, from an address and a port (0: unknown, then never introduced).</summary>
+    public void Connected(int conn, string address, double now, int port = 0)
     {
-        var c = new Conn(conn, address, now);
+        var c = new Conn(conn, address, now) { Port = port };
         conns[conn] = c;
         if (conns.Count > limits.Connections) Close(c, "Le serveur en ligne est saturé : réessaie dans un moment.");
     }
@@ -165,7 +168,8 @@ public sealed class RelayHub
 
     bool SameWire(Conn c, int wire)
     {
-        if (wire == Relay.Wire) return true;
+        c.Wire = wire;
+        if (wire >= Relay.MinWire && wire <= Relay.Wire) return true;
         Close(c, $"Serveur en ligne d'une autre version (relais {Relay.Wire}, ton jeu {wire}) : il faut mettre à jour le jeu ou le serveur.");
         return false;
     }
@@ -208,6 +212,19 @@ public sealed class RelayHub
         Send(c, new RelayFrame.Joined());
         Send(room.Host, new RelayFrame.Came(player));
         log($"Joueur {player} ({c.Address}) entre dans la partie {room.Id} « {room.Game.Name} »");
+        Introduce(room.Host, c, player);
+    }
+
+    /// <summary>
+    /// A host and its new player, both of format 2 or more with known ports, each told where the
+    /// other is: they may then reach each other straight, the token binding the connection.
+    /// </summary>
+    void Introduce(Conn host, Conn player, int number)
+    {
+        if (host.Wire < 2 || player.Wire < 2 || host.Port == 0 || player.Port == 0) return;
+        var token = Random.Shared.Next(1, int.MaxValue);
+        Send(host, new RelayFrame.Meet(number, player.Address, player.Port, token));
+        Send(player, new RelayFrame.Meet(1, host.Address, host.Port, token));
     }
 
     /// <summary>

@@ -39,9 +39,9 @@ public static partial class Snapshot
     /// Bumped with any change to the layout, the type table (a new ship class, structure or part)
     /// included: a reader refuses any other version. 2: the battle modes' state and events. 3: deltas,
     /// records in segments, the parts of a ship placed by the reader. 4: beams, and torpedoes and
-    /// missiles shot down.
+    /// missiles shot down. 5: sent in parts, one a packet (SnapshotParts.cs).
     /// </summary>
-    public const ushort Version = 4;
+    public const ushort Version = 5;
     const uint Magic = 0x504E5353;
 
     /// <summary>Room around the team's sight within which shots and blows still show: they fly in from the dark.</summary>
@@ -116,6 +116,17 @@ public static partial class Snapshot
         w.Write7BitEncodedInt(frame.Seq);
         w.Write7BitEncodedInt(baseline?.Seq ?? 0);
         w.Write(world.Time);
+        WriteWorld(world, viewer, w);
+        var shown = WriteEntities(world, viewer, w, frame, baseline, frames);
+        var sight = new Sight(world, viewer);
+        WriteShots(world, viewer, sight, w, frame, baseline, frames);
+        frames?.Keep(frame);
+        WriteTail(world, viewer, shown, sight, w, events, vital);
+    }
+
+    /// <summary>The world, after its time: its size and flags, the mode's state, the sides, the fields.</summary>
+    static void WriteWorld(World world, Side viewer, BinaryWriter w)
+    {
         w.Write(world.Width);
         w.Write(world.Height);
         w.Write((byte)((world.Fog ? 1 : 0) | (world.SandboxTools ? 2 : 0) | (world.Winner is not null ? 4 : 0)));
@@ -135,10 +146,11 @@ public static partial class Snapshot
             w.Write((float)f.Radius);
             w.Write7BitEncodedInt(f.MineId ?? -1);
         }
-        var shown = WriteEntities(world, viewer, w, frame, baseline, frames);
-        var sight = new Sight(world, viewer);
-        WriteShots(world, viewer, sight, w, frame, baseline, frames);
-        frames?.Keep(frame);
+    }
+
+    /// <summary>After the shots: the beams, the zones, the strikes, then the events (those that must not be lost into `vital`, if given).</summary>
+    static void WriteTail(World world, Side viewer, HashSet<int> shown, Sight sight, BinaryWriter w, IReadOnlyList<SimEvent>? events, BinaryWriter? vital)
+    {
         WriteBeams(world, shown, w);
         var zones = world.Zones.Where(z => Allies(world, z.Side, viewer) || sight.Sees(z.X, z.Y)).ToList();
         w.Write7BitEncodedInt(zones.Count);
@@ -304,7 +316,7 @@ public static partial class Snapshot
     /// for the minimap and the mode panel that show every flagship. Each record goes into the
     /// snapshot's frame; the snapshot gets those that changed since the baseline. Returns the ids written.
     /// </summary>
-    static HashSet<int> WriteEntities(World world, Side viewer, BinaryWriter w, SnapshotFrames.Frame frame, SnapshotFrames.Frame? baseline,
+    static HashSet<int> WriteEntities(World world, Side viewer, BinaryWriter? w, SnapshotFrames.Frame frame, SnapshotFrames.Frame? baseline,
         SnapshotFrames? frames)
     {
         var shown = frames?.Shown ?? [];
@@ -332,7 +344,7 @@ public static partial class Snapshot
         // By increasing ids, as deltas walk them: a replica holds its entities in the order they came into its sight.
         if (!sorted) list.Sort((a, b) => a.E.Id.CompareTo(b.E.Id));
         foreach (var (e, remembered) in list) WriteRecord(frame, world, e, viewer, remembered);
-        WriteDelta(w, frame, baseline, frames);
+        if (w is not null) WriteDelta(w, frame, baseline, frames);
         // A flagship known only by its place tells nothing of what it does.
         if (placed is not null) shown.ExceptWith(placed);
         return shown;
@@ -347,6 +359,27 @@ public static partial class Snapshot
     {
         var masks = frames?.Masks ?? [];
         var removed = frames?.Removed ?? [];
+        var changed = Diff(frame, baseline, masks, removed);
+        w.Write7BitEncodedInt(frame.Ids.Count);
+        WriteIds(w, removed);
+        w.Write7BitEncodedInt(changed);
+        var last = 0;
+        for (var i = 0; i < frame.Ids.Count; i++)
+        {
+            if (masks[i] == 0) continue;
+            w.Write7BitEncodedInt(frame.Ids[i] - last);
+            last = frame.Ids[i];
+            w.Write(masks[i]);
+            for (var k = 0; k < Segments; k++) if ((masks[i] & 1 << k) != 0) w.Write(frame.Segment(i, k));
+        }
+    }
+
+    /// <summary>
+    /// What changed in each entity of the frame since the baseline (`masks`, its segments that
+    /// differ; all of them for a new one) and the baseline's ids left out (`removed`); the count changed.
+    /// </summary>
+    static int Diff(SnapshotFrames.Frame frame, SnapshotFrames.Frame? baseline, List<byte> masks, List<int> removed)
+    {
         masks.Clear();
         removed.Clear();
         var changed = 0;
@@ -366,18 +399,7 @@ public static partial class Snapshot
             if (mask != 0) changed++;
         }
         while (j < old.Count) removed.Add(old[j++]);
-        w.Write7BitEncodedInt(frame.Ids.Count);
-        WriteIds(w, removed);
-        w.Write7BitEncodedInt(changed);
-        var last = 0;
-        for (var i = 0; i < frame.Ids.Count; i++)
-        {
-            if (masks[i] == 0) continue;
-            w.Write7BitEncodedInt(frame.Ids[i] - last);
-            last = frame.Ids[i];
-            w.Write(masks[i]);
-            for (var k = 0; k < Segments; k++) if ((masks[i] & 1 << k) != 0) w.Write(frame.Segment(i, k));
-        }
+        return changed;
     }
 
     /// <summary>
@@ -531,31 +553,10 @@ public static partial class Snapshot
     static void WriteShots(World world, Side viewer, Sight sight, BinaryWriter w, SnapshotFrames.Frame frame, SnapshotFrames.Frame? baseline,
         SnapshotFrames? frames)
     {
+        var masks = frames?.ShotMasks ?? [];
+        var removed = frames?.ShotRemoved ?? [];
+        var changed = FillShots(world, viewer, sight, frame, baseline, masks, removed);
         var shots = frame.Shots;
-        frame.Time = world.Time;
-        foreach (var p in world.Projectiles)
-        {
-            if (!Allies(world, p.Side, viewer) && !sight.Sees(p.X, p.Y)) continue;
-            if (shots.Count > 0 && shots[^1].Id >= p.Id) throw new InvalidOperationException("Shots out of order");
-            shots.Add(new(p.Id, p.Side.Id, (byte)p.Kind, (float)p.X, (float)p.Y, (float)p.Vx, (float)p.Vy));
-        }
-        var masks = frames?.Masks ?? [];
-        var removed = frames?.Removed ?? [];
-        masks.Clear();
-        removed.Clear();
-        var old = baseline?.Shots ?? [];
-        var dt = world.Time - (baseline?.Time ?? 0);
-        var (j, changed) = (0, 0);
-        for (var i = 0; i < shots.Count; i++)
-        {
-            while (j < old.Count && old[j].Id < shots[i].Id) removed.Add(old[j++].Id);
-            var flies = j < old.Count && old[j].Id == shots[i].Id && old[j].Flies(shots[i]);
-            if (flies) shots[i] = old[j].After(dt);
-            else changed++;
-            if (j < old.Count && old[j].Id == shots[i].Id) j++;
-            masks.Add(flies ? (byte)0 : (byte)1);
-        }
-        while (j < old.Count) removed.Add(old[j++].Id);
         w.Write7BitEncodedInt(shots.Count);
         WriteIds(w, removed);
         w.Write7BitEncodedInt(changed);
@@ -573,6 +574,39 @@ public static partial class Snapshot
             w.Write(s.Vx);
             w.Write(s.Vy);
         }
+    }
+
+    /// <summary>
+    /// The shots the team sees, into the frame, those that fly on as they did carried along their
+    /// speed; `masks` says which changed (1) or fly on (0), `removed` the baseline's left out; the count changed.
+    /// </summary>
+    static int FillShots(World world, Side viewer, Sight sight, SnapshotFrames.Frame frame, SnapshotFrames.Frame? baseline,
+        List<byte> masks, List<int> removed)
+    {
+        var shots = frame.Shots;
+        frame.Time = world.Time;
+        foreach (var p in world.Projectiles)
+        {
+            if (!Allies(world, p.Side, viewer) && !sight.Sees(p.X, p.Y)) continue;
+            if (shots.Count > 0 && shots[^1].Id >= p.Id) throw new InvalidOperationException("Shots out of order");
+            shots.Add(new(p.Id, p.Side.Id, (byte)p.Kind, (float)p.X, (float)p.Y, (float)p.Vx, (float)p.Vy));
+        }
+        masks.Clear();
+        removed.Clear();
+        var old = baseline?.Shots ?? [];
+        var dt = world.Time - (baseline?.Time ?? 0);
+        var (j, changed) = (0, 0);
+        for (var i = 0; i < shots.Count; i++)
+        {
+            while (j < old.Count && old[j].Id < shots[i].Id) removed.Add(old[j++].Id);
+            var flies = j < old.Count && old[j].Id == shots[i].Id && old[j].Flies(shots[i]);
+            if (flies) shots[i] = old[j].After(dt);
+            else changed++;
+            if (j < old.Count && old[j].Id == shots[i].Id) j++;
+            masks.Add(flies ? (byte)0 : (byte)1);
+        }
+        while (j < old.Count) removed.Add(old[j++].Id);
+        return changed;
     }
 
     /// <summary>

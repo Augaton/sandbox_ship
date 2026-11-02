@@ -15,6 +15,8 @@ public partial class Menu
     /// <summary>The modes screen was opened to host a game: its lobby will be open to players; online, through the online server.</summary>
     bool hosting, online;
     string? hostError, joinStatus;
+    /// <summary>The password of the game hosted, and the one to join with: typed, kept in memory only, never in the settings.</summary>
+    string hostPassword = Dev.Password ?? "", joinPassword = Dev.Password ?? "";
     /// <summary>The lobby shown is a host's this machine joined: when that game ends, the multiplayer screen says why.</summary>
     bool joined;
     BeaconListener? listener;
@@ -22,7 +24,7 @@ public partial class Menu
     IReadOnlyList<(string Address, LanGame Game)> heard = [];
     VBoxContainer? gamesBox;
     Label? masterLine;
-    Button? onlineButton, joinButton;
+    Button? onlineButton, joinButton, watchButton;
     /// <summary>The multiplayer screen's rows, by game, and the one picked.</summary>
     readonly Dictionary<string, (Button Button, Listed Game)> rows = [];
     string? picked;
@@ -65,7 +67,7 @@ public partial class Menu
     {
         var l = Lobby.Create(m, NewSeed());
         l.SetKind(l.Seats[1], SeatKind.Open);
-        hostError = Session.Host(l, Dev.Port, online);
+        hostError = Session.Host(l, Dev.Port, online, hostPassword);
         seenChanges = Session.Changes;
         if (hostError is not null)
         {
@@ -80,7 +82,7 @@ public partial class Menu
     void HostResume()
     {
         var saved = GalaxySave.Load(Campaign.GalaxyScreen.NetSavePath);
-        hostError = saved is null ? "Sauvegarde de la campagne illisible." : Session.Resume(saved, Dev.Port, online);
+        hostError = saved is null ? "Sauvegarde de la campagne illisible." : Session.Resume(saved, Dev.Port, online, hostPassword);
         seenChanges = Session.Changes;
         if (hostError is not null)
         {
@@ -133,8 +135,18 @@ public partial class Menu
     }
 
     /// <summary>Every frame: the games heard and listed, and what the game over the network changed.</summary>
+    /// <summary>The chat of the game joined or hosted, beside its lobby.</summary>
+    ChatBox? lobbyChat;
+
     void NetTick()
     {
+        var chatting = screen == Screen.Lobby && Session.Current is { Room: not null };
+        if (chatting && lobbyChat is null) AddChild(lobbyChat = new ChatBox(true));
+        else if (!chatting && lobbyChat is not null)
+        {
+            lobbyChat.QueueFree();
+            lobbyChat = null;
+        }
         if (screen != Screen.Multiplayer)
         {
             listener?.Close();
@@ -211,11 +223,12 @@ public partial class Menu
     string? NetTitle()
     {
         if (Session.Current is not { Room: not null } s) return null;
-        if (!s.Hosting) return $"{s.Game}{(s.Leads ? " : tu as la main sur le salon" : ", réglée par l'hôte")}. Échap : quitter";
+        var path = s.Path is { } p ? $" ({p})" : "";
+        if (!s.Hosting) return $"{s.Game}{(s.Watching ? " : tu regardes, sans place" : s.Leads ? " : tu as la main sur le salon" : ", réglée par l'hôte")}{path}. Échap : quitter";
         if (s.Online)
         {
             return s.Status.Length > 0 ? $"{s.Status} Échap : fermer la partie"
-                : "Partie en ligne : tous les joueurs la trouvent dans « Multijoueur », sans rien ouvrir. Échap : fermer la partie";
+                : $"Partie en ligne : tous les joueurs la trouvent dans « Multijoueur », sans rien ouvrir{path}. Échap : fermer la partie";
         }
         // The home network's addresses first: 172.16 to 172.31 are as often a container's bridge.
         static int Rank(string a) => a.StartsWith("192.168.", StringComparison.Ordinal) ? 0 : a.StartsWith("10.", StringComparison.Ordinal) ? 1 : a.StartsWith("172.", StringComparison.Ordinal) ? 3 : 2;
@@ -312,7 +325,17 @@ public partial class Menu
         input.TextSubmitted += text => JoinAt(text);
         row.AddChild(input);
         row.AddChild(Btn("Rejoindre", () => JoinAt(input.Text), key: "act:address"));
-        body.AddChild(Section("Par adresse", row));
+        // Cut off from a game: back in it, at the seat kept under this name while the game lasts.
+        if (Session.Current is null && Session.Rejoin is { } rejoin)
+        {
+            row.AddChild(Btn($"Revenir dans {Session.RejoinName}", () =>
+            {
+                joinStatus = rejoin();
+                seenChanges = -1;
+            }, key: "act:rejoin"));
+        }
+        body.AddChild(Section("Par adresse", row,
+            PasswordField("Mot de passe, pour une partie qui en demande un", joinPassword, "aucun", text => joinPassword = text)));
 
         var hosts = new HBoxContainer();
         hosts.AddThemeConstantOverride("separation", 8);
@@ -330,7 +353,9 @@ public partial class Menu
         line.SizeFlagsVertical = Control.SizeFlags.ShrinkCenter;
         footer.AddChild(line);
         footer.AddChild(Btn("Retour", Back));
-        joinButton = Btn("Rejoindre la partie", JoinPicked, Primary, "act:join");
+        watchButton = Btn("Regarder", () => JoinPicked(true), key: "act:watch");
+        footer.AddChild(watchButton);
+        joinButton = Btn("Rejoindre la partie", () => JoinPicked(), Primary, "act:join");
         footer.AddChild(joinButton);
         FillGames(true);
         ShowMaster();
@@ -415,8 +440,10 @@ public partial class Menu
     }
 
     /// <summary>Why a game cannot be joined, in a few words; null when it can.</summary>
-    string? Unjoinable(Listed l) => l.Game.Protocol != Protocol.Version || l.Game.Version != Version ? $"version {l.Game.Version}"
-        : l.Playing ? "en partie" : l.Game.Taken >= l.Game.Seats ? "complète" : null;
+    string? Unjoinable(Listed l) => l.Game.Protocol != Protocol.Version || l.Game.Version != Version ? $"version {l.Game.Version}" : null;
+
+    /// <summary>What a game can still be joined for, in a few words: under way or full, it takes spectators and those who come back; null when it has room.</summary>
+    static string? Busy(Listed l) => l.Playing ? "en partie" : l.Game.Taken >= l.Game.Seats ? "complète" : null;
 
     static string ModeName(LobbyMode m) => Modes.FirstOrDefault(x => x.Mode == m).Name ?? "Mode inconnu";
 
@@ -466,8 +493,17 @@ public partial class Menu
         var pad = new MarginContainer { MouseFilter = Control.MouseFilterEnum.Ignore, SizeFlagsHorizontal = Control.SizeFlags.ExpandFill };
         pad.AddThemeConstantOverride("margin_left", 14);
         pad.AddThemeConstantOverride("margin_right", 12);
-        var name = why is null ? l.Game.Name : $"{l.Game.Name} · {why}";
-        pad.AddChild(Cells([name, mode, $"{l.Game.Taken} / {l.Game.Seats}", kind, l.Ping >= 0 ? $"{l.Ping} ms" : "—"], why is null ? Palette.Text : Palette.Muted, 15, color));
+        var name = (why ?? Busy(l)) is { } note ? $"{l.Game.Name} · {note}" : l.Game.Name;
+        var cells = Cells([name, mode, $"{l.Game.Taken} / {l.Game.Seats}", kind, l.Ping >= 0 ? $"{l.Ping} ms" : "—"], why is null ? Palette.Text : Palette.Muted, 15, color);
+        // A padlock before the name of a game that asks for a password: the name gives it the room.
+        if (l.Game.Locked)
+        {
+            var padlock = new TextureRect { Texture = Padlock, MouseFilter = Control.MouseFilterEnum.Ignore, SizeFlagsVertical = Control.SizeFlags.ShrinkCenter };
+            cells.AddChild(padlock);
+            cells.MoveChild(padlock, 0);
+            button.AccessibilityName += ", protégée par un mot de passe";
+        }
+        pad.AddChild(cells);
         line.AddChild(pad);
         tile.AddChild(line);
         rows[l.Key] = (button, l);
@@ -492,23 +528,27 @@ public partial class Menu
         foreach (var (key, (button, _)) in rows) button.ThemeTypeVariation = key == picked ? On : "";
         if (joinButton is null || !IsInstanceValid(joinButton)) return;
         joinButton.Disabled = picked is null;
-        joinButton.TooltipText = picked is null ? "Choisis d'abord une partie dans la liste (un double clic la rejoint aussi)" : "";
+        joinButton.TooltipText = picked is null ? "Choisis d'abord une partie dans la liste (un double clic la rejoint aussi)"
+            : "Une place libre ; dans une partie en cours, la tienne, si tu l'as quittée sous le même nom";
+        if (watchButton is null || !IsInstanceValid(watchButton)) return;
+        watchButton.Disabled = picked is null;
+        watchButton.TooltipText = "Entrer sans place, pour regarder la bataille, en cours ou à venir, si l'hôte prend des spectateurs";
     }
 
-    void JoinPicked()
+    void JoinPicked(bool watch = false)
     {
-        if (picked is not null && rows.TryGetValue(picked, out var row)) JoinListed(row.Game);
+        if (picked is not null && rows.TryGetValue(picked, out var row)) JoinListed(row.Game, watch);
     }
 
-    /// <summary>Joins a listed game: through the online server, or straight at its address.</summary>
-    void JoinListed(Listed l)
+    /// <summary>Joins a listed game, to play or only to `watch`: through the online server, or straight at its address.</summary>
+    void JoinListed(Listed l, bool watch = false)
     {
         if (Unjoinable(l) is not null || Session.Current is not null) return;
-        if (l.Kind == Found.Online) joinStatus = Session.JoinOnline(l.Room, l.Game.Name);
+        if (l.Kind == Found.Online) joinStatus = Session.JoinOnline(l.Room, l.Game.Name, joinPassword, watch);
         else
         {
             var (host, port) = Relay.Address(l.Address, Protocol.DefaultPort);
-            joinStatus = Session.Join(host, port);
+            joinStatus = Session.Join(host, port, joinPassword, watch);
         }
         // The screen shows the connection under way, or why it could not start.
         seenChanges = -1;
@@ -542,9 +582,40 @@ public partial class Menu
         }
         Settings.Current.JoinAddress = text.Trim();
         Settings.Current.Save();
-        joinStatus = Session.Join(host, port);
+        joinStatus = Session.Join(host, port, joinPassword, Dev.Spectate);
         // The screen shows the connection under way, or why it could not start.
         seenChanges = -1;
+    }
+
+    /// <summary>A password typed in, its letters hidden; kept in memory only, never in the settings.</summary>
+    static VBoxContainer PasswordField(string label, string text, string placeholder, Action<string> set)
+    {
+        var input = new LineEdit
+        {
+            Text = text, Secret = true, PlaceholderText = placeholder, MaxLength = Passwords.MaxPassword, CustomMinimumSize = new Vector2(280, 40),
+            SizeFlagsHorizontal = Control.SizeFlags.ShrinkBegin, AccessibilityName = label,
+        };
+        input.TextChanged += t => set(t);
+        return Labelled(label, input);
+    }
+
+    static Texture2D? padlock;
+
+    /// <summary>A small amber padlock, drawn once: two pixels a dot.</summary>
+    static Texture2D Padlock => padlock ??= Paint(
+        [".###.", "#...#", "#...#", "#####", "##.##", "##.##", "#####"], Palette.Accent, 2);
+
+    static Texture2D Paint(string[] grid, Color color, int scale)
+    {
+        var img = Image.CreateEmpty(grid[0].Length * scale, grid.Length * scale, false, Image.Format.Rgba8);
+        for (var y = 0; y < grid.Length; y++)
+        {
+            for (var x = 0; x < grid[y].Length; x++)
+            {
+                if (grid[y][x] == '#') img.FillRect(new Rect2I(x * scale, y * scale, scale, scale), color);
+            }
+        }
+        return ImageTexture.CreateFromImage(img);
     }
 
     public override void _ExitTree()

@@ -40,9 +40,10 @@ public class BattleHostTests(ITestOutputHelper output)
             {
                 case Message.State s:
                     var replica = Replicas[peer];
-                    // Read, then acknowledged as a player does: the next snapshots are deltas against it.
-                    Assert.True(Motions[peer].Read(new BinaryReader(new MemoryStream(s.Snapshot)), replica, Now));
-                    Host.Acked(peer, ((Message.Ack)Protocol.Decode(Protocol.Encode(new Message.Ack(Motions[peer].Frames.Latest)))).Snapshot);
+                    // Read part by part, then acknowledged as a player does once whole: the next snapshots are deltas against it.
+                    var part = Motions[peer].ReadPart(new BinaryReader(new MemoryStream(s.Snapshot)), replica, Now);
+                    Assert.True(part.Read);
+                    if (part.Completed > 0) Host.Acked(peer, ((Message.Ack)Protocol.Decode(Protocol.Encode(new Message.Ack(part.Completed)))).Snapshot);
                     Heard[peer].AddRange(replica.Events);
                     replica.Events.Clear();
                     break;
@@ -230,9 +231,9 @@ public class BattleHostTests(ITestOutputHelper output)
         {
             bytes += Protocol.Encode(m).Length;
             if (m is not Message.State s) return;
-            motion.Read(new BinaryReader(new MemoryStream(s.Snapshot)), replica, 0);
+            var part = motion.ReadPart(new BinaryReader(new MemoryStream(s.Snapshot)), replica, 0);
             replica.Events.Clear();
-            host.Acked(Bob, motion.Frames.Latest);
+            if (part.Completed > 0) host.Acked(Bob, part.Completed);
         });
         host.Add(Bob, player);
         void Frame()

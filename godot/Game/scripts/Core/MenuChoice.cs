@@ -97,6 +97,14 @@ public static class Dev
     public static string? Replays, Replay;
     /// <summary>--music-dump=DIR: the music as WAV files there, then quit. --music-record=FILE.wav: the game's sound saved as it quits (music on in a capture).</summary>
     public static string? MusicDump, MusicRecord;
+    /// <summary>--say=TEXT: a dev run writes this line in the chat once in the lobby.</summary>
+    public static string? Say;
+    /// <summary>--password=WORD: the game a dev run or a dedicated server hosts is locked with it; a dev run that joins answers with it.</summary>
+    public static string? Password;
+    /// <summary>--spectate: a dev run that joins (--join) comes only to watch.</summary>
+    public static bool Spectate;
+    /// <summary>--no-direct: through the online server, never a straight connection: everything stays relayed.</summary>
+    public static bool NoDirect;
 
     static double[] Ages(string value) => [.. value.Split(',').Select(v => double.Parse(v, System.Globalization.CultureInfo.InvariantCulture))];
 
@@ -130,6 +138,10 @@ public static class Dev
                 case "--server": Server = true; break;
                 case "--join": Join = value; break;
                 case "--name": Name = value; break;
+                case "--say": Say = value; break;
+                case "--password": Password = value; break;
+                case "--spectate": Spectate = true; break;
+                case "--no-direct": NoDirect = true; break;
                 case "--port": (Port, port) = (int.Parse(value), true); break;
                 case "--relay": Relay = true; break;
                 case "--master": Master = value; break;

@@ -3,7 +3,8 @@
 // here instead: every entity glides from where it is shown to where the snapshot puts it, over
 // the time snapshots take to come, and shots fly on along their speed. What is shown is written
 // into the replica itself, which nothing else steps, so the view, the minimap and the pointer
-// agree. The view is thus a snapshot behind the host, about 50 ms.
+// agree. The view is thus a snapshot behind the host, about 50 ms. A snapshot comes in parts
+// (SnapshotParts.cs): each entity and each shot glides from when the part that moved it came.
 namespace SandboxShip.Sim.Net;
 
 public sealed class ReplicaMotion
@@ -13,15 +14,16 @@ public sealed class ReplicaMotion
 
     struct Glide
     {
-        public double FromX, FromY, FromAngle, ToX, ToY, ToAngle;
+        public double FromX, FromY, FromAngle, ToX, ToY, ToAngle, Start;
     }
 
     readonly Dictionary<int, Glide> glides = [];
-    readonly Dictionary<int, (double X, double Y, double Angle)> shown = [];
-    readonly List<(Projectile P, double X, double Y)> shots = [];
-    /// <summary>Seconds since the last snapshot, and between the last two (smoothed).</summary>
-    double since, interval = 1 / Protocol.Rate;
+    /// <summary>Each shot: where the snapshot put it, and when.</summary>
+    readonly Dictionary<int, (double X, double Y, double Start)> shots = [];
+    /// <summary>Seconds of this replica's life, what glides are timed by; between two snapshots (smoothed).</summary>
+    double clock, interval = 1 / Protocol.Rate;
     double lastAt = double.NaN;
+    int lastSeq;
 
     /// <summary>The time snapshots take to come, as measured: what a glide lasts.</summary>
     public double Interval => interval;
@@ -30,51 +32,102 @@ public sealed class ReplicaMotion
     public SnapshotFrames Frames { get; } = new();
 
     /// <summary>
-    /// Reads a snapshot into the replica (Snapshot.Read), arrived at `now` seconds; everything is
+    /// Reads a whole snapshot into the replica (Snapshot.Read), arrived at `now` seconds; everything is
     /// still shown where it was. False when it could not be read for want of its baseline: nothing changed.
     /// </summary>
     public bool Read(BinaryReader r, World replica, double now)
     {
-        shown.Clear();
-        foreach (var e in replica.Entities) shown[e.Id] = (e.X, e.Y, e.Angle);
+        var before = Shown(replica);
         if (!Snapshot.Read(r, replica, Frames)) return false;
-        glides.Clear();
-        foreach (var e in replica.Entities)
-        {
-            var g = new Glide { ToX = e.X, ToY = e.Y, ToAngle = e.Angle };
-            if (shown.TryGetValue(e.Id, out var was) && Worlds.Hypot(e.X - was.X, e.Y - was.Y) < Jump) (g.FromX, g.FromY, g.FromAngle) = was;
-            else (g.FromX, g.FromY, g.FromAngle) = (g.ToX, g.ToY, g.ToAngle);
-            glides[e.Id] = g;
-        }
+        Came(now, Frames.Latest);
+        foreach (var e in replica.Entities) Restart(e, before.GetValueOrDefault(e.Id));
+        Forget(replica, _ => true);
         shots.Clear();
-        foreach (var p in replica.Projectiles) shots.Add((p, p.X, p.Y));
-        if (!double.IsNaN(lastAt)) interval += (Math.Clamp(now - lastAt, 1 / 60.0, 0.25) - interval) * 0.25;
-        lastAt = now;
-        since = 0;
+        foreach (var p in replica.Projectiles) shots[p.Id] = (p.X, p.Y, clock);
         Advance(replica, 0);
         return true;
+    }
+
+    /// <summary>
+    /// Reads one part of a snapshot into the replica (Snapshot.ReadPart), arrived at `now`
+    /// seconds: the entities or the shots it covers glide on from where they are shown, the
+    /// others go on as they were. Once a part completes its snapshot, the player acknowledges it.
+    /// </summary>
+    public Snapshot.PartRead ReadPart(BinaryReader r, World replica, double now)
+    {
+        var part = Snapshot.ReadPart(r, replica, Frames);
+        if (!part.Read) return part;
+        Came(now, part.Seq);
+        if (part.Entities)
+        {
+            foreach (var e in replica.Entities) if (part.Covers(e.Id)) Restart(e, glides.TryGetValue(e.Id, out var g) ? At(g) : null);
+            Forget(replica, part.Covers);
+        }
+        else if (part.Shots)
+        {
+            foreach (var id in shots.Keys.Where(id => part.Covers(id)).ToList()) shots.Remove(id);
+            foreach (var p in replica.Projectiles) if (part.Covers(p.Id)) shots[p.Id] = (p.X, p.Y, clock);
+        }
+        Advance(replica, 0);
+        return part;
+    }
+
+    /// <summary>A snapshot's first part came: how long snapshots take to come, smoothed.</summary>
+    void Came(double now, int seq)
+    {
+        if (seq == lastSeq) return;
+        lastSeq = seq;
+        if (!double.IsNaN(lastAt)) interval += (Math.Clamp(now - lastAt, 1 / 60.0, 0.25) - interval) * 0.25;
+        lastAt = now;
+    }
+
+    static Dictionary<int, (double X, double Y, double Angle)> Shown(World replica)
+    {
+        var shown = new Dictionary<int, (double, double, double)>(replica.Entities.Count);
+        foreach (var e in replica.Entities) shown[e.Id] = (e.X, e.Y, e.Angle);
+        return shown;
+    }
+
+    /// <summary>Where a glide shows its entity now.</summary>
+    (double X, double Y, double Angle) At(Glide g)
+    {
+        var k = Math.Min(1, (clock - g.Start) / interval);
+        return (g.FromX + (g.ToX - g.FromX) * k, g.FromY + (g.ToY - g.FromY) * k, g.FromAngle + Movement.WrapAngle(g.ToAngle - g.FromAngle) * k);
+    }
+
+    /// <summary>An entity the snapshot just put somewhere: it glides there from where it was shown, unless it jumped or is new.</summary>
+    void Restart(Entity e, (double X, double Y, double Angle)? was)
+    {
+        var g = new Glide { ToX = e.X, ToY = e.Y, ToAngle = e.Angle, Start = clock };
+        if (was is { } w && Worlds.Hypot(e.X - w.X, e.Y - w.Y) < Jump) (g.FromX, g.FromY, g.FromAngle) = w;
+        else (g.FromX, g.FromY, g.FromAngle) = (g.ToX, g.ToY, g.ToAngle);
+        glides[e.Id] = g;
+    }
+
+    /// <summary>The glides of entities gone from what a snapshot covers.</summary>
+    void Forget(World replica, Func<int, bool> covered)
+    {
+        foreach (var id in glides.Keys.Where(id => covered(id) && !replica.Entities.Has(id)).ToList()) glides.Remove(id);
     }
 
     /// <summary>`dt` seconds later: each entity that far along its glide, each shot that far along its flight.</summary>
     public void Advance(World replica, double dt)
     {
-        since += dt;
-        var k = Math.Min(1, since / interval);
+        clock += dt;
         foreach (var e in replica.Entities)
         {
             if (!glides.TryGetValue(e.Id, out var g)) continue;
-            e.X = g.FromX + (g.ToX - g.FromX) * k;
-            e.Y = g.FromY + (g.ToY - g.FromY) * k;
-            e.Angle = g.FromAngle + Movement.WrapAngle(g.ToAngle - g.FromAngle) * k;
+            (e.X, e.Y, e.Angle) = At(g);
         }
         // The parts of a ship stay on it as it turns, as they do on the host.
         Worlds.AttachHardpoints(replica);
         // Shots are shown as far back as ships are, and fly on a little if the next snapshot is late.
-        var t = Math.Min(since, interval + 0.25) - interval;
-        foreach (var (p, x, y) in shots)
+        foreach (var p in replica.Projectiles)
         {
-            p.X = x + p.Vx * t;
-            p.Y = y + p.Vy * t;
+            if (!shots.TryGetValue(p.Id, out var s)) continue;
+            var t = Math.Min(clock - s.Start, interval + 0.25) - interval;
+            p.X = s.X + p.Vx * t;
+            p.Y = s.Y + p.Vy * t;
         }
     }
 }

@@ -43,11 +43,11 @@ public sealed partial class Session
     /// <summary>The battle in the battle view this machine's player may watch: one it does not command.</summary>
     public int? Watchable => map?.Galaxy.Battles.Find(b => b.Status == BattleStatus.Tactical && !b.Commanders.Contains(map.Side))?.Id;
 
-    /// <summary>Hosts a campaign saved over the network, its players' seats kept for them (Lobby.Resume), on a port or online; the reason it cannot, or null.</summary>
-    public static string? Resume(Galaxy saved, int port, bool online = false)
+    /// <summary>Hosts a campaign saved over the network, its players' seats kept for them (Lobby.Resume), on a port or online, with a password if given; the reason it cannot, or null.</summary>
+    public static string? Resume(Galaxy saved, int port, bool online = false, string? password = null)
     {
         if (Lobby.Resume(saved, Random.Shared.Next(1, 1_000_000)) is not { } lobby) return "Cette sauvegarde ne se reprend pas en réseau.";
-        var error = Host(lobby, port, online);
+        var error = Host(lobby, port, online, password);
         if (error is null) Current!.resume = saved;
         return error;
     }
@@ -61,6 +61,7 @@ public sealed partial class Session
         resume = null;
         lobby.Seat(g, room.NameOf);
         campaign = new GalaxyHost(g, net.Send);
+        away.Clear();
         foreach (var m in room.Members) if (m.Peer != Lobby.Host && lobby.SideOfPeer(m.Peer) is { } side) campaign.Add(m.Peer, side);
         (paused, galaxyAcc, galaxySpeed) = (false, 0, Dev.Speed > 0 ? Dev.Speed : 1);
         campaign.Clock = new GalaxyClock(galaxySpeed, false);
@@ -307,9 +308,9 @@ public sealed partial class Session
                 OpenFront(b, e.Commands ? map.Side : Galaxies.Viewpoint(map.Galaxy, b, map.Side), !e.Commands);
                 return true;
             case Message.State state when front is not null:
-                var applied = false;
-                if (!Read(() => applied = front.Motion.Read(Reader(state.Snapshot), front.World, clock)) || !applied) return true;
-                Send(new Message.Ack(front.Motion.Frames.Latest));
+                var part = default(Snapshot.PartRead);
+                if (!Read(() => part = front.Motion.ReadPart(Reader(state.Snapshot), front.World, clock)) || part.Completed == 0) return true;
+                Send(new Message.Ack(part.Completed));
                 ShowFront();
                 return true;
             case Message.News n when front is not null:
@@ -370,7 +371,7 @@ public sealed partial class Session
         campaign.Drop(peer);
         commanding.Remove(peer);
         fight?.Remove(peer);
-        var text = $"{who} a quitté la partie : l'IA prend sa place.";
+        var text = $"{who} a quitté la partie : l'IA tient sa place jusqu'à son retour.";
         Broadcast(new Message.Notice(text));
         Toast(text);
         campaign.SendAll();

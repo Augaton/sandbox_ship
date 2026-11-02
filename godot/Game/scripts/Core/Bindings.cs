@@ -116,7 +116,10 @@ public static class Bindings
     public static bool Pressed(InputEvent ev, string id) => ev.IsActionPressed(id, true, Of(id).Modified);
 
     /// <summary>Whether `id`'s key, or one of its alternates, is held down.</summary>
-    public static bool Held(string id) => Input.IsActionPressed(id);
+    public static bool Held(string id) => Input.IsActionPressed(id) && !Typing;
+
+    /// <summary>A line of text (the chat) has the keyboard: what is typed there moves no view and flies no ship.</summary>
+    static bool Typing => ((SceneTree)Engine.GetMainLoop()).Root.GuiGetFocusOwner() is LineEdit;
 
     static readonly Dictionary<Key, string> Names = new()
     {
