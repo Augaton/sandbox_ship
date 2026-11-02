@@ -175,6 +175,7 @@ public partial class Hud
 
     public void ShowEnd(bool won)
     {
+        Music.Sting(won);
         if (scene.Opts.Net is not null)
         {
             NetEnd(won);

@@ -540,6 +540,7 @@ public partial class BattleScreen : Node
                     break;
             }
         }
+        if (!Opts.Demo) Music.Feel(w.Events, w.Beams.Count);
         w.Events.Clear();
     }
 

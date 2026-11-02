@@ -14,6 +14,8 @@ public sealed class Settings
     public bool AutoAbilities { get; set; } = true;
     /// <summary>Sound effects volume, 0 to 1.</summary>
     public double Volume { get; set; } = 0.5;
+    /// <summary>Music volume, 0 to 1.</summary>
+    public double MusicVolume { get; set; } = 0.5;
     public bool Muted { get; set; }
     /// <summary>The name other players see, in a game over the network; at first, the system's user name.</summary>
     public string PlayerName { get; set; } = UserName();
