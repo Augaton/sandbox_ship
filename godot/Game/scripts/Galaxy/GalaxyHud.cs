@@ -1115,6 +1115,7 @@ public partial class GalaxyHud : CanvasLayer
 
     public void ShowEnd(bool won)
     {
+        Music.Sting(won);
         var (p, box) = Dialog();
         box.AddChild(Heading(won ? "Victoire" : "Défaite", Player, 22));
         box.AddChild(HudKit.Para(won ? "Plus aucune faction rivale n'a de planète." : "Tu n'as plus aucune planète."));

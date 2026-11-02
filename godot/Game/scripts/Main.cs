@@ -26,6 +26,12 @@ public partial class Main : Node
         Instance = this;
         RenderingServer.SetDefaultClearColor(Palette.Bg);
         Dev.Parse(OS.GetCmdlineUserArgs());
+        if (Dev.MusicDump is string dump)
+        {
+            Music.Dump(dump);
+            GetTree().Quit();
+            return;
+        }
         // A headless service (a dedicated server; the online server and its measure, without even a game):
         // no window needed, nothing to forge, draw or warm up, only the network.
         if (Dev.Service)
@@ -57,6 +63,9 @@ public partial class Main : Node
             }
         });
         Sfx.Attach(this);
+        Music.Attach(this);
+        // The menu's theme already under the opening.
+        if (intro is not null) Music.Play(MusicTheme.Menu);
         await Assets.Load();
         if (intro is not null) await intro.Done;
         if (Dev.Dump is string dir) Ui.Logos.LogoImage(Ui.Loading.LogoScale).SavePng($"{dir}/boot.png");
@@ -82,6 +91,7 @@ public partial class Main : Node
     /// <summary>Leaves the game: the "Quitter" entry of the menu, and the end of a capture.</summary>
     public void QuitGame()
     {
+        Music.SaveRecording();
         EnsureExit();
         GetTree().Quit();
     }
@@ -219,6 +229,13 @@ public partial class Main : Node
         screen = next;
         if (galaxy is not null && next == galaxy && galaxy.IsInsideTree()) galaxy.Wake();
         else AddChild(next);
+        Music.Play(next switch
+        {
+            Ui.Menu => MusicTheme.Menu,
+            Campaign.GalaxyScreen => MusicTheme.Galaxy,
+            BattleScreen => MusicTheme.Battle,
+            _ => MusicTheme.None,
+        });
     }
 
     /// <summary>The start screen: the main menu, which calls Start with what the player chose.</summary>

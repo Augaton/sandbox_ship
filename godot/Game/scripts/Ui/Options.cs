@@ -40,7 +40,11 @@ public static class Options
                 check.FocusMode = focus;
                 part.AddChild(check);
             }
-            if (group == "Son") part.AddChild(Volume(s, focus));
+            if (group == "Son")
+            {
+                part.AddChild(Volume(s, focus));
+                part.AddChild(Volume(s, focus, "Volume de la musique", x => x.MusicVolume, (x, v) => x.MusicVolume = v));
+            }
             box.AddChild(part);
         }
         // Only on the menu: in battle, a name could not change any more.
@@ -79,23 +83,28 @@ public static class Options
         return row;
     }
 
-    /// <summary>The effects volume: a slider and its value.</summary>
-    static HBoxContainer Volume(Settings s, Control.FocusModeEnum focus)
+    /// <summary>A volume, the effects' unless told otherwise: a slider and its value.</summary>
+    static HBoxContainer Volume(Settings s, Control.FocusModeEnum focus, string name = "Volume des effets", Func<Settings, double>? get = null, Action<Settings, double>? set = null)
     {
+        get ??= x => x.Volume;
+        set ??= (x, v) => x.Volume = v;
         var row = new HBoxContainer();
         row.AddThemeConstantOverride("separation", 12);
-        row.AddChild(UiTheme.Text("Volume des effets"));
-        var value = UiTheme.Text(HudKit.Percent(s.Volume), Palette.Muted);
+        var label = UiTheme.Text(name);
+        // The two volumes' sliders line up.
+        label.CustomMinimumSize = new Vector2(200, 0);
+        row.AddChild(label);
+        var value = UiTheme.Text(HudKit.Percent(get(s)), Palette.Muted);
         value.CustomMinimumSize = new Vector2(52, 0);
         var volume = new HSlider
         {
-            MinValue = 0, MaxValue = 100, Step = 5, Value = Math.Round(s.Volume * 100), CustomMinimumSize = new Vector2(220, 0), FocusMode = focus,
-            SizeFlagsVertical = Control.SizeFlags.ShrinkCenter, AccessibilityName = "Volume des effets",
+            MinValue = 0, MaxValue = 100, Step = 5, Value = Math.Round(get(s) * 100), CustomMinimumSize = new Vector2(220, 0), FocusMode = focus,
+            SizeFlagsVertical = Control.SizeFlags.ShrinkCenter, AccessibilityName = name,
         };
         volume.ValueChanged += v =>
         {
-            s.Volume = v / 100;
-            value.Text = HudKit.Percent(s.Volume);
+            set(s, v / 100);
+            value.Text = HudKit.Percent(get(s));
             s.Save();
         };
         row.AddChild(volume);

@@ -35,7 +35,8 @@ public sealed record MenuChoice
 /// command line: --start=menu|battle|sandbox|campaign|gallery (every ship class and platform level, paused)|raid (a battle centered on the colossus)|stress
 /// (three large fleets in a fight, one step a frame, frame times logged before a --shot run quits), --skip=SECONDS (battle or galaxy played
 /// ahead, the player's side on the AI too), --zoom=Z, --shot=FILE.png and --frames=N (capture, then quit),
-/// --intro (the opening, which a capture or a start into a screen skips),
+/// --intro (the opening, which a capture or a start into a screen skips), --music-dump=DIR (the music as WAV files, then quit),
+/// --music-record=FILE.wav (the game's mixed sound saved as it quits; with --audio-driver Dummy before --, nothing is heard),
 /// --menu=home|new|controls|credits|options|lobby-MODE (the menu screen opened first; new: the
 /// modes; lobby-skirmish, lobby-campaign...: that mode's lobby, see LobbyMode; skirmish: lobby-skirmish),
 /// --seats=N and --teams=T,T... (that lobby's bots added up to N seats, then its teams in seat order),
@@ -88,6 +89,8 @@ public static class Dev
     public static double[] Attack = [], Raid = [], Build = [];
     public static string[] Choose = [];
     public static string? Answer, Snap, SavePath;
+    /// <summary>--music-dump=DIR: the music as WAV files there, then quit. --music-record=FILE.wav: the game's sound saved as it quits (music on in a capture).</summary>
+    public static string? MusicDump, MusicRecord;
 
     static double[] Ages(string value) => [.. value.Split(',').Select(v => double.Parse(v, System.Globalization.CultureInfo.InvariantCulture))];
 
@@ -116,6 +119,8 @@ public static class Dev
                 case "--mode": Mode = Enum.Parse<BattleMode>(value, true); break;
                 case "--host": Host = true; break;
                 case "--intro": Intro = true; break;
+                case "--music-dump": MusicDump = value; break;
+                case "--music-record": MusicRecord = value; break;
                 case "--server": Server = true; break;
                 case "--join": Join = value; break;
                 case "--name": Name = value; break;
