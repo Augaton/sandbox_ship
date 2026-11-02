@@ -299,6 +299,7 @@ public partial class BattleScreen : Node
 
     void Shake(double ms, double intensity)
     {
+        if (Settings.Current.ReduceMotion) return;
         shakeUntil = Now + ms;
         shakeIntensity = intensity;
     }

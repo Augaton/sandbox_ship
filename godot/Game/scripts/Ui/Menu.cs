@@ -279,14 +279,17 @@ public partial class Menu : Node
         if (from is not null) Settle(keyed.GetValueOrDefault(from), 0);
     }
 
-    /// <summary>Shows a screen: the panel slides to its width, its edge flares amber, the content slides and fades in.</summary>
+    /// <summary>
+    /// Shows a screen: the panel slides to its width, its edge flares amber, the content slides and
+    /// fades in; at once with calmer motion asked for (the options).
+    /// </summary>
     void Show(Screen next, bool animate = true)
     {
         screen = next;
         Build();
         var to = WidthOf(next);
         sliding?.Kill();
-        if (animate)
+        if (animate && !Settings.Current.ReduceMotion)
         {
             sliding = CreateTween().SetParallel().SetEase(Tween.EaseType.Out).SetTrans(Tween.TransitionType.Cubic);
             sliding.TweenMethod(Callable.From<float>(SetWidth), width, to, Slide);
