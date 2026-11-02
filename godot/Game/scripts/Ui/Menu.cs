@@ -6,6 +6,7 @@ using System.Globalization;
 using Godot;
 using SandboxShip.Battle;
 using SandboxShip.Core;
+using SandboxShip.Render;
 using SandboxShip.Sim;
 using SandboxShip.Sim.Data;
 
@@ -208,15 +209,21 @@ public partial class Menu : Node
         return l;
     }
 
-    /// <summary>The veil under the panel: dark enough to read on, then fading into the fight.</summary>
+    /// <summary>
+    /// The veil under the panel: on the home screen a shade that fades from the left edge into
+    /// the fight, with no edge; wider, a panel dark enough to read on, then the fade. It goes from
+    /// one to the other as the panel slides.
+    /// </summary>
     void DrawVeil()
     {
         var h = veil.Size.Y;
         var solid = Palette.Bg with { A = 0.9f };
         var clear = Palette.Bg with { A = 0 };
-        veil.DrawRect(new Rect2(0, 0, width, h), solid);
-        veil.DrawPolygon([new(width, 0), new(width + Fade, 0), new(width + Fade, h), new(width, h)], [solid, clear, clear, solid]);
-        veil.DrawLine(new Vector2(width, 0), new Vector2(width, h), Palette.Line with { A = 0.35f }, 1);
+        var panel = Math.Clamp((width - HomeWidth) / (Width - HomeWidth), 0, 1);
+        var edge = width * panel;
+        if (edge > 0) veil.DrawRect(new Rect2(0, 0, edge, h), solid);
+        veil.DrawPolygon([new(edge, 0), new(width + Fade, 0), new(width + Fade, h), new(edge, h)], [solid, clear, clear, solid]);
+        if (panel > 0) veil.DrawLine(new Vector2(width, 0), new Vector2(width, h), Palette.Line with { A = 0.35f * panel }, 1);
     }
 
     // Screens.
@@ -330,24 +337,26 @@ public partial class Menu : Node
     {
         opener = null;
         var save = GalaxySave.Info(Campaign.GalaxyScreen.SavePath);
+        body.AddChild(Spacer(1.3f));
         var logo = Picture(Logos.Logo(5), new Vector2(345, 45));
         logo.AccessibilityName = "Sandbox Ship";
-        header.AddChild(logo);
-        header.AddChild(Note("Stratégie spatiale en temps réel"));
+        body.AddChild(logo);
+        var tagline = Note("Stratégie spatiale en temps réel");
+        tagline.CustomMinimumSize = new Vector2(0, 56);
+        tagline.VerticalAlignment = VerticalAlignment.Top;
+        body.AddChild(tagline);
 
-        body.AddChild(Spacer());
         var nav = new VBoxContainer();
-        nav.AddThemeConstantOverride("separation", 2);
+        nav.AddThemeConstantOverride("separation", 0);
         if (save is not null)
         {
             nav.AddChild(Nav("Continuer la campagne", () => Main.Instance.StartCampaign(new MenuChoice { Resume = true }), true));
             var when = DateTimeOffset.FromUnixTimeMilliseconds(save.SavedAt).ToLocalTime().ToString("dd/MM/yyyy HH:mm", CultureInfo.InvariantCulture);
             var info = Paragraph($"{Factions.Defs[save.Race].Name}, {save.Planets} planète{(save.Planets > 1 ? "s" : "")}, le {when}", Palette.Muted, 13);
-            var indent = new MarginContainer();
-            indent.AddThemeConstantOverride("margin_left", 17);
-            indent.AddThemeConstantOverride("margin_bottom", 10);
-            indent.AddChild(info);
-            nav.AddChild(indent);
+            var under = new MarginContainer();
+            under.AddThemeConstantOverride("margin_bottom", 12);
+            under.AddChild(info);
+            nav.AddChild(under);
         }
         nav.AddChild(Nav("Nouvelle partie", () => OpenModes(false), save is null, "new"));
         nav.AddChild(Nav("Multijoueur", () => Open(Screen.Multiplayer, "multi"), key: "multi"));
@@ -356,7 +365,7 @@ public partial class Menu : Node
         nav.AddChild(Nav("Crédits", () => Open(Screen.Credits, "credits"), key: "credits"));
         nav.AddChild(Nav("Quitter", Main.Instance.QuitGame));
         body.AddChild(nav);
-        body.AddChild(Spacer(1.6f));
+        body.AddChild(Spacer(0.5f));
         footer.AddChild(UiTheme.Text($"Version {Version}", Palette.Muted, 13));
     }
 
@@ -398,15 +407,29 @@ public partial class Menu : Node
         scroll.ScrollVertical = scrollTo;
     }
 
-    /// <summary>A choice drawn as a card: a button under, its content on top; `on` outlines it in amber.</summary>
-    Control Tile(string key, bool on, Action act, string name, Action<VBoxContainer> fill)
+    /// <summary>
+    /// A choice drawn as a card: a button under, its content on top; `on` outlines it in amber.
+    /// `art`: a sprite in the card's right end, its own room, fading toward the text and brighter
+    /// under the pointer.
+    /// </summary>
+    Control Tile(string key, bool on, Action act, string name, Action<VBoxContainer> fill, string? art = null)
     {
         var tile = new MarginContainer { SizeFlagsHorizontal = Control.SizeFlags.ExpandFill };
         var button = Btn("", act, on ? On : null, key);
         button.AccessibilityName = name;
         tile.AddChild(button);
+        if (art is not null && Assets.Has(art))
+        {
+            var picture = Art(art);
+            tile.AddChild(picture);
+            button.MouseEntered += () => picture.Modulate = Colors.White;
+            button.MouseExited += () => picture.Modulate = Dim;
+            button.FocusEntered += () => picture.Modulate = Colors.White;
+            button.FocusExited += () => picture.Modulate = Dim;
+        }
         var pad = new MarginContainer { MouseFilter = Control.MouseFilterEnum.Ignore };
         foreach (var side in new[] { "left", "top", "right", "bottom" }) pad.AddThemeConstantOverride($"margin_{side}", 12);
+        if (tile.GetChildCount() > 1) pad.AddThemeConstantOverride("margin_right", 12 + (int)ArtRoom);
         tile.AddChild(pad);
         var col = new VBoxContainer { MouseFilter = Control.MouseFilterEnum.Ignore };
         col.AddThemeConstantOverride("separation", 6);
@@ -427,22 +450,75 @@ public partial class Menu : Node
 
     static Theme? theme;
 
-    static StyleBoxFlat Style(Color bg, Color? border = null)
+    /// <summary>
+    /// A button's face, drawn as an image: `from` on the left fading to `to` on the right, a
+    /// one-pixel border fading with it, and on the left an amber `bar` when lit. Stretched to any
+    /// size: the middle of the image stretches, its edges keep their width.
+    /// </summary>
+    static StyleBoxTexture Shaded(Color from, Color to, Color border, Color? bar = null)
     {
-        var s = UiTheme.Box(bg, border, 12);
-        s.ContentMarginTop = s.ContentMarginBottom = 6;
+        const int W = 128, H = 8, Bar = 3;
+        var img = Image.CreateEmpty(W, H, false, Image.Format.Rgba8);
+        for (var x = 0; x < W; x++)
+        {
+            var f = x / (W - 1f);
+            var fill = from.Lerp(to, f);
+            var line = border with { A = border.A * (1 - 0.7f * f) };
+            for (var y = 0; y < H; y++)
+            {
+                var edge = y == 0 || y == H - 1 || x == W - 1 || (x == 0 && bar is null);
+                img.SetPixel(x, y, bar is { } b && x < Bar ? b : edge ? line : fill);
+            }
+        }
+        var s = new StyleBoxTexture
+        {
+            Texture = ImageTexture.CreateFromImage(img),
+            TextureMarginLeft = bar is null ? 1 : Bar, TextureMarginRight = 1, TextureMarginTop = 1, TextureMarginBottom = 1,
+            ContentMarginLeft = 12, ContentMarginRight = 12, ContentMarginTop = 6, ContentMarginBottom = 6,
+        };
         return s;
     }
 
-    /// <summary>A home entry's look: bare text; under the pointer or the keys, an amber bar on its left and the text a step aside.</summary>
-    static StyleBoxFlat NavStyle(bool lit)
+    /// <summary>A home entry: bare text, brighter or amber under the pointer or the keys, as in the menus of the older shooters.</summary>
+    static StyleBoxEmpty Bare() => new() { ContentMarginLeft = 0, ContentMarginRight = 12, ContentMarginTop = 4, ContentMarginBottom = 4 };
+
+    /// <summary>A card's picture, away from the pointer.</summary>
+    static readonly Color Dim = new(1, 1, 1, 0.7f);
+    /// <summary>The right end of a card left to its picture, and how far past it, toward the text, the picture fades out.</summary>
+    const float ArtRoom = 96, ArtFade = 40;
+
+    /// <summary>
+    /// A sprite lying on the right of a card, nose to the right, its tail fading out toward the
+    /// text; the card cuts what goes past it.
+    /// </summary>
+    static Control Art(string key)
     {
-        var s = new StyleBoxFlat
+        var tex = Assets.Frame(key);
+        var (atlas, region) = tex is AtlasTexture a ? (a.Atlas, a.Region) : (tex, new Rect2(Vector2.Zero, tex.GetSize()));
+        var art = new Control { MouseFilter = Control.MouseFilterEnum.Ignore, ClipContents = true, Modulate = Dim };
+        art.Draw += () =>
         {
-            BgColor = lit ? Palette.Accent with { A = 0.08f } : Colors.Transparent, BorderColor = lit ? Palette.Accent : Colors.Transparent,
-            BorderWidthLeft = 3, ContentMarginLeft = lit ? 22 : 14, ContentMarginRight = 12, ContentMarginTop = 4, ContentMarginBottom = 4,
+            // The opaque part a little longer than the card is high; pack sprites leave room around it.
+            var size = art.Size;
+            var scale = size.Y * 1.1f / (float)Assets.OpaqueSize(key);
+            var drawn = new Vector2(region.Size.Y, region.Size.X) * scale;
+            var rect = new Rect2(new Vector2(size.X - ArtRoom / 2 - 4 - drawn.X / 2, (size.Y - drawn.Y) / 2), drawn);
+            // Turned a quarter clockwise: the sprite's top, its nose, comes to the right.
+            Vector2 Uv(float u, float v) => (region.Position + new Vector2(v, 1 - u) * region.Size) / atlas.GetSize();
+            // From x0 to x1 on screen, its opacity going from a0 to a1.
+            void Band(float x0, float x1, float a0, float a1)
+            {
+                float u0 = (x0 - rect.Position.X) / rect.Size.X, u1 = (x1 - rect.Position.X) / rect.Size.X;
+                float top = rect.Position.Y, bottom = rect.End.Y;
+                Color c0 = new(1, 1, 1, a0), c1 = new(1, 1, 1, a1);
+                art.DrawPolygon([new(x0, top), new(x1, top), new(x1, bottom), new(x0, bottom)], [c0, c1, c1, c0], [Uv(u0, 0), Uv(u1, 0), Uv(u1, 1), Uv(u0, 1)], atlas);
+            }
+            var clear = Math.Max(rect.Position.X, size.X - ArtRoom - ArtFade);
+            var full = Math.Max(clear, size.X - ArtRoom * 0.35f);
+            if (full > clear) Band(clear, full, 0, 1);
+            Band(full, rect.End.X, 1, 1);
         };
-        return s;
+        return art;
     }
 
     /// <summary>The shared theme, in 16 pixels as the web menu, with its variations.</summary>
@@ -453,41 +529,42 @@ public partial class Menu : Node
         t.MergeWith(UiTheme.Get());
         t.DefaultFont = UiTheme.Mono;
         t.DefaultFontSize = 16;
-        foreach (var state in new[] { "normal", "hover", "pressed", "disabled" })
+        var raised = Palette.Raised;
+        foreach (var type in new[] { "Button", "OptionButton" })
         {
-            var s = (StyleBox)t.GetStylebox(state, "Button").Duplicate();
-            s.ContentMarginLeft = s.ContentMarginRight = 12;
-            t.SetStylebox(state, "Button", s);
+            t.SetStylebox("normal", type, Shaded(raised with { A = 0.95f }, raised with { A = 0.35f }, Palette.Line));
+            t.SetStylebox("hover", type, Shaded(raised.Lightened(0.1f), raised with { A = 0.5f }, Palette.Line.Lightened(0.2f), Palette.Accent with { A = 0.8f }));
+            t.SetStylebox("pressed", type, Shaded(raised.Darkened(0.25f), raised.Darkened(0.25f) with { A = 0.5f }, Palette.Line, Palette.Accent));
+            t.SetStylebox("hover_pressed", type, Shaded(raised.Darkened(0.25f), raised.Darkened(0.25f) with { A = 0.5f }, Palette.Line, Palette.Accent));
+            t.SetStylebox("disabled", type, Shaded(raised with { A = 0.45f }, raised with { A = 0.12f }, Palette.Line with { A = 0.5f }));
         }
         t.SetConstant("h_separation", "Button", 8);
 
         t.SetTypeVariation(Primary, "Button");
-        t.SetStylebox("normal", Primary, Style(Palette.Accent, Palette.Accent));
-        t.SetStylebox("hover", Primary, Style(Palette.Accent.Lightened(0.12f), Palette.Text));
-        t.SetStylebox("pressed", Primary, Style(Palette.Accent.Darkened(0.15f), Palette.Accent));
-        t.SetStylebox("focus", Primary, Style(new Color(0, 0, 0, 0), Palette.Text));
+        var accent = Palette.Accent;
+        t.SetStylebox("normal", Primary, Shaded(accent, accent.Darkened(0.4f), accent));
+        t.SetStylebox("hover", Primary, Shaded(accent.Lightened(0.15f), accent.Darkened(0.25f), Palette.Text));
+        t.SetStylebox("pressed", Primary, Shaded(accent.Darkened(0.2f), accent.Darkened(0.5f), accent));
+        t.SetStylebox("hover_pressed", Primary, Shaded(accent.Darkened(0.2f), accent.Darkened(0.5f), accent));
+        t.SetStylebox("focus", Primary, UiTheme.Box(new Color(0, 0, 0, 0), Palette.Text, 12));
         foreach (var c in new[] { "font_color", "font_hover_color", "font_pressed_color", "font_focus_color", "font_hover_pressed_color" }) t.SetColor(c, Primary, Palette.Bg);
         t.SetFont("font", Primary, Bold);
 
         t.SetTypeVariation(On, "Button");
-        t.SetStylebox("normal", On, Style(Palette.Raised, Palette.Accent));
-        t.SetStylebox("hover", On, Style(Palette.Raised.Lightened(0.08f), Palette.Accent));
+        t.SetStylebox("normal", On, Shaded(accent with { A = 0.24f }, accent with { A = 0.04f }, accent with { A = 0.85f }, accent));
+        t.SetStylebox("hover", On, Shaded(accent with { A = 0.32f }, accent with { A = 0.08f }, accent, accent));
         foreach (var c in new[] { "font_color", "font_hover_color", "font_pressed_color", "font_focus_color", "font_hover_pressed_color" }) t.SetColor(c, On, Palette.Accent);
 
         foreach (var nav in new[] { NavItem, NavMain })
         {
             t.SetTypeVariation(nav, "Button");
-            t.SetStylebox("normal", nav, NavStyle(false));
-            t.SetStylebox("disabled", nav, NavStyle(false));
-            t.SetStylebox("hover", nav, NavStyle(true));
-            t.SetStylebox("pressed", nav, NavStyle(true));
-            t.SetStylebox("hover_pressed", nav, NavStyle(true));
-            t.SetStylebox("focus", nav, NavStyle(true));
-            t.SetColor("font_color", nav, nav == NavMain ? Palette.Accent : Palette.Text);
+            foreach (var state in new[] { "normal", "disabled", "hover", "pressed", "hover_pressed", "focus" }) t.SetStylebox(state, nav, Bare());
+            t.SetColor("font_color", nav, nav == NavMain ? Palette.Text : Palette.Text with { A = 0.72f });
             foreach (var c in new[] { "font_hover_color", "font_pressed_color", "font_focus_color", "font_hover_pressed_color" }) t.SetColor(c, nav, Palette.Accent);
-            t.SetFontSize("font_size", nav, nav == NavMain ? 21 : 18);
+            t.SetFontSize("font_size", nav, 20);
+            t.SetConstant("outline_size", nav, 4);
+            t.SetColor("font_outline_color", nav, Palette.Bg with { A = 0.6f });
         }
-        t.SetFont("font", NavMain, Bold);
 
         var input = UiTheme.Box(Palette.Raised, pad: 6);
         t.SetStylebox("normal", "LineEdit", input);
@@ -524,11 +601,11 @@ public partial class Menu : Node
         return b;
     }
 
-    /// <summary>An entry of the home column; `main`: the one to start with, in amber.</summary>
+    /// <summary>An entry of the home column; `main`: the one to start with, brighter than the others.</summary>
     Button Nav(string text, Action act, bool main = false, string? key = null)
     {
         var b = Btn(text, act, main ? NavMain : NavItem, key);
-        b.CustomMinimumSize = new Vector2(0, main ? 48 : 42);
+        b.CustomMinimumSize = new Vector2(0, 40);
         b.Alignment = HorizontalAlignment.Left;
         return b;
     }

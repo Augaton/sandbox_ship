@@ -32,6 +32,12 @@ public sealed class RelayLink
     /// <summary>The round trip to the server, in ms, as ENet measures it; -1 until it settles.</summary>
     public int Ping => Up && Time.GetTicksMsec() - upAt >= Settle * 1000 ? (int)server.GetStatistic(ENetPacketPeer.PeerStatistic.RoundTripTime) : -1;
 
+    /// <summary>
+    /// " (address)" to put the server's address in a sentence, only in a developer build: a
+    /// player's build never shows where the online server is.
+    /// </summary>
+    public static string Shown(string address) => OS.IsDebugBuild() ? $" ({address})" : "";
+
     RelayLink(ENetConnection host, ENetPacketPeer server, string address, RelayFrame hello) => (this.host, this.server, Address, this.hello) = (host, server, address, hello);
 
     /// <summary>Starts connecting to the server at "host:port", saying `hello` once up; null with the reason when it cannot start.</summary>
@@ -52,7 +58,7 @@ public sealed class RelayLink
         if (server is null)
         {
             host.Destroy();
-            error = $"Adresse introuvable : {address}.";
+            error = $"Adresse du serveur en ligne introuvable{Shown(address)}.";
             return null;
         }
         // A server that does not answer is said so within seconds, not after ENet's half minute; an

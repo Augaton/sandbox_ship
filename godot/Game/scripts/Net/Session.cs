@@ -31,8 +31,11 @@ public sealed partial class Session : Node
 
     /// <summary>The player's name: --name, or the options'.</summary>
     public static string PlayerName => LobbyRoom.CleanName(Dev.Name ?? Settings.Current.PlayerName);
-    /// <summary>The online server's address: --master, or the options'.</summary>
-    public static string MasterAddress => Dev.Master ?? Settings.Current.MasterAddress;
+    /// <summary>
+    /// The online server's address: --master, else the options' in a developer build (only it
+    /// shows the field) and the default in a player's.
+    /// </summary>
+    public static string MasterAddress => Dev.Master ?? (OS.IsDebugBuild() ? Settings.Current.MasterAddress : Settings.DefaultMaster);
 
     public Role As { get; private set; }
     /// <summary>The lobby and who is in it; for a player, null until the host welcomes it.</summary>
@@ -125,7 +128,7 @@ public sealed partial class Session : Node
         relay = RelayTransport.Host(MasterAddress, Announce(Room!), out var error);
         if (relay is null) return error;
         net = relay;
-        Status = $"Inscription au serveur en ligne {MasterAddress}…";
+        Status = $"Inscription au serveur en ligne{RelayLink.Shown(MasterAddress)}…";
         Begin();
         Log($"« {Game} » ouverte par le serveur en ligne {MasterAddress}");
         return null;

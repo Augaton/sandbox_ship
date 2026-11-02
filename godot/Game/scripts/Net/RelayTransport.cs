@@ -73,7 +73,7 @@ public sealed class RelayTransport : ITransport
             }
         });
         if (closed || !link.Down) return;
-        var why = link.Problem ?? (Room > 0 || joined ? "Connexion au serveur en ligne perdue." : $"Serveur en ligne injoignable ({link.Address}).");
+        var why = link.Problem ?? (Room > 0 || joined ? "Connexion au serveur en ligne perdue." : $"Serveur en ligne injoignable{RelayLink.Shown(link.Address)}.");
         if (hosting) lost ??= why;
         else Farewell(why, received);
     }

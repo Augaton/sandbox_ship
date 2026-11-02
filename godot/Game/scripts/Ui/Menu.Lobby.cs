@@ -6,6 +6,7 @@ using System.Text.Json;
 using Godot;
 using SandboxShip.Core;
 using SandboxShip.Network;
+using SandboxShip.Render;
 using SandboxShip.Sim;
 using SandboxShip.Sim.Data;
 using SandboxShip.Sim.Net;
@@ -142,27 +143,47 @@ public partial class Menu
             var line = Small($"{about}. Chacun reprend sa place en rejoignant sous le même nom.");
             line.CustomMinimumSize = new Vector2(0, 36);
             col.AddChild(line);
-        });
+        }, Assets.Planet);
     }
 
-    Control ModeCard((LobbyMode Mode, string Name, string Description) m) =>
-        Tile($"mode:{m.Mode}", false, () => OpenLobby(m.Mode), $"{m.Name}, {Players(m.Mode)} : {m.Description}", col =>
+    /// <summary>The picture of a mode's card: the galaxy's planet, a ship that says the mode, an asteroid for the sandbox.</summary>
+    static string? ModeArt(LobbyMode mode) => mode switch
+    {
+        LobbyMode.Campaign => Assets.Planet,
+        LobbyMode.Skirmish => Assets.ShipSprite(Faction.Klaed, ShipClass.Frigate),
+        LobbyMode.Survival => Assets.ShipSprite(Faction.Nautolan, ShipClass.Bomber),
+        LobbyMode.Zones => Assets.ShipSprite(Faction.Nairan, ShipClass.Scout),
+        LobbyMode.Assault => Assets.ShipSprite(Faction.Klaed, ShipClass.Battlecruiser),
+        LobbyMode.Regicide => Assets.ShipSprite(Faction.Nairan, ShipClass.Dreadnought),
+        LobbyMode.Sandbox => Assets.Asteroids.FirstOrDefault(),
+        _ => null,
+    };
+
+    /// <summary>A mode's card: its name and what it is about, and in the bottom right corner, over its picture, how many play it.</summary>
+    Control ModeCard((LobbyMode Mode, string Name, string Description) m)
+    {
+        var tile = Tile($"mode:{m.Mode}", false, () => OpenLobby(m.Mode), $"{m.Name}, {Players(m.Mode)} : {m.Description}", col =>
         {
-            var top = new HBoxContainer { MouseFilter = Control.MouseFilterEnum.Ignore };
-            top.AddThemeConstantOverride("separation", 10);
             var name = UiTheme.Text(m.Name);
             name.AddThemeFontOverride("font", Bold);
-            name.SizeFlagsHorizontal = Control.SizeFlags.ExpandFill;
-            top.AddChild(name);
-            var count = UiTheme.Text(Players(m.Mode), Palette.Accent, 13);
-            count.SizeFlagsVertical = Control.SizeFlags.ShrinkCenter;
-            top.AddChild(count);
-            col.AddChild(top);
+            col.AddChild(name);
             var about = Small(m.Description);
-            // Two lines, whatever the card's width: the cards of a row keep one height.
+            // Two lines at least: the wide card keeps the height of the others.
             about.CustomMinimumSize = new Vector2(0, 36);
             col.AddChild(about);
-        });
+        }, ModeArt(m.Mode));
+        var count = UiTheme.Text(Players(m.Mode), Palette.Accent, 13);
+        count.SizeFlagsHorizontal = count.SizeFlagsVertical = Control.SizeFlags.ShrinkEnd;
+        count.MouseFilter = Control.MouseFilterEnum.Ignore;
+        count.AddThemeConstantOverride("outline_size", 5);
+        count.AddThemeColorOverride("font_outline_color", Palette.Bg);
+        var corner = new MarginContainer { MouseFilter = Control.MouseFilterEnum.Ignore };
+        corner.AddThemeConstantOverride("margin_right", 10);
+        corner.AddThemeConstantOverride("margin_bottom", 8);
+        corner.AddChild(count);
+        tile.AddChild(corner);
+        return tile;
+    }
 
     // The lobby.
 

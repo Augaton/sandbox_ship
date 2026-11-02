@@ -61,7 +61,7 @@ public sealed class MasterList
         if (link is { Up: true }) Problem = null;
         if (link is null || link.Down)
         {
-            Problem ??= link?.Problem ?? $"Serveur en ligne injoignable ({Address}).";
+            Problem ??= link?.Problem ?? $"Serveur en ligne injoignable{RelayLink.Shown(Address)}.";
             Games = [];
             if (now >= retry) Connect(now, true);
         }

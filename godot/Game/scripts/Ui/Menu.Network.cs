@@ -321,7 +321,7 @@ public partial class Menu
         hosts.AddChild(onlineButton);
         body.AddChild(Section("Héberger", hosts, Note($"En local : les joueurs de ton réseau te trouvent dans cette liste ; par Internet, ouvre le port {Protocol.DefaultPort} "
             + $"(UDP) vers ta machine. En ligne : ta partie passe par le serveur en ligne, rien à ouvrir. Tu joues sous le nom « {Session.PlayerName} » : "
-            + "il se change dans les options, comme l'adresse du serveur en ligne.")));
+            + $"il se change dans les options{(OS.IsDebugBuild() ? ", comme l'adresse du serveur en ligne" : "")}.")));
 
         var connecting = Session.Current is { Room: null } s ? s.Status : null;
         var line = Paragraph(connecting ?? joinStatus ?? "", connecting is not null ? Palette.Muted : Palette.Danger, 13);
@@ -387,9 +387,9 @@ public partial class Menu
         if (masterLine is null || !IsInstanceValid(masterLine)) return;
         var (text, color) = master switch
         {
-            { Up: true } m => ($"● Serveur en ligne joignable · {m.Address}{(m.Ping >= 0 ? $" · {m.Ping} ms" : "")}", Palette.Ok),
+            { Up: true } m => ($"● Serveur en ligne joignable{(OS.IsDebugBuild() ? $" · {m.Address}" : "")}{(m.Ping >= 0 ? $" · {m.Ping} ms" : "")}", Palette.Ok),
             { Problem: { } why } => ($"● {why} Seules les parties du réseau local s'affichent.", Palette.Danger),
-            { } m => ($"● Serveur en ligne {m.Address} : connexion…", Palette.Muted),
+            { } m => ($"● Serveur en ligne{RelayLink.Shown(m.Address)} : connexion…", Palette.Muted),
             _ => ("", Palette.Muted),
         };
         masterLine.Text = text;

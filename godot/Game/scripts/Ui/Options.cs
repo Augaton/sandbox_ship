@@ -55,7 +55,8 @@ public static class Options
         part.AddThemeConstantOverride("separation", 6);
         part.AddChild(UiTheme.Text("Multijoueur", Palette.Muted, 14));
         part.AddChild(Field("Nom du joueur", s.PlayerName, "", Sim.Net.LobbyRoom.MaxName, text => s.PlayerName = text));
-        part.AddChild(Field("Serveur en ligne", s.MasterAddress, Settings.DefaultMaster, 100, text => s.MasterAddress = text.Trim()));
+        // Where the online server is, only in a developer build: a player's always uses the default.
+        if (OS.IsDebugBuild()) part.AddChild(Field("Serveur en ligne", s.MasterAddress, Settings.DefaultMaster, 100, text => s.MasterAddress = text.Trim()));
         return part;
     }
 
