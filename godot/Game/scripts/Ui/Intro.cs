@@ -108,21 +108,21 @@ public partial class Intro : CanvasLayer
         return Card(name, Space(4), Line("présente", Palette.Muted, 16));
     }
 
-    /// <summary>The engine's logo (Andrea Calabró, CC BY 4.0, its text lightened for the dark), or its name without it.</summary>
-    const string GodotLogo = "res://assets/credits/godot-logo.svg";
+    /// <summary>A credit's logo (assets/credits, with their licences), or its name in text without it.</summary>
+    static Control Logo(string file, string name) => ResourceLoader.Exists($"res://assets/credits/{file}")
+        ? new TextureRect { Texture = GD.Load<Texture2D>($"res://assets/credits/{file}"), MouseFilter = Control.MouseFilterEnum.Ignore, AccessibilityName = name }
+        : Line(name, Palette.Text, 26, true);
 
     Control MadeWith() => Card(
         Line("Propulsé par", Palette.Muted, 14),
-        ResourceLoader.Exists(GodotLogo)
-            ? new TextureRect { Texture = GD.Load<Texture2D>(GodotLogo), MouseFilter = Control.MouseFilterEnum.Ignore, AccessibilityName = "Godot Engine" }
-            : Line("Godot Engine", Palette.Text, 30, true),
+        Logo("godot-logo.svg", "Godot Engine"),
         Rule(),
         Line("C# et .NET", Palette.Muted, 15));
 
     Control Art() => Card(
         Line("Graphismes", Palette.Muted, 14),
         Space(6),
-        Line("Foozle", Palette.Text, 26, true),
+        Logo("foozle.png", "Foozle"),
         Line("Void Fleet, Void Environment, Void Main Ship", Palette.Muted, 14),
         Space(10),
         Line("zintoki", Palette.Text, 26, true),

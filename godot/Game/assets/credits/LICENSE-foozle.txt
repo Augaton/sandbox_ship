@@ -1,0 +1,9 @@
+Foozle banner
+By Foozle: https://foozlecc.itch.io
+
+Released under CC0, as the banner itself says: "This content is free to use and modify
+for all projects, including commercial projects. Attribution not required."
+
+Source: https://img.itch.zone/aW1nLzExNjk3ODc0LnBuZw==/original/tnb9Rz.png
+Changed for Sandbox Ship: cropped to the character and the FOOZLE wordmark, and reduced
+to one image pixel per art pixel (the original draws each one 3 pixels wide).

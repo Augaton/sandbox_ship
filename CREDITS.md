@@ -10,7 +10,9 @@ obligatoire ; elle est faite par courtoisie.
 | Void - Main Ship | Foozle | CC0 | <https://foozlecc.itch.io/void-main-ship> |
 | Space Breaker | zintoki | CC0 | <https://zintoki.itch.io/space-breaker> |
 
-Les noms de faction Kla'ed, Nairan et Nautolan viennent des packs de Foozle.
+Les noms de faction Kla'ed, Nairan et Nautolan viennent des packs de Foozle. L'ouverture de la
+version native montre aussi sa bannière (CC0, recadrée et ramenée à un pixel par pixel de
+dessin ; voir `godot/Game/assets/credits/LICENSE-foozle.txt`).
 
 ## Moteur
 
