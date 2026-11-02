@@ -186,17 +186,21 @@ public sealed partial class Session
                 link = new NetBattle { Session = this, World = new World(), Side = side, Watching = watching };
                 break;
             case Message.State state when link is not null:
+                Snapshot.PartRead part;
                 try
                 {
                     // Written against a snapshot this player no longer has: the next one will do.
-                    if (!link.Motion.Read(new BinaryReader(new MemoryStream(state.Snapshot)), link.World, clock)) return;
+                    part = link.Motion.ReadPart(new BinaryReader(new MemoryStream(state.Snapshot)), link.World, clock);
+                    if (!part.Read) return;
                 }
                 catch (Exception e) when (e is InvalidDataException or EndOfStreamException)
                 {
                     Close($"Instantané illisible : {e.Message}");
                     return;
                 }
-                Send(new Message.Ack(link.Motion.Frames.Latest));
+                // Acknowledged once every part of it came: the next ones are written against it.
+                if (part.Completed == 0) return;
+                Send(new Message.Ack(part.Completed));
                 // The battle is shown once there is something to show: its map, the player's base, the camera on it.
                 if (starting is { } lobby)
                 {

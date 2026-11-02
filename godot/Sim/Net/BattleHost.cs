@@ -41,11 +41,13 @@ public sealed class BattleHost(World world, Action<int, Message> send)
     }
 
     readonly Dictionary<int, Remote> remotes = [];
-    readonly MemoryStream buffer = new(), news = new();
+    readonly MemoryStream news = new();
     readonly System.Diagnostics.Stopwatch clock = new();
 
     /// <summary>Snapshots written so far, and the time spent writing them, in milliseconds.</summary>
     public int Snapshots { get; private set; }
+    /// <summary>Parts sent so far, a packet each.</summary>
+    public int Parts { get; private set; }
     public double WriteMs => clock.Elapsed.TotalMilliseconds;
 
     public World World => world;
@@ -121,35 +123,36 @@ public sealed class BattleHost(World world, Action<int, Message> send)
 
     /// <summary>
     /// A snapshot to a player now, with the events since its last one, those it must not miss
-    /// sent first, apart and reliably; the snapshot's size.
+    /// sent first, apart and reliably; then the snapshot in parts, one a packet (SnapshotParts.cs).
+    /// Its size, all parts together.
     /// </summary>
     int SendSnapshot(int peer, Remote r)
     {
         clock.Start();
-        buffer.SetLength(0);
         news.SetLength(0);
         // Seeing everything is seeing without fog, for the time of this snapshot: between two steps, nothing else reads it.
         var fog = world.Fog;
         if (r.All) world.Fog = false;
+        List<byte[]> parts;
         try
         {
-            using var w = new BinaryWriter(buffer, System.Text.Encoding.UTF8, true);
             using var v = new BinaryWriter(news, System.Text.Encoding.UTF8, true);
-            Snapshot.Write(world, r.Side, w, r.Events, v, r.Frames);
+            parts = Snapshot.WriteParts(world, r.Side, r.Events, v, r.Frames);
         }
         finally
         {
             world.Fog = fog;
         }
-        var bytes = buffer.ToArray();
         clock.Stop();
         Snapshots++;
-        r.Bytes += bytes.Length;
+        Parts += parts.Count;
+        var bytes = parts.Sum(p => p.Length);
+        r.Bytes += bytes;
         r.Events.Clear();
         // A count of none is a single byte.
         if (news.Length > 1) send(peer, new Message.News(news.ToArray()));
-        send(peer, new Message.State(bytes));
-        return bytes.Length;
+        foreach (var p in parts) send(peer, new Message.State(p));
+        return bytes;
     }
 
     /// <summary>

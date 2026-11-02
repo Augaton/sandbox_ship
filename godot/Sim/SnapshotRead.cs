@@ -49,6 +49,15 @@ public static partial class Snapshot
     static void ReadAll(BinaryReader r, World replica, Side viewer, SnapshotFrames.Frame frame, SnapshotFrames.Frame? baseline, SnapshotFrames? frames)
     {
         replica.Time = r.ReadDouble();
+        ReadWorld(r, replica, viewer);
+        ReadEntities(r, replica, viewer, frame, baseline, frames);
+        ReadShots(r, replica, frame, baseline, frames);
+        ReadTail(r, replica);
+    }
+
+    /// <summary>The world, after its time (see WriteWorld): its size and flags, the mode's state, the sides, the fields.</summary>
+    static void ReadWorld(BinaryReader r, World replica, Side viewer)
+    {
         replica.Width = r.ReadDouble();
         replica.Height = r.ReadDouble();
         var flags = r.ReadByte();
@@ -59,8 +68,11 @@ public static partial class Snapshot
         ReadMode(r, replica.Mode);
         ReadSides(r, replica, viewer);
         ReadFields(r, replica);
-        ReadEntities(r, replica, viewer, frame, baseline, frames);
-        ReadShots(r, replica, frame, baseline, frames);
+    }
+
+    /// <summary>After the shots (see WriteTail): the beams, the zones, the strikes, the events.</summary>
+    static void ReadTail(BinaryReader r, World replica)
+    {
         var beams = new List<BeamLine>();
         for (var n = Count(r); n > 0; n--) beams.Add(new BeamLine(r.Read7BitEncodedInt(), r.Read7BitEncodedInt(), new Side(r.Read7BitEncodedInt())));
         replica.Beams = beams;

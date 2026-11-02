@@ -99,9 +99,10 @@ public class SpectatorsTests
             switch (Protocol.Decode(Protocol.Encode(m)))
             {
                 case Message.State s:
-                    // Against a baseline this peer never read, a snapshot does not read: the test fails here.
-                    Assert.True(Snapshot.Read(new BinaryReader(new MemoryStream(s.Snapshot)), Replicas[peer], Frames[peer]));
-                    Host.Acked(peer, Frames[peer].Latest);
+                    // Against a baseline this peer never read, a part does not read: the test fails here.
+                    var part = Snapshot.ReadPart(new BinaryReader(new MemoryStream(s.Snapshot)), Replicas[peer], Frames[peer]);
+                    Assert.True(part.Read);
+                    if (part.Completed > 0) Host.Acked(peer, part.Completed);
                     break;
                 case Message.Refused r: Refused.Add(r.Reason); break;
             }

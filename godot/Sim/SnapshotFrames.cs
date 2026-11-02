@@ -86,6 +86,16 @@ public sealed class SnapshotFrames
     internal readonly HashSet<int> Shown = [];
     internal readonly List<byte> Masks = [];
     internal readonly List<int> Removed = [];
+    internal readonly List<byte> ShotMasks = [];
+    internal readonly List<int> ShotRemoved = [];
+
+    /// <summary>
+    /// A player: the snapshot whose parts are coming (Snapshot.ReadPart), its number, the index
+    /// of the part expected next, and whether one was missed (it is then not kept).
+    /// </summary>
+    internal Frame? Building;
+    internal int BuildingSeq, Expected;
+    internal bool Broken;
 
     /// <summary>The newest snapshot read or written.</summary>
     public int Latest => frames.Count > 0 ? frames[^1].Seq : 0;
