@@ -444,6 +444,12 @@ public sealed class World
     public ModeState Mode = new();
     /// <summary>What targeting weighs, gathered once in a step that needs it (see Combat.Pressure).</summary>
     internal readonly Combat.Pressure Pressure = new();
+    /// <summary>Steps run so far (not in the web version): a replay applies each command after as many steps as it first came.</summary>
+    public long StepCount;
+    /// <summary>What the world was made from, when Scenario.CreateSkirmish made it: a replay makes it again from there.</summary>
+    public SkirmishOptions? Origin;
+    /// <summary>The commands applied to the world, while they are kept for a replay (Replays.cs).</summary>
+    public ReplayLog? Log;
 }
 
 /// <summary>The web version's names of ship classes, structures and parts.</summary>

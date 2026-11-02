@@ -190,6 +190,7 @@ public static class Scenario
             GiveLabs(world);
             if (raid) Raids.Place(world);
             Modes.Setup(world, o);
+            world.Origin = o;
             return world;
         }
         var spots = o.Mode == BattleMode.Assault ? Assault.Spots(world, slots) : StartPositions(world, slots.Count);
@@ -200,6 +201,7 @@ public static class Scenario
         GiveLabs(world);
         if (raid) Raids.Place(world);
         Modes.Setup(world, o);
+        world.Origin = o;
         return world;
     }
 

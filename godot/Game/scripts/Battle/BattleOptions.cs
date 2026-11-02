@@ -34,6 +34,18 @@ public sealed record BattleOptions
     public bool Demo { get; init; }
     /// <summary>A battle over the network: the host's world, or a player's replica of it (Network.NetBattle).</summary>
     public Network.NetBattle? Net { get; init; }
+    /// <summary>A recorded battle played again: its world and its commands, no order of the player's (Sim/Replays.cs).</summary>
+    public Replay? Replay { get; init; }
+    /// <summary>The guided first battle (Ui/Tutorial.cs): a few ships to start with, a foe that does nothing but defend.</summary>
+    public bool Tutorial { get; init; }
+
+    /// <summary>The options to watch a replay: its battle as it was set up, through the eyes of whoever recorded it.</summary>
+    public static BattleOptions Watch(Replay r) => new()
+    {
+        Player = r.Player, Slots = r.Options.Slots, Mode = r.SandboxTools ? GameMode.Sandbox : GameMode.Skirmish, Seed = r.Options.Seed,
+        Map = r.Options.Map, Size = r.Options.Size, Raid = r.Options.Raid, Fog = r.Options.Fog, Rules = r.Options.Mode,
+        ZoneTarget = r.Options.ZoneTarget, AssaultMinutes = r.Options.AssaultMinutes, Replay = r,
+    };
 
     /// <summary>The player's race against one or two others, each on its race's own side, every one at war with all; the enemies' AI at `difficulty`.</summary>
     public static IReadOnlyList<Slot> Versus(Faction player, IReadOnlyList<Faction> enemies, Difficulty difficulty = Difficulty.Normal) =>

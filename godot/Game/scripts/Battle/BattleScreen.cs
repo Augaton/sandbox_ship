@@ -31,6 +31,15 @@ public partial class BattleScreen : Node
     public bool Paused { get; private set; }
     /// <summary>Attacks and losses, newest last; Backspace goes back through them.</summary>
     public readonly List<Alert> Alerts = [];
+    /// <summary>A replay played: it steps the world, with the commands recorded (Sim/Replays.cs).</summary>
+    public ReplayPlayer? Replay { get; private set; }
+    /// <summary>Watching a replay with no fog at all; else through the eyes of Opts.Player.</summary>
+    public bool Reveal { get; private set; }
+    /// <summary>A replay jumping ahead: the step it goes to, a few hundred steps a frame.</summary>
+    long seekTo;
+    const int SeekStepsPerFrame = 300;
+    Ui.Tutorial? tutorial;
+    static readonly Result Watching = Result.Fail("Rediffusion : aucun ordre possible");
 
     double acc;
     int alertCursor = -1;
@@ -64,21 +73,34 @@ public partial class BattleScreen : Node
             World = Showcase.Create(o.Seed ?? 1);
             Opts = o = o with { Player = World.Factions.Keys.First() };
         }
+        else if (o.Replay is { } recorded)
+        {
+            Replay = new ReplayPlayer(recorded);
+            World = Replay.World;
+        }
         else World = o.Net?.World ?? o.Campaign?.World ?? (Dev.Start == "stress" ? Stress.Create(o.Seed ?? 7) : Scenario.CreateSkirmish(new SkirmishOptions
         {
             // In the sandbox, nobody plays by itself: the others only do what the player spawns.
             Slots = [.. o.Slots.Select(s => sandbox ? s with { AI = null } : s)],
-            Credits = sandbox ? 50000 : Scenario.StartCredits, Seed = o.Seed ?? 1,
+            Credits = sandbox ? 50000 : o.Tutorial ? Ui.Tutorial.Credits : Scenario.StartCredits, Seed = o.Seed ?? 1,
             Map = o.Map, Size = o.Size, Fog = o.Fog && !sandbox, Raid = o.Raid,
             Mode = o.Rules, ZoneTarget = o.ZoneTarget, AssaultMinutes = o.AssaultMinutes,
         }));
-        // The sandbox's tools are open in a game played alone, outside the campaign.
-        World.SandboxTools = o.Campaign is null && !o.Demo && o.Net is null;
-        Sink = o.Net?.Sink ?? new LocalSink<Command>(c => Commands.Apply(World, Opts.Player, c));
+        // The sandbox's tools are open in a game played alone, outside the campaign; a replay has them as recorded.
+        if (o.Replay is null) World.SandboxTools = o.Campaign is null && !o.Demo && o.Net is null && !o.Tutorial;
+        Sink = o.Net?.Sink ?? (o.Replay is not null ? new LocalSink<Command>(_ => Watching) : new LocalSink<Command>(c =>
+        {
+            var r = Commands.Apply(World, Opts.Player, c);
+            tutorial?.Saw(c, r);
+            return r;
+        }));
+        // A battle of a lobby, played alone or stepped here for everyone, keeps its commands for its replay.
+        if (o.Replay is null && !o.Tutorial && o.Campaign is null && !o.Demo && (o.Net is null || o.Net.Host is not null) && Dev.Skip == 0
+            && Dev.Start is "menu" or "battle" or "sandbox") Replays.Record(World);
         // A campaign battle's AI plays the side facing the player.
         if (o.Campaign is { } cb) campaignFoe = [cb.Attacker == o.Player ? cb.Defender : cb.Attacker];
         // The player's ships use their abilities by themselves if the player wants so.
-        var own = o.Demo ? null : World.Factions.GetValueOrDefault(o.Player);
+        var own = o.Demo || o.Replay is not null ? null : World.Factions.GetValueOrDefault(o.Player);
         if (own is not null) Sink.Send(new Command.SetAutoAbilities(Settings.Current.AutoAbilities));
         if (Dev.Skip > 0 && own is not null && o.Campaign is null)
         {
@@ -109,6 +131,19 @@ public partial class BattleScreen : Node
             Watch(0);
             return;
         }
+        if (Replay is not null)
+        {
+            // No HUD to give orders with: the replay's own bar instead.
+            Hud.Visible = false;
+            Hud.ProcessMode = ProcessModeEnum.Disabled;
+            AddChild(new Ui.ReplayBar(this));
+            return;
+        }
+        if (o.Tutorial)
+        {
+            tutorial = new Ui.Tutorial(this);
+            AddChild(tutorial);
+        }
         if (Dev.Start == "gallery") Gallery();
         if (Dev.Start == "raid" && World.Entities.FirstOrDefault(e => e.Type == "colossus") is { } boss)
         {
@@ -126,6 +161,9 @@ public partial class BattleScreen : Node
     public override void _ExitTree()
     {
         StressProbe.Detach();
+        // The battle's replay, as it stands when the player leaves it.
+        if (World?.Log is not null && Replays.Of(World, Opts.Player, Ui.Menu.Version, DateTimeOffset.UtcNow.ToUnixTimeMilliseconds()) is { } replay)
+            ReplayStore.Save(replay);
         if (Opts.Net is not { } net || net.Screen != this) return;
         net.Screen = null;
         // A campaign battle over the network: the session stops showing it here.
@@ -184,15 +222,21 @@ public partial class BattleScreen : Node
             while (acc >= Steps.Step && n < MaxStepsPerFrame)
             {
                 Opts.Net?.Host?.BeforeStep();
-                Steps.StepWorld(World);
+                if (Replay is { } replaying)
+                {
+                    if (replaying.Over) break;
+                    replaying.Step();
+                }
+                else Steps.StepWorld(World);
                 if (Opts.Campaign is not null) Sim.Battle.UpdateBattleAI(World, campaignFoe, Steps.Step);
                 if (Opts.Demo && World.Time >= nextSteer) Steer();
                 acc -= Steps.Step;
                 n++;
             }
-            // Too slow to keep up: drop the backlog rather than spiral.
-            if (n == MaxStepsPerFrame) acc = 0;
+            // Too slow to keep up, or at the end of a replay: drop the backlog rather than spiral.
+            if (n == MaxStepsPerFrame || Replay?.Over == true) acc = 0;
         }
+        if (Replay is { } seeking && seekTo > World.StepCount) seeking.SkipTo(Math.Min(seekTo, World.StepCount + SeekStepsPerFrame));
         if (Opts.Net is not null) NetFrame(delta);
         StressProbe.Stop("sim", t);
         CheckCampaignEnd();
@@ -212,7 +256,7 @@ public partial class BattleScreen : Node
         RedrawLayers();
         backdrop.Sync(Center - ScreenSize / (2 * 1f));
         t = StressProbe.Start();
-        if (!Opts.Demo) Hud.Tick(delta * 1000);
+        if (!Opts.Demo && Replay is null) Hud.Tick(delta * 1000);
         StressProbe.Stop("hud", t);
         StressProbe.Stop("battle process", whole);
     }
@@ -386,7 +430,24 @@ public partial class BattleScreen : Node
     void ReturnToGalaxy() => Main.Instance.FinishCampaignBattle(Opts.Campaign!.BattleId, result!.Value);
 
     /// <summary>Whether the player sees this entity right now (always true for their own).</summary>
-    public bool CanSee(Entity e) => Vision.IsVisible(World, Opts.Player, e);
+    public bool CanSee(Entity e) => Reveal || Vision.IsVisible(World, Opts.Player, e);
+
+    /// <summary>A replay watched through a side's eyes, or (null) with no fog at all. The world's own fog, which the battle plays by, is left alone.</summary>
+    public void ViewAs(Side? side)
+    {
+        Reveal = side is null;
+        if (side is { } s) Opts = Opts with { Player = s };
+    }
+
+    /// <summary>A replay jumps `seconds` ahead, played out fast without its explosions and sounds.</summary>
+    public void SeekBy(double seconds)
+    {
+        if (Replay is null) return;
+        seekTo = Math.Max(seekTo, World.StepCount) + (long)Math.Round(seconds / Steps.Step);
+    }
+
+    /// <summary>Still jumping ahead in a replay.</summary>
+    public bool Seeking => Replay is not null && seekTo > World.StepCount && !Replay.Over;
 
     // Events of the step: explosions, hits, alerts, sounds.
 
@@ -403,7 +464,7 @@ public partial class BattleScreen : Node
                     if (d.Side == Opts.Player && d.Kind != EntityKind.Ship) Alert($"Perte : {Names.TypeName(d.EntityType)}", d.X, d.Y, true);
                     // Out of a free-for-all before it ends, with no ally left holding a station (or in
                     // regicide, a flagship): say so now, the others may fight on for long.
-                    if (d.EntityType == "station" && d.Side == Opts.Player && Opts.Campaign is null && w.Winner is null && !defeated && Modes.Out(w, Opts.Player))
+                    if (d.EntityType == "station" && d.Side == Opts.Player && Opts.Campaign is null && Replay is null && w.Winner is null && !defeated && Modes.Out(w, Opts.Player))
                     {
                         defeated = true;
                         Hud.ShowEnd(false);
@@ -452,7 +513,7 @@ public partial class BattleScreen : Node
                     Sfx.Play(Sound.Alert);
                     break;
                 case Victory v:
-                    if (!defeated) Hud.ShowEnd(Worlds.Allies(w, v.Side, Opts.Player));
+                    if (!defeated && Replay is null) Hud.ShowEnd(Worlds.Allies(w, v.Side, Opts.Player));
                     break;
                 case Rebuilt r:
                     if (r.Side == Opts.Player) Hud.Toast($"{Names.TypeName(r.Role)} reconstruit");

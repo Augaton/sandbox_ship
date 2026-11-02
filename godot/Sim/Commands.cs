@@ -107,6 +107,8 @@ public static partial class Commands
     /// </summary>
     public static Result Apply(World world, Side issuer, Command c)
     {
+        // Kept as it comes, whatever comes of it: played again, it comes to the same.
+        world.Log?.Add(world.StepCount, issuer, c);
         switch (c)
         {
             case Command.Move m:

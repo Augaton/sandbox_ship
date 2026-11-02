@@ -17,7 +17,7 @@ public partial class Menu : Node
     /// <summary>The game's version, as in package.json (which the web version reads at build time).</summary>
     public const string Version = "0.5.0";
 
-    enum Screen { Home, Modes, Lobby, Options, Controls, Credits, Multiplayer }
+    enum Screen { Home, Modes, Lobby, Options, Controls, Credits, Multiplayer, Replays }
 
     /// <summary>Width of the panel: the home column, the wider panel of the other screens, a little more for the lobby's six rows.</summary>
     const float HomeWidth = 420, Width = 780, LobbyWidth = 860;
@@ -126,6 +126,7 @@ public partial class Menu : Node
             "credits" => Screen.Credits,
             "options" => Screen.Options,
             "multiplayer" or "join" => Screen.Multiplayer,
+            "replays" => Screen.Replays,
             "skirmish" => Screen.Lobby,
             var m when m.StartsWith("lobby-", StringComparison.Ordinal) => Screen.Lobby,
             _ => Screen.Home,
@@ -362,6 +363,7 @@ public partial class Menu : Node
                 body.AddChild(Section("Carte galactique", Controls.List(Controls.Galaxy, 330)));
                 footer.AddChild(Btn("Retour", Back));
                 break;
+            case Screen.Replays: ReplaysScreen(); break;
             case Screen.Credits:
                 Titled("Crédits");
                 body.AddChild(Paragraph("Sprites : packs Void (flottes, environnement, vaisseau principal) de Foozle, et Space Breaker de zintoki, tous en CC0. Merci à eux."));
@@ -407,7 +409,9 @@ public partial class Menu : Node
             nav.AddChild(under);
         }
         nav.AddChild(Nav("Nouvelle partie", () => OpenModes(false), save is null, "new"));
+        nav.AddChild(Nav("Didacticiel", () => Main.Instance.StartBattle(Tutorial.Options()), key: "tutorial"));
         nav.AddChild(Nav("Multijoueur", () => Open(Screen.Multiplayer, "multi"), key: "multi"));
+        nav.AddChild(Nav("Rediffusions", () => Open(Screen.Replays, "replays"), key: "replays"));
         nav.AddChild(Nav("Options", () => Open(Screen.Options, "options"), key: "options"));
         nav.AddChild(Nav("Commandes", () => Open(Screen.Controls, "controls"), key: "controls"));
         nav.AddChild(Nav("Crédits", () => Open(Screen.Credits, "credits"), key: "credits"));

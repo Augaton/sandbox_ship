@@ -113,7 +113,7 @@ public partial class BattleScreen
                     : Worlds.Allies(w, fl.Side, Opts.Player) ? "Le vaisseau amiral d'un allié est détruit : sa flotte s'autodétruit"
                     : $"Vaisseau amiral des {Race(fl.Side)} abattu : leur flotte s'autodétruit");
                 Sfx.Play(Sound.Horn);
-                if (!defeated && w.Winner is null && Opts.Campaign is null && Modes.Out(w, Opts.Player))
+                if (!defeated && w.Winner is null && Opts.Campaign is null && Replay is null && Modes.Out(w, Opts.Player))
                 {
                     defeated = true;
                     Hud.ShowEnd(false);

@@ -202,10 +202,10 @@ public partial class BattleScreen
         transientsTop.QueueRedraw();
         overlay.QueueRedraw();
         modeMarks?.QueueRedraw();
-        fogVeil.Visible = World.Fog;
+        fogVeil.Visible = World.Fog && !Reveal;
         // Units move a few pixels a frame under 16-pixel fog texels, blurred: redrawing the mask
         // every other frame looks the same and halves its cost. In between it keeps its picture.
-        if (World.Fog && ++fogFrame % 2 == 0)
+        if (World.Fog && !Reveal && ++fogFrame % 2 == 0)
         {
             fogBrushes.QueueRedraw();
             fogMask.RenderTargetUpdateMode = SubViewport.UpdateMode.Once;

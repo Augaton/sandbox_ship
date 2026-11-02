@@ -8,6 +8,7 @@ public static class Steps
 
     public static void StepWorld(World world, double dt = Step)
     {
+        world.StepCount++;
         world.Time += dt;
         world.Grid.Rebuild(world.Entities);
         Ai.UpdateAI(world, dt);
