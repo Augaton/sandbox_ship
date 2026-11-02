@@ -92,6 +92,8 @@ public static class Dev
     public static string? Say;
     /// <summary>--password=WORD: the game a dev run or a dedicated server hosts is locked with it; a dev run that joins answers with it.</summary>
     public static string? Password;
+    /// <summary>--spectate: a dev run that joins (--join) comes only to watch.</summary>
+    public static bool Spectate;
 
     static double[] Ages(string value) => [.. value.Split(',').Select(v => double.Parse(v, System.Globalization.CultureInfo.InvariantCulture))];
 
@@ -125,6 +127,7 @@ public static class Dev
                 case "--name": Name = value; break;
                 case "--say": Say = value; break;
                 case "--password": Password = value; break;
+                case "--spectate": Spectate = true; break;
                 case "--port": (Port, port) = (int.Parse(value), true); break;
                 case "--relay": Relay = true; break;
                 case "--master": Master = value; break;

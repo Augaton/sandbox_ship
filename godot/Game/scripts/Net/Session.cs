@@ -76,6 +76,17 @@ public sealed partial class Session : Node
     const double ByeGrace = 0.5;
     /// <summary>The game's password, only in memory: the host's lock, or the one a player joins with; null without one.</summary>
     string? password;
+    /// <summary>Host: players who left the game under way, by name, and the seat kept for them until it ends.</summary>
+    readonly Dictionary<string, int> away = [];
+    /// <summary>A player: it came only to watch.</summary>
+    bool watching;
+
+    /// <summary>This machine's player only watches: no seat, no order.</summary>
+    public bool Watching => watching;
+    /// <summary>The last game joined, to join again after the connection broke (a player back in a game under way takes its seat again).</summary>
+    public static Func<string?>? Rejoin { get; private set; }
+    /// <summary>The last game joined, in words.</summary>
+    public static string RejoinName { get; private set; } = "";
     /// <summary>Lines of chat one who joins gets, the newest.</summary>
     const int History = 12;
     double clock;
@@ -154,10 +165,14 @@ public sealed partial class Session : Node
         return null;
     }
 
-    /// <summary>Joins a game the online server lists, through it, with its password if it has one; the menu follows the connection as for a host joined at its address.</summary>
-    public static string? JoinOnline(int room, string game, string? password = null)
+    /// <summary>
+    /// Joins a game the online server lists, through it, with its password if it has one, to play
+    /// or only to `watch`; the menu follows the connection as for a host joined at its address.
+    /// </summary>
+    public static string? JoinOnline(int room, string game, string? password = null, bool watch = false)
     {
-        var s = new Session { As = Role.Client, name = PlayerName, Me = -1, target = $"« {game} » par le serveur en ligne", password = Passwords.Clean(password) };
+        var s = new Session { As = Role.Client, name = PlayerName, Me = -1, target = $"« {game} » par le serveur en ligne", password = Passwords.Clean(password), watching = watch };
+        (Rejoin, RejoinName) = (() => JoinOnline(room, game, password, watch), $"« {game} »");
         s.Status = $"Connexion à {s.target}…";
         s.relay = RelayTransport.Join(MasterAddress, room, out var error);
         if (s.relay is null) return error;
@@ -166,10 +181,14 @@ public sealed partial class Session : Node
         return null;
     }
 
-    /// <summary>Joins a host at an address, with the game's password if it has one; the menu follows the connection through Status, then the lobby.</summary>
-    public static string? Join(string address, int port, string? password = null)
+    /// <summary>
+    /// Joins a host at an address, with the game's password if it has one, to play or only to
+    /// `watch`; the menu follows the connection through Status, then the lobby.
+    /// </summary>
+    public static string? Join(string address, int port, string? password = null, bool watch = false)
     {
-        var s = new Session { As = Role.Client, Port = port, name = PlayerName, Me = -1, target = $"{address}:{port}", password = Passwords.Clean(password) };
+        var s = new Session { As = Role.Client, Port = port, name = PlayerName, Me = -1, target = $"{address}:{port}", password = Passwords.Clean(password), watching = watch };
+        (Rejoin, RejoinName) = (() => Join(address, port, password, watch), $"{address}:{port}");
         s.Status = $"Connexion à {s.target}…";
         s.net = Transport.Join(address, port, out var error)!;
         if (error is not null) return error;
@@ -278,9 +297,12 @@ public sealed partial class Session : Node
         sentOff.Remove(peer);
         gate.Forget(peer);
         if (Room?.Members.Find(m => m.Peer == peer) is not { } member) return;
+        // Gone from a game under way: its seat waits for it, under its name, until the game ends.
+        if ((battle is not null || campaign is not null) && !member.Watches
+            && Room.Lobby.Seats.Find(s => s.Kind == SeatKind.Human && s.Peer == peer) is { } seat) away[member.Name] = seat.Id;
         Room.Leave(peer);
         Log($"{member.Name} a quitté la partie");
-        PlayerLeft(peer, member.Name);
+        PlayerLeft(peer, member.Name, member.Watches);
         Broadcast(new Message.Room(Room.Lobby, Room.Members));
         Changes++;
     }
@@ -306,8 +328,7 @@ public sealed partial class Session : Node
         {
             if (!strangers.Remove(from)) return;
             challenges.Remove(from, out var challenge);
-            var why = Protocol.Mismatch(hello, Ui.Menu.Version) ?? Unlocked(hello, challenge) ?? (battle is not null ? "Une bataille est en cours : reviens à la fin."
-                : campaign is not null ? "Une campagne est en cours : elle ne se rejoint pas en route." : room.Join(from, hello.Name));
+            var why = Protocol.Mismatch(hello, Ui.Menu.Version) ?? Unlocked(hello, challenge) ?? Admit(from, hello);
             if (why is not null)
             {
                 Refuse(from, why);
@@ -316,8 +337,9 @@ public sealed partial class Session : Node
             net.Send(from, new Message.Welcome(from, Game));
             // The chat's recent lines, for one who comes in on a conversation.
             foreach (var l in Chat.Lines.TakeLast(History)) net.Send(from, new Message.Said(l.Who, l.Text));
-            Log($"{room.NameOf(from)} a rejoint la partie");
+            Log(room.Watches(from) ? $"{room.NameOf(from)} regarde la partie" : $"{room.NameOf(from)} a rejoint la partie");
             AfterChange();
+            CatchUp(from);
             Changes++;
             return;
         }
@@ -341,7 +363,59 @@ public sealed partial class Session : Node
             case Message.Plan plan: Planned(from, plan.Command); break;
             case Message.Watch watch: Watched(from, watch); break;
             case Message.Say say: Heard(from, say.Text); break;
+            case Message.Spectate s: Spectated(from, s.Side); break;
         }
+    }
+
+    /// <summary>
+    /// Host: lets in one who said Hello: a player to a free seat, a spectator, or a player who
+    /// left the game under way and comes back to its seat under the same name; the reason it cannot, or null.
+    /// </summary>
+    string? Admit(int from, Message.Hello hello)
+    {
+        var room = Room!;
+        if (hello.Watches) return room.Lobby.Mode == LobbyMode.Campaign ? "Une campagne ne se regarde pas en spectateur." : room.Watch(from, hello.Name);
+        if (battle is null && campaign is null) return room.Join(from, hello.Name);
+        var name = LobbyRoom.CleanName(hello.Name);
+        if (!away.TryGetValue(name, out var seat))
+        {
+            return battle is not null ? "Une bataille est en cours : reviens à la fin, ou regarde-la en spectateur."
+                : "Une campagne est en cours : seuls ceux qui la jouent la rejoignent, sous le même nom.";
+        }
+        var why = room.Rejoin(from, name, seat);
+        if (why is null) away.Remove(name);
+        return why;
+    }
+
+    /// <summary>
+    /// Host: one let in while a game is under way: a spectator starts watching the battle, a
+    /// player back takes its side from the AI, and everyone is told; either gets the game's
+    /// start, then a whole snapshot.
+    /// </summary>
+    void CatchUp(int peer)
+    {
+        var room = Room!;
+        if (battle is null && campaign is null) return;
+        var name = room.NameOf(peer);
+        if (room.Watches(peer))
+        {
+            if (battle is null) return;
+            Spectator(peer);
+            net.Send(peer, new Message.Start(room.Lobby));
+            if (paused) net.Send(peer, new Message.Pause(true, ""));
+            return;
+        }
+        if (room.Lobby.SideOfPeer(peer) is not { } side) return;
+        battle?.Return(peer, side);
+        campaign?.Return(peer, side, name);
+        net.Send(peer, new Message.Start(room.Lobby));
+        if (paused) net.Send(peer, new Message.Pause(true, ""));
+        var text = $"{name} est de retour : il reprend sa place.";
+        Broadcast(new Message.Notice(text));
+        link?.Screen?.Hud.Toast(text);
+        Toast(text);
+        Log(text);
+        campaign?.SendAll();
     }
 
     /// <summary>
@@ -384,7 +458,7 @@ public sealed partial class Session : Node
         switch (m)
         {
             case Message.Challenge c:
-                net.Send(Transport.HostPeer, Protocol.Hello(Ui.Menu.Version, name, Passwords.Key(password, c.Nonce)));
+                net.Send(Transport.HostPeer, Protocol.Hello(Ui.Menu.Version, name, Passwords.Key(password, c.Nonce), watching));
                 break;
             case Message.Welcome w:
                 (Me, Game, Status) = (w.Peer, w.Game, "");

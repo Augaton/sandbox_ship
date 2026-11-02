@@ -23,6 +23,8 @@ public partial class BattleScreen
         net.Screen = this;
         Paused = net.Session.Paused;
         Hud.ShowChat();
+        // A spectator of a battle (not of a campaign battle, watched from the galaxy) picks its eyes.
+        if (net.Watching && Opts.Campaign is null) Hud.ShowSpectating(World);
         if (Opts.Campaign is not null) Main.Instance.Snap(net.Watching ? "bataille-regardee" : "bataille-commandee", 120);
         // --order: ships to send, built first (a campaign battle has no shipyard for its attacker).
         if (Dev.Order > 0 && Opts.Campaign is null)

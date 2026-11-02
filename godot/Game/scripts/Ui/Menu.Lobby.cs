@@ -195,6 +195,10 @@ public partial class Menu
         Titled(name, NetTitle() ?? $"{description} Échap : retour");
 
         body.AddChild(Section($"Joueurs · {l.Seats.Count} sur {Lobby.MaxSeats}", SeatGrid(l), SeatActions(l)));
+        if (Session.Current?.Room?.Members.Where(m => m.Watches).Select(m => m.Name).ToList() is { Count: > 0 } watchers)
+        {
+            body.AddChild(Note($"Spectateurs : {string.Join(", ", watchers)}"));
+        }
         // The map and the rules are the host's to set: the others see them. A resumed campaign keeps its own.
         body.AddChild(l.Resumed ? Section("Galaxie", Note("La galaxie, les camps et la partie de la campagne sauvegardée par l'hôte, là où elle s'était arrêtée."))
             : Locked(MapSection(l)));
@@ -442,6 +446,12 @@ public partial class Menu
                 on => Set(s => s with { Raid = on })));
         }
         if (l.HasFog) items.Add(Toggle("check:fog", "Brouillard de guerre", l.Fog, on => Set(s => s with { Fog = on })));
+        // Over the network, a battle may be watched by those without a seat.
+        if (Session.Current is { Room: not null } && l.Mode != LobbyMode.Campaign)
+        {
+            items.Add(Toggle("check:spectators", "Spectateurs : on peut entrer sans place pour regarder la bataille", l.Spectators,
+                on => Set(s => s with { Spectators = on })));
+        }
         return items.Count == 0 ? null : Section("Règles", [.. items]);
     }
 

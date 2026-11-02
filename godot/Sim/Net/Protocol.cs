@@ -4,7 +4,7 @@
 // JSON. Reading never trusts the bytes: a malformed message throws InvalidDataException or
 // EndOfStreamException.
 //
-//   player -> host  Hello, Ask, Launch (leader), Order, Pause, Back (leader), Plan, Watch, Ack, Say
+//   player -> host  Hello, Ask, Launch (leader), Order, Pause, Back (leader), Plan, Watch, Ack, Say, Spectate
 //   host -> player  Challenge, Welcome, Bye, Room, Start, State, Refused, Pause, Notice, Back, News, Chart, Map, Tidings, Engage, Over, Said
 //
 // A player joins: the host gives it a Challenge as soon as it connects; the player answers Hello
@@ -25,6 +25,11 @@
 //
 // At any time, in the lobby as in a game, a player's line of chat goes to the host (Say), which
 // relays it to everyone, its writer included (Said; Chat.cs).
+//
+// A spectator joins as a player does, its Hello saying it only watches: it has no seat, and its
+// orders are refused. In battle it picks whose eyes it watches through (Spectate). A player who
+// left a game under way may come back under its name: the host gives its seat back, and starts
+// the game again for it (Start, then a whole snapshot).
 using System.Text;
 using System.Text.Json;
 using SandboxShip.Sim.Data;
@@ -85,6 +90,8 @@ public abstract record Message
     public sealed record Over(int Battle, BattleResult? Result) : Message;
     /// <summary>A line of chat the player writes, for the host to relay.</summary>
     public sealed record Say(string Text) : Message;
+    /// <summary>A spectator picks whose eyes it watches the battle through: a side, or (-1) all of them, without fog.</summary>
+    public sealed record Spectate(int Side) : Message;
     /// <summary>A line of chat, relayed to everyone: who wrote it (empty: the game itself, to that player alone) and what.</summary>
     public sealed record Said(string Who, string Text) : Message;
 }
@@ -116,7 +123,7 @@ public static class Protocol
     const int MaxText = 200, MaxLobby = 64 * 1024, MaxMembers = 64, MaxKey = 128;
     const uint BeaconMagic = 0x43425353;
 
-    enum Tag : byte { Hello = 1, Welcome, Bye, Room, Ask, Launch, Start, Order, State, Refused, Pause, Notice, Back, News, Plan, Map, Tidings, Engage, Watch, Over, Ack, Chart, Say, Said, Challenge }
+    enum Tag : byte { Hello = 1, Welcome, Bye, Room, Ask, Launch, Start, Order, State, Refused, Pause, Notice, Back, News, Plan, Map, Tidings, Engage, Watch, Over, Ack, Chart, Say, Said, Challenge, Spectate }
 
     public static byte[] Encode(Message m)
     {
@@ -166,6 +173,7 @@ public static class Protocol
                 {
                     w.Write7BitEncodedInt(member.Peer);
                     w.Write(member.Name);
+                    w.Write(member.Watches);
                 }
                 break;
             case Message.Ask a: w.Write((byte)Tag.Ask); WriteRequest(w, a.Request); break;
@@ -191,6 +199,7 @@ public static class Protocol
                 w.Write(o.Result is BattleResult result ? (byte)result : byte.MaxValue);
                 break;
             case Message.Say s: w.Write((byte)Tag.Say); w.Write(s.Text); break;
+            case Message.Spectate s: w.Write((byte)Tag.Spectate); w.Write7BitEncodedInt(s.Side + 1); break;
             case Message.Said s: w.Write((byte)Tag.Said); w.Write(s.Who); w.Write(s.Text); break;
             default: throw new ArgumentException($"Message sans format : {m.GetType().Name}");
         }
@@ -223,6 +232,7 @@ public static class Protocol
         Tag.Over => new Message.Over(r.Read7BitEncodedInt(), r.ReadByte() is var o && o != byte.MaxValue
             ? Enum.IsDefined((BattleResult)o) ? (BattleResult)o : throw new InvalidDataException($"Issue inconnue : {o}") : null),
         Tag.Say => new Message.Say(Text(r, Chat.MaxBytes)),
+        Tag.Spectate => new Message.Spectate(r.Read7BitEncodedInt() - 1),
         Tag.Said => new Message.Said(Text(r), Text(r, Chat.MaxBytes)),
         var tag => throw new InvalidDataException($"Message inconnu : {tag}"),
     };
@@ -282,7 +292,7 @@ public static class Protocol
         var n = r.Read7BitEncodedInt();
         if (n is < 0 or > MaxMembers) throw new InvalidDataException($"{n} joueurs");
         var members = new List<Member>(n);
-        for (var i = 0; i < n; i++) members.Add(new Member(r.Read7BitEncodedInt(), Text(r)));
+        for (var i = 0; i < n; i++) members.Add(new Member(r.Read7BitEncodedInt(), Text(r), r.ReadBoolean()));
         return members;
     }
 
@@ -306,6 +316,7 @@ public static class Protocol
                 w.Write(v.Fog);
                 w.Write7BitEncodedInt(v.ZoneTarget);
                 w.Write7BitEncodedInt(v.AssaultMinutes);
+                w.Write(v.Spectators);
                 break;
             default: throw new ArgumentException($"Demande sans format : {q.GetType().Name}");
         }
@@ -321,7 +332,7 @@ public static class Protocol
         6 => new LobbyRequest.AddBot(),
         7 => new LobbyRequest.Remove(r.Read7BitEncodedInt()),
         8 => new LobbyRequest.Settings(new LobbySettings((MapKind)r.ReadByte(), (MapSize)r.ReadByte(), r.Read7BitEncodedInt(), r.ReadBoolean(),
-            r.ReadBoolean(), r.Read7BitEncodedInt(), r.Read7BitEncodedInt())),
+            r.ReadBoolean(), r.Read7BitEncodedInt(), r.Read7BitEncodedInt(), r.ReadBoolean())),
         var tag => throw new InvalidDataException($"Demande inconnue : {tag}"),
     };
 

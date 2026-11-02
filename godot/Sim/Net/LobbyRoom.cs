@@ -23,10 +23,10 @@ public abstract record LobbyRequest
     public sealed record Settings(LobbySettings Values) : LobbyRequest;
 }
 
-/// <summary>A lobby's map and rules: everything but its mode and its seats.</summary>
-public sealed record LobbySettings(MapKind Map, MapSize Size, int Seed, bool Raid, bool Fog, int ZoneTarget, int AssaultMinutes)
+/// <summary>A lobby's map and rules: everything but its mode and its seats; and whether it takes spectators.</summary>
+public sealed record LobbySettings(MapKind Map, MapSize Size, int Seed, bool Raid, bool Fog, int ZoneTarget, int AssaultMinutes, bool Spectators = true)
 {
-    public static LobbySettings Of(Lobby l) => new(l.Map, l.Size, l.Seed, l.Raid, l.Fog, l.ZoneTarget, l.AssaultMinutes);
+    public static LobbySettings Of(Lobby l) => new(l.Map, l.Size, l.Seed, l.Raid, l.Fog, l.ZoneTarget, l.AssaultMinutes, l.Spectators);
 
     /// <summary>Known values only: a map, a size, a seed from 1, a zone target and an assault length the lobby offers.</summary>
     public bool Sane => Enum.IsDefined(Map) && Enum.IsDefined(Size) && Seed >= 1
@@ -94,7 +94,8 @@ public static class LobbyRules
             }
             case LobbyRequest.Settings { Values: var v }:
                 if (!leads || !v.Sane) return false;
-                (l.Map, l.Size, l.Seed, l.Raid, l.Fog, l.ZoneTarget, l.AssaultMinutes) = (v.Map, v.Size, v.Seed, v.Raid, v.Fog, v.ZoneTarget, v.AssaultMinutes);
+                (l.Map, l.Size, l.Seed, l.Raid, l.Fog, l.ZoneTarget, l.AssaultMinutes, l.Spectators) =
+                    (v.Map, v.Size, v.Seed, v.Raid, v.Fog, v.ZoneTarget, v.AssaultMinutes, v.Spectators);
                 l.Fit();
                 return true;
         }
@@ -125,8 +126,11 @@ public static class LobbyRules
     }
 }
 
-/// <summary>Someone in a lobby played over the network: its peer (Lobby.Host for the host's own player) and its name.</summary>
-public sealed record Member(int Peer, string Name);
+/// <summary>
+/// Someone in a lobby played over the network: its peer (Lobby.Host for the host's own player),
+/// its name, and whether it only watches: a spectator has no seat, and gives no order.
+/// </summary>
+public sealed record Member(int Peer, string Name, bool Watches = false);
 
 /// <summary>
 /// A lobby with the players in it, as the host keeps it: who joined, in what order, under what
@@ -141,8 +145,11 @@ public sealed class LobbyRoom(Lobby lobby)
     /// <summary>In the order they came: the host's own player first, unless the host is a dedicated server.</summary>
     public List<Member> Members { get; set; } = [];
 
-    /// <summary>The peer with the host's rights; -1 on a dedicated server nobody has joined.</summary>
-    public int Leader => !Lobby.Dedicated ? Lobby.Host : Members.Count > 0 ? Members[0].Peer : -1;
+    /// <summary>The peer with the host's rights; -1 on a dedicated server no player has joined (a spectator never leads).</summary>
+    public int Leader => !Lobby.Dedicated ? Lobby.Host : Members.Find(m => !m.Watches)?.Peer ?? -1;
+
+    /// <summary>Whether a peer only watches.</summary>
+    public bool Watches(int peer) => Members.Find(m => m.Peer == peer)?.Watches == true;
 
     public string NameOf(int peer) => Members.Find(m => m.Peer == peer)?.Name ?? "Joueur";
 
@@ -163,11 +170,43 @@ public sealed class LobbyRoom(Lobby lobby)
                 : $"Cette partie reprend une campagne sauvegardée : elle attend {string.Join(", ", waiting)}. Rejoins-la sous ce nom.";
         }
         if (seat is null) return "La partie est complète.";
-        var unique = clean;
-        for (var n = 2; Members.Exists(m => m.Name == unique); n++) unique = $"{clean} {n}";
-        Members.Add(new Member(peer, unique));
+        Members.Add(new Member(peer, Unique(clean)));
         Lobby.SetKind(seat, SeatKind.Human, peer);
         return null;
+    }
+
+    /// <summary>A spectator comes in, without a seat, under its name made clean and unique; the reason it cannot, or null.</summary>
+    public string? Watch(int peer, string name)
+    {
+        if (Members.Exists(m => m.Peer == peer)) return "Déjà dans la partie.";
+        if (!Lobby.Spectators) return "L'hôte ne prend pas de spectateurs.";
+        if (Members.Count(m => m.Watches) >= MaxSpectators) return "Il y a déjà assez de spectateurs.";
+        Members.Add(new Member(peer, Unique(CleanName(name)), true));
+        return null;
+    }
+
+    /// <summary>
+    /// A player who left a game under way comes back, under its old name, to the seat it had
+    /// (seat id); the reason it cannot, or null.
+    /// </summary>
+    public string? Rejoin(int peer, string name, int seatId)
+    {
+        if (Members.Exists(m => m.Peer == peer)) return "Déjà dans la partie.";
+        if (Lobby.Seats.Find(s => s.Id == seatId) is not { Kind: SeatKind.Open } seat) return "Ta place n'est plus libre.";
+        if (Members.Exists(m => m.Name == name)) return "Un joueur de ce nom est déjà dans la partie.";
+        Members.Add(new Member(peer, name));
+        Lobby.SetKind(seat, SeatKind.Human, peer);
+        return null;
+    }
+
+    /// <summary>Spectators at once, at most: each costs the host a snapshot stream.</summary>
+    public const int MaxSpectators = 4;
+
+    string Unique(string clean)
+    {
+        var unique = clean;
+        for (var n = 2; Members.Exists(m => m.Name == unique); n++) unique = $"{clean} {n}";
+        return unique;
     }
 
     /// <summary>A player goes: its seat opens again.</summary>
@@ -180,9 +219,9 @@ public sealed class LobbyRoom(Lobby lobby)
     public bool Apply(int peer, LobbyRequest request) =>
         Members.Exists(m => m.Peer == peer) && LobbyRules.Apply(Lobby, peer, peer == Leader, request);
 
-    /// <summary>Remote players the leader moved out of their seat: they must go.</summary>
+    /// <summary>Remote players the leader moved out of their seat: they must go. Spectators have none to lose.</summary>
     public List<int> Seatless() =>
-        [.. Members.Where(m => m.Peer != Lobby.Host && !Lobby.Seats.Exists(s => s.Kind == SeatKind.Human && s.Peer == m.Peer)).Select(m => m.Peer)];
+        [.. Members.Where(m => m.Peer != Lobby.Host && !m.Watches && !Lobby.Seats.Exists(s => s.Kind == SeatKind.Human && s.Peer == m.Peer)).Select(m => m.Peer)];
 
     /// <summary>A name as players see it: no control characters, trimmed, at most MaxName letters; "Joueur" when nothing is left.</summary>
     public static string CleanName(string? name)

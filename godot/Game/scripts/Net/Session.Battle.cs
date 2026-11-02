@@ -48,7 +48,13 @@ public sealed partial class Session
         // --start=stress: the measuring battle (Sim/Stress.cs), its first seats playing Kla'ed and Nairan.
         var world = Dev.Start == "stress" ? Stress.Create(lobby.Seed) : Scenario.CreateSkirmish(lobby.Skirmish());
         battle = new BattleHost(world, net.Send);
-        foreach (var m in room.Members) if (m.Peer != Lobby.Host && lobby.SideOfPeer(m.Peer) is { } side) battle.Add(m.Peer, side);
+        away.Clear();
+        foreach (var m in room.Members)
+        {
+            if (m.Peer == Lobby.Host) continue;
+            if (m.Watches) Spectator(m.Peer);
+            else if (lobby.SideOfPeer(m.Peer) is { } side) battle.Add(m.Peer, side);
+        }
         (paused, acc, over) = (false, 0, -1);
         orders.Clear();
         (statsAt, statsMs, statsBytes, statsSnapshots) = (clock, 0, net.Sent.Values.Sum(), 0);
@@ -70,6 +76,7 @@ public sealed partial class Session
         }
         if (battle is null) return;
         (battle, link) = (null, null);
+        away.Clear();
         foreach (var s in Room!.Lobby.Seats) s.Ready = false;
         Broadcast(new Message.Back());
         Broadcast(new Message.Room(Room.Lobby, Room.Members));
@@ -116,17 +123,49 @@ public sealed partial class Session
         _ => c.GetType().Name,
     };
 
-    /// <summary>Host: a player left during the battle; the AI takes its side, and everyone is told.</summary>
-    void PlayerLeft(int peer, string who)
+    /// <summary>
+    /// Host: one left during the battle. A player's side goes to the AI until it comes back
+    /// under its name, and everyone is told; a spectator just goes.
+    /// </summary>
+    void PlayerLeft(int peer, string who, bool watched)
     {
-        LeftCampaign(peer, who);
+        if (!watched) LeftCampaign(peer, who);
         if (battle?.SideOf(peer) is null) return;
         battle.Drop(peer);
-        var text = $"{who} a quitté la partie : l'IA prend sa place.";
+        if (watched) return;
+        var text = $"{who} a quitté la partie : l'IA tient sa place jusqu'à son retour.";
         Broadcast(new Message.Notice(text));
         link?.Screen?.Hud.Toast(text);
-        if (As == Role.Server && !battle.Peers.Any()) BackToLobby();
+        // On a dedicated server with no player left, the battle has nobody to play for.
+        if (As == Role.Server && !battle.Players.Any()) BackToLobby();
     }
+
+    /// <summary>Host: a spectator watches the battle, at first everything, without fog.</summary>
+    void Spectator(int peer)
+    {
+        if (battle is null) return;
+        battle.Add(peer, Lobby.SideOf(0), watches: true);
+        battle.View(peer, Lobby.SideOf(0), true);
+    }
+
+    /// <summary>Host: a spectator picks whose eyes it watches through: a side of the battle, or (-1) all of them.</summary>
+    void Spectated(int from, int side)
+    {
+        if (battle is null || !Room!.Watches(from)) return;
+        if (side < 0) battle.View(from, Lobby.SideOf(0), true);
+        else if (battle.World.Factions.ContainsKey(new Side(side))) battle.View(from, new Side(side), false);
+    }
+
+    /// <summary>A spectator: watch the battle through the eyes of a side, or (-1) of all of them, without fog.</summary>
+    public void Spectate(int side)
+    {
+        if (!watching || link is null) return;
+        Viewing = side;
+        Send(new Message.Spectate(side));
+    }
+
+    /// <summary>A spectator: whose eyes it watches through, -1 for everyone's.</summary>
+    public int Viewing { get; private set; } = -1;
 
     void FromHostInBattle(Message m)
     {
@@ -135,13 +174,16 @@ public sealed partial class Session
             case Message.Start s:
                 Room!.Lobby = s.Lobby;
                 paused = false;
-                if (s.Lobby.SideOfPeer(Me) is not { } side)
+                // A spectator watches through the first side's eyes, as the host has it, until it picks another.
+                var seen = watching ? Lobby.SideOf(0) : s.Lobby.SideOfPeer(Me);
+                if (seen is not { } side)
                 {
                     Close("La bataille a commencé sans toi.");
                     return;
                 }
                 starting = s.Lobby;
-                link = new NetBattle { Session = this, World = new World(), Side = side };
+                Viewing = -1;
+                link = new NetBattle { Session = this, World = new World(), Side = side, Watching = watching };
                 break;
             case Message.State state when link is not null:
                 try

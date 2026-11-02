@@ -24,7 +24,7 @@ public partial class Menu
     IReadOnlyList<(string Address, LanGame Game)> heard = [];
     VBoxContainer? gamesBox;
     Label? masterLine;
-    Button? onlineButton, joinButton;
+    Button? onlineButton, joinButton, watchButton;
     /// <summary>The multiplayer screen's rows, by game, and the one picked.</summary>
     readonly Dictionary<string, (Button Button, Listed Game)> rows = [];
     string? picked;
@@ -223,7 +223,7 @@ public partial class Menu
     string? NetTitle()
     {
         if (Session.Current is not { Room: not null } s) return null;
-        if (!s.Hosting) return $"{s.Game}{(s.Leads ? " : tu as la main sur le salon" : ", réglée par l'hôte")}. Échap : quitter";
+        if (!s.Hosting) return $"{s.Game}{(s.Watching ? " : tu regardes, sans place" : s.Leads ? " : tu as la main sur le salon" : ", réglée par l'hôte")}. Échap : quitter";
         if (s.Online)
         {
             return s.Status.Length > 0 ? $"{s.Status} Échap : fermer la partie"
@@ -324,6 +324,15 @@ public partial class Menu
         input.TextSubmitted += text => JoinAt(text);
         row.AddChild(input);
         row.AddChild(Btn("Rejoindre", () => JoinAt(input.Text), key: "act:address"));
+        // Cut off from a game: back in it, at the seat kept under this name while the game lasts.
+        if (Session.Current is null && Session.Rejoin is { } rejoin)
+        {
+            row.AddChild(Btn($"Revenir dans {Session.RejoinName}", () =>
+            {
+                joinStatus = rejoin();
+                seenChanges = -1;
+            }, key: "act:rejoin"));
+        }
         body.AddChild(Section("Par adresse", row,
             PasswordField("Mot de passe, pour une partie qui en demande un", joinPassword, "aucun", text => joinPassword = text)));
 
@@ -343,7 +352,9 @@ public partial class Menu
         line.SizeFlagsVertical = Control.SizeFlags.ShrinkCenter;
         footer.AddChild(line);
         footer.AddChild(Btn("Retour", Back));
-        joinButton = Btn("Rejoindre la partie", JoinPicked, Primary, "act:join");
+        watchButton = Btn("Regarder", () => JoinPicked(true), key: "act:watch");
+        footer.AddChild(watchButton);
+        joinButton = Btn("Rejoindre la partie", () => JoinPicked(), Primary, "act:join");
         footer.AddChild(joinButton);
         FillGames(true);
         ShowMaster();
@@ -428,8 +439,10 @@ public partial class Menu
     }
 
     /// <summary>Why a game cannot be joined, in a few words; null when it can.</summary>
-    string? Unjoinable(Listed l) => l.Game.Protocol != Protocol.Version || l.Game.Version != Version ? $"version {l.Game.Version}"
-        : l.Playing ? "en partie" : l.Game.Taken >= l.Game.Seats ? "complète" : null;
+    string? Unjoinable(Listed l) => l.Game.Protocol != Protocol.Version || l.Game.Version != Version ? $"version {l.Game.Version}" : null;
+
+    /// <summary>What a game can still be joined for, in a few words: under way or full, it takes spectators and those who come back; null when it has room.</summary>
+    static string? Busy(Listed l) => l.Playing ? "en partie" : l.Game.Taken >= l.Game.Seats ? "complète" : null;
 
     static string ModeName(LobbyMode m) => Modes.FirstOrDefault(x => x.Mode == m).Name ?? "Mode inconnu";
 
@@ -479,7 +492,7 @@ public partial class Menu
         var pad = new MarginContainer { MouseFilter = Control.MouseFilterEnum.Ignore, SizeFlagsHorizontal = Control.SizeFlags.ExpandFill };
         pad.AddThemeConstantOverride("margin_left", 14);
         pad.AddThemeConstantOverride("margin_right", 12);
-        var name = why is null ? l.Game.Name : $"{l.Game.Name} · {why}";
+        var name = (why ?? Busy(l)) is { } note ? $"{l.Game.Name} · {note}" : l.Game.Name;
         var cells = Cells([name, mode, $"{l.Game.Taken} / {l.Game.Seats}", kind, l.Ping >= 0 ? $"{l.Ping} ms" : "—"], why is null ? Palette.Text : Palette.Muted, 15, color);
         // A padlock before the name of a game that asks for a password: the name gives it the room.
         if (l.Game.Locked)
@@ -514,23 +527,27 @@ public partial class Menu
         foreach (var (key, (button, _)) in rows) button.ThemeTypeVariation = key == picked ? On : "";
         if (joinButton is null || !IsInstanceValid(joinButton)) return;
         joinButton.Disabled = picked is null;
-        joinButton.TooltipText = picked is null ? "Choisis d'abord une partie dans la liste (un double clic la rejoint aussi)" : "";
+        joinButton.TooltipText = picked is null ? "Choisis d'abord une partie dans la liste (un double clic la rejoint aussi)"
+            : "Une place libre ; dans une partie en cours, la tienne, si tu l'as quittée sous le même nom";
+        if (watchButton is null || !IsInstanceValid(watchButton)) return;
+        watchButton.Disabled = picked is null;
+        watchButton.TooltipText = "Entrer sans place, pour regarder la bataille, en cours ou à venir, si l'hôte prend des spectateurs";
     }
 
-    void JoinPicked()
+    void JoinPicked(bool watch = false)
     {
-        if (picked is not null && rows.TryGetValue(picked, out var row)) JoinListed(row.Game);
+        if (picked is not null && rows.TryGetValue(picked, out var row)) JoinListed(row.Game, watch);
     }
 
-    /// <summary>Joins a listed game: through the online server, or straight at its address.</summary>
-    void JoinListed(Listed l)
+    /// <summary>Joins a listed game, to play or only to `watch`: through the online server, or straight at its address.</summary>
+    void JoinListed(Listed l, bool watch = false)
     {
         if (Unjoinable(l) is not null || Session.Current is not null) return;
-        if (l.Kind == Found.Online) joinStatus = Session.JoinOnline(l.Room, l.Game.Name, joinPassword);
+        if (l.Kind == Found.Online) joinStatus = Session.JoinOnline(l.Room, l.Game.Name, joinPassword, watch);
         else
         {
             var (host, port) = Relay.Address(l.Address, Protocol.DefaultPort);
-            joinStatus = Session.Join(host, port, joinPassword);
+            joinStatus = Session.Join(host, port, joinPassword, watch);
         }
         // The screen shows the connection under way, or why it could not start.
         seenChanges = -1;
@@ -564,7 +581,7 @@ public partial class Menu
         }
         Settings.Current.JoinAddress = text.Trim();
         Settings.Current.Save();
-        joinStatus = Session.Join(host, port, joinPassword);
+        joinStatus = Session.Join(host, port, joinPassword, Dev.Spectate);
         // The screen shows the connection under way, or why it could not start.
         seenChanges = -1;
     }

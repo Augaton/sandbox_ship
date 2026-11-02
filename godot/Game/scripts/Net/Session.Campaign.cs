@@ -61,6 +61,7 @@ public sealed partial class Session
         resume = null;
         lobby.Seat(g, room.NameOf);
         campaign = new GalaxyHost(g, net.Send);
+        away.Clear();
         foreach (var m in room.Members) if (m.Peer != Lobby.Host && lobby.SideOfPeer(m.Peer) is { } side) campaign.Add(m.Peer, side);
         (paused, galaxyAcc, galaxySpeed) = (false, 0, Dev.Speed > 0 ? Dev.Speed : 1);
         campaign.Clock = new GalaxyClock(galaxySpeed, false);
@@ -370,7 +371,7 @@ public sealed partial class Session
         campaign.Drop(peer);
         commanding.Remove(peer);
         fight?.Remove(peer);
-        var text = $"{who} a quitté la partie : l'IA prend sa place.";
+        var text = $"{who} a quitté la partie : l'IA tient sa place jusqu'à son retour.";
         Broadcast(new Message.Notice(text));
         Toast(text);
         campaign.SendAll();
