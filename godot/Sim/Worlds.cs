@@ -289,12 +289,17 @@ public static class Worlds
         world.Factions.TryGetValue(side, out var f) ? world.Entities.Get(f.StationId) : null;
 
     /// <summary>Shields absorb damage first; the rest goes to the hull. A ship's shields cover its parts too.</summary>
-    public static void ApplyDamage(Entity target, double amount, Entity? shieldOf = null)
+    /// <summary>
+    /// Damage goes to the shields first, then what they could not take to the hull. Not in the
+    /// web version: the shields take `shieldMult` times the blow and the hull `hullMult` times what
+    /// gets through (an ion bolt: twice to the shields, a fifth to the hull).
+    /// </summary>
+    public static void ApplyDamage(Entity target, double amount, Entity? shieldOf = null, double shieldMult = 1, double hullMult = 1)
     {
         shieldOf ??= target;
-        var absorbed = Math.Min(shieldOf.Shield, amount);
+        var absorbed = Math.Min(shieldOf.Shield, amount * shieldMult);
         shieldOf.Shield -= absorbed;
-        target.Hull -= amount - absorbed;
+        target.Hull -= (amount - absorbed / shieldMult) * hullMult;
         // A shield knocked down stays down a while before it comes back (not in the web version).
         if (absorbed > 0 && shieldOf.Shield <= 0) shieldOf.ShieldDown = ShieldBreak(shieldOf.Size);
     }

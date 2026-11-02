@@ -155,8 +155,15 @@ public static class Assets
         lab = Of(("labBody", 1.3, 0, 0), ("plasmaMedium1", 0.55, 0, -0.1), ("plasmaSmall2", 0.3, 0, 0.45));
     }
 
-    public static (string Key, bool Tint) Projectile(Faction f, WeaponKind k) =>
-        projectiles.TryGetValue((f, k), out var p) ? p : projectiles[(Faction.Nairan, k)];
+    /// <summary>
+    /// A shot's sprite. This version's kinds borrow the packs': a missile flies as a small
+    /// torpedo, an ion bolt as a laser bolt the view tints (BattleScreen.SyncShots).
+    /// </summary>
+    public static (string Key, bool Tint) Projectile(Faction f, WeaponKind k)
+    {
+        k = k switch { WeaponKind.Missile => WeaponKind.Torpedo, WeaponKind.Ion or WeaponKind.Beam => WeaponKind.Laser, _ => k };
+        return projectiles.TryGetValue((f, k), out var p) ? p : projectiles[(Faction.Nairan, k)];
+    }
 
     /// <summary>The pack sprite of a ship class, for pictures outside the battle (the menu); null for a placeholder.</summary>
     public static string? ShipSprite(Faction f, ShipClass c) => ships[(f, c)].Tint ? null : ships[(f, c)].Layers[0].Key;

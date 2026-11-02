@@ -59,13 +59,16 @@ public static class AbilitySystem
         return (owner.Effects.Marked > 0 ? 1.5 : 1) * (InZone(world, owner, ZoneKind.Dome) ? 0.5 : 1);
     }
 
-    /// <summary>Deals damage from a side, through the shields of the ship a part belongs to. Allies are never hurt.</summary>
-    public static void Hurt(World world, Entity t, double amount, Side from)
+    /// <summary>
+    /// Deals damage from a side, through the shields of the ship a part belongs to. Allies are
+    /// never hurt. `shieldMult` and `hullMult`: how hard it hits each (an ion bolt's, see ApplyDamage).
+    /// </summary>
+    public static void Hurt(World world, Entity t, double amount, Side from, double shieldMult = 1, double hullMult = 1)
     {
         if (Allies(world, from, t.Side)) return;
         var parent = t.Kind == EntityKind.Hardpoint && t.ParentId is not null ? world.Entities.Get(t.ParentId) : null;
         var dealt = amount * DamageTaken(world, t);
-        ApplyDamage(t, dealt, parent?.Kind == EntityKind.Ship ? parent : t);
+        ApplyDamage(t, dealt, parent?.Kind == EntityKind.Ship ? parent : t, shieldMult, hullMult);
         t.LastHitBy = from;
         t.HitAt = world.Time;
         if (parent is not null)

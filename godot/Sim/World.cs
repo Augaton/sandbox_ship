@@ -63,6 +63,8 @@ public sealed class WeaponState(WeaponDef def)
 {
     public WeaponDef Def { get; } = def;
     public double Cooldown = def.Cooldown;
+    /// <summary>Shots left in the burst under way (not in the web version); a full burst after each reload.</summary>
+    public int Shots = def.Burst;
 }
 
 public sealed class HangarState(HangarDef def)
@@ -221,7 +223,19 @@ public sealed class Projectile : IPoint
     public int TargetId;
     public bool Homing;
     public double Ttl;
+    // Not in the web version.
+    /// <summary>How hard it hits shields and hulls: an ion bolt's are 2 and a fifth.</summary>
+    public double ShieldMult = 1, HullMult = 1;
+    /// <summary>What it takes to shoot it down in flight (torpedoes and missiles); 0 for what cannot be.</summary>
+    public double Hp;
+    /// <summary>Point defense damage already flying at it: no more is sent once it is enough.</summary>
+    public double Aimed;
+    /// <summary>For a point defense round: the torpedo or missile it flies at, instead of an entity.</summary>
+    public Projectile? Prey;
 }
+
+/// <summary>A beam weapon holding on its target this step, from entity From to entity To (not in the web version).</summary>
+public readonly record struct BeamLine(int From, int To, Side Side);
 
 public sealed class AsteroidField(int id, double x, double y, double radius) : IPoint
 {
@@ -319,6 +333,8 @@ public abstract record SimEvent;
 public sealed record Destroyed(int Id, EntityKind Kind, string EntityType, Side Side, double X, double Y, double Radius) : SimEvent;
 /// <summary>A shot landed on TargetId, of side `Side`; ShieldId is whose shield took it, if one did.</summary>
 public sealed record Hit(double X, double Y, WeaponKind Kind, int TargetId, Side Side, int? ShieldId) : SimEvent;
+/// <summary>Point defense of side `Side` shot a torpedo or a missile down at (X, Y) (not in the web version).</summary>
+public sealed record Intercepted(double X, double Y, Side Side) : SimEvent;
 public sealed record Built(int Id) : SimEvent;
 /// <summary>A ship left the shipyard (not in the web version: the view greets big ones).</summary>
 public sealed record Delivered(int Id) : SimEvent;
@@ -388,6 +404,8 @@ public sealed class World
     public double Width, Height;
     public readonly EntityStore Entities = new();
     public List<Projectile> Projectiles = [];
+    /// <summary>Beams holding on their targets this step (not in the web version).</summary>
+    public List<BeamLine> Beams = [];
     /// <summary>Sides in the order they joined.</summary>
     public readonly Dictionary<Side, FactionState> Factions = [];
     public readonly List<AsteroidField> Fields = [];
@@ -416,6 +434,8 @@ public sealed class World
     public readonly SpatialGrid Bodies = new(), Heavies = new();
     /// <summary>The battle mode and what it keeps track of (see Modes).</summary>
     public ModeState Mode = new();
+    /// <summary>What targeting weighs, gathered once in a step that needs it (see Combat.Pressure).</summary>
+    internal readonly Combat.Pressure Pressure = new();
 }
 
 /// <summary>The web version's names of ship classes, structures and parts.</summary>

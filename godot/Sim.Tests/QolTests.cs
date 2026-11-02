@@ -57,7 +57,9 @@ public class QolTests
         AddFaction(w, Faction.Nairan, 0);
         SpawnShip(w, Faction.Klaed, ShipClass.Scout, 1000, 1000);
         var target = SpawnShip(w, Faction.Nairan, ShipClass.Frigate, 1150, 1000);
+        // Unarmed, its turret's beam too: only the scout's hits count.
         target.Weapons = [];
+        foreach (var part in ChildrenOf(w, target.Id)) part.Weapons = [];
         Hit? hit = null;
         for (var i = 0; i < 600 && hit is null; i++)
         {

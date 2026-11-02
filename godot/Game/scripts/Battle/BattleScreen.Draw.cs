@@ -68,7 +68,13 @@ public partial class BattleScreen
     static readonly Dictionary<WeaponKind, Sound> ShotSound = new()
     {
         [WeaponKind.Bullet] = Sound.Bullet, [WeaponKind.Laser] = Sound.Laser, [WeaponKind.Torpedo] = Sound.Torpedo, [WeaponKind.Ray] = Sound.Ray,
+        // Not in the web version.
+        [WeaponKind.Missile] = Sound.Torpedo, [WeaponKind.Ion] = Sound.Laser, [WeaponKind.Beam] = Sound.Beam,
     };
+
+    static readonly Color IonTint = Palette.Hex(0x8fe8ff);
+    /// <summary>Beams holding last frame, as (from, to): a new one is heard.</summary>
+    readonly HashSet<(int, int)> beamsHeard = [], beamsNow = [];
 
     Node2D worldRoot = null!;
     Node2D viewsRoot = null!;
@@ -407,9 +413,18 @@ public partial class BattleScreen
         {
             if (p.Id <= lastShot) continue;
             newest = Math.Max(newest, p.Id);
-            Play(ShotSound[p.Kind], p.X, p.Y, 0.7);
+            Play(ShotSound[p.Kind], p.X, p.Y, p.Kind == WeaponKind.Missile ? 0.35 : 0.7);
         }
         lastShot = newest;
+        // A beam is heard as it takes hold, not every frame it holds.
+        beamsNow.Clear();
+        foreach (var b in World.Beams)
+        {
+            beamsNow.Add((b.From, b.To));
+            if (!beamsHeard.Contains((b.From, b.To)) && World.Entities.Get(b.From) is { } from) Play(ShotSound[WeaponKind.Beam], from.X, from.Y, 0.3);
+        }
+        beamsHeard.Clear();
+        beamsHeard.UnionWith(beamsNow);
         var frame = ++shotFrame;
         if (Zoom >= LodSimple)
         {
@@ -425,7 +440,9 @@ public partial class BattleScreen
                     img.Visible = true;
                     img.SpriteFrames = Assets.Anim(key, true);
                     img.Play();
-                    img.Modulate = tint ? Palette.Of(race) : Colors.White;
+                    // This version's: missiles are small torpedoes, ion bolts pale blue lasers.
+                    img.Modulate = p.Kind == WeaponKind.Ion ? IonTint : tint ? Palette.Of(race) : Colors.White;
+                    img.Scale = Vector2.One * (p.Kind == WeaponKind.Missile ? 0.6f : 1);
                     shots[p.Id] = shot = new Shot(img);
                 }
                 shot.Seen = frame;
@@ -649,6 +666,26 @@ public partial class BattleScreen
     // Every frame: what abilities do, where they act; overlays; trails; fog.
 
     /// <summary>Zones, blows charging up and effects running, so that every ability shows what it does.</summary>
+    /// <summary>
+    /// Beams holding on their targets: a glow in the side's color around a white core, both
+    /// throbbing, and a bright spot on the near side of the target, where the beam meets it.
+    /// </summary>
+    void DrawBeams(CanvasItem g, double z, double now)
+    {
+        foreach (var b in World.Beams)
+        {
+            if (World.Entities.Get(b.From) is not { } from || World.Entities.Get(b.To) is not { } to || (!CanSee(from) && !CanSee(to))) continue;
+            var len = Math.Max(1, Math.Sqrt((from.X - to.X) * (from.X - to.X) + (from.Y - to.Y) * (from.Y - to.Y)));
+            var (ex, ey) = (to.X + (from.X - to.X) / len * to.Radius * 0.7, to.Y + (from.Y - to.Y) / len * to.Radius * 0.7);
+            var throb = (float)(0.7 + 0.3 * Math.Sin(now / 40 + b.From));
+            var color = Palette.Of(World, b.Side);
+            Draw.Line(g, from.X, from.Y, ex, ey, color with { A = 0.35f * throb }, Math.Max(2 / z, 6 * throb));
+            Draw.Line(g, from.X, from.Y, ex, ey, new Color(1, 1, 1, 0.85f * throb), Math.Max(1 / z, 1.8));
+            Draw.Disc(g, ex, ey, 3 + 3 * throb, color with { A = 0.7f }, z);
+            Draw.Disc(g, ex, ey, 1.5 + 1.5 * throb, new Color(1, 1, 1, 0.9f), z);
+        }
+    }
+
     void DrawEffects(CanvasItem g)
     {
         var z = Zoom;
@@ -697,6 +734,7 @@ public partial class BattleScreen
             }
             else Draw.Line(g, s.X, s.Y, s.X2, s.Y2, Palette.Hex(0xe8a13a, (float)(0.25 + 0.45 * pulse)), Math.Max(1.5 / z, s.Radius * 0.5 * k));
         }
+        DrawBeams(g, z, now);
         var rect = ViewRect();
         foreach (var e in World.Entities)
         {
