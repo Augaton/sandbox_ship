@@ -194,6 +194,14 @@ public sealed class Entity : IPoint
     public double SlotX, SlotY;
     /// <summary>An AI ship falling back to be repaired.</summary>
     public bool Retreating;
+    /// <summary>
+    /// A ship of any side falling back by itself to what repairs it, MenderId, until mended (not
+    /// in the web version; see Movement.Mend).
+    /// </summary>
+    public bool Mending;
+    public int? MenderId;
+    /// <summary>World time before which a wounded ship that found nothing to repair it does not look again.</summary>
+    public double MendLook;
     public Effects Effects = new();
     /// <summary>Seconds before a shield knocked down to nothing starts to come back (not in the web version).</summary>
     public double ShieldDown;

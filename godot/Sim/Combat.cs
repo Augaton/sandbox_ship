@@ -1,5 +1,5 @@
-// Targeting, weapons, projectiles, shields and repairs. Port of src/sim/combat.ts; beams,
-// bursts, point defense and ion bolts are this version's.
+// Targeting, weapons, projectiles, shields and repairs. Port of src/sim/combat.ts; targeting by
+// score, beams, bursts, point defense and ion bolts are this version's.
 using SandboxShip.Sim.Data;
 using static SandboxShip.Sim.AbilitySystem;
 using static SandboxShip.Sim.Worlds;
@@ -15,25 +15,164 @@ public static class Combat
     /// <summary>Edge-to-center distance: how far `e` must reach to hit `t`.</summary>
     static double Reach(Entity e, Entity t) => Dist(e, t) - t.Radius;
 
-    /// <summary>What weapons weigh, gathered at most once a step (not in the web version): the torpedoes and missiles point defense may shoot down.</summary>
+    /// <summary>
+    /// What targeting and weapons weigh (not in the web version): the damage already flying at
+    /// each entity, and how many ships of each side fight each ship or structure, a part counting
+    /// as what it belongs to, gathered at most every GatherEvery seconds; and, every step, the
+    /// torpedoes and missiles point defense may shoot down.
+    /// </summary>
     internal sealed class Pressure
     {
-        public double ThreatsAt = double.NaN;
+        public double IncomingAt = double.NaN, ThreatsAt = double.NaN;
+        public readonly Dictionary<int, double> Incoming = [];
+        public readonly Dictionary<(int Side, int Target), int> Targeted = [];
         public readonly List<Projectile> Threats = [];
     }
 
-    static Entity? NearestHostile(World world, Entity e, double range)
+    /// <summary>Targets are picked every half second: what they weigh may be a quarter of a second old.</summary>
+    const double GatherEvery = 0.25;
+
+    static Pressure Gather(World world)
     {
+        var p = world.Pressure;
+        if (world.Time - p.IncomingAt < GatherEvery) return p;
+        p.IncomingAt = world.Time;
+        p.Incoming.Clear();
+        p.Targeted.Clear();
+        foreach (var s in world.Projectiles)
+        {
+            if (s.Prey is not null || world.Entities.Get(s.TargetId) is not { } t) continue;
+            p.Incoming[t.Id] = p.Incoming.GetValueOrDefault(t.Id) + s.Damage * s.Mult.Of(t.Size);
+        }
+        foreach (var e in world.Entities)
+        {
+            if (e.Kind != EntityKind.Ship || world.Entities.Get(e.TargetId) is not { } t) continue;
+            var key = (e.Side.Id, OwnerOf(world, t).Id);
+            p.Targeted[key] = p.Targeted.GetValueOrDefault(key) + 1;
+        }
+        return p;
+    }
+
+    /// <summary>Damage a weapon keeps up in a second: a burst's rounds over the burst and its reload.</summary>
+    static double Rate(WeaponDef w) =>
+        w.Kind == WeaponKind.Beam ? w.Damage : w.Damage * w.Burst / Math.Max(0.05, w.Cooldown + (w.Burst - 1) * w.BurstGap);
+
+    /// <summary>How well weapons hit a size class, against how well they hit on average: above 1, what they are made for.</summary>
+    static double Effect(IEnumerable<WeaponDef> weapons, SizeClass size)
+    {
+        double at = 0, all = 0;
+        foreach (var w in weapons)
+        {
+            var m = w.Multipliers;
+            var rate = Rate(w);
+            at += rate * m.Of(size);
+            all += rate * (m.Small + m.Medium + m.Large + m.Structure) / 4;
+        }
+        return all > 0 ? at / all : 1;
+    }
+
+    /// <summary>A ship class's, by size: its own weapons and its turrets' together, what the ship closes in for.</summary>
+    static readonly double[][] ClassEffects = Ships.All
+        .Select(c => Ships.Defs[c].Weapons.Concat(Ships.Defs[c].Hardpoints?.SelectMany(h => h.Weapons ?? []) ?? []).ToList())
+        .Select(ws => Enum.GetValues<SizeClass>().Select(s => Effect(ws, s)).ToArray())
+        .ToArray();
+
+    /// <summary>
+    /// How much `t` is worth shooting for `e`, `d` away out of `range` (not in the web version,
+    /// which took the nearest), in two parts. First what e's weapons are made for (`effect`, by
+    /// size), nearer rather than further, and a target already damaged to finish off.
+    /// </summary>
+    static double Promise(World world, Entity t, double d, double range, ReadOnlySpan<double> effect, double beat, out Entity owner, out double left)
+    {
+        var s = effect[(int)t.Size] * (1 - 0.5 * Math.Clamp(d / range, 0, 1));
+        owner = t;
+        left = 0;
+        // Out of the running even if finished off: no need to look up what it belongs to.
+        if (s * Finish < beat) return 0;
+        // A ship's parts share its shields.
+        owner = OwnerOf(world, t);
+        var shielded = owner.Kind == EntityKind.Ship ? owner : t;
+        left = Math.Max(0, t.Hull) + shielded.Shield;
+        var full = t.MaxHull + shielded.MaxShield;
+        return full > 0 ? s * (1 + (Finish - 1) * (1 - Math.Clamp(left / full, 0, 1))) : s;
+    }
+
+    /// <summary>The most a target's damage raises its Promise by: a target all but destroyed.</summary>
+    const double Finish = 1.6;
+
+    /// <summary>
+    /// Then, on the Promise: little for a target the shots in flight will destroy anyway; for a
+    /// ship, the ship or structure its neighbours fight and the one that fights it, by what its
+    /// hull aims at (a part counts as what it belongs to; `current` is what e's target belongs to);
+    /// and an edge to the target e already has, so that it does not flicker between two.
+    /// </summary>
+    static double Score(World world, Entity e, Entity t, double s, Entity owner, double left, Pressure p, Entity? current)
+    {
+        if (p.Incoming.TryGetValue(t.Id, out var coming) && coming >= left) s *= 0.15;
+        if (e.Kind == EntityKind.Ship)
+        {
+            var others = p.Targeted.GetValueOrDefault((e.Side.Id, owner.Id)) - (current == owner ? 1 : 0);
+            s *= 1 + 0.3 * Math.Min(others, 3);
+            if (world.Entities.Get(owner.TargetId) is { } aimed && OwnerOf(world, aimed) == e) s *= 1.25;
+        }
+        if (e.TargetId == t.Id) s *= 1.15;
+        return s;
+    }
+
+    /// <summary>The most Score raises a Promise by, for a ship (neighbours on it, it fighting the ship, it already the target), and for the rest.</summary>
+    const double ShipEdge = 1.9 * 1.25 * 1.15, OtherEdge = 1.15;
+
+    /// <summary>
+    /// The foe most worth shooting within `range` of `e`; ties go to the lowest id. Once one is
+    /// found, a candidate whose Promise cannot beat it, whatever Score adds, is dropped before
+    /// asking who it is allied with, whether it is seen and the rest.
+    /// </summary>
+    static Entity? BestHostile(World world, Entity e, double range)
+    {
+        // What e's weapons are made for, worked out once rather than for every candidate.
+        Span<double> effect = stackalloc double[4];
+        if (e.Kind == EntityKind.Ship) ClassEffects[(int)e.Cls].CopyTo(effect);
+        else
+        {
+            // As Effect does, in one pass over the part's or the structure's weapons, with no list.
+            var all = 0.0;
+            foreach (var w in e.Weapons)
+            {
+                var m = w.Def.Multipliers;
+                var rate = Rate(w.Def);
+                effect[0] += rate * m.Small;
+                effect[1] += rate * m.Medium;
+                effect[2] += rate * m.Large;
+                effect[3] += rate * m.Structure;
+                all += rate * (m.Small + m.Medium + m.Large + m.Structure) / 4;
+            }
+            for (var size = 0; size < 4; size++) effect[size] = all > 0 ? effect[size] / all : 1;
+        }
+        var edge = e.Kind == EntityKind.Ship ? ShipEdge : OtherEdge;
         Entity? best = null;
-        var bestD = range;
+        var bestScore = 0.0;
+        Pressure? p = null;
+        var current = world.Entities.Get(e.TargetId) is { } was ? OwnerOf(world, was) : null;
+        // Vision.IsVisible for a foe, with what it looks up taken once: whom e's side sees, and
+        // which sides are foes (by side id, 1 foe, -1 not, 0 not asked yet).
+        var seen = world.Fog ? world.Visible.GetValueOrDefault(e.Side) : null;
+        Span<sbyte> foes = stackalloc sbyte[8];
         foreach (var t in world.Grid.Near(e.X, e.Y, range))
         {
             if (t.Side == e.Side) continue;
-            // Allies and sight are checked last: they cost more than the distance, and only a nearer target needs them.
             var d = Reach(e, t);
-            if (d < bestD && Foes(world, e.Side, t.Side) && Vision.IsVisible(world, e.Side, t))
+            if (d >= range) continue;
+            var beat = best is null ? 0 : bestScore / edge;
+            var s = Promise(world, t, d, range, effect, beat, out var owner, out var left);
+            if (best is not null && s < beat) continue;
+            var side = t.Side.Id;
+            var foe = side < foes.Length ? (foes[side] != 0 ? foes[side] > 0 : (foes[side] = Foes(world, e.Side, t.Side) ? (sbyte)1 : (sbyte)-1) > 0)
+                : Foes(world, e.Side, t.Side);
+            if (!foe || Vision.Cloaked(t) || (world.Fog && seen?.Contains(t.Id) != true)) continue;
+            s = Score(world, e, t, s, owner, left, p ??= Gather(world), current);
+            if (best is null || s > bestScore || (s == bestScore && t.Id < best.Id))
             {
-                bestD = d;
+                bestScore = s;
                 best = t;
             }
         }
@@ -53,7 +192,7 @@ public static class Combat
             e.Retarget -= dt;
             if (e.Retarget > 0) continue;
             e.Retarget = RetargetInterval;
-            e.TargetId = NearestHostile(world, e, AggroRange(e))?.Id;
+            e.TargetId = BestHostile(world, e, AggroRange(e))?.Id;
             // Craft fly for their carrier: they go for what it fights (not in the web version).
             if (Movement.CarrierOf(world, e) is { } carrier && Movement.FocusOf(world, carrier) is { } focus) e.TargetId = focus.Id;
             // Taunted: only the bulwark that did it, while it can be seen (not in the web version).

@@ -28,9 +28,16 @@ public class AbilitiesTests
         return e;
     }
 
-    /// <summary>A target that stays put and does not shoot back.</summary>
-    static Entity Dummy(World w, double x, double y, Faction faction = Faction.Nairan) =>
-        Disarm(w, SpawnShip(w, faction, ShipClass.Support, x, y));
+    /// <summary>
+    /// A target that stays put and does not shoot back: flown by hand with nothing pressed, it
+    /// neither gets out of the way of blows nor falls back to be repaired (Movement).
+    /// </summary>
+    static Entity Dummy(World w, double x, double y, Faction faction = Faction.Nairan)
+    {
+        var dummy = Disarm(w, SpawnShip(w, faction, ShipClass.Support, x, y));
+        dummy.Pilot = new Pilot();
+        return dummy;
+    }
 
     // Aimed abilities.
 

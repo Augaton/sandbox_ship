@@ -84,9 +84,7 @@ public class GalaxySizesTests
     public void AIs_alone_play_a_small_or_large_galaxy_to_the_end(MapSize size, int players, int seed)
     {
         var g = AiOnly(seed, GalaxyGen.GenerateLayout(seed, players, size));
-        // 45 minutes: with this version's weapons, seed 10 at three falls into a long standoff of
-        // two even AIs, broken at minute 41; over seeds 1 to 10 the median game still ends at 15.
-        for (var minute = 0; minute < 45 && g.Winner is null; minute++) RunGalaxy(g, 60);
+        for (var minute = 0; minute < 40 && g.Winner is null; minute++) RunGalaxy(g, 60);
         Assert.NotNull(g.Winner);
     }
 

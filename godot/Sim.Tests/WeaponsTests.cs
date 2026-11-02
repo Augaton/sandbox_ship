@@ -144,21 +144,26 @@ public class WeaponsTests
     }
 
     [Fact]
-    public void A_lone_frigate_cannot_stop_every_torpedo_a_torpedo_boat_sends()
+    public void A_lone_frigate_cannot_stop_every_torpedo_sent_at_it()
     {
-        // Point defense thins torpedoes out; it does not make torpedo boats useless.
+        // Point defense thins torpedoes out; it does not make torpedo boats useless. Twenty
+        // torpedoes one after the other, from a torpedo boat's reach, at a frigate's lone flak.
         var w = NewWorld();
         var frigate = SpawnShip(w, Faction.Klaed, ShipClass.Frigate, 1000, 1000);
         foreach (var part in ChildrenOf(w, frigate.Id)) part.Weapons = [];
-        SpawnShip(w, Faction.Nairan, ShipClass.Torpedo, 1400, 1000, Math.PI);
         var (landed, downed) = (0, 0);
-        for (var i = 0; i < 60 * 30; i++)
+        for (var n = 0; n < 20; n++)
         {
-            StepWorld(w);
-            landed += w.Events.Count(e => e is Hit { Kind: WeaponKind.Torpedo });
-            downed += w.Events.Count(e => e is Intercepted);
-            w.Events.Clear();
+            Torpedo(w, frigate, Weapons.Torpedo.Range);
+            for (var i = 0; i < 60 * 2; i++)
+            {
+                StepWorld(w);
+                landed += w.Events.Count(e => e is Hit { Kind: WeaponKind.Torpedo });
+                downed += w.Events.Count(e => e is Intercepted);
+                w.Events.Clear();
+            }
         }
+        Assert.Equal(20, landed + downed);
         Expect.Greater(downed, 0);
         Expect.Greater(landed, downed);
     }

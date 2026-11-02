@@ -62,7 +62,7 @@ public static class Ai
         var out_ = new List<Entity>();
         foreach (var e in world.Entities)
         {
-            if (e.Side == f.Id && e.Kind == EntityKind.Ship && !e.Launched && !e.Retreating && e.Pilot is null) out_.Add(e);
+            if (e.Side == f.Id && e.Kind == EntityKind.Ship && !e.Launched && !e.Retreating && !e.Mending && e.Pilot is null) out_.Add(e);
         }
         return out_;
     }
