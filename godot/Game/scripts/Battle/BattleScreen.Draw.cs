@@ -918,6 +918,7 @@ public partial class BattleScreen
         var amber = Palette.Hex(0xe8a13a);
         // Green for the player's own, red for a foe, grey for an ally: neither to command nor to strike.
         Color Whose(Entity e) => e.Side == player ? green : Worlds.Foes(World, e.Side, player) ? red : Palette.Muted;
+        planned.Clear();
         DrawFlagships(g, rect, z);
         foreach (var e in World.Entities)
         {
@@ -934,12 +935,8 @@ public partial class BattleScreen
             var fixedPart = e.Kind == EntityKind.Structure || (e.Kind == EntityKind.Hardpoint && World.Entities.Get(e.ParentId)?.Kind != EntityKind.Ship);
             if (fixedPart) Draw.Ring(g, e.X, e.Y, e.Radius + 2 / z, Palette.Of(World, e.Side, 0.45f), 1.5 / z, z);
             if (sel) Draw.Ring(g, e.X, e.Y, e.Radius + 5 / z, Whose(e) with { A = 0.9f }, 2 / z, z);
-            if (sel && e.Order is Order o)
-            {
-                IPoint? t = o.Type == OrderType.Attack ? World.Entities.Get(o.TargetId) : new Point(o.X, o.Y);
-                var c = o.Type == OrderType.Move ? green : o.Type == OrderType.Attack ? red : amber;
-                if (t is not null) Draw.Line(g, e.X, e.Y, t.X, t.Y, c with { A = 0.5f }, 1 / z);
-            }
+            if (sel && e.Order is not null) DrawPlan(g, e, z, green, red, amber);
+            if (e.Rank > 0 && e.Kind == EntityKind.Ship) Chevrons(g, e, z);
             var damaged = e.Hull < e.MaxHull || e.Shield < e.MaxShield;
             if (!sel && !damaged && e.Build >= 1 && !Settings.Current.AlwaysBars) continue;
             Bars(g, e, z);
@@ -969,6 +966,19 @@ public partial class BattleScreen
             if (t is not null) Draw.Ring(g, t.X, t.Y, t.Radius + 6 / z, red with { A = p.Firing ? 1 : 0.6f }, 2 / z, z);
         }
         if (ctl.Mode is AbilityMode am) DrawAiming(g, am.Id, z);
+        // A patrol being picked: from the ships through its points so far to the pointer, and back.
+        if (ctl.Mode is PatrolMode picking)
+        {
+            var ships = Selected.Select(id => World.Entities.Get(id)).OfType<Entity>().Where(e => e.Kind == EntityKind.Ship && e.Side == player).ToList();
+            var route = (ships.Count > 0 ? [new Point(ships.Average(e => e.X), ships.Average(e => e.Y))] : new List<Point>())
+                .Concat(picking.Points).Append(new Point(ctl.Hover.X, ctl.Hover.Y)).ToList();
+            for (var i = 0; i < route.Count; i++)
+            {
+                var (from, to) = (route[i], route[(i + 1) % route.Count]);
+                if (route.Count > 1) Draw.Line(g, from.X, from.Y, to.X, to.Y, amber with { A = 0.4f }, 1.5 / z);
+                Draw.Ring(g, from.X, from.Y, 8 / z, amber with { A = 0.7f }, 1.5 / z, z);
+            }
+        }
         // An admiral's command, around the selected admirals.
         foreach (var id in Selected)
         {
@@ -1027,6 +1037,57 @@ public partial class BattleScreen
         if (def.Target == AbilityTarget.Point && def.Radius is double radius) Draw.Ring(g, h.X, h.Y, radius, color with { A = 0.8f }, 2 / z, z);
         if (def.Target == AbilityTarget.Enemy && Controls.Hovered() is { } t && Worlds.Foes(World, t.Side, Opts.Player))
             Draw.Ring(g, t.X, t.Y, t.Radius + 10 / z, color with { A = 0.9f }, 2 / z, z);
+    }
+
+    /// <summary>The fleets whose way DrawPlan showed this frame.</summary>
+    readonly HashSet<MoveGroup> planned = [];
+
+    /// <summary>
+    /// Where a selected ship of the player's is going: its order, the rest of its patrol back to
+    /// the start, then the orders queued after it, each leg from the end of the one before.
+    /// </summary>
+    void DrawPlan(CanvasItem g, Entity e, double z, Color green, Color red, Color amber)
+    {
+        var blue = Palette.Hex(0x5aa9e6);
+        var (x, y) = (e.X, e.Y);
+        void Leg(Order o, float alpha)
+        {
+            IPoint? t = o.Type is OrderType.Attack or OrderType.Guard ? World.Entities.Get(o.TargetId) : new Point(o.X, o.Y);
+            if (t is null) return;
+            var c = o.Type switch { OrderType.Move => green, OrderType.Attack => red, OrderType.Guard => blue, _ => amber };
+            Draw.Line(g, x, y, t.X, t.Y, c with { A = alpha }, 1 / z);
+            (x, y) = (t.X, t.Y);
+        }
+        var order = e.Order!;
+        Leg(order, 0.5f);
+        // A fleet ordered together shows the rest of its way once, not once a ship.
+        if (order.Group is { } group && !planned.Add(group)) return;
+        if (order.Route is { Count: > 1 } route)
+        {
+            for (var k = 1; k <= route.Count; k++)
+            {
+                var p = route[(order.Leg + k) % route.Count];
+                Draw.Line(g, x, y, p.X, p.Y, amber with { A = 0.25f }, 1 / z);
+                (x, y) = (p.X, p.Y);
+            }
+        }
+        foreach (var q in e.Queue ?? []) Leg(q, 0.3f);
+    }
+
+    /// <summary>A veteran's rank (Veterans.cs): one chevron a rank, beside its bars, seen by all.</summary>
+    static void Chevrons(CanvasItem g, Entity e, double z)
+    {
+        var gold = Palette.Hex(0xe8c14a);
+        var w = Math.Max(28 / z, e.Radius * 1.6);
+        var x = e.X + w / 2 + 9 / z;
+        var y = e.Y - e.Radius - 4 / z;
+        var (half, rise) = (5 / z, 3.5 / z);
+        for (var i = 0; i < e.Rank; i++)
+        {
+            var cy = y - i * 4.5 / z;
+            Draw.Line(g, x - half, cy, x, cy - rise, gold, 2 / z);
+            Draw.Line(g, x, cy - rise, x + half, cy, gold, 2 / z);
+        }
     }
 
     /// <summary>Hull bar (green to red), shield bar above it, construction progress below.</summary>

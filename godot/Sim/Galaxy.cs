@@ -73,6 +73,8 @@ public sealed class Fleet
     [JsonPropertyName("faction")]
     public Side Side;
     public ShipCounts Ships = [];
+    /// <summary>The veterans among them, rank by rank (Veterans.cs, not in the web version); none in older saves.</summary>
+    public RankCounts Ranks = [];
     public List<HeroId> Heroes = [];
     /// <summary>Planet the fleet is docked at, null while travelling.</summary>
     public int? At;
@@ -413,31 +415,37 @@ public static partial class Galaxies
     public static double FleetStrength(Fleet f) =>
         Battle.FleetValue(f.Ships, f.Heroes) * f.Condition;
 
-    /// <summary>Adds ships to a fleet; its condition becomes the average of both, weighted by value.</summary>
-    static void MergeInto(Fleet into, ShipCounts ships, IEnumerable<HeroId> heroes, double condition)
+    /// <summary>Adds ships, with their veterans, to a fleet; its condition becomes the average of both, weighted by value.</summary>
+    static void MergeInto(Fleet into, ShipCounts ships, IEnumerable<HeroId> heroes, double condition, RankCounts? ranks = null)
     {
         var a = Battle.FleetValue(into.Ships);
         var b = Battle.FleetValue(ships);
         if (a + b > 0) into.Condition = (into.Condition * a + condition * b) / (a + b);
+        // Veterans of ships the fleet no longer has must not pass on to the ones joining it.
+        into.Ranks.Fit(into.Ships);
         foreach (var c in Data.Ships.All) if (ships.Of(c) > 0) into.Ships.Increase(c, ships.Of(c));
+        if (ranks is not null) into.Ranks.AddAll(ranks);
+        into.Ranks.Fit(into.Ships);
         into.Heroes.AddRange(heroes);
     }
 
-    public static Fleet? AddShipsAt(Galaxy g, Side side, int planetId, ShipCounts ships, IReadOnlyList<HeroId>? heroes = null, double condition = 1)
+    public static Fleet? AddShipsAt(Galaxy g, Side side, int planetId, ShipCounts ships, IReadOnlyList<HeroId>? heroes = null, double condition = 1,
+        RankCounts? ranks = null)
     {
         heroes ??= [];
         if (Battle.CountShips(ships) == 0 && heroes.Count == 0) return null;
         var fleet = FleetsAt(g, planetId, side).FirstOrDefault();
         if (fleet is not null)
         {
-            MergeInto(fleet, ships, heroes, condition);
+            MergeInto(fleet, ships, heroes, condition, ranks);
             return fleet;
         }
         var f = new Fleet
         {
-            Id = g.NextId++, Side = side, Ships = ships.Clone(), Heroes = [.. heroes], At = planetId, From = planetId,
+            Id = g.NextId++, Side = side, Ships = ships.Clone(), Ranks = ranks?.Clone() ?? [], Heroes = [.. heroes], At = planetId, From = planetId,
             Came = planetId, ArrivedAt = g.Time, Condition = condition,
         };
+        f.Ranks.Fit(f.Ships);
         g.Fleets[f.Id] = f;
         return f;
     }
@@ -468,11 +476,15 @@ public static partial class Galaxies
             var restHeroes = fleet.Heroes.Where(h => !heroes.Contains(h)).ToList();
             if (Battle.CountShips(rest) > 0 || restHeroes.Count > 0)
             {
+                // The ships that leave take the best of the veterans.
+                fleet.Ranks.Fit(fleet.Ships);
+                var ranks = fleet.Ranks.Take(ships);
                 fleet.Ships = rest;
                 fleet.Heroes = restHeroes;
                 moving = fleet.Copy();
                 moving.Id = g.NextId++;
                 moving.Ships = ships.Clone();
+                moving.Ranks = ranks;
                 moving.Heroes = [.. heroes];
                 moving.Path = [];
                 g.Fleets[moving.Id] = moving;
@@ -673,7 +685,7 @@ public static partial class Galaxies
                 seen[(at, f.Side)] = f;
                 continue;
             }
-            MergeInto(into, f.Ships, f.Heroes, f.Condition);
+            MergeInto(into, f.Ships, f.Heroes, f.Condition, f.Ranks);
             g.Fleets.Remove(f.Id);
         }
     }
@@ -727,12 +739,15 @@ public static partial class Galaxies
         BattleSide SideOf(Side side, List<Fleet> fleets)
         {
             var ships = new ShipCounts();
+            var ranks = new RankCounts();
             var heroes = new List<HeroId>();
             double value = 0, wear = 0;
             foreach (var f in fleets)
             {
                 f.BattleId = id;
                 foreach (var c in Data.Ships.All) if (f.Ships.Of(c) > 0) ships.Increase(c, f.Ships.Of(c));
+                f.Ranks.Fit(f.Ships);
+                ranks.AddAll(f.Ranks);
                 heroes.AddRange(f.Heroes);
                 var v = Battle.FleetValue(f.Ships);
                 value += v;
@@ -741,7 +756,7 @@ public static partial class Galaxies
             return new BattleSide
             {
                 Side = side, Race = RaceOf(g, side), Color = g.Factions.TryGetValue(side, out var gf) ? gf.Color : null,
-                Ships = ships, Heroes = heroes, Research = gf?.Research,
+                Ships = ships, Ranks = ranks, Heroes = heroes, Research = gf?.Research,
                 Condition = value > 0 ? wear / value : 1,
             };
         }
@@ -845,6 +860,7 @@ public static partial class Galaxies
                     continue;
                 }
                 f.Ships = ships;
+                f.Ranks = Veterans.Survivors(w, f.Side);
                 f.Heroes = [.. heroes];
                 f.Condition = attacking ? attCondition : defCondition;
                 f.BattleId = null;
@@ -896,14 +912,14 @@ public static partial class Galaxies
         {
             // An Errant war band pillages the planet and leaves it (GalaxyIncidents): it never holds one.
             if (RaceOf(g, b.Attacker) != Faction.Errant) Capture(g, planet, b.Attacker);
-            AddShipsAt(g, b.Attacker, planet.Id, att, attHeroes, attCondition);
+            AddShipsAt(g, b.Attacker, planet.Id, att, attHeroes, attCondition, Veterans.Survivors(b.World, b.Attacker));
         }
         else
         {
-            AddShipsAt(g, b.Defender, planet.Id, def, defHeroes, defCondition);
+            AddShipsAt(g, b.Defender, planet.Id, def, defHeroes, defCondition, Veterans.Survivors(b.World, b.Defender));
             if (result == BattleResult.Retreat)
             {
-                var back = AddShipsAt(g, b.Attacker, planet.Id, att, attHeroes, attCondition);
+                var back = AddShipsAt(g, b.Attacker, planet.Id, att, attHeroes, attCondition, Veterans.Survivors(b.World, b.Attacker));
                 if (back is not null) SendFleet(g, back.Id, b.From);
             }
         }

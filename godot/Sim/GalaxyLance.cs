@@ -69,6 +69,7 @@ public static partial class Galaxies
             var left = new ShipCounts();
             foreach (var c in Data.Ships.All) if (f.Ships.Of(c) / 2 > 0) left[c] = f.Ships.Of(c) / 2;
             f.Ships = left;
+            f.Ranks.Fit(left);
             f.Condition *= 0.7;
             if (Battle.CountShips(left) == 0 && f.Heroes.Count == 0) g.Fleets.Remove(f.Id);
         }

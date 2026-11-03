@@ -62,6 +62,10 @@ public partial class Tutorial : CanvasLayer
                 () => did.Contains("frigate")),
             new("Attaquer", $"Vaisseaux sélectionnés, {Key("Déplacer, ou attaquer")} sur un ennemi l'attaque ; {Key("Attaque-mouvement")} engage tout ce qui croise la route.",
                 () => did.Contains("attack")),
+            new("Postures et ordres", $"{Key("Posture suivante")} change la posture des vaisseaux sélectionnés : agressive, défensive, tenir la position ou passive. "
+                + $"{Key("Patrouille")} les fait patrouiller, {Key("Garder")} garde un allié, {Key("Ordre en file")} met un ordre à la suite des autres. "
+                + "Le panneau de sélection a les mêmes boutons.",
+                () => did.Contains("orders")),
             new("Une capacité", $"Chaque vaisseau a une capacité : sélectionne une frégate et appuie sur {Key("Capacité")}. Le panneau de sélection dit ce qu'elle fait.",
                 () => did.Contains("ability")),
             new("Un groupe", $"{Key("Créer un groupe")} garde la sélection sous un chiffre ; {Key("Rappeler un groupe")} la rappelle.",
@@ -122,6 +126,7 @@ public partial class Tutorial : CanvasLayer
         if (!r.Ok) return;
         switch (c)
         {
+            case Command.SetStance or Command.Patrol or Command.Guard or Command.Move { Queued: true } or Command.Attack { Queued: true }: did.Add("orders"); break;
             case Command.Move m: did.Add(m.AttackMove ? "attack" : "move"); break;
             case Command.Attack: did.Add("attack"); break;
             case Command.PlaceStructure { Type: BuildableType.Mine }: did.Add("mine"); break;

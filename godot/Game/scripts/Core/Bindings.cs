@@ -26,7 +26,8 @@ public static class Bindings
 
     public const string PanUp = "pan_up", PanDown = "pan_down", PanLeft = "pan_left", PanRight = "pan_right",
         ZoomIn = "zoom_in", ZoomOut = "zoom_out", Pause = "pause", Stop = "stop",
-        SelectAll = "select_all", AttackMove = "attack_move", Ability = "ability", Pilot = "pilot", CenterSelection = "center_selection",
+        SelectAll = "select_all", AttackMove = "attack_move", Patrol = "patrol", Guard = "guard", Stance = "stance",
+        Ability = "ability", Pilot = "pilot", CenterSelection = "center_selection",
         CenterStation = "center_station", LastAlert = "last_alert", Idle = "idle", Mute = "mute",
         Overview = "overview", Fleets = "fleets", Empire = "empire", Log = "log", Diplomacy = "diplomacy";
 
@@ -45,6 +46,9 @@ public static class Bindings
         new(Stop, "Stop ; sur la carte, arrêter la flotte en route", Where.Both, new Combo(Key.X)),
         new(SelectAll, "Tous tes vaisseaux", Where.Battle, new Combo(Key.A, Ctrl: true)),
         new(AttackMove, "Attaque-mouvement, puis clic", Where.Battle, new Combo(Key.F)),
+        new(Patrol, "Patrouille, puis clic (Maj + clics : plusieurs points)", Where.Battle, new Combo(Key.R)),
+        new(Guard, "Garder ou escorter, puis clic sur un allié", Where.Battle, new Combo(Key.G)),
+        new(Stance, "Posture suivante : agressive, défensive, tenir, passive", Where.Battle, new Combo(Key.V)),
         new(Ability, "Capacité des vaisseaux sélectionnés", Where.Battle, new Combo(Key.E)),
         new(Pilot, "Piloter le vaisseau sélectionné", Where.Battle, new Combo(Key.P)),
         new(CenterSelection, "Centrer la vue sur la sélection", Where.Battle, new Combo(Key.C)),

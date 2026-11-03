@@ -377,6 +377,9 @@ public class CommandsTests
             new Command.StartPilot(14), new Command.StopPilot(14), new Command.PilotInput(14, -1, 0.5, 1e6, -7.125, true),
             new Command.Spawn(Faction.Errant, "colossus", 5, 6, Math.PI), new Command.GrantCredits(5000), new Command.SetFog(false),
             new Command.SetAI(new Side(5), Difficulty.Hard), new Command.SetAI(new Side(4), null), new Command.Destroy([1, 2]),
+            new Command.Move([3], 1, 2, Queued: true), new Command.Attack([4], 5, Queued: true),
+            new Command.Patrol([6, 7], [new Point(1, 2), new Point(-3.5, 4)], true), new Command.Guard([8], 9),
+            new Command.SetStance([10], Stance.Aggressive),
         ];
         foreach (var c in battle)
         {

@@ -107,6 +107,8 @@ public static class Dev
     public static bool Deals;
     /// <summary>--no-hud: the battle without its interface, for captures of what is on the field.</summary>
     public static bool NoHud;
+    /// <summary>--veterans[=one]: a dev battle shows veterans and fleet orders: the player's first warships promoted, the fleet (or the best of it) selected on a patrol.</summary>
+    public static string? Veterans;
     /// <summary>--lang=fr|en: the language of this run. --lang-report=FILE: the texts shown with no English, for the catalog (Lang).</summary>
     public static string? Lang, LangReport;
     public static double Speed, Truce, Leave;
@@ -163,6 +165,7 @@ public static class Dev
                 case "--host": Host = true; break;
                 case "--intro": Intro = true; break;
                 case "--no-hud": NoHud = true; break;
+                case "--veterans": Veterans = value == "one" ? "one" : "all"; break;
                 case "--lang": Lang = value; break;
                 case "--lang-report": LangReport = value; break;
                 case "--music-dump": MusicDump = value; break;

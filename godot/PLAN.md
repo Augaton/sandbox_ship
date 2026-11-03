@@ -54,6 +54,18 @@ tests de `FixtureTests` et `CrossTests` les listent.
 - Les vaisseaux ordonnés ensemble avancent en flotte : au pas du plus lent, les traînards
   rattrapent, les vaisseaux de ligne devant, petits et soutiens derrière.
 - Les appareils lancés escortent leur porteur et attaquent sa cible.
+- Postures par vaisseau (`Stance`, défensive par défaut, le comportement d'avant) : agressive (cherche
+  plus loin, poursuit sans laisse, reste où le combat l'a mené), tenir la position (ni poursuite, ni
+  esquive, ni repli, cible à portée de tir), passive (ne choisit aucune cible, tire seulement sur ordre
+  d'attaque). Ordres : patrouille sur 15 points au plus, en formation et en combattant ; garde ou escorte
+  d'un allié (vaisseau ou bâtiment, place derrière lui) ; file d'ordres avec Maj (32 au plus). L'IA
+  envoie ses vagues en agressive, sa flotte de garde en défensive, l'escorte d'une mine en tenue.
+- Vétérans (`Veterans.cs`) : expérience des points de coque et de bouclier ôtés à l'ennemi et d'une
+  demi-robustesse de plus pour le coup de grâce, rapportés à la robustesse du tireur (tourelle et
+  appareil comptent pour leur vaisseau) ; ni les mines ni les camps sans faction n'en donnent. Rangs à
+  3, 8 et 16 : par rang +5 % de dégâts, +5 % de coque, +10 % de régénération. Le vrai tireur sert aussi
+  aux meilleurs vaisseaux de fin de partie. En campagne, chaque flotte garde ses rangs (`RankCounts`) :
+  les recrues tombent d'abord, les vaisseaux qui partent emportent les meilleurs.
 - Nouvelles classes : Rempart (tank, « Provocation »), Transporteur (deux grands hangars,
   « Catapultes »), Léviathan (au-dessus du Titan, station niveau 4, un seul).
 - Deux Titans au plus. Les gros vaisseaux ont plusieurs capacités (cuirassé 2, Titan 3,

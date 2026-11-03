@@ -112,10 +112,11 @@ public static class Protocol
     /// Said), the challenge of a password (Challenge, Hello's key) and players who only watch (Hello's Watches).
     /// 5: every message sealed (Secure.cs), the password in the keys: no more Challenge nor Hello's key.
     /// 6: the lobby's terrain (Settings), with the host's consent to the direct link.
-    /// 7: the battle over time at its end (Record). 8: a bot's personality (Ask's SetPersonality),
-    /// the deals of the campaign (galaxy commands and snapshot).
+    /// 7: the battle over time at its end (Record). 8: with commands 2 (stances, patrols, guards,
+    /// orders queued) and battle snapshots 8 (veterans). 9: a bot's personality (Ask's
+    /// SetPersonality), the deals of the campaign (galaxy commands and snapshot).
     /// </summary>
-    public const int Version = 8;
+    public const int Version = 9;
     /// <summary>Where a host listens for players, unless told otherwise.</summary>
     public const int DefaultPort = 24680;
     /// <summary>Where hosts call out to the local network, and the join screen listens.</summary>

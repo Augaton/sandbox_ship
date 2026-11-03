@@ -102,6 +102,8 @@ public static class Replays
             Real(e.Angle);
             Real(e.Hull);
             Real(e.Shield);
+            Real(e.Xp);
+            Add(e.Rank | (int)e.Stance << 8);
         }
         foreach (var f in w.Factions.Values)
         {
@@ -148,7 +150,8 @@ public static class Replays
         var format = r.ReadInt32();
         var wire = r.ReadInt32();
         // Formats 1 and 2 still read: their battles had no terrain (1), their AIs all played Balanced.
-        if (format is not (1 or 2 or FormatVersion) || wire != Commands.WireVersion) throw new InvalidDataException("Rediffusion d'une autre version du jeu, illisible par celle-ci.");
+        // So do commands 1: those of 2 but the new tags.
+        if (format is not (1 or 2 or FormatVersion) || wire is not (1 or Commands.WireVersion)) throw new InvalidDataException("Rediffusion d'une autre version du jeu, illisible par celle-ci.");
         var version = r.ReadText();
         var savedAt = r.ReadInt64();
         var length = r.ReadInt64();

@@ -42,6 +42,9 @@ public class ProtocolTests
         yield return new Message.Start(SomeLobby());
         yield return new Message.Order(new Command.Move([4, 8, 15], 1200.5, 800.25, true));
         yield return new Message.Order(new Command.UseAbility(16, AbilityId.Cloak, new Aim(1, 2, 23)));
+        yield return new Message.Order(new Command.Patrol([4, 8], [new Point(10, 20), new Point(30.5, 40)], true));
+        yield return new Message.Order(new Command.SetStance([15], Stance.Passive));
+        yield return new Message.Order(new Command.Guard([16], 23, true));
         yield return new Message.State([1, 2, 3, 250, 0]);
         yield return new Message.Ack(123456);
         yield return new Message.Chart([71, 67, 72, 84, 2, 0]);

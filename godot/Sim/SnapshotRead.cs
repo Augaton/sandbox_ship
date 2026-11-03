@@ -526,10 +526,52 @@ public static partial class Snapshot
         {
             var (type, x, y, target) = (r.ReadEnum<OrderType>(), r.ReadSingle(), r.ReadSingle(), r.ReadVarint());
             // The same order as before keeps its object: no garbage for every own ship at every snapshot.
-            if (e.Order is not { } o || o.Type != type || o.X != x || o.Y != y || o.TargetId != target) e.Order = new Order(type, x, y, target);
+            if (e.Order is not { } o || o.Type != type || o.X != x || o.Y != y || o.TargetId != target
+                || (has & Has.Plan) == 0 && o.Route is not null) e.Order = new Order(type, x, y, target);
         }
         else e.Order = null;
         e.Range = (has & Has.Range) != 0 ? r.ReadSingle() : 0;
+        if ((has & Has.Rank) != 0)
+        {
+            var rank = r.ReadByte();
+            e.Rank = rank <= Veterans.MaxRank ? rank : throw new InvalidDataException($"Rang {rank}");
+            e.Xp = (has & Has.Range) != 0 ? Finite(r) : 0;
+        }
+        else (e.Rank, e.Xp) = (0, 0);
+        e.Stance = (has & Has.Stance) != 0 ? r.ReadEnum<Stance>() : Stance.Defensive;
+        if ((has & Has.Plan) != 0) ReadPlan(r, e);
+        else e.Queue?.Clear();
+    }
+
+    /// <summary>
+    /// A patrol's route, onto the order just read, and the orders queued after it. A route the
+    /// same as before keeps its array: one is only made when the patrol changed.
+    /// </summary>
+    static void ReadPlan(BinaryReader r, Entity e)
+    {
+        var n = r.ReadVarint();
+        if (n is < 0 or > Movement.MaxRoute) throw new InvalidDataException($"Patrouille de {n} points");
+        Span<Point> route = stackalloc Point[Movement.MaxRoute];
+        for (var i = 0; i < n; i++) route[i] = new Point(r.ReadSingle(), r.ReadSingle());
+        if (n > 0)
+        {
+            var leg = r.ReadVarint();
+            if (leg < 0 || leg >= n) throw new InvalidDataException($"Étape {leg} d'une patrouille de {n}");
+            if (e.Order is { } o && (o.Route is not { } was || !Same(route[..n], was) || o.Leg != leg))
+                e.Order = o with { Route = route[..n].ToArray(), Leg = leg };
+        }
+        var queued = r.ReadVarint();
+        if (queued is < 0 or > Movement.MaxQueue) throw new InvalidDataException($"{queued} ordres en attente");
+        e.Queue ??= [];
+        e.Queue.Clear();
+        for (var i = 0; i < queued; i++) e.Queue.Add(new Order(r.ReadEnum<OrderType>(), r.ReadSingle(), r.ReadSingle(), r.ReadVarint()));
+    }
+
+    static bool Same(ReadOnlySpan<Point> a, IReadOnlyList<Point> b)
+    {
+        if (a.Length != b.Count) return false;
+        for (var i = 0; i < a.Length; i++) if (a[i] != b[i]) return false;
+        return true;
     }
 
     /// <summary>Abilities in place when they are the same ones, so that what holds them keeps them.</summary>
@@ -650,6 +692,7 @@ public static partial class Snapshot
         Tag.ClockWarning => new ClockWarning(r.ReadSingle()),
         Tag.Intercepted => new Intercepted(r.ReadSingle(), r.ReadSingle(), r.ReadSide()),
         Tag.MineBlast => new MineBlast(r.ReadSingle(), r.ReadSingle()),
+        Tag.Promoted => new Promoted(r.ReadVarint(), r.ReadSide(), r.ReadByte() is var rank && rank is >= 1 and <= Veterans.MaxRank ? rank : throw new InvalidDataException($"Rang {rank}")),
         var tag => throw new InvalidDataException($"Événement inconnu : {tag}"),
     };
 }

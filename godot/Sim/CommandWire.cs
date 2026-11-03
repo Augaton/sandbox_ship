@@ -9,7 +9,7 @@ namespace SandboxShip.Sim;
 public static partial class Commands
 {
     /// <summary>Layout of commands below: client and host compare it when they connect. Bumped with any change.</summary>
-    public const int WireVersion = 1;
+    public const int WireVersion = 2;
 
     /// <summary>Most ids a list may carry: a whole battle's.</summary>
     const int MaxList = 1 << 16;
@@ -18,9 +18,21 @@ public static partial class Commands
     {
         switch (c)
         {
-            case Command.Move m: Tag(w, 1); WriteIds(w, m.Ships); w.Write(m.X); w.Write(m.Y); w.Write(m.AttackMove); break;
-            case Command.Attack a: Tag(w, 2); WriteIds(w, a.Ships); w.Write7BitEncodedInt(a.Target); break;
+            // Queued moves and attacks have tags of their own: the others keep the bytes of layout 1.
+            case Command.Move m: Tag(w, m.Queued ? (byte)25 : (byte)1); WriteIds(w, m.Ships); w.Write(m.X); w.Write(m.Y); w.Write(m.AttackMove); break;
+            case Command.Attack a: Tag(w, a.Queued ? (byte)26 : (byte)2); WriteIds(w, a.Ships); w.Write7BitEncodedInt(a.Target); break;
             case Command.Stop s: Tag(w, 3); WriteIds(w, s.Ships); break;
+            case Command.Patrol p:
+                Tag(w, 27); WriteIds(w, p.Ships); w.Write7BitEncodedInt(p.Points.Length);
+                foreach (var point in p.Points)
+                {
+                    w.Write(point.X);
+                    w.Write(point.Y);
+                }
+                w.Write(p.Queued);
+                break;
+            case Command.Guard g: Tag(w, 28); WriteIds(w, g.Ships); w.Write7BitEncodedInt(g.Ward); w.Write(g.Queued); break;
+            case Command.SetStance st: Tag(w, 29); WriteIds(w, st.Ships); w.Write((byte)st.Stance); break;
             case Command.UseAbility u: Tag(w, 4); w.Write7BitEncodedInt(u.Caster); w.Write((byte)u.Ability); AimOf(w, u.Aim); break;
             case Command.EnqueueShip q: Tag(w, 5); w.Write((byte)q.Cls); w.Write7BitEncodedInt(q.Count); break;
             case Command.EnqueueHero h: Tag(w, 6); HeroOf(w, h.Hero); break;
@@ -74,6 +86,11 @@ public static partial class Commands
         22 => new Command.SetFog(r.ReadBoolean()),
         23 => new Command.SetAI(new Side(r.ReadVarint()), r.ReadEnumOrNone<Difficulty>()),
         24 => new Command.Destroy(ReadIds(r)),
+        25 => new Command.Move(ReadIds(r), r.ReadDouble(), r.ReadDouble(), r.ReadBoolean(), Queued: true),
+        26 => new Command.Attack(ReadIds(r), r.ReadVarint(), Queued: true),
+        27 => new Command.Patrol(ReadIds(r), PointsOf(r), r.ReadBoolean()),
+        28 => new Command.Guard(ReadIds(r), r.ReadVarint(), r.ReadBoolean()),
+        29 => new Command.SetStance(ReadIds(r), r.ReadEnum<Stance>()),
         var tag => throw new InvalidDataException($"Commande inconnue : {tag}"),
     };
 
@@ -159,6 +176,16 @@ public static partial class Commands
         var ids = new int[Length(r)];
         for (var i = 0; i < ids.Length; i++) ids[i] = r.ReadVarint();
         return ids;
+    }
+
+    /// <summary>A patrol's points: no more than a patrol takes, so a forged count allocates nothing.</summary>
+    static Point[] PointsOf(BinaryReader r)
+    {
+        var n = r.ReadVarint();
+        if (n is < 0 or >= Movement.MaxRoute) throw new InvalidDataException($"Patrouille de {n} points");
+        var points = new Point[n];
+        for (var i = 0; i < n; i++) points[i] = new Point(r.ReadDouble(), r.ReadDouble());
+        return points;
     }
 
     static int Length(BinaryReader r)

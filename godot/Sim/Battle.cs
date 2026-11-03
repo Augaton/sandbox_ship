@@ -39,6 +39,8 @@ public sealed class BattleSide
     /// <summary>Null: the side's default color.</summary>
     public uint? Color;
     public ShipCounts Ships = [];
+    /// <summary>The veterans among them (Veterans.cs): they come in with their rank, the best placed first.</summary>
+    public RankCounts Ranks = [];
     public List<HeroId> Heroes = [];
     public ResearchLevels? Research;
     /// <summary>Share of their hull the ships come in with, after earlier battles; heroes come in whole.</summary>
@@ -72,6 +74,7 @@ public static class Battle
             // Heavy ships in the middle, as for a move order.
             .OrderByDescending(k => Data.Ships.Defs[k.Cls].Radius).ToList();
         var offsets = Movement.FormationOffsets(list.Count, 90).OrderBy(p => Hypot(p.X, p.Y)).ToList();
+        var placed = new ShipCounts();
         for (var i = 0; i < list.Count; i++)
         {
             var px = x + offsets[i].X;
@@ -82,6 +85,8 @@ public static class Battle
                 continue;
             }
             var s = SpawnShip(world, side.Side, list[i].Cls, px, py, angle);
+            Veterans.Promote(world, s, side.Ranks.RankOf(s.Cls, placed.Of(s.Cls)), news: false);
+            placed.Increase(s.Cls);
             var c = Math.Max(0.05, side.Condition);
             foreach (var part in ChildrenOf(world, s.Id).Prepend(s)) part.Hull = part.MaxHull * c;
         }
