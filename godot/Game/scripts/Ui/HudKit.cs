@@ -149,6 +149,7 @@ public static class HudKit
     /// <summary>The main action of a dialog: amber fading to the right as on the menus, dark bold text.</summary>
     public static Button Primary(Button b)
     {
+        Sfx.Confirms(b);
         var accent = Palette.Accent;
         b.AddThemeStyleboxOverride("normal", UiTheme.Shaded(accent, accent.Darkened(0.4f), accent));
         b.AddThemeStyleboxOverride("hover", UiTheme.Shaded(accent.Lightened(0.15f), accent.Darkened(0.25f), Palette.Text));

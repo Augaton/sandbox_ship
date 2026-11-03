@@ -38,6 +38,8 @@ seul contre l'IA ou jusqu'à six joueurs en réseau, par équipes.
 - **En réseau**, jusqu'à six joueurs, campagne comprise : en réseau local (les parties
   s'affichent d'elles-mêmes), par le serveur en ligne (rien à ouvrir chez soi) ou sur un
   serveur dédié.
+- **Une musique écrite et jouée par le jeu**, sans aucun fichier son : deux thèmes au menu,
+  trois dans la galaxie, trois en bataille, dont les couches montent avec les combats.
 - **En français ou en anglais**, au choix dans les options.
 
 ## Jouer

@@ -14,6 +14,9 @@ public enum Sound
     // This version's weapons: a burst cannon's round, a swarm missile leaving, an ion bolt, a round
     // of point defense meeting what it shot at.
     Burst, Missile, Ion, Intercept,
+    // The interface: the pointer coming on a button, a main action, a box ticked and unticked, a
+    // slider's step, a disabled button pressed, a screen or a dialog opening and closing.
+    Hover, Confirm, ToggleOn, ToggleOff, Tick, Denied, Open, Close,
 }
 
 /// <summary>Lets a sound through at most once per its gap.</summary>
@@ -38,6 +41,8 @@ public static class Sfx
         [Sound.Explosion] = 90, [Sound.BigExplosion] = 250, [Sound.Ability] = 120, [Sound.Beam] = 300, [Sound.Alert] = 1500,
         [Sound.Built] = 400, [Sound.Click] = 30, [Sound.Warp] = 400, [Sound.Horn] = 2500,
         [Sound.Burst] = 40, [Sound.Missile] = 70, [Sound.Ion] = 90, [Sound.Intercept] = 60,
+        [Sound.Hover] = 40, [Sound.Confirm] = 120, [Sound.ToggleOn] = 60, [Sound.ToggleOff] = 60, [Sound.Tick] = 45, [Sound.Denied] = 250,
+        [Sound.Open] = 150, [Sound.Close] = 150,
     };
 
     const int Rate = 44100;
@@ -64,7 +69,7 @@ public static class Sfx
 
     /// <summary>
     /// Creates the players under `host`, which stays for the whole session, and gives every
-    /// button the click sound, as the web version does for any button clicked.
+    /// control its interface sounds as it comes (Hook).
     /// </summary>
     public static void Attach(Node host)
     {
@@ -87,17 +92,93 @@ public static class Sfx
         // Every stereo copy now, while loading: made on first play, each one stalled a frame of
         // the battle (a long sound takes milliseconds) and left a large array to the collector.
         foreach (var s in Enum.GetValues<Sound>()) for (var step = 0; step < PanSteps; step++) Stream(s, step);
-        host.GetTree().NodeAdded += n =>
+        host.GetTree().NodeAdded += Hook;
+        host.GetViewport().GuiFocusChanged += Focused;
+    }
+
+    /// <summary>Buttons under a control so marked (the menu, the dialogs) tick as the pointer comes on them; not the game's panels, which it sweeps all the time.</summary>
+    const string HoverMeta = "sfx_hover";
+    /// <summary>A button so marked sounds as a main action rather than a click.</summary>
+    const string ConfirmMeta = "sfx_confirm";
+    /// <summary>When a button was last pressed: a screen rebuilt under the pointer does not tick at once after it.</summary>
+    static ulong pressedAt;
+    /// <summary>The actions that move the focus from a key or a pad.</summary>
+    static readonly StringName[] Moves = ["ui_up", "ui_down", "ui_left", "ui_right", "ui_focus_next", "ui_focus_prev"];
+
+    /// <summary>The buttons under `area` tick as the pointer comes on them.</summary>
+    public static void HoverSounds(Control area) => area.SetMeta(HoverMeta, true);
+
+    /// <summary>The button sounds as a main action (launch, resume) rather than a click.</summary>
+    public static void Confirms(BaseButton b) => b.SetMeta(ConfirmMeta, true);
+
+    /// <summary>
+    /// A control's sounds, given as it comes into the tree: a button its press (a box its tick on or
+    /// off, a main action its own), its refusal when disabled, its tick under the pointer in a menu
+    /// or a dialog; a list its items'; a slider its steps, pitched by its value.
+    /// </summary>
+    static void Hook(Node n)
+    {
+        switch (n)
         {
-            if (n is Button b and not (CheckBox or CheckButton or OptionButton or MenuButton)) b.Pressed += () => Play(Sound.Click);
-        };
+            case BaseButton b:
+                b.Pressed += () => Pressed(b);
+                b.MouseEntered += () =>
+                {
+                    if (!b.Disabled && Time.GetTicksMsec() - pressedAt > 150 && Marked(b)) Play(Sound.Hover);
+                };
+                b.GuiInput += e =>
+                {
+                    if (b.Disabled && e is InputEventMouseButton { Pressed: true, ButtonIndex: MouseButton.Left }) Play(Sound.Denied);
+                };
+                break;
+            case PopupMenu p:
+                p.IdFocused += _ => Play(Sound.Hover);
+                p.IndexPressed += _ => Pressed(null);
+                break;
+            case Slider or SpinBox:
+                var r = (Godot.Range)n;
+                // Only as it is moved by hand, never as a screen sets it.
+                r.ValueChanged += _ =>
+                {
+                    if (r.HasFocus() || r.GetGlobalRect().HasPoint(r.GetGlobalMousePosition())) Play(Sound.Tick, pitch: 0.8 + 0.5 * r.Ratio);
+                };
+                break;
+        }
+    }
+
+    static void Pressed(BaseButton? b)
+    {
+        pressedAt = Time.GetTicksMsec();
+        Play(b switch
+        {
+            CheckBox or CheckButton => b.ButtonPressed ? Sound.ToggleOn : Sound.ToggleOff,
+            not null when b.HasMeta(ConfirmMeta) => Sound.Confirm,
+            _ => Sound.Click,
+        });
+    }
+
+    static bool Marked(Node n)
+    {
+        for (var p = n; p is not null; p = p.GetParent()) if (p.HasMeta(HoverMeta)) return true;
+        return false;
+    }
+
+    /// <summary>The focus moved by a key or a pad, not put somewhere by a screen: the pointer's tick.</summary>
+    static void Focused(Control c)
+    {
+        foreach (var move in Moves)
+        {
+            if (!Input.IsActionJustPressed(move)) continue;
+            Play(Sound.Hover);
+            return;
+        }
     }
 
     /// <summary>
     /// Plays a sound, panned from -1 (left) to 1 (right), at a share of the volume (distance,
-    /// size). Quiet when muted, and skipped when the same sound just played.
+    /// size), at a pitch (1 as written). Quiet when muted, and skipped when the same sound just played.
     /// </summary>
-    public static void Play(Sound sound, double pan = 0, double gain = 1)
+    public static void Play(Sound sound, double pan = 0, double gain = 1, double pitch = 1)
     {
         var settings = Settings.Current;
         if (!attached || settings.Muted || settings.Volume <= 0) return;
@@ -118,6 +199,7 @@ public static class Sfx
         var p = players[voice];
         p.Stream = Stream(sound, step);
         p.VolumeDb = Mathf.LinearToDb((float)level);
+        p.PitchScale = (float)pitch;
         p.Play();
         startedAt[voice] = Time.GetTicksMsec();
     }
@@ -255,7 +337,11 @@ public static class Sfx
 
     enum Filter { Lowpass, Highpass, Bandpass }
 
-    abstract record Part(double At, double Length);
+    /// <summary>A part of a sound; it comes up over `Attack` seconds (a swell for a whoosh, an instant for the rest).</summary>
+    abstract record Part(double At, double Length)
+    {
+        public double Attack { get; init; } = 0.005;
+    }
 
     /// <summary>An oscillator gliding from `From` to `To` Hz, fading out over `Length` seconds.</summary>
     sealed record Tone(double At, Wave Wave, double From, double To, double Length, double Volume, double? Lowpass = null) : Part(At, Length);
@@ -299,7 +385,25 @@ public static class Sfx
         Sound.Ion => [new Tone(0, Wave.Square, 2400, 300, 0.09, 0.04, 5000), new Burst(0, 0.07, 0.12, Filter.Bandpass, 4200, 1800), new Tone(0.02, Wave.Sawtooth, 1200, 150, 0.08, 0.03, 3000)],
         // A small bright pop, where a torpedo or a missile is shot down.
         Sound.Intercept => [new Burst(0, 0.035, 0.08, Filter.Bandpass, 3400, 2200), new Tone(0, Wave.Triangle, 1600, 2400, 0.04, 0.025)],
-        _ => [new Tone(0, Wave.Sine, 1800, 1500, 0.03, 0.03)],
+        // A soft press: a short falling thump, a tick over it.
+        Sound.Click => [new Tone(0, Wave.Sine, 1100, 620, 0.05, 0.05), new Tone(0, Wave.Triangle, 2400, 2100, 0.025, 0.015), new Burst(0, 0.012, 0.02, Filter.Bandpass, 4200, 3600)],
+        // Barely there: a tiny rising tick and a breath of air.
+        Sound.Hover => [new Tone(0, Wave.Sine, 2600, 2900, 0.03, 0.012), new Burst(0, 0.015, 0.008, Filter.Highpass, 7000, 7000)],
+        // The press, then a fifth rising and ringing a little.
+        Sound.Confirm =>
+        [
+            new Tone(0, Wave.Triangle, 659, 659, 0.1, 0.05), new Tone(0.07, Wave.Triangle, 988, 988, 0.22, 0.055),
+            new Tone(0.07, Wave.Sine, 1976, 1976, 0.16, 0.015), new Burst(0, 0.012, 0.02, Filter.Bandpass, 4200, 3600),
+        ],
+        Sound.ToggleOn => [new Tone(0, Wave.Triangle, 880, 880, 0.05, 0.04), new Tone(0.045, Wave.Triangle, 1320, 1320, 0.08, 0.04)],
+        Sound.ToggleOff => [new Tone(0, Wave.Triangle, 1320, 1320, 0.05, 0.035), new Tone(0.045, Wave.Triangle, 880, 880, 0.08, 0.035)],
+        Sound.Tick => [new Tone(0, Wave.Triangle, 1400, 1400, 0.025, 0.03)],
+        // A dull buzz, two pitches beating against each other.
+        Sound.Denied => [new Tone(0, Wave.Square, 196, 180, 0.13, 0.022, 900), new Tone(0, Wave.Square, 208, 190, 0.13, 0.016, 900)],
+        // A breath of air swelling as the panel slides: rising to open, falling to close.
+        Sound.Open => [new Burst(0, 0.4, 0.05, Filter.Bandpass, 500, 2600) { Attack = 0.16 }, new Tone(0, Wave.Sine, 220, 440, 0.32, 0.02) { Attack = 0.12 }],
+        Sound.Close => [new Burst(0, 0.34, 0.045, Filter.Bandpass, 2400, 450) { Attack = 0.1 }, new Tone(0, Wave.Sine, 400, 200, 0.28, 0.018) { Attack = 0.08 }],
+        _ => throw new ArgumentOutOfRangeException(nameof(sound)),
     };
 
     /// <summary>Each part plays this long past its fade, as the web version stops its nodes.</summary>
@@ -324,13 +428,13 @@ public static class Sfx
     static double Glide(double from, double to, double length, double t) =>
         t >= length ? Math.Max(1, to) : from * Math.Pow(Math.Max(1, to) / from, t / length);
 
-    /// <summary>Gain: up from silence in 5 ms, then an exponential fade to silence at `length`.</summary>
-    static double Envelope(double t, double length, double volume)
+    /// <summary>Gain: up from silence over `attack`, then an exponential fade to silence at `length`.</summary>
+    static double Envelope(double t, double length, double volume, double attack)
     {
-        const double Floor = 0.0001, Attack = 0.005;
+        const double Floor = 0.0001;
         var peak = Math.Max(0.0002, volume);
-        if (t < Attack) return Floor * Math.Pow(peak / Floor, t / Attack);
-        if (t < length) return peak * Math.Pow(Floor / peak, (t - Attack) / (length - Attack));
+        if (t < attack) return Floor * Math.Pow(peak / Floor, t / attack);
+        if (t < length) return peak * Math.Pow(Floor / peak, (t - attack) / (length - attack));
         return Floor;
     }
 
@@ -346,7 +450,7 @@ public static class Sfx
             phase += dt;
             phase -= Math.Floor(phase);
             if (lowpass is not null) x = lowpass.Process(x);
-            output[start + i] += (float)(x * Envelope(t, p.Length, p.Volume));
+            output[start + i] += (float)(x * Envelope(t, p.Length, p.Volume, p.Attack));
         }
     }
 
@@ -376,7 +480,7 @@ public static class Sfx
             var t = (double)i / Rate;
             filter.Set(Glide(p.From, p.To, p.Length, t));
             var x = filter.Process(from + i < Noise.Length ? Noise[from + i] : 0);
-            output[start + i] += (float)(x * Envelope(t, p.Length, p.Volume));
+            output[start + i] += (float)(x * Envelope(t, p.Length, p.Volume, p.Attack));
         }
     }
 

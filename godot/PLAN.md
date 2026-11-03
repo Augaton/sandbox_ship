@@ -409,6 +409,26 @@ tests de `FixtureTests` et `CrossTests` les listent.
   local compte, à la fin de chaque bataille et de chaque campagne ; jamais une capture (`--shot`, `--snap`, sauf avec
   `--profile=FICHIER`), une rediffusion, le didacticiel, un spectateur ni la bataille du menu. Le temps de jeu est le temps
   réel passé en bataille ou dans la galaxie, quelle que soit la vitesse. Écran « Profil » au menu, notification au déblocage.
+- Musique et sons d'interface (2026-11-03, après la 1.0.0) :
+  - Cinq morceaux de plus, écrits dans `MusicScore.cs` avec les instruments de `MusicSynth.cs` et un nouveau, `Lead`
+    (une voix pour les mélodies) : « drift » au menu (fa lydien), « horizon » (ré dorien) et « front » (do mineur) dans
+    la galaxie, « assault » (ré mineur, 126) et « siege » (mi mineur en demi-temps, 88) en bataille, chacun en trois
+    couches comme le premier. Les morceaux longs passent deux fois leurs accords : la seconde fois, une mélodie.
+  - Un thème joue son premier morceau la première fois (le menu, celui de l'ouverture), puis un autre que le dernier ;
+    après 150 s, il passe au suivant en fondu sur les 4 dernières secondes de la boucle (`MusicPlayer.TurnFrom`).
+  - Les sept morceaux d'origine sortent identiques à l'octet près (`--music-dump`). Les nouveaux sont amenés au même
+    niveau (-18 dB RMS) ; leurs boucles se rejoignent sans saut.
+  - Mémoire : Godot garde la musique en QOA (`AudioStreamWav.LoadFromBuffer`, encodé sur le fil de la musique), cinq fois
+    moins que les échantillons. Bruit mesuré contre le PCM : 30 dB sous la musique au pire, 39 à 45 dB sur un morceau ;
+    jointures de boucle intactes. Les flux tiennent 11,5 Mio pour 57 Mio d'échantillons (18 Mio avant, pour le tiers de
+    musique). Les pistes d'un fil partagent leurs tampons, l'écho n'a plus qu'une ligne de retard de sa longueur, et une
+    collecte « Aggressive » rend au système ce que .NET avait réservé pendant le rendu. Export release, bataille de
+    55 s : 460 Mo en régime contre 576 pour la 1.0.0 ; pic de 633 Mo contre 576 pendant le rendu (18 s, en arrière-plan,
+    6 s avant).
+  - Interface (`Sfx.Hook`, pour tout contrôle qui entre dans l'arbre) : clic plus franc, son d'action principale
+    (`HudKit.Primary`, boutons « MenuPrimary »), cases cochées et décochées, crans des curseurs (hauteur selon la
+    valeur), refus sur un bouton désactivé, survol au pointeur dans le menu et les dialogues seulement (`Sfx.HoverSounds`)
+    et aux touches partout, souffle à l'ouverture et à la fermeture d'un écran du menu ou d'un dialogue.
 - Sécurité (2026-11-03) : ce qu'un inconnu peut envoyer au serveur en ligne, à un hôte ou au jeu, et les fichiers du joueur.
   Chaque lecteur exposé passe un test de robustesse à graine fixe (`FuzzTests` : trames du relais, messages du jeu, ordres,
   instantanés de bataille entiers et en parties, galaxie, rediffusions, sauvegardes), et chaque correction a son test

@@ -37,6 +37,8 @@ The screenshots show the game in French; it plays in English too (Options, Langu
 - **Over the network**, up to six players, campaign included: on the local network (games show
   up by themselves), through the online server (nothing to open at home) or on a dedicated
   server.
+- **Music written and played by the game**, without a single sound file: two themes in the
+  menu, three in the galaxy, three in battle, whose layers rise with the fighting.
 - **In French or in English**, as chosen in the options.
 
 ## Playing

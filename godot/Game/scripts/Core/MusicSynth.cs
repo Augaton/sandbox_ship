@@ -1,6 +1,9 @@
 // The music's instruments, rendered note by note into a stereo buffer as the sound effects are
 // (Sfx), then through an echo and a reverb; a loop's tail is folded back onto its start, so that
-// it plays on without a seam. Pure C#: it runs on a background thread while the game loads.
+// it plays on without a seam. Pure C#: it runs on a background thread while the game loads. The
+// tracks written on a thread share their buffers, one track after the other.
+using System.Buffers.Binary;
+
 namespace SandboxShip.Core;
 
 public sealed class MusicTrack
@@ -18,13 +21,43 @@ public sealed class MusicTrack
     /// <summary>The reverb's size (comb feedback) and how much of it is heard.</summary>
     readonly double roomSize, roomWet;
 
+    /// <summary>
+    /// The buffers of the track being written on this thread, kept from one track to the next and
+    /// cleared: fresh ones for each piece had the rendering go through hundreds of megabytes,
+    /// which .NET then held at the peak. They grow by whole half minutes when a longer piece comes,
+    /// and go with the thread.
+    /// </summary>
+    [ThreadStatic] static float[][]? buffers;
+    /// <summary>A track is being written on this thread, until it is mixed: a second one at once would write into its buffers.</summary>
+    [ThreadStatic] static bool writing;
+
     public MusicTrack(double seconds, double tail, int seed, double echoTime = 0.5, double echoFeedback = 0.35, double roomSize = 0.84, double roomWet = 0.3)
     {
+        if (writing) throw new InvalidOperationException("Une piste s'écrit déjà sur ce fil : elles partagent leurs tampons.");
+        writing = true;
         Frames = (int)Math.Round(seconds * Rate);
         total = Frames + (int)Math.Round(tail * Rate);
-        (l, r, echoL, echoR, roomL, roomR) = (new float[total], new float[total], new float[total], new float[total], new float[total], new float[total]);
+        var b = Buffers(total);
+        (l, r, echoL, echoR, roomL, roomR) = (b[0], b[1], b[2], b[3], b[4], b[5]);
         rng = new Random(seed);
         (this.echoTime, this.echoFeedback, this.roomSize, this.roomWet) = (echoTime, echoFeedback, roomSize, roomWet);
+    }
+
+    /// <summary>The rendering is over on this thread: its buffers go.</summary>
+    public static void Release() => buffers = null;
+
+    /// <summary>This thread's six buffers, `n` samples of each cleared.</summary>
+    static float[][] Buffers(int n)
+    {
+        const int Step = 30 * Rate;
+        buffers ??= new float[6][];
+        if (buffers[0] is null || buffers[0].Length < n)
+        {
+            var size = (n + Step - 1) / Step * Step;
+            for (var i = 0; i < buffers.Length; i++) buffers[i] = new float[size];
+        }
+        else foreach (var b in buffers) Array.Clear(b, 0, n);
+        return buffers;
     }
 
     /// <summary>Between -amount and amount: a touch of life in timings and loudness, the same at every render.</summary>
@@ -90,6 +123,28 @@ public sealed class MusicTrack
             var x = Triangle(p1) + 0.3 * Math.Sin(p2 * Math.Tau) + 0.25 * Saw(p1, f);
             p1 = Wrap(p1 + f / Rate);
             p2 = Wrap(p2 + 2 * f / Rate);
+            return filter.Low(x, cutoff) * env;
+        });
+    }
+
+    /// <summary>
+    /// A soft lead for a melody: a triangle, a sine an octave under and a touch of saw, low passed,
+    /// blown in and held; a slow vibrato comes in as the note holds.
+    /// </summary>
+    public void Lead(double at, double length, double midi, double volume, double pan = 0, double cutoff = 2600, double echo = 0.3, double room = 0.5)
+    {
+        var f = Hz(midi);
+        var (p1, p2) = (0.0, 0.0);
+        var filter = new Svf(0.7);
+        Note(at, length + 0.5, pan, echo, room, t =>
+        {
+            var env = Swell(t, length, 0.06, 0.5) * volume;
+            if (env <= 0) return 0;
+            // 5 Hz, a sixth of a semitone, from a third of a second in.
+            var hz = f * (1 + 0.01 * Math.Clamp((t - 0.3) / 0.6, 0, 1) * Math.Sin(Math.Tau * 5 * t));
+            var x = Triangle(p1) + 0.35 * Math.Sin(p2 * Math.Tau) + 0.12 * Saw(p1, hz);
+            p1 = Wrap(p1 + hz / Rate);
+            p2 = Wrap(p2 + hz / 2 / Rate);
             return filter.Low(x, cutoff) * env;
         });
     }
@@ -259,25 +314,28 @@ public sealed class MusicTrack
 
     /// <summary>
     /// The echo (ping-pong, darker at each repeat, into the reverb too), the reverb, then the tail
-    /// folded onto the start: the loop as one stereo buffer of `Frames` frames, unscaled.
+    /// folded onto the start: the loop as one stereo buffer of `Frames` frames, unscaled. The
+    /// track is done then, its buffers free for the next.
     /// </summary>
     public (float[] L, float[] R) Mix(bool loop)
     {
+        // The echo's delay line: what each side sent one echo ago, in a ring as long as the echo.
         var d = (int)Math.Round(echoTime * Rate);
-        var (dl, dr) = (new float[total], new float[total]);
+        var (ringL, ringR) = (new float[d], new float[d]);
         double dampL = 0, dampR = 0;
         for (var i = 0; i < total; i++)
         {
-            var backL = i >= d ? dr[i - d] : 0;
-            var backR = i >= d ? dl[i - d] : 0;
+            var at = i % d;
+            var (backL, backR) = (ringR[at], ringL[at]);
             dampL += 0.45 * (backL - dampL);
             dampR += 0.45 * (backR - dampR);
-            dl[i] = echoL[i] + (float)(dampL * echoFeedback);
-            dr[i] = echoR[i] + (float)(dampR * echoFeedback);
-            l[i] += dl[i] * 0.6f;
-            r[i] += dr[i] * 0.6f;
-            roomL[i] += dl[i] * 0.4f;
-            roomR[i] += dr[i] * 0.4f;
+            var dl = echoL[i] + (float)(dampL * echoFeedback);
+            var dr = echoR[i] + (float)(dampR * echoFeedback);
+            (ringL[at], ringR[at]) = (dl, dr);
+            l[i] += dl * 0.6f;
+            r[i] += dr * 0.6f;
+            roomL[i] += dl * 0.4f;
+            roomR[i] += dr * 0.4f;
         }
         // The echo's sends are spent: the reverb writes over them rather than into new buffers.
         Reverb(roomL, 0, echoL);
@@ -295,6 +353,7 @@ public sealed class MusicTrack
             ol[k] += l[i];
             or[k] += r[i];
         }
+        writing = false;
         return (ol, or);
     }
 
@@ -303,7 +362,7 @@ public sealed class MusicTrack
     {
         int[] combs = [558, 594, 638, 678];
         int[] passes = [278, 220];
-        Array.Clear(output);
+        Array.Clear(output, 0, total);
         foreach (var c in combs)
         {
             var size = c + spread;
@@ -338,20 +397,41 @@ public sealed class MusicTrack
     public const int LoopGuard = 64;
 
     /// <summary>
-    /// A stereo buffer as 16-bit PCM, scaled by `gain`, with a gentle limiter above 0.9 so that
-    /// nothing clips; a loop gets its start again past its end (LoopGuard).
+    /// A stereo buffer as a WAV file of 16-bit samples, scaled by `gain`, with a gentle limiter
+    /// above 0.9 so that nothing clips; a loop gets its start again past its end (LoopGuard).
     /// </summary>
-    public static byte[] Pcm(float[] left, float[] right, double gain, bool loop)
+    public static byte[] Wav(float[] left, float[] right, double gain, bool loop)
     {
         var frames = left.Length + (loop ? LoopGuard : 0);
-        var data = new byte[frames * 4];
+        var data = new byte[HeaderSize + frames * 4];
+        Header(data, frames);
         for (var i = 0; i < frames; i++)
         {
             var k = i % left.Length;
-            Write(data, i * 4, Limit(left[k] * gain));
-            Write(data, i * 4 + 2, Limit(right[k] * gain));
+            Write(data, HeaderSize + i * 4, Limit(left[k] * gain));
+            Write(data, HeaderSize + i * 4 + 2, Limit(right[k] * gain));
         }
         return data;
+    }
+
+    public const int HeaderSize = 44;
+
+    /// <summary>A WAV file's header at the start of `data`: `frames` of 16-bit stereo at Rate follow it.</summary>
+    public static void Header(byte[] data, int frames)
+    {
+        var length = frames * 4;
+        "RIFF"u8.CopyTo(data);
+        BinaryPrimitives.WriteInt32LittleEndian(data.AsSpan(4), 36 + length);
+        "WAVEfmt "u8.CopyTo(data.AsSpan(8));
+        BinaryPrimitives.WriteInt32LittleEndian(data.AsSpan(16), 16);
+        BinaryPrimitives.WriteInt16LittleEndian(data.AsSpan(20), 1);
+        BinaryPrimitives.WriteInt16LittleEndian(data.AsSpan(22), 2);
+        BinaryPrimitives.WriteInt32LittleEndian(data.AsSpan(24), Rate);
+        BinaryPrimitives.WriteInt32LittleEndian(data.AsSpan(28), Rate * 4);
+        BinaryPrimitives.WriteInt16LittleEndian(data.AsSpan(32), 4);
+        BinaryPrimitives.WriteInt16LittleEndian(data.AsSpan(34), 16);
+        "data"u8.CopyTo(data.AsSpan(36));
+        BinaryPrimitives.WriteInt32LittleEndian(data.AsSpan(40), length);
     }
 
     static double Limit(double x)

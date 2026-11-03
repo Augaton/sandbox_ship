@@ -1054,6 +1054,7 @@ public partial class GalaxyHud : CanvasLayer
         modal?.QueueFree();
         // The menus' look: their buttons fade as the main menu's do.
         var m = HudKit.Ignore(new Control { Theme = Ui.Menu.Look });
+        Sfx.HoverSounds(m);
         m.SetAnchorsPreset(Control.LayoutPreset.FullRect);
         var shade = new ColorRect { Color = Palette.Bg with { A = 0.7f }, MouseFilter = Control.MouseFilterEnum.Stop };
         shade.SetAnchorsPreset(Control.LayoutPreset.FullRect);
@@ -1063,7 +1064,11 @@ public partial class GalaxyHud : CanvasLayer
         center.AddChild(content);
         m.AddChild(center);
         root.AddChild(m);
-        if (!shaded) HudKit.FadeIn(shade);
+        if (!shaded)
+        {
+            HudKit.FadeIn(shade);
+            Sfx.Play(Sound.Open);
+        }
         HudKit.FadeIn(center);
         modal = m;
         modalFirst = FirstButton(content);
@@ -1082,6 +1087,7 @@ public partial class GalaxyHud : CanvasLayer
 
     void CloseModal()
     {
+        if (modal is not null) Sfx.Play(Sound.Close);
         modal?.QueueFree();
         modal = null;
         modalFirst = null;

@@ -70,6 +70,7 @@ public partial class Menu : Node
         var ui = new CanvasLayer { Layer = 2 };
         AddChild(ui);
         root = new Control { Theme = MenuTheme() };
+        Sfx.HoverSounds(root);
         root.SetAnchorsPreset(Control.LayoutPreset.FullRect);
         ui.AddChild(root);
         veil = new Control { MouseFilter = Control.MouseFilterEnum.Ignore };
@@ -269,6 +270,9 @@ public partial class Menu : Node
 
     static float WidthOf(Screen s) => s switch { Screen.Home => HomeWidth, Screen.Lobby or Screen.Multiplayer => LobbyWidth, _ => Width };
 
+    /// <summary>How deep a screen is: home, a screen it opens, the lobby past the modes. Going deeper sounds as opening, back as closing.</summary>
+    static int Depth(Screen s) => s switch { Screen.Home => 0, Screen.Lobby => 2, _ => 1 };
+
     /// <summary>Esc, or "Retour": from the lobby to the modes, from anywhere else home; the entry that led there has the focus again.</summary>
     void Back()
     {
@@ -291,6 +295,7 @@ public partial class Menu : Node
     /// </summary>
     void Show(Screen next, bool animate = true)
     {
+        if (animate && Depth(next) != Depth(screen)) Sfx.Play(Depth(next) > Depth(screen) ? Sound.Open : Sound.Close);
         screen = next;
         Build();
         var to = WidthOf(next);
@@ -714,6 +719,7 @@ public partial class Menu : Node
         var b = new Button { Text = text, CustomMinimumSize = new Vector2(0, 40), FocusMode = Control.FocusModeEnum.All, MouseFilter = Control.MouseFilterEnum.Pass };
         if (variation is not null) b.ThemeTypeVariation = variation;
         b.Pressed += () => Callable.From(act).CallDeferred();
+        if (variation == Primary) Sfx.Confirms(b);
         first ??= b;
         if (key is not null) keyed[key] = b;
         return b;

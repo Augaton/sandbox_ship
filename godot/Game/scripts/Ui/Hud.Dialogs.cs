@@ -28,6 +28,7 @@ public partial class Hud
         DropModal();
         // The menus' look: their buttons fade as the main menu's do.
         var m = new Control { MouseFilter = Control.MouseFilterEnum.Stop, Theme = Menu.Look };
+        Sfx.HoverSounds(m);
         m.SetAnchorsPreset(Control.LayoutPreset.FullRect);
         var shade = Ignore(new ColorRect { Color = Palette.Bg with { A = 0.7f } });
         shade.SetAnchorsPreset(Control.LayoutPreset.FullRect);
@@ -37,7 +38,11 @@ public partial class Hud
         center.AddChild(content);
         m.AddChild(center);
         root.AddChild(m);
-        if (!shaded) FadeIn(shade);
+        if (!shaded)
+        {
+            FadeIn(shade);
+            Sfx.Play(Sound.Open);
+        }
         FadeIn(center);
         modal = m;
         // A dialog's body is scrolled, or (Dialog) scrolled with its buttons pinned under it.
@@ -98,6 +103,7 @@ public partial class Hud
 
     void CloseModal()
     {
+        if (modal is not null) Sfx.Play(Sound.Close);
         DropModal();
         var then = onModalClose;
         onModalClose = null;
