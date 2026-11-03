@@ -46,7 +46,7 @@ public sealed partial class Session
             return;
         }
         // --start=stress: the measuring battle (Sim/Stress.cs), its first seats playing Kla'ed and Nairan.
-        var world = Dev.Start == "stress" ? Stress.Create(lobby.Seed) : Scenario.CreateSkirmish(lobby.Skirmish());
+        var world = Dev.Start == "stress" ? Stress.Create(lobby.Seed, Dev.Terrain ?? TerrainDensity.None) : Scenario.CreateSkirmish(lobby.Skirmish());
         battle = new BattleHost(world, net.Send);
         away.Clear();
         foreach (var m in room.Members)
@@ -206,6 +206,17 @@ public sealed partial class Session
                 {
                     starting = null;
                     Main.Instance.Start(lobby, link);
+                }
+                break;
+            // The battle over time, for the end screen: one that cannot be read only leaves the curves out.
+            case Message.Record rec when link is not null:
+                try
+                {
+                    link.World.History = BattleHistory.Read(new BinaryReader(new MemoryStream(rec.History)));
+                }
+                catch (Exception e) when (e is InvalidDataException or EndOfStreamException)
+                {
+                    Log($"Historique de la bataille illisible : {e.Message}");
                 }
                 break;
             case Message.News n when link is not null:

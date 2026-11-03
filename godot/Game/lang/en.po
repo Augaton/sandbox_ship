@@ -5921,3 +5921,121 @@ msgstr "Allied"
 #: Game/scripts/Galaxy/GalaxyHud.Diplomacy.cs
 msgid "Avec {0} : vision partagée, aucun combat ; tes flottes y vont."
 msgstr "With {0}: shared vision, no fighting; your fleets go there."
+#: Game/scripts/Ui/Hud.Terrain.cs
+msgid "Ceinture d'astéroïdes"
+msgstr "Asteroid belt"
+
+#: Game/scripts/Ui/Hud.Terrain.cs
+msgid "Champ de mines"
+msgstr "Minefield"
+
+#: Game/scripts/Ui/Hud.Terrain.cs
+msgid "Puits gravitationnel"
+msgstr "Gravity well"
+
+#: Game/scripts/Ui/Hud.Terrain.cs
+msgid "Un vaisseau dedans n'est vu qu'à {0} de distance"
+msgstr "A ship inside is only seen from {0} away"
+
+#: Game/scripts/Ui/Hud.Terrain.cs
+msgid "Infranchissable : les vaisseaux la contournent"
+msgstr "Impassable: ships go around it"
+
+#: Game/scripts/Ui/Hud.Terrain.cs
+msgid "Arrête les tirs, sauf les rayons lourds et les faisceaux"
+msgstr "Stops shots, except heavy rays and beams"
+
+#: Game/scripts/Ui/Hud.Terrain.cs
+msgid "{0} mines sur {1}"
+msgstr "{0} mines of {1}"
+
+#: Game/scripts/Ui/Hud.Terrain.cs
+msgid "Déminé"
+msgstr "Cleared"
+
+#: Game/scripts/Ui/Hud.Terrain.cs
+msgid "Chaque seconde, une mine saute sous chaque vaisseau dedans"
+msgstr "Every second, a mine goes off under each ship inside"
+
+#: Game/scripts/Ui/Hud.Terrain.cs
+msgid "Il se vide quand on le traverse, ou sous une frappe"
+msgstr "It empties as ships cross it, or under a strike"
+
+#: Game/scripts/Ui/Hud.Terrain.cs
+msgid "Au cœur, les vaisseaux vont à {0} de leur vitesse"
+msgstr "At its heart, ships move at {0} of their speed"
+
+#: Game/scripts/Ui/Hud.Terrain.cs
+msgid "Attire les vaisseaux et dévie les tirs qui passent"
+msgstr "Pulls ships in and bends passing shots"
+
+#: Game/scripts/Ui/Menu.Lobby.cs
+msgid "Terrain"
+msgstr "Terrain"
+
+#: Game/scripts/Ui/Menu.Lobby.cs
+msgid "Aucun"
+msgstr "None"
+
+#: Game/scripts/Ui/Menu.Lobby.cs
+msgid "Léger"
+msgstr "Light"
+
+#: Game/scripts/Ui/Menu.Lobby.cs
+msgid "Dense"
+msgstr "Dense"
+
+#: Game/scripts/Ui/Menu.Lobby.cs
+msgid " Nébuleuses, astéroïdes, mines et puits gravitationnels : chaque place a le même terrain autour d'elle."
+msgstr " Nebulae, asteroids, mines and gravity wells: every seat has the same terrain around it."
+
+#: Game/scripts/Ui/Menu.Lobby.cs
+msgid "sans terrain"
+msgstr "no terrain"
+
+#: Game/scripts/Ui/Menu.Lobby.cs
+msgid "terrain dense"
+msgstr "dense terrain"
+
+#: Sim/Structures.cs
+msgid "Terrain impraticable"
+msgstr "Impassable terrain"
+
+#: Game/scripts/Ui/Hud.Terrain.cs
+msgid "Boucliers et coques s'y régénèrent à {0} de leur rythme"
+msgstr "Shields and hulls regenerate there at {0} of their pace"
+
+#: Game/scripts/Ui/Hud.Charts.cs
+msgid "Armée en vol"
+msgstr "Fleet in flight"
+
+#: Game/scripts/Ui/Hud.Charts.cs
+msgid "Tes meilleurs vaisseaux"
+msgstr "Your best ships"
+
+#: Game/scripts/Ui/Hud.Charts.cs
+msgid "{0} destructions pour {1} crédits"
+msgstr "{0} kills worth {1} credits"
+
+msgid "1 destruction pour {0} crédits"
+msgstr "1 kill worth {0} credits"
+
+#: Game/scripts/Ui/Hud.Charts.cs
+msgid "en service"
+msgstr "still flying"
+
+#: Game/scripts/Ui/Hud.Charts.cs
+msgid "détruit"
+msgstr "destroyed"
+
+#: Game/scripts/Ui/Hud.Dialogs.cs
+msgid "Dépensés"
+msgstr "Spent"
+
+#: Sim/BattleHistory.cs
+msgid "Échantillons"
+msgstr "Samples"
+
+#: Sim/BattleHistory.cs
+msgid "Camps"
+msgstr "Sides"

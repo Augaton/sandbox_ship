@@ -2,6 +2,7 @@
 // seeds each: who wins, how, and how long it takes. A measure, not a check, and a long one: it
 // only runs when asked,
 //   BALANCE=1 dotnet test Sim.Tests --filter ModeBalance --logger "console;verbosity=detailed"
+// TERRAIN=light or dense: on that battle terrain (BalanceTests.Terrain).
 using SandboxShip.Sim.Data;
 using Xunit;
 using Xunit.Abstractions;
@@ -17,6 +18,7 @@ public class ModeBalanceTests(ITestOutputHelper output)
     /// <summary>Plays a skirmish out between AIs; returns the world at its end, or at the time limit.</summary>
     static World Play(SkirmishOptions o)
     {
+        o.Terrain = BalanceTests.Terrain;
         var w = Scenario.CreateSkirmish(o);
         while (w.Winner is null && w.Time < Limit)
         {

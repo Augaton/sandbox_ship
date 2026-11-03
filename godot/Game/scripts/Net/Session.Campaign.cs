@@ -193,7 +193,9 @@ public sealed partial class Session
     void EndFight(BattleResult? result)
     {
         var id = fought!.Id;
-        // A last snapshot first, so that the end's tally shows the last blows.
+        // A last snapshot first, so that the end's tally shows the last blows; a decided battle's history
+        // goes with it (Message.Record), its outcome being the campaign's word, not a winner of its own.
+        if (result is not null) fought!.World.History?.Close(fought.World);
         fight!.Tick(1);
         foreach (var peer in fight.Peers.ToList()) net.Send(peer, new Message.Over(id, result));
         Log($"Bataille {id} terminée : {result?.ToString() ?? "laissée à l'IA"}");
@@ -312,6 +314,17 @@ public sealed partial class Session
                 if (!Read(() => part = front.Motion.ReadPart(Reader(state.Snapshot), front.World, clock)) || part.Completed == 0) return true;
                 Send(new Message.Ack(part.Completed));
                 ShowFront();
+                return true;
+            // The battle over time, for the end screen: one that cannot be read only leaves the curves out.
+            case Message.Record rec when front is not null:
+                try
+                {
+                    front.World.History = BattleHistory.Read(Reader(rec.History));
+                }
+                catch (Exception e) when (e is InvalidDataException or EndOfStreamException)
+                {
+                    Log($"Historique de la bataille illisible : {e.Message}");
+                }
                 return true;
             case Message.News n when front is not null:
                 Read(() => Snapshot.ReadEvents(Reader(n.Events), front.World));

@@ -78,12 +78,12 @@ public partial class BattleScreen : Node
             Replay = new ReplayPlayer(recorded);
             World = Replay.World;
         }
-        else World = o.Net?.World ?? o.Campaign?.World ?? (Dev.Start == "stress" ? Stress.Create(o.Seed ?? 7) : Scenario.CreateSkirmish(new SkirmishOptions
+        else World = o.Net?.World ?? o.Campaign?.World ?? (Dev.Start == "stress" ? Stress.Create(o.Seed ?? 7, o.Terrain) : Scenario.CreateSkirmish(new SkirmishOptions
         {
             // In the sandbox, nobody plays by itself: the others only do what the player spawns.
             Slots = [.. o.Slots.Select(s => sandbox ? s with { AI = null } : s)],
             Credits = sandbox ? 50000 : o.Tutorial ? Ui.Tutorial.Credits : Scenario.StartCredits, Seed = o.Seed ?? 1,
-            Map = o.Map, Size = o.Size, Fog = o.Fog && !sandbox, Raid = o.Raid,
+            Map = o.Map, Size = o.Size, Fog = o.Fog && !sandbox, Raid = o.Raid, Terrain = o.Terrain,
             Mode = o.Rules, ZoneTarget = o.ZoneTarget, AssaultMinutes = o.AssaultMinutes,
         }));
         // The sandbox's tools are open in a game played alone, outside the campaign; a replay has them as recorded.
@@ -95,7 +95,7 @@ public partial class BattleScreen : Node
             return r;
         }));
         // A battle of a lobby, played alone or stepped here for everyone, keeps its commands for its replay.
-        if (o.Replay is null && !o.Tutorial && o.Campaign is null && !o.Demo && (o.Net is null || o.Net.Host is not null) && Dev.Skip == 0 && Dev.Wave == 0
+        if (o.Replay is null && !o.Tutorial && o.Campaign is null && !o.Demo && (o.Net is null || o.Net.Host is not null) && Dev.Skip == 0 && Dev.Wave == 0 && Dev.End == 0
             && Dev.Start is "menu" or "battle" or "sandbox") Replays.Record(World);
         // Checking the late waves of a survival game, or its end: it begins at wave --wave, a few seconds away.
         if (Dev.Wave > 1 && World.Mode.Kind == BattleMode.Survival && o.Replay is null && (o.Net is null || o.Net.Host is not null))
@@ -114,6 +114,7 @@ public partial class BattleScreen : Node
             own.AI = Worlds.NewAI(o.Difficulty);
             Steps.Run(World, Dev.Skip);
         }
+        if (Dev.End > 0 && own is not null && o.Net is null) PlayToEnd(own);
         if (Dev.Zoom is float dz) Zoom = dz;
         backdrop = new Backdrop();
         AddChild(backdrop);
@@ -459,6 +460,30 @@ public partial class BattleScreen : Node
 
     void ReturnToGalaxy() => Main.Instance.FinishCampaignBattle(Opts.Campaign!.BattleId, result!.Value);
 
+    /// <summary>
+    /// Checking the end screen (--end=SECONDS): the battle played ahead, every side on the AI, until
+    /// decided or that old, then its end once the view is up. A campaign battle's end opens only once
+    /// decided, as it would (CheckCampaignEnd): before that, there is no way back to the galaxy.
+    /// </summary>
+    void PlayToEnd(FactionState own)
+    {
+        if (Opts.Campaign is { } c)
+        {
+            while (World.Time < Dev.End && Sim.Battle.Outcome(World, c.Attacker, c.Defender) is null)
+            {
+                Steps.StepWorld(World);
+                Sim.Battle.UpdateBattleAI(World, [c.Attacker, c.Defender], Steps.Step);
+            }
+        }
+        else
+        {
+            own.AI = Worlds.NewAI(Opts.Difficulty);
+            while (World.Time < Dev.End && World.Winner is null) Steps.StepWorld(World);
+        }
+        World.Events.Clear();
+        if (Opts.Campaign is null) Callable.From(() => Hud.ShowEnd(World.Winner is Side w && Worlds.Allies(World, w, Opts.Player))).CallDeferred();
+    }
+
     /// <summary>Whether the player sees this entity right now (always true for their own).</summary>
     public bool CanSee(Entity e) => Reveal || Vision.IsVisible(World, Opts.Player, e);
 
@@ -510,6 +535,11 @@ public partial class BattleScreen : Node
                 case Intercepted i:
                     Spark(i.X, i.Y);
                     Play(Sound.Intercept, i.X, i.Y, 0.5);
+                    break;
+                case MineBlast mb:
+                    DebrisAt(mb.X, mb.Y, 14);
+                    Boom(mb.X, mb.Y, 1.1, 1.6, 420);
+                    Play(Sound.Explosion, mb.X, mb.Y, 0.55);
                     break;
                 case RaidWon rw:
                     var tech = rw.Tech is TechId t ? $", {Techs.Defs[t].Name} niveau {World.Factions[rw.Side].Research[t]}" : "";

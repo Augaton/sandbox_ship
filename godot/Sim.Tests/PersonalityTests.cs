@@ -106,7 +106,7 @@ public class PersonalityTests(ITestOutputHelper output)
         var w = Scenario.CreateSkirmish(new SkirmishOptions { Slots = slots, Seed = 3 });
         Assert.Null(w.Factions[Faction.Klaed].AI);
         Assert.Equal(Personality.Aggressive, w.Factions[Faction.Nairan].AI!.Personality);
-        Assert.Equal(4500 * 0.6, w.Factions[Faction.Nairan].AI!.WaveValue, 6);
+        Assert.Equal(4500 * Personalities.Defs[Personality.Aggressive].Wave, w.Factions[Faction.Nairan].AI!.WaveValue, 6);
         Assert.Equal(Personality.Technological, w.Factions[Faction.Nautolan].AI!.Personality);
         var g = Galaxies.CreateGalaxy(slots, 3, GalaxyGen.GenerateLayout(3, 3, MapSize.Small));
         Assert.Equal(Personality.Aggressive, g.Factions[Faction.Nairan].AI!.Personality);

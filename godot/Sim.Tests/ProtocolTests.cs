@@ -51,6 +51,7 @@ public class ProtocolTests
         yield return new Message.Back();
         yield return new Message.Say("On attaque au nord ?");
         yield return new Message.Said("Bob", new string('é', Chat.MaxText));
+        yield return new Message.Record(BattleHistory.Bytes(FuzzTests.Battle(3).History!));
     }
 
     [Fact]
@@ -65,7 +66,7 @@ public class ProtocolTests
             Assert.Equal(bytes, Protocol.Encode(back));
             tags.Add(bytes[0]);
         }
-        Assert.Equal(17, tags.Count);
+        Assert.Equal(18, tags.Count);
         // Fields come back as sent, not only their bytes.
         var room = (Message.Room)Protocol.Decode(Protocol.Encode(Every().OfType<Message.Room>().First()));
         Assert.Equal([new Member(Lobby.Host, "Hôte"), new Member(77, "Bob")], room.Members);
@@ -81,8 +82,8 @@ public class ProtocolTests
         foreach (var m in Every())
         {
             var bytes = Protocol.Encode(m);
-            // A snapshot's or a chart's bytes are their reader's to check; cut anywhere else, a message does not read.
-            if (m is Message.State or Message.Chart) continue;
+            // A snapshot's, a chart's or a record's bytes are their reader's to check; cut anywhere else, a message does not read.
+            if (m is Message.State or Message.Chart or Message.Record) continue;
             for (var cut = 0; cut < bytes.Length; cut++)
             {
                 var part = bytes[..cut];

@@ -747,7 +747,8 @@ public static partial class Galaxies
         }
         var att = SideOf(attacker, attackers);
         var def = SideOf(defender, defenders);
-        var world = Battle.CreatePlanetBattle(att, def, defense, (int)Math.Floor(GalaxyRand(g) * 2147483646) + 1);
+        var world = Battle.CreatePlanetBattle(att, def, defense, (int)Math.Floor(GalaxyRand(g) * 2147483646) + 1,
+            lane is null && g.Planets[planetId].Special == PlanetSpecial.Nebula);
         var status = Human(g, attacker) || Human(g, defender) ? BattleStatus.Pending : BattleStatus.Auto;
         Attacked(g, attacker, defender);
         g.Battles.Add(new GalaxyBattle

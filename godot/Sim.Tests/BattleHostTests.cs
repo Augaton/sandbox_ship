@@ -196,6 +196,40 @@ public class BattleHostTests(ITestOutputHelper output)
     }
 
     [Fact]
+    public void The_battle_over_time_goes_once_decided_and_ahead_of_its_end()
+    {
+        var w = Battle();
+        var sent = new List<Message>();
+        var host = new BattleHost(w, (peer, m) => sent.Add(Protocol.Decode(Protocol.Encode(m))));
+        host.Add(Bob, Nairan);
+        void Frame()
+        {
+            host.BeforeStep();
+            Steps.StepWorld(w);
+            host.Collect();
+            w.Events.Clear();
+            host.Tick(Steps.Step);
+        }
+        for (var i = 0; i < 600; i++) Frame();
+        Assert.DoesNotContain(sent, m => m is Message.Record);
+        // The Kla'ed win: the history's last sample, then the history itself, before the news of it.
+        host.BeforeStep();
+        Steps.StepWorld(w);
+        w.Winner = Klaed;
+        w.Events.Add(new Victory(Klaed, 0));
+        w.History!.Step(w);
+        host.Collect();
+        w.Events.Clear();
+        host.Tick(1);
+        var at = sent.FindIndex(m => m is Message.Record);
+        Assert.IsType<Message.News>(sent[at + 1]);
+        var h = BattleHistory.Read(new BinaryReader(new MemoryStream(((Message.Record)sent[at]).History)));
+        Assert.Equal(w.History.Times, h.Times);
+        for (var i = 0; i < 60; i++) Frame();
+        Assert.Single(sent, m => m is Message.Record);
+    }
+
+    [Fact]
     public void What_a_host_sends_each_player_in_a_duel_and_in_a_huge_battle()
     {
         // A duel between AIs at five minutes, Bob playing the Nairan.

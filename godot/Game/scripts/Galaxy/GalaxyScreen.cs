@@ -595,6 +595,8 @@ public partial class GalaxyScreen : Node
             }
             acc = Math.Min(acc, 1);
         }
+        // A dev run's fleets sent and prompts answered (--raid, --choose...) alone as over the network.
+        if (Opts.Net is null) DevCampaign();
         foreach (var ev in g.Events) Hud.OnEvent(ev);
         g.Events.Clear();
         // A planet lost, or left by the fleet that waited there, drops out of the selection; a

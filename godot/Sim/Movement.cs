@@ -59,7 +59,7 @@ public static class Movement
     /// Turns and throttles a ship towards a point, braking so that it stops at the point.
     /// Returns true once the ship is within `arrive` of the point.
     /// </summary>
-    public static bool SteerTo(Entity e, Motion def, double x, double y, double dt, double arrive)
+    public static bool SteerTo(World world, Entity e, Motion def, double x, double y, double dt, double arrive)
     {
         var d = Hypot(x - e.X, y - e.Y);
         if (d <= arrive)
@@ -67,7 +67,9 @@ public static class Movement
             Brake(e, def, dt);
             return true;
         }
-        var diff = TurnTowards(e, def, Math.Atan2(y - e.Y, x - e.X), dt);
+        // Around the terrain in the way, if any; the way left is still the one to the point.
+        var way = world.Terrain.Count > 0 ? Terrains.Around(world, e, x, y) : new Point(x, y);
+        var diff = TurnTowards(e, def, Math.Atan2(way.Y - e.Y, way.X - e.X), dt);
         var align = Math.Cos(diff);
         // Fastest speed from which the ship can still stop over the remaining distance.
         var target = Math.Min(def.Speed, Math.Sqrt(2 * def.Accel * (d - arrive)));
@@ -92,7 +94,7 @@ public static class Movement
             // Small craft strafe: they keep circling the target instead of parking next to it.
             var orbit = t.Radius + e.Range * 0.6;
             var a = world.Time * (def.Speed * 0.8 / orbit) + e.Id;
-            SteerTo(e, def, t.X + Math.Cos(a) * orbit, t.Y + Math.Sin(a) * orbit, dt, 0);
+            SteerTo(world, e, def, t.X + Math.Cos(a) * orbit, t.Y + Math.Sin(a) * orbit, dt, 0);
             return;
         }
         // A ship that outranges its target and can outrun it keeps out of its reach while still
@@ -105,11 +107,11 @@ public static class Movement
             && (foe.Kind != EntityKind.Ship || def.Speed >= CruiseSpeed(world, foe) * 0.8))
         {
             var away = (safe + hit) / 2;
-            SteerTo(e, def, t.X + (e.X - t.X) / dist * away, t.Y + (e.Y - t.Y) / dist * away, dt, 0);
+            SteerTo(world, e, def, t.X + (e.X - t.X) / dist * away, t.Y + (e.Y - t.Y) / dist * away, dt, 0);
         }
         else if (dist - t.Radius > e.Range * 0.85)
         {
-            SteerTo(e, def, t.X, t.Y, dt, 0);
+            SteerTo(world, e, def, t.X, t.Y, dt, 0);
         }
         else
         {
@@ -140,8 +142,10 @@ public static class Movement
         var boost = LastingBoost(world, e) * (AbilitySystem.IsActive(world, e, AbilityId.Sprint) ? 2 : 1)
             * (AbilitySystem.InCommandAura(world, e) ? 1.1 : 1);
         var stunned = e.Effects.Stunned > 0;
-        if (engines == 1 && boost == 1 && !stunned) return def;
-        Scratch.Speed = stunned ? 0 : def.Speed * engines * boost;
+        // A gravity well holds it back (Terrain.cs).
+        var held = world.Terrain.Count > 0 ? Terrains.SpeedShare(world, e) : 1;
+        if (engines == 1 && boost == 1 && held == 1 && !stunned) return def;
+        Scratch.Speed = stunned ? 0 : def.Speed * engines * boost * held;
         Scratch.Accel = def.Accel * engines * boost;
         Scratch.TurnRate = stunned ? 0 : def.TurnRate * (0.5 + 0.5 * engines);
         Scratch.Size = def.Size;
@@ -297,7 +301,7 @@ public static class Movement
         }
         e.Mending = mender is not null;
         if (mender is null) return false;
-        if (Dist(e, mender) > MendingRange(mender)) SteerTo(e, def, mender.X, mender.Y, dt, 0);
+        if (Dist(e, mender) > MendingRange(mender)) SteerTo(world, e, def, mender.X, mender.Y, dt, 0);
         else Brake(e, def, dt);
         return true;
     }
@@ -315,7 +319,7 @@ public static class Movement
         // Out of a blow coming down first, unless the player said where to go.
         if (o?.Type != OrderType.Move && Dodge(world, e) is { } way)
         {
-            SteerTo(e, def, way.X, way.Y, dt, 0);
+            SteerTo(world, e, def, way.X, way.Y, dt, 0);
             return;
         }
         if (Mend(world, e, def, dt)) return;
@@ -341,7 +345,7 @@ public static class Movement
                 Engage(world, e, def, t, dt);
                 return;
             }
-            if (SteerTo(e, Pace(world, e, def, o), o.X, o.Y, dt, arrive))
+            if (SteerTo(world, e, Pace(world, e, def, o), o.X, o.Y, dt, arrive))
             {
                 e.Order = null;
                 e.GuardX = o.X;
@@ -357,7 +361,7 @@ public static class Movement
         }
         var hostile = HostileTarget(world, e);
         if (hostile is not null && Dist(hostile, new Point(e.GuardX, e.GuardY)) < Leash) Engage(world, e, def, hostile, dt);
-        else if (Hypot(e.GuardX - e.X, e.GuardY - e.Y) > 30) SteerTo(e, def, e.GuardX, e.GuardY, dt, arrive);
+        else if (Hypot(e.GuardX - e.X, e.GuardY - e.Y) > 30) SteerTo(world, e, def, e.GuardX, e.GuardY, dt, arrive);
         else Brake(e, def, dt);
     }
 
@@ -409,7 +413,7 @@ public static class Movement
         }
         if (Hypot(sx - e.X, sy - e.Y) > InFormation)
         {
-            SteerTo(e, def, sx, sy, dt, 0);
+            SteerTo(world, e, def, sx, sy, dt, 0);
             return;
         }
         TurnTowards(e, def, carrier.Angle, dt);
@@ -481,6 +485,7 @@ public static class Movement
                 b.X += dx * push * (1 - wa);
                 b.Y += dy * push * (1 - wa);
             }
+            if (world.Terrain.Count > 0) Terrains.PushOut(world, a);
             a.X = Math.Max(0, Math.Min(world.Width, a.X));
             a.Y = Math.Max(0, Math.Min(world.Height, a.Y));
         }
@@ -615,7 +620,7 @@ public static class Movement
             px = st.X + dx / d * min;
             py = st.Y + dy / d * min;
         }
-        return new Point(px, py);
+        return world.Terrain.Count > 0 ? Terrains.OffRocks(world, px, py, s.Radius) : new Point(px, py);
     }
 
     /// <summary>Sends ships at a foe; together, they close in at the pace of the slowest. Allies of the target stay put.</summary>

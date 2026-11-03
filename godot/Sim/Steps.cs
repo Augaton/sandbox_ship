@@ -22,6 +22,7 @@ public static class Steps
         Combat.UpdateTargeting(world, dt);
         AbilitySystem.UpdateAbilities(world, dt);
         Movement.UpdateShips(world, dt);
+        Terrains.Update(world, dt);
         Movement.Separate(world);
         Worlds.AttachHardpoints(world);
         Combat.UpdateWeapons(world, dt);
@@ -31,6 +32,7 @@ public static class Steps
         Worlds.RemoveDead(world);
         Modes.Update(world, dt);
         Worlds.CheckVictory(world);
+        world.History?.Step(world);
     }
 
     /// <summary>Runs the simulation for `seconds` of game time.</summary>

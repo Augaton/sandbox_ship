@@ -559,7 +559,7 @@ public partial class Hud : CanvasLayer
         }
         var banner = Math.Min(720, Screen.X - 32) - 24;
         if (pilotText.CustomMinimumSize.X != banner) pilotText.CustomMinimumSize = new Vector2(banner, 0);
-        if (modalScroll is not null) Fit(modalScroll, h - 32 - 50);
+        if (modalScroll is not null) Fit(modalScroll, h - 32 - 50 - (modalActions is null ? 0 : modalActions.GetCombinedMinimumSize().Y + 16));
     }
 
     /// <summary>The tooltip follows the pointer every frame; its text changes with the refresh.</summary>
@@ -579,7 +579,10 @@ public partial class Hud : CanvasLayer
         var e = c.PointerOver && c.Box is null && c.PilotId is null ? c.Hovered() : null;
         if (e is null || !scene.CanSee(e))
         {
-            tip.Visible = false;
+            // Over the terrain, what it does (Hud.Terrain.cs).
+            var patch = c.PointerOver && c.Box is null && c.PilotId is null && World.Terrain.Count > 0 ? Terrains.At(World, c.Hover.X, c.Hover.Y) : null;
+            if (patch is not null) Sync(tipLines, TerrainTip(patch));
+            tip.Visible = patch is not null;
             return;
         }
         const int size = 14;

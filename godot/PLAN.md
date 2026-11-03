@@ -126,6 +126,27 @@ tests de `FixtureTests` et `CrossTests` les listent.
   camps. Une IA accepte quand elle se sent la plus faible ou qu'elle se bat déjà ailleurs, et
   peut proposer elle-même ; rompue, elle refuse toute trêve pendant 15 min. Jamais avec les
   Errants.
+  - Alliances : vision partagée, aucun combat, victoire commune (comme une équipe : sans elle, deux
+    alliés restés seuls devraient se trahir pour finir). Une IA s'allie à qui elle fait confiance
+    (40, ÷ son amitié) ou contre un tiers plus fort que chacun des deux, jamais pour finir la partie
+    à deux. Rompue : 2 min de trêve pour séparer les flottes, rancune de 30 min, confiance -70 chez
+    la trahie et -15 chez toutes les autres IA.
+  - Commerce, en paix seulement : 1 crédit/s chacun, +1 par voie entre leurs planètes, 6 au plus ;
+    il s'arrête avec la paix.
+  - Tributs, offerts ou exigés : une somme, ou tant par minute pendant 10 min, contre une trêve. Le
+    prix d'une IA : rien si elle se sent la plus faible, jusqu'au tiers de son revenu sinon. Un
+    payeur qui cesse ou ne peut plus payer rompt la trêve. Une IA n'exige un tribut que d'un joueur :
+    entre IA, tribut après tribut, deux IA restées seules ne finissaient plus la partie.
+  - Confiance de chaque IA envers chaque camp (-100 à 100) : +3/min en trêve ou en commerce, +5 en
+    alliance, -5 par bataille qu'on lui ouvre (pas sous -60 par les seules attaques), revient vers
+    0 sinon. Elle ne joue pas sur les trêves : deux IA qui la gagnaient en trêve signaient la
+    suivante pour toujours.
+  - Réseau : commandes de galaxie 17 à 19, protocole 8, instantané de galaxie 3. Sauvegardes : les
+    anciennes se chargent (leurs offres sont des trêves). Tests : `DealsTests`.
+- Personnalités d'IA (`Sim/Data/Personalities.cs`), en bataille comme en campagne : équilibrée (l'IA
+  d'avant, au calcul près), agressive, défensive, économe, technologique. Au salon, « Au hasard » par
+  défaut, tiré de la graine et de la place (le même partout, sans toucher aux tirages du monde) ;
+  rediffusions 3. Tests : `PersonalityTests` ; séries IA contre IA : `PersonalityBalanceTests`.
 - Campagne, IA : offensives groupées (rassemblement puis attaque à 1,4 fois la défense, 1,1 après
   6 min d'attente), renforts vers une planète menacée, récupération des épaves, retour des flottes
   usées. Parties entre IA : toutes finies, médiane 14 min.

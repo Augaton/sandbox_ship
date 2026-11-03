@@ -49,8 +49,11 @@ public sealed record MenuChoice
 /// modes; lobby-skirmish, lobby-campaign...: that mode's lobby, see LobbyMode; skirmish: lobby-skirmish),
 /// --seats=N and --teams=T,T... (that lobby's bots added up to N seats, then its teams in seat order),
 /// --size=small|medium|large (the map, or the galaxy, of --start),
+/// --terrain=none|light|dense (the terrain of --start's battle and of the stress scene, none without it; and of the dev runs' lobbies),
 /// --mode=survival|zones|assault|regicide (the rules of --start=battle; in an assault, the player defends),
-/// --wave=N (a survival game starts at wave N, the first a few seconds away: the late waves, or the end, without playing up to them).
+/// --wave=N (a survival game starts at wave N, the first a few seconds away: the late waves, or the end, without playing up to them),
+/// --end=SECONDS (the battle played ahead, every side on the AI, until decided or that old, then its end screen: a campaign
+/// battle's once decided; with --raid and --choose=command, a campaign alone reaches one).
 /// Network (Network.Session): --host (hosts a lobby of --mode, a skirmish by default, with a seat open to a player, and launches
 /// once everyone is ready), --join=ADDRESS:PORT (joins it, and is ready once seated), --server (a dedicated server of --mode, with
 /// Godot's --headless), --port=N, --name=X (the player's, or the server's game), --order=SECONDS (the player's ships attack-move to
@@ -74,6 +77,8 @@ public static class Dev
     public static double Skip;
     /// <summary>--wave=N: a survival game started from the command line begins at wave N.</summary>
     public static int Wave;
+    /// <summary>--end=SECONDS: a battle played ahead until decided or that old, then its end screen.</summary>
+    public static double End;
     public static float? Zoom;
     public static string? Shot;
     public static int Frames = 240;
@@ -81,6 +86,8 @@ public static class Dev
     public static Godot.Vector2? At;
     public static string Menu = "home";
     public static MapSize Size = MapSize.Medium;
+    /// <summary>--terrain=none|light|dense: the battle terrain of a dev run; null: none for --start, the lobby's own otherwise.</summary>
+    public static TerrainDensity? Terrain;
     public static int Seats;
     public static int[] Teams = [];
     public static BattleMode Mode = BattleMode.Standard;
@@ -138,6 +145,7 @@ public static class Dev
                 case "--start": Start = value; break;
                 case "--skip": Skip = double.Parse(value, System.Globalization.CultureInfo.InvariantCulture); break;
                 case "--wave": Wave = int.Parse(value); break;
+                case "--end": End = double.Parse(value, System.Globalization.CultureInfo.InvariantCulture); break;
                 case "--zoom": Zoom = float.Parse(value, System.Globalization.CultureInfo.InvariantCulture); break;
                 case "--shot": Shot = value; break;
                 case "--frames": Frames = int.Parse(value); break;
@@ -147,6 +155,7 @@ public static class Dev
                     break;
                 case "--menu": Menu = value; break;
                 case "--size": Size = Enum.Parse<MapSize>(value, true); break;
+                case "--terrain": Terrain = Enum.Parse<TerrainDensity>(value, true); break;
                 case "--seats": Seats = int.Parse(value); break;
                 case "--teams": Teams = [.. value.Split(',').Select(int.Parse)]; break;
                 case "--mode" when value == "campaign": Campaign = true; break;

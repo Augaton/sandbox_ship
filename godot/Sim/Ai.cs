@@ -425,7 +425,34 @@ public static class Ai
             Movement.IssueMove(world, idle.Select(e => e.Id), enemy.X, enemy.Y, true);
             f.AI.WaveValue = Math.Min(f.AI.WaveValue * def.WaveGrowth, MaxWave);
         }
+        // Between waves, the fleet at home waits in a nebula near the station, if there is one:
+        // out of the enemy's sight until it comes close (Terrain.cs). Shields come back slowly
+        // there: a ship goes once they are up.
+        else if (world.Terrain.Count > 0 && Hideout(world, station) is { } hide)
+        {
+            var exposed = idle.Where(e => !Terrains.InNebula(world, e.X, e.Y) && e.Shield >= e.MaxShield * 0.9).Select(e => e.Id).ToList();
+            if (exposed.Count > 0) Movement.IssueMove(world, exposed, hide.X, hide.Y);
+        }
         return outmatched;
+    }
+
+    /// <summary>A nebula this close to the station hides its fleet; the fleet waits on the station's side of it.</summary>
+    const double HideoutReach = 1800;
+
+    static Point? Hideout(World world, Entity station)
+    {
+        TerrainPatch? best = null;
+        foreach (var p in world.Terrain)
+        {
+            if (p.Kind != TerrainKind.Nebula) continue;
+            var d = Dist(p, station);
+            if (d < HideoutReach && (best is null || d < Dist(best, station))) best = p;
+        }
+        if (best is null) return null;
+        var reach = Dist(best, station);
+        if (reach < 1) return new Point(best.X, best.Y);
+        var deep = best.Radius * 0.35;
+        return new Point(best.X + (station.X - best.X) / reach * deep, best.Y + (station.Y - best.Y) / reach * deep);
     }
 
     static void Think(World world, FactionState f)

@@ -40,10 +40,14 @@ public sealed class BattleHost(World world, Action<int, Message> send)
         public long Bytes;
         /// <summary>Seconds until this player's next snapshot.</summary>
         public double Wait;
+        /// <summary>It has the battle over time, sent once the battle was decided.</summary>
+        public bool Recorded;
     }
 
     readonly Dictionary<int, Remote> remotes = [];
     readonly MemoryStream news = new();
+    /// <summary>The battle over time, written once it is closed, for every player.</summary>
+    byte[]? record;
     readonly System.Diagnostics.Stopwatch clock = new();
 
     /// <summary>Snapshots written so far, and the time spent writing them, in milliseconds.</summary>
@@ -152,6 +156,13 @@ public sealed class BattleHost(World world, Action<int, Message> send)
         var bytes = parts.Sum(p => p.Length);
         r.Bytes += bytes;
         r.Events.Clear();
+        // The battle over time, once it is decided: before the events that end it, on the same
+        // reliable channel, so that the end screen has it when it opens.
+        if (!r.Recorded && world.History is { Closed: true } history)
+        {
+            r.Recorded = true;
+            send(peer, new Message.Record(record ??= BattleHistory.Bytes(history)));
+        }
         // A count of none is a single byte.
         if (news.Length > 1) send(peer, new Message.News(news.ToArray()));
         foreach (var p in parts) send(peer, new Message.State(p));

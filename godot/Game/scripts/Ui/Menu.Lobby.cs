@@ -79,6 +79,7 @@ public partial class Menu
         mode = m;
         var l = lobbies[m] = Lobby.Create(m, NewSeed());
         while (l.Seats.Count < Dev.Seats && l.AddBot() is not null) { }
+        if (Dev.Terrain is { } terrain) l.Terrain = terrain;
         for (var i = 0; i < Math.Min(Dev.Teams.Length, l.Seats.Count); i++) l.SetTeam(l.Seats[i], Dev.Teams[i]);
     }
 
@@ -430,6 +431,11 @@ public partial class Menu
         var classic = l.Map == MapKind.Classic && !battle;
         settings.AddChild(Labelled(battle ? "Taille de la carte" : "Taille de la galaxie",
             Group("size", Scenario.MapSizes.Select(s => (s.Key, s.Value.Name)), l.Size, v => Set(s => s with { Size = v }), _ => classic)));
+        if (l.HasTerrain)
+        {
+            settings.AddChild(Labelled("Terrain", Group("terrain", [(TerrainDensity.None, "Aucun"), (TerrainDensity.Light, "Léger"), (TerrainDensity.Dense, "Dense")],
+                l.Terrain, v => Set(s => s with { Terrain = v }))));
+        }
         settings.AddChild(SeedRow(l));
 
         var (mapW, mapH) = battle ? (Scenario.MapSizes[l.Size].W, Scenario.MapSizes[l.Size].H) : (l.Layout().W, l.Layout().H);
@@ -447,7 +453,9 @@ public partial class Menu
         map.AddChild(settings);
         map.AddChild(canvas);
         var why = !l.ClassicAllowed ? " La carte classique est faite pour deux." : classic ? " La galaxie classique a sa taille." : "";
-        return Section(battle ? "Carte" : "Galaxie", map, Note($"La même graine redonne la même carte.{why}"));
+        var terrain = l.HasTerrain && l.Terrain != TerrainDensity.None
+            ? " Nébuleuses, astéroïdes, mines et puits gravitationnels : chaque place a le même terrain autour d'elle." : "";
+        return Section(battle ? "Carte" : "Galaxie", map, Note($"La même graine redonne la même carte.{why + terrain}"));
     }
 
     Control SeedRow(Lobby l)
@@ -595,6 +603,7 @@ public partial class Menu
         if (l.Mode == LobbyMode.Zones) more.Add($"objectif {l.ZoneTarget}");
         if (l.HasRaid && l.Raid) more.Add("raid");
         if (l.HasFog && !l.Fog) more.Add("sans brouillard");
+        if (l.HasTerrain && l.Terrain != TerrainDensity.Light) more.Add(l.Terrain == TerrainDensity.None ? "sans terrain" : "terrain dense");
         if (l.Mode == LobbyMode.Sandbox) more.Add("IA coupée");
         var name = Modes.First(m => m.Mode == l.Mode).Name;
         return $"{name} : {who}, {where}{string.Concat(more.Select(m => $", {m}"))}";
@@ -644,6 +653,7 @@ public partial class Menu
             {
                 g.DrawCircle(new Vector2((float)(f.X * sx), (float)(f.Y * sy)), (float)Math.Max(2, f.Radius * sx), Palette.Line, true, -1, true);
             }
+            Battle.BattleScreen.DrawTerrainMap(g, world.Terrain, sx, sy);
             foreach (var e in world.Entities)
             {
                 var at = new Vector2((float)(e.X * sx), (float)(e.Y * sy));

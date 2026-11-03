@@ -24,6 +24,8 @@ public sealed record BattleOptions
     public Difficulty Difficulty { get; init; } = Difficulty.Normal;
     /// <summary>A neutral colossus guards the far side of the map, with a bounty on it.</summary>
     public bool Raid { get; init; }
+    /// <summary>The battle's terrain (Sim/Terrain.cs): none, light or dense.</summary>
+    public TerrainDensity Terrain { get; init; }
     /// <summary>Fog of war in a skirmish; the sandbox goes without.</summary>
     public bool Fog { get; init; } = true;
     /// <summary>The rules of a skirmish, and their settings.</summary>
@@ -43,7 +45,7 @@ public sealed record BattleOptions
     public static BattleOptions Watch(Replay r) => new()
     {
         Player = r.Player, Slots = r.Options.Slots, Mode = r.SandboxTools ? GameMode.Sandbox : GameMode.Skirmish, Seed = r.Options.Seed,
-        Map = r.Options.Map, Size = r.Options.Size, Raid = r.Options.Raid, Fog = r.Options.Fog, Rules = r.Options.Mode,
+        Map = r.Options.Map, Size = r.Options.Size, Raid = r.Options.Raid, Terrain = r.Options.Terrain, Fog = r.Options.Fog, Rules = r.Options.Mode,
         ZoneTarget = r.Options.ZoneTarget, AssaultMinutes = r.Options.AssaultMinutes, Replay = r,
     };
 
