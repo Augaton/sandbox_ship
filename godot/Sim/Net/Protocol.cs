@@ -1,15 +1,15 @@
-// What a host and its players say to each other (not in the web version), from the handshake
-// to the end of a battle; the game carries these messages over ENet (Game/scripts/Net). Each is
+// What a host and its players say to each other (not in the web version), from the first Hello
+// to the end of a battle; the game carries these messages over ENet (Game/scripts/Net), each
+// sealed for the other end once their connection's handshake is done (Secure.cs). Each is
 // a tag byte, then its fields in order, as commands are (CommandWire.cs); a lobby goes whole, as
 // JSON. Reading never trusts the bytes: a malformed message throws InvalidDataException or
 // EndOfStreamException.
 //
 //   player -> host  Hello, Ask, Launch (leader), Order, Pause, Back (leader), Plan, Watch, Ack, Say, Spectate
-//   host -> player  Challenge, Welcome, Bye, Room, Start, State, Refused, Pause, Notice, Back, News, Chart, Map, Tidings, Engage, Over, Said
+//   host -> player  Welcome, Bye, Room, Start, State, Refused, Pause, Notice, Back, News, Chart, Map, Tidings, Engage, Over, Said
 //
-// A player joins: the host gives it a Challenge as soon as it connects; the player answers Hello
-// with its versions, its name, the key its password makes of the challenge (Passwords.cs; empty
-// without one) and whether it comes only to watch. The host answers Welcome and sends the Room
+// A player joins: once their channel is sealed (with the password, if the game has one), it says
+// Hello with its versions, its name and whether it comes only to watch. The host answers Welcome and sends the Room
 // to everyone, or Bye with the reason and closes. Every change to the lobby (Ask, applied
 // by LobbyRules) sends the Room again. Start opens the battle: from then on the player sends its
 // Orders, and the host a State (a snapshot) twenty times a second, unreliably, and Refused for
@@ -39,13 +39,10 @@ namespace SandboxShip.Sim.Net;
 public abstract record Message
 {
     /// <summary>
-    /// A player's first words, after the host's Challenge: the formats it speaks, the game's
-    /// version, its name, its answer to the challenge (Passwords.Key; empty without a password), and
-    /// whether it comes only to watch.
+    /// A player's first words, once its channel is sealed: the formats it speaks, the game's
+    /// version, its name, and whether it comes only to watch.
     /// </summary>
-    public sealed record Hello(int Protocol, int Commands, int Snapshots, string Version, string Name, string Key = "", bool Watches = false) : Message;
-    /// <summary>The host's first words to a player that connects: a challenge of its own, for the key of its password.</summary>
-    public sealed record Challenge(byte[] Nonce) : Message;
+    public sealed record Hello(int Protocol, int Commands, int Snapshots, string Version, string Name, bool Watches = false) : Message;
     /// <summary>The host lets the player in: the peer it is known by, and the game's name.</summary>
     public sealed record Welcome(int Peer, string Game) : Message;
     /// <summary>The host turns a player away, or sends it off, and says why; the connection closes after it.</summary>
@@ -98,9 +95,11 @@ public abstract record Message
 
 /// <summary>
 /// A host on the local network, as it calls out on the beacon port every second; Dedicated: a
-/// server nobody plays on (--server); Locked: joined only with its password.
+/// server nobody plays on (--server); Locked: joined only with its password. Direct: a game
+/// listed by the online server whose host offers the direct link (Relay.cs); never in a beacon.
 /// </summary>
-public sealed record LanGame(int Protocol, string Version, string Name, LobbyMode Mode, int Taken, int Seats, int Port, bool Dedicated = false, bool Locked = false);
+public sealed record LanGame(int Protocol, string Version, string Name, LobbyMode Mode, int Taken, int Seats, int Port, bool Dedicated = false, bool Locked = false,
+    bool Direct = false);
 
 public static class Protocol
 {
@@ -109,8 +108,9 @@ public static class Protocol
     /// their own versions, checked as well; the galaxy snapshot's is part of this one. 2: the campaign.
     /// 3: acknowledged battle snapshots (Ack), the campaign's chart apart (Chart). 4: the chat (Say,
     /// Said), the challenge of a password (Challenge, Hello's key) and players who only watch (Hello's Watches).
+    /// 5: every message sealed (Secure.cs), the password in the keys: no more Challenge nor Hello's key.
     /// </summary>
-    public const int Version = 4;
+    public const int Version = 5;
     /// <summary>Where a host listens for players, unless told otherwise.</summary>
     public const int DefaultPort = 24680;
     /// <summary>Where hosts call out to the local network, and the join screen listens.</summary>
@@ -120,10 +120,10 @@ public static class Protocol
     /// <summary>Galaxy snapshots a second to each player: the map moves slowly, fleets glide in between.</summary>
     public const double GalaxyRate = 5;
 
-    const int MaxText = 200, MaxLobby = 64 * 1024, MaxMembers = 64, MaxKey = 128;
+    const int MaxText = 200, MaxLobby = 64 * 1024, MaxMembers = 64;
     const uint BeaconMagic = 0x43425353;
 
-    enum Tag : byte { Hello = 1, Welcome, Bye, Room, Ask, Launch, Start, Order, State, Refused, Pause, Notice, Back, News, Plan, Map, Tidings, Engage, Watch, Over, Ack, Chart, Say, Said, Challenge, Spectate }
+    enum Tag : byte { Hello = 1, Welcome, Bye, Room, Ask, Launch, Start, Order, State, Refused, Pause, Notice, Back, News, Plan, Map, Tidings, Engage, Watch, Over, Ack, Chart, Say, Said, Spectate = 26 }
 
     public static byte[] Encode(Message m)
     {
@@ -151,13 +151,7 @@ public static class Protocol
                 w.Write7BitEncodedInt(h.Snapshots);
                 w.Write(h.Version);
                 w.Write(h.Name);
-                w.Write(h.Key);
                 w.Write(h.Watches);
-                break;
-            case Message.Challenge c:
-                w.Write((byte)Tag.Challenge);
-                w.Write7BitEncodedInt(c.Nonce.Length);
-                w.Write(c.Nonce);
                 break;
             case Message.Welcome welcome:
                 w.Write((byte)Tag.Welcome);
@@ -207,8 +201,7 @@ public static class Protocol
 
     public static Message Read(BinaryReader r) => (Tag)r.ReadByte() switch
     {
-        Tag.Hello => new Message.Hello(r.ReadVarint(), r.ReadVarint(), r.ReadVarint(), Text(r), Text(r), Text(r, MaxKey), r.ReadBoolean()),
-        Tag.Challenge => new Message.Challenge(Nonce(r)),
+        Tag.Hello => new Message.Hello(r.ReadVarint(), r.ReadVarint(), r.ReadVarint(), Text(r), Text(r), r.ReadBoolean()),
         Tag.Welcome => new Message.Welcome(r.ReadVarint(), Text(r)),
         Tag.Bye => new Message.Bye(Text(r)),
         Tag.Room => new Message.Room(ReadLobby(r), ReadMembers(r)),
@@ -237,14 +230,6 @@ public static class Protocol
         var tag => throw new InvalidDataException($"Message inconnu : {tag}"),
     };
 
-    /// <summary>A challenge's bytes: a few, never a huge count.</summary>
-    static byte[] Nonce(BinaryReader r)
-    {
-        var n = r.ReadVarint();
-        if (n is < 1 or > 64) throw new InvalidDataException($"Défi de {n} octets");
-        var bytes = r.ReadBytes(n);
-        return bytes.Length == n ? bytes : throw new EndOfStreamException();
-    }
 
     /// <summary>What is left of a message: a snapshot or events, read by their own reader.</summary>
     static byte[] Rest(BinaryReader r) => r.ReadBytes((int)(r.BaseStream.Length - r.BaseStream.Position));
@@ -264,9 +249,9 @@ public static class Protocol
         return null;
     }
 
-    /// <summary>The Hello of this build of the game, with the key of its password for the host's challenge, and whether it only watches.</summary>
-    public static Message.Hello Hello(string version, string name, string key = "", bool watch = false) =>
-        new(Version, Sim.Commands.WireVersion, Snapshot.Version, version, name, key, watch);
+    /// <summary>The Hello of this build of the game, and whether it only watches.</summary>
+    public static Message.Hello Hello(string version, string name, bool watch = false) =>
+        new(Version, Sim.Commands.WireVersion, Snapshot.Version, version, name, watch);
 
     static void WriteLobby(BinaryWriter w, Lobby l) => w.Write(JsonSerializer.Serialize(l, Lobby.Json));
 
@@ -317,6 +302,7 @@ public static class Protocol
                 w.Write7BitEncodedInt(v.ZoneTarget);
                 w.Write7BitEncodedInt(v.AssaultMinutes);
                 w.Write(v.Spectators);
+                w.Write(v.Direct);
                 break;
             default: throw new ArgumentException($"Demande sans format : {q.GetType().Name}");
         }
@@ -324,15 +310,15 @@ public static class Protocol
 
     static LobbyRequest ReadRequest(BinaryReader r) => r.ReadByte() switch
     {
-        1 => new LobbyRequest.SetKind(r.ReadVarint(), (SeatKind)r.ReadByte(), (Difficulty)r.ReadByte()),
-        2 => new LobbyRequest.SetRace(r.ReadVarint(), (Faction)r.ReadByte()),
+        1 => new LobbyRequest.SetKind(r.ReadVarint(), r.ReadEnum<SeatKind>(), r.ReadEnum<Difficulty>()),
+        2 => new LobbyRequest.SetRace(r.ReadVarint(), r.ReadEnum<Faction>()),
         3 => new LobbyRequest.SetTeam(r.ReadVarint(), r.ReadVarint()),
         4 => new LobbyRequest.SetColor(r.ReadVarint(), r.ReadUInt32()),
         5 => new LobbyRequest.SetReady(r.ReadBoolean()),
         6 => new LobbyRequest.AddBot(),
         7 => new LobbyRequest.Remove(r.ReadVarint()),
-        8 => new LobbyRequest.Settings(new LobbySettings((MapKind)r.ReadByte(), (MapSize)r.ReadByte(), r.ReadVarint(), r.ReadBoolean(),
-            r.ReadBoolean(), r.ReadVarint(), r.ReadVarint(), r.ReadBoolean())),
+        8 => new LobbyRequest.Settings(new LobbySettings(r.ReadEnum<MapKind>(), r.ReadEnum<MapSize>(), r.ReadVarint(), r.ReadBoolean(),
+            r.ReadBoolean(), r.ReadVarint(), r.ReadVarint(), r.ReadBoolean(), r.ReadBoolean())),
         var tag => throw new InvalidDataException($"Demande inconnue : {tag}"),
     };
 

@@ -5409,3 +5409,59 @@ msgstr "Color-blind friendly"
 #: Game/scripts/Ui/Options.cs
 msgid "Des couleurs que chaque daltonisme courant distingue, une par camp, et sa forme à côté de ses barres, sur la minicarte et au salon."
 msgstr "Colors every common color blindness tells apart, one per side, and its shape beside its bars, on the minimap and in the lobby."
+
+#: Game/scripts/Ui/Menu.Lobby.cs
+msgid "Liaison directe : les joueurs qui l'acceptent passent sans le serveur en ligne"
+msgstr "Direct link: players who accept it skip the online server"
+
+#: Game/scripts/Ui/Menu.Lobby.cs
+msgid "Chacun voit alors l'adresse IP de l'autre : toi celle de ces joueurs, eux la tienne. Sans elle, tout passe par le serveur en ligne, qui ne donne l'adresse de personne."
+msgstr "Each side then sees the other's IP address: you see those players', they see yours. Without it, everything goes through the online server, which gives out nobody's address."
+
+#: Game/scripts/Ui/Menu.Network.cs
+msgid "Accepter la liaison directe quand l'hôte d'une partie en ligne la propose"
+msgstr "Accept the direct link when the host of an online game offers it"
+
+#: Game/scripts/Ui/Menu.Network.cs
+msgid "Plus rapide : la partie passe sans le serveur en ligne, mais l'hôte voit alors ton adresse IP, et toi la sienne. Sans elle, tout passe par le serveur en ligne, qui ne donne l'adresse de personne."
+msgstr "Faster: the game skips the online server, but the host then sees your IP address, and you see theirs. Without it, everything goes through the online server, which gives out nobody's address."
+
+#: Game/scripts/Ui/Menu.Network.cs
+msgid "Par le serveur en ligne ; l'hôte propose la liaison directe"
+msgstr "Through the online server; the host offers a direct link"
+
+#: Game/scripts/Ui/Menu.Network.cs
+msgid ", liaison directe proposée"
+msgstr ", direct link offered"
+
+#: Game/scripts/Net/RelayTransport.cs
+msgid "L'hôte ne répond pas."
+msgstr "The host is not answering."
+
+#: Sim/Net/Secure.cs
+msgid "Chiffrement indisponible sur cette machine : le jeu en réseau a besoin d'OpenSSL (libssl 3 ou 1.1)."
+msgstr "Encryption is not available on this machine: network play needs OpenSSL (libssl 3 or 1.1)."
+
+#: Sim/Net/Secure.cs
+msgid "Échange illisible avec l'hôte : versions incompatibles ?"
+msgstr "Unreadable exchange with the host: incompatible versions?"
+
+#: Sim/Net/Secure.cs
+msgid "L'hôte joue une autre version du jeu : il faut la même des deux côtés."
+msgstr "The host plays another version of the game: both sides need the same one."
+
+#: Sim/Net/Secure.cs
+msgid "Cette partie ne demande pas de mot de passe : vide le champ du mot de passe, puis rejoins-la."
+msgstr "This game asks for no password: clear the password field, then join it."
+
+#: Sim/Net/Secure.cs
+msgid "L'hôte a refusé la connexion : versions incompatibles ?"
+msgstr "The host refused the connection: incompatible versions?"
+
+#: Sim/Net/Secure.cs
+msgid "L'hôte n'a pas prouvé qu'il connaît le mot de passe : la connexion est peut-être détournée."
+msgstr "The host did not prove it knows the password: the connection may be intercepted."
+
+#: Sim/Net/Secure.cs
+msgid "Échange illisible."
+msgstr "Unreadable exchange."

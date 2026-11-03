@@ -57,16 +57,28 @@ Les batailles et la campagne se jouent à plusieurs, en réseau local ou par Int
   met à jour d'elle-même ; « Actualiser » redemande la liste au serveur en ligne. La ligne du haut dit s'il répond.
 - **Rejoindre** : choisir une ligne, puis « Rejoindre la partie » (ou double clic, ou Entrée sur la ligne choisie).
   « Par adresse » rejoint un hôte à son `adresse:port` (port 24680 par défaut). Ton nom se change dans les options.
-  Une partie protégée porte un cadenas : son mot de passe se tape sous l'adresse, il ne part jamais tel quel (l'hôte
-  donne un défi, le jeu répond par une clé) et n'est jamais enregistré. « Regarder » entre sans place, au salon ou en
+  Une partie protégée porte un cadenas : son mot de passe se tape sous l'adresse ; il ne part jamais, pas même
+  haché (il entre dans les clés du chiffrement), et n'est jamais enregistré. Un mot de passe tapé pour une partie
+  ouverte la fait refuser : videz le champ. « Regarder » entre sans place, au salon ou en
   pleine bataille, si l'hôte prend des spectateurs ; une barre choisit alors la vue (tout, sans brouillard, ou un camp).
   Coupé d'une partie en cours, « Revenir dans … » rend sa place sous le même nom : l'IA la tenait en attendant.
+- **Chiffrement** : tout le trafic de jeu entre l'hôte et chaque joueur est chiffré de bout en bout, en direct comme
+  par le serveur en ligne, qui ne transmet que des octets illisibles : clés éphémères (ECDH P-256) à chaque connexion,
+  puis AES-GCM ; un paquet modifié ou rejoué est écarté. Une partie protégée tient aussi contre un serveur en ligne
+  malveillant qui se mettrait au milieu : sans le mot de passe, il ne peut ni lire ni se faire passer pour l'hôte (il
+  peut seulement essayer des mots de passe hors ligne, chaque essai coûtant 600 000 tours de PBKDF2 : un mot de passe
+  long tient). Une partie ouverte ne protège que d'une écoute passive. Sous Linux, le jeu et le serveur dédié ont
+  besoin d'OpenSSL (libssl 3 ou 1.1, présent sur presque toutes les distributions et dans l'image Pelican
+  `dotnet_10`) ; sous Windows, rien à installer.
 - **Discussion** : un panneau dans le salon ; en bataille et sur la galaxie, Entrée ouvre la ligne à écrire. L'hôte
   relaie chaque ligne à tous (texte brut, 160 lettres, quatre d'affilée puis une toutes les 1,5 s).
-- **Liaison directe** : en ligne, le serveur présente l'hôte et chaque joueur l'un à l'autre ; s'ils se joignent
-  directement (la plupart des box le permettent), leurs messages ne passent plus par lui, sinon tout reste relayé. Le
-  salon dit laquelle est en place. Le serveur en ligne doit être de cette version (relais 2) ; il sert aussi les jeux
-  de la précédente (relais 1), sans liaison directe.
+- **Liaison directe**, en ligne, seulement si les deux bouts l'acceptent : l'hôte la propose au salon (« Liaison
+  directe », éteinte par défaut, pour cette partie seulement), le joueur l'accepte sur l'écran Multijoueur (une case,
+  décochée à chaque lancement du jeu). Le serveur présente alors l'un à l'autre, et chacun voit l'adresse IP de
+  l'autre ; s'ils se joignent directement (la plupart des box le permettent), leurs messages ne passent plus par lui,
+  sinon tout reste relayé. Sans les deux accords, tout passe par le serveur en ligne, qui ne donne l'adresse de
+  personne. Le salon dit laquelle est en place. Le serveur en ligne doit être de cette version (relais 3) ; il sert
+  aussi les jeux plus anciens, sans liaison directe.
 - **Héberger en local** : puis le mode. Le salon s'ouvre avec toi et une place « Joueur distant · libre » ; il
   donne l'adresse à communiquer. Tu règles tout ; chaque joueur règle sa place et se dit prêt ; « Lancer la partie »
   s'allume quand tout le monde l'est. Sur Internet, l'hôte ouvre le port **24680 en UDP** vers sa machine (box,
@@ -137,7 +149,7 @@ première partie hébergée en ligne, puis la rejoint par le serveur en ligne), 
 local sur un autre port que 24681), `--probe` (mesure l'aller-retour d'un message, directement sur `--port` puis par
 `--master`, et s'arrête), `--password=MOT` (la partie hébergée, ou le serveur dédié, en demande un ; celui avec
 lequel `--join` répond), `--spectate` (avec `--join` : entre en spectateur), `--say=TEXTE` (une ligne dans la
-discussion, une fois assis), `--no-direct` (en ligne, jamais de liaison directe : tout reste relayé). En campagne (`--host --mode=campaign`) : `--speed=N` (vitesse de la galaxie,
+discussion, une fois assis), `--direct` (en ligne, la partie hébergée propose la liaison directe, et `--join` l'accepte ; sans lui, tout reste relayé). En campagne (`--host --mode=campaign`) : `--speed=N` (vitesse de la galaxie,
 chez l'hôte), `--attack=S,…` et `--raid=S,…` (à ces âges de la galaxie, les flottes du joueur partent vers la planète la plus proche
 d'un autre joueur, ou vers celle des Errants), `--build=S,…` (des frégates à chaque planète, autant que les crédits le permettent),
 `--choose=command|auto,…` (réponses aux invites de bataille, dans l'ordre, la dernière répétée), `--truce=S` (une trêve proposée à

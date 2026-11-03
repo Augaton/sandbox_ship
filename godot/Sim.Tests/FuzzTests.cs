@@ -19,7 +19,7 @@ public class FuzzTests
     /// Variations of a valid input: cut short, bytes flipped, bytes put in, numbers made malformed
     /// (five bytes that never end a 7-bit number) or huge, and plain noise.
     /// </summary>
-    static IEnumerable<byte[]> Mutations(byte[] seed, int salt)
+    internal static IEnumerable<byte[]> Mutations(byte[] seed, int salt)
     {
         var rng = new Random(seed.Length * 7919 + salt);
         for (var i = 0; i < Cases; i++)
@@ -156,7 +156,30 @@ public class FuzzTests
         Survives("Protocol.DecodeLanGame", [Protocol.Encode(Game)], bytes => Protocol.DecodeLanGame(bytes));
     }
 
-    static World Battle(int seed)
+    [Fact]
+    public void Sealed_channels_their_handshakes_and_their_packets()
+    {
+        // No exception at all: what does not read is refused, or left out.
+        static bool None(Exception _) => false;
+        var open = GameLock.For(null);
+        var host = SecureChannel.Host(open, out var offer);
+        Survives("SecureChannel, offre", [offer], bytes => SecureChannel.Player(null).Take(bytes), None);
+        var player = SecureChannel.Player(null);
+        var answer = player.Take(offer).Reply!;
+        Survives("SecureChannel, réponse", [answer], bytes => SecureChannel.Host(open, out _).Take(bytes), None);
+        var accept = host.Take(answer).Reply!;
+        Survives("SecureChannel, accord", [accept, [0xE4, 1]], bytes =>
+        {
+            var other = SecureChannel.Player(null);
+            other.Take(offer);
+            other.Take(bytes);
+        }, None);
+        player.Take(accept);
+        var large = Protocol.Encode(new Message.State([.. Enumerable.Range(0, 4000).Select(i => (byte)(i % 13))]));
+        Survives("SecureChannel, paquets", [host.Seal(Protocol.Encode(new Message.Notice("Bonjour")), true), host.Seal(large, false)], bytes => player.Open(bytes), None);
+    }
+
+    internal static World Battle(int seed)
     {
         var w = Scenario.CreateSkirmish(new SkirmishOptions
         {
@@ -187,7 +210,7 @@ public class FuzzTests
         Survives("Snapshot.ReadPart", parts.Take(4), bytes => Snapshot.ReadPart(new BinaryReader(new MemoryStream(bytes)), new World(), new SnapshotFrames()));
     }
 
-    static Galaxy Campaign(int seed)
+    internal static Galaxy Campaign(int seed)
     {
         var g = Galaxies.CreateGalaxy(Faction.Klaed, [Faction.Nairan, Faction.Nautolan], true, seed, GalaxyGen.GenerateLayout(seed, 3, MapSize.Small));
         g.Player = Faction.Errant;

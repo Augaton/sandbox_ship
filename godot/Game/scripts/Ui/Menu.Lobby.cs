@@ -450,7 +450,10 @@ public partial class Menu
         return Labelled("Graine", row);
     }
 
-    /// <summary>The mode's own settings, the raid and the fog where they apply; none for the campaign and the sandbox.</summary>
+    /// <summary>
+    /// The mode's own settings, the raid and the fog where they apply; over the network, the
+    /// spectators, and online the direct link. None for the campaign and the sandbox played alone.
+    /// </summary>
     Control? RulesSection(Lobby l)
     {
         var items = new List<Control>();
@@ -474,6 +477,15 @@ public partial class Menu
         {
             items.Add(Toggle("check:spectators", "Spectateurs : on peut entrer sans place pour regarder la bataille", l.Spectators,
                 on => Set(s => s with { Spectators = on })));
+        }
+        // Online, the host may offer the direct link, off by default: it shows addresses.
+        if (Session.Current is { Room: not null, Online: true })
+        {
+            var direct = Toggle("check:direct", "Liaison directe : les joueurs qui l'acceptent passent sans le serveur en ligne", l.Direct,
+                on => Set(s => s with { Direct = on }));
+            direct.TooltipText = "Chacun voit alors l'adresse IP de l'autre : toi celle de ces joueurs, eux la tienne. "
+                + "Sans elle, tout passe par le serveur en ligne, qui ne donne l'adresse de personne.";
+            items.Add(direct);
         }
         return items.Count == 0 ? null : Section("Règles", [.. items]);
     }

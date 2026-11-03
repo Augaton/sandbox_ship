@@ -24,7 +24,7 @@ public class ProtocolTests
     internal static IEnumerable<Message> Every()
     {
         yield return Protocol.Hello("0.3.0", "Aurélien");
-        yield return new Message.Challenge([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16]);
+        yield return Protocol.Hello("0.3.0", "Zoé", true);
         yield return new Message.Welcome(123456789, "Partie d'Aurélien");
         yield return new Message.Bye("La partie est complète.");
         yield return new Message.Room(SomeLobby(), [new Member(Lobby.Host, "Hôte"), new Member(77, "Bob")]);
@@ -35,7 +35,7 @@ public class ProtocolTests
         yield return new Message.Ask(new LobbyRequest.SetReady(true));
         yield return new Message.Ask(new LobbyRequest.AddBot());
         yield return new Message.Ask(new LobbyRequest.Remove(3));
-        yield return new Message.Ask(new LobbyRequest.Settings(new LobbySettings(MapKind.Random, MapSize.Large, 99, false, true, 50, 20)));
+        yield return new Message.Ask(new LobbyRequest.Settings(new LobbySettings(MapKind.Random, MapSize.Large, 99, false, true, 50, 20, false, true)));
         yield return new Message.Launch();
         yield return new Message.Start(SomeLobby());
         yield return new Message.Order(new Command.Move([4, 8, 15], 1200.5, 800.25, true));
@@ -63,7 +63,7 @@ public class ProtocolTests
             Assert.Equal(bytes, Protocol.Encode(back));
             tags.Add(bytes[0]);
         }
-        Assert.Equal(18, tags.Count);
+        Assert.Equal(17, tags.Count);
         // Fields come back as sent, not only their bytes.
         var room = (Message.Room)Protocol.Decode(Protocol.Encode(Every().OfType<Message.Room>().First()));
         Assert.Equal([new Member(Lobby.Host, "Hôte"), new Member(77, "Bob")], room.Members);

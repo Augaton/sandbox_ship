@@ -23,10 +23,11 @@ public abstract record LobbyRequest
     public sealed record Settings(LobbySettings Values) : LobbyRequest;
 }
 
-/// <summary>A lobby's map and rules: everything but its mode and its seats; and whether it takes spectators.</summary>
-public sealed record LobbySettings(MapKind Map, MapSize Size, int Seed, bool Raid, bool Fog, int ZoneTarget, int AssaultMinutes, bool Spectators = true)
+/// <summary>A lobby's map and rules: everything but its mode and its seats; whether it takes spectators, and offers the direct link.</summary>
+public sealed record LobbySettings(MapKind Map, MapSize Size, int Seed, bool Raid, bool Fog, int ZoneTarget, int AssaultMinutes, bool Spectators = true,
+    bool Direct = false)
 {
-    public static LobbySettings Of(Lobby l) => new(l.Map, l.Size, l.Seed, l.Raid, l.Fog, l.ZoneTarget, l.AssaultMinutes, l.Spectators);
+    public static LobbySettings Of(Lobby l) => new(l.Map, l.Size, l.Seed, l.Raid, l.Fog, l.ZoneTarget, l.AssaultMinutes, l.Spectators, l.Direct);
 
     /// <summary>Known values only: a map, a size, a seed from 1, a zone target and an assault length the lobby offers.</summary>
     public bool Sane => Enum.IsDefined(Map) && Enum.IsDefined(Size) && Seed >= 1
@@ -96,6 +97,8 @@ public static class LobbyRules
                 if (!leads || !v.Sane) return false;
                 (l.Map, l.Size, l.Seed, l.Raid, l.Fog, l.ZoneTarget, l.AssaultMinutes, l.Spectators) =
                     (v.Map, v.Size, v.Seed, v.Raid, v.Fog, v.ZoneTarget, v.AssaultMinutes, v.Spectators);
+                // The direct link shows the host's address: its own consent, never a player's, leader or not.
+                if (peer == Lobby.Host) l.Direct = v.Direct;
                 l.Fit();
                 return true;
         }
@@ -216,8 +219,12 @@ public sealed class LobbyRoom(Lobby lobby)
         foreach (var s in Lobby.Seats.Where(s => s.Kind == SeatKind.Human && s.Peer == peer).ToList()) Lobby.SetKind(s, SeatKind.Open);
     }
 
+    /// <summary>
+    /// Applies a member's request to the lobby. A spectator asks for nothing: it has no seat to
+    /// change, and must not take an open one from the players (it would hold it while watching).
+    /// </summary>
     public bool Apply(int peer, LobbyRequest request) =>
-        Members.Exists(m => m.Peer == peer) && LobbyRules.Apply(Lobby, peer, peer == Leader, request);
+        Members.Exists(m => m.Peer == peer && !m.Watches) && LobbyRules.Apply(Lobby, peer, peer == Leader, request);
 
     /// <summary>Remote players the leader moved out of their seat: they must go. Spectators have none to lose.</summary>
     public List<int> Seatless() =>

@@ -380,9 +380,31 @@ tests de `FixtureTests` et `CrossTests` les listent.
     adresses, touches, volumes, échelle, taille de fenêtre, images par seconde). Les noms de sauvegarde restaient sûrs
     (lettres, chiffres et tirets seulement), les rediffusions et les annonces du réseau local déjà refusées proprement.
   - CI : actions épinglées par leur commit, butler par sa version et son empreinte, ENet par son empreinte.
-  - Ouvert : la liaison directe donne l'adresse de l'hôte à tout joueur qui rejoint une partie listée (l'hôte ne la cache
-    plus derrière le serveur en ligne) ; aucun chiffrement ni authentification des messages (ENet nu) ; un hôte malveillant
-    reste cru de ses joueurs sur ce qu'il leur montre, seules les lectures sont bornées.
+  - Liaison directe sur accord (relais 3) : l'hôte la propose au salon (éteinte par défaut, jamais gardée d'une partie à
+    l'autre, seul l'hôte la change), le joueur l'accepte sur l'écran Multijoueur (case gardée en mémoire seulement). Le
+    serveur en ligne (`RelayHub.Introduce`) ne présente l'un à l'autre que si les deux l'ont acceptée, tous deux en relais 3 ;
+    sinon aucune trame qu'il envoie ne porte d'adresse (`RelayMeetTests`). Côté jeu, une présentation non acceptée (d'un
+    serveur qui ne s'y tiendrait pas) est ignorée. Un hôte qui la propose en cours de salon présente les joueurs déjà là
+    qui l'acceptent ; la retirer ne reprend pas les adresses déjà données.
+  - Valeurs reçues vérifiées à la lecture (`Wire.ReadEnum`, `ReadSide`) : race, camp, classe, sorte d'entité et type,
+    rôle de pièce, arme, capacité, recherche, mode, héros, dans les instantanés, leurs parties, les événements, la galaxie,
+    le salon et les ordres ; une valeur inconnue rejette le message (`ValuesTests`, mêmes mutations que `FuzzTests`). Un
+    spectateur ne fait plus aucune demande au salon : il pouvait s'asseoir sur une place libre et la garder.
+  - Chiffrement de bout en bout (protocole 5, `Sim/Net/Secure.cs`) entre l'hôte et chaque joueur, direct ou relayé, serveur
+    dédié compris : poignée de main par connexion (offre de l'hôte, réponse et preuve du joueur, preuve de l'hôte),
+    ECDH P-256 éphémère, HKDF-SHA256 salé par la clé du mot de passe (PBKDF2-SHA256, 600 000 tours, sel tiré par partie ;
+    zéros pour une partie ouverte), preuves HMAC de l'échange, puis AES-GCM, nonce = qui scelle, canal, compteur ; fenêtre
+    de 64 contre le rejeu, par canal. Compression Brotli avant scellement (bornée à la lecture). Le défi et la clé du Hello
+    disparaissent. Les deux serveurs en ligne ne déchiffrent rien et n'ont pas changé (relais 3 seulement pour l'accord).
+    Mesuré sur la bataille de Stress (1 248 entités, parties d'instantané d'1 Kio) : 5 % d'octets de plus sur le fil que le
+    zstd d'ENet, scellé deux fois plus lent que zstd, ouverture aussi rapide ; poignée de main 1 à 2 ms ; PBKDF2 0,8 s sur
+    une machine chargée (une fois par partie chez l'hôte, une fois par connexion chez le joueur). Tests : `SecureTests`,
+    `FuzzTests`.
+  - Ouvert : une partie ouverte ne tient pas contre un serveur en ligne qui se mettrait au milieu (rien ne distingue alors
+    l'hôte d'un autre) ; au milieu d'une partie protégée, la preuve d'un joueur permet d'essayer des mots de passe hors
+    ligne (un échange de clés authentifié par mot de passe, PAKE, l'empêcherait : .NET n'en fournit pas) ; la taille et le
+    rythme des paquets restent visibles ; un hôte malveillant reste cru de ses joueurs sur ce qu'il leur montre, seules les
+    lectures sont bornées.
 
 ## Ce qui change de technique
 

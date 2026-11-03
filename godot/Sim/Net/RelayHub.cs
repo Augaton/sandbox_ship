@@ -9,7 +9,8 @@
 // that keeps sending reliable ones far beyond it loses its game, a player who does so is let go.
 // A connection that does not say what it is in time, or says something malformed or out of place,
 // is told why and let go. One address holds a few connections and games at most, and every
-// connection a number of frames a second: one machine cannot fill the server.
+// connection a number of frames a second: one machine cannot fill the server. Nobody is ever
+// told where another is unless both ends accepted the direct link (Introduce).
 using SandboxShip.Sim.Data;
 
 namespace SandboxShip.Sim.Net;
@@ -55,8 +56,9 @@ public sealed class RelayHub
         public int Port, Wire = Relay.MinWire;
         public Role Role;
         public Room? Room;
-        /// <summary>A player's number in its game.</summary>
+        /// <summary>A player's number in its game; whether it accepts the direct link, and was introduced to its host.</summary>
         public int Player;
+        public bool Direct, Met;
         public double Listed = double.NegativeInfinity;
         /// <summary>Frames it may still send now: refilled at FramesPerSecond, up to two seconds of them.</summary>
         public double Frames = double.NaN, FramesAt;
@@ -166,8 +168,11 @@ public sealed class RelayHub
             case (Role.New or Role.Lister, RelayFrame.Open o): Open(c, o); break;
             case (Role.New or Role.Lister, RelayFrame.Join j): Join(c, j); break;
             case (Role.Host or Role.Public, RelayFrame.Update u):
-                c.Room!.Game = u.Game;
+                var offered = c.Room!.Game.Direct;
+                c.Room.Game = u.Game;
                 c.Room.Playing = u.Playing;
+                // The direct link offered now: the players already in who accept it meet their host.
+                if (!offered && u.Game.Direct) foreach (var (number, p) in c.Room.Players) Introduce(c.Room, p, number);
                 break;
             case (Role.Host, RelayFrame.ToPlayer t):
                 // A player who just left may still be written to: nothing to carry.
@@ -253,20 +258,24 @@ public sealed class RelayHub
         }
         var player = room!.Next++;
         room.Players[player] = c;
-        (c.Role, c.Room, c.Player) = (Role.Player, room, player);
+        (c.Role, c.Room, c.Player, c.Direct) = (Role.Player, room, player, j.Direct);
         Send(c, new RelayFrame.Joined());
         Send(room.Host, new RelayFrame.Came(player));
         log($"Joueur {player} ({c.Address}) entre dans la partie {room.Id} « {room.Game.Name} »");
-        Introduce(room.Host, c, player);
+        Introduce(room, c, player);
     }
 
     /// <summary>
-    /// A host and its new player, both of format 2 or more with known ports, each told where the
-    /// other is: they may then reach each other straight, the token binding the connection.
+    /// A host and one of its players, each told where the other is, once: they may then reach each
+    /// other straight, the token binding the connection. Only when both accepted it (the host's
+    /// game offers the direct link, the player's Join accepts it), both of format 3 or more, their
+    /// ports known: otherwise neither ever learns the other's address from the server.
     /// </summary>
-    void Introduce(Conn host, Conn player, int number)
+    void Introduce(Room room, Conn player, int number)
     {
-        if (host.Wire < 2 || player.Wire < 2 || host.Port == 0 || player.Port == 0) return;
+        var host = room.Host;
+        if (!room.Game.Direct || !player.Direct || player.Met || host.Wire < 3 || player.Wire < 3 || host.Port == 0 || player.Port == 0) return;
+        player.Met = true;
         var token = Random.Shared.Next(1, int.MaxValue);
         Send(host, new RelayFrame.Meet(number, player.Address, player.Port, token));
         Send(player, new RelayFrame.Meet(1, host.Address, host.Port, token));

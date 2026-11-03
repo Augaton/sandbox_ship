@@ -1,6 +1,8 @@
-// A game's password (not in the web version): a key answers one challenge only, never shows the
-// password, and a locked game says so in the local network's beacons and in the online list,
-// in a way the online server of an older build carries along unread.
+// A game's password (not in the web version): its key depends on the game's salt, never shows
+// the password, and is the same for an "é" typed one way or the other; a locked game says so in
+// the local network's beacons and in the online list, in a way the online server of an older
+// build carries along unread. The handshake that uses it: SecureTests.
+using System.Text;
 using SandboxShip.Sim.Net;
 using Xunit;
 
@@ -9,21 +11,17 @@ namespace SandboxShip.Sim.Tests;
 public class PasswordsTests
 {
     [Fact]
-    public void A_key_opens_with_its_password_and_its_challenge_only()
+    public void A_password_key_depends_on_its_salt_and_its_letters_not_on_how_they_were_typed()
     {
-        var challenge = Passwords.Challenge();
-        Assert.Equal(Passwords.ChallengeSize, challenge.Length);
-        Assert.NotEqual(challenge, Passwords.Challenge());
-        var key = Passwords.Key("étoile filante", challenge);
-        Assert.True(Passwords.Opens("étoile filante", challenge, key));
-        Assert.False(Passwords.Opens("Étoile filante", challenge, key));
-        // Seen on the wire, a key opens nothing but the connection it answered.
-        Assert.False(Passwords.Opens("étoile filante", Passwords.Challenge(), key));
-        Assert.False(Passwords.Opens("étoile filante", challenge, ""));
-        Assert.False(Passwords.Opens("étoile filante", challenge, key[..^1]));
-        Assert.DoesNotContain("étoile", key);
-        Assert.Equal("", Passwords.Key(null, challenge));
-        Assert.Equal("", Passwords.Key("", challenge));
+        var salt = new byte[GameLock.SaltSize];
+        var key = Passwords.Key("étoile filante", salt);
+        Assert.Equal(32, key.Length);
+        Assert.Equal(key, Passwords.Key("étoile filante", salt));
+        // "é" as one letter, and as "e" with its accent after it.
+        Assert.Equal(key, Passwords.Key("étoile filante", salt));
+        Assert.NotEqual(key, Passwords.Key("Étoile filante", salt));
+        Assert.NotEqual(key, Passwords.Key("étoile filante", [1, .. salt[1..]]));
+        Assert.DoesNotContain("étoile", Encoding.UTF8.GetString(key));
     }
 
     [Fact]
@@ -33,22 +31,6 @@ public class PasswordsTests
         Assert.Null(Passwords.Clean("   "));
         Assert.Equal("mot de passe", Passwords.Clean("  mot de passe "));
         Assert.Equal(Passwords.MaxPassword, Passwords.Clean(new string('a', 200))!.Length);
-    }
-
-    [Fact]
-    public void The_challenge_and_the_answer_read_back()
-    {
-        var challenge = Passwords.Challenge();
-        var c = (Message.Challenge)Protocol.Decode(Protocol.Encode(new Message.Challenge(challenge)));
-        Assert.Equal(challenge, c.Nonce);
-        var hello = Protocol.Hello("0.5.0", "Bob", Passwords.Key("secret", challenge), true);
-        var back = (Message.Hello)Protocol.Decode(Protocol.Encode(hello));
-        Assert.Equal(hello, back);
-        Assert.True(back.Watches);
-        Assert.True(Passwords.Opens("secret", challenge, back.Key));
-        // A challenge of no bytes, or of a great many, does not read.
-        Assert.Throws<InvalidDataException>(() => Protocol.Decode([25, 0]));
-        Assert.Throws<InvalidDataException>(() => Protocol.Decode([25, 200, 1]));
     }
 
     [Fact]

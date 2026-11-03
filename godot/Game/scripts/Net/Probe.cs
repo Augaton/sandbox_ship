@@ -17,19 +17,19 @@ public static class Probe
     public static void Run()
     {
         var game = new LanGame(Protocol.Version, Ui.Menu.Version, "Sonde", LobbyMode.Skirmish, 1, 2, 0);
-        var direct = Transport.Listen(Dev.Port, 2, out var error);
+        var direct = Transport.Listen(Dev.Port, 2, null, out var error);
         if (direct is not null)
         {
-            Measure("direct", direct, Transport.Join("127.0.0.1", Dev.Port, out _)!);
+            Measure("direct", direct, Transport.Join("127.0.0.1", Dev.Port, null, out _)!);
             direct.Close();
         }
         else GD.PrintErr(error);
-        var host = RelayTransport.Host(Session.MasterAddress, game, out error);
+        var host = RelayTransport.Host(Session.MasterAddress, game, null, out error);
         if (host is not null)
         {
             var clock = Stopwatch.StartNew();
             while (host.Room == 0 && clock.Elapsed.TotalSeconds < 10) host.Poll(_ => { }, _ => { }, (_, _) => { }, (_, _) => { });
-            if (host.Room > 0) Measure("par le serveur en ligne", host, RelayTransport.Join(Session.MasterAddress, host.Room, out _)!);
+            if (host.Room > 0) Measure("par le serveur en ligne", host, RelayTransport.Join(Session.MasterAddress, host.Room, false, null, out _)!);
             else GD.PrintErr($"Serveur en ligne {Session.MasterAddress} : {host.Lost ?? "pas de réponse"}");
             host.Close();
         }
