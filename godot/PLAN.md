@@ -177,10 +177,16 @@ tests de `FixtureTests` et `CrossTests` les listent.
   bataille de mesure (1 270 entités), 1,6 Ko pour un duel à 5 min.
 - Modes de bataille (`Sim/Modes/`), avec un panneau en haut du HUD, leurs alertes et leur texte de fin ; le salon
   vérifie une partie avec `Scenario.Check(options)`, qui dit pourquoi elle ne peut pas se jouer.
-- Survie : toutes les places en une équipe contre des vagues d'Errants venues des bords, la première après 2 min 30,
-  puis toutes les 90 s, chacune plus grosse et plus lourde, un boss toutes les cinq (cuirassé, Titan, Léviathan,
-  Colosse). Repousser la 20e gagne, plus aucune station perd. L'IA défend les stations de toute l'équipe. Entre IA :
-  seule, vague 10 à 19 ; à deux, jusqu'à la 20e, sans abattre le Colosse.
+- Survie, sans fin depuis la 0.5.0 : toutes les places en une équipe contre des vagues d'Errants venues des bords, la
+  première après 2 min 30, puis toutes les 90 s, 2 s de moins à chaque vague jusqu'à 50 s ; une vague battue avant l'heure
+  amène la suivante 25 s après. Chacune est plus grosse et plus lourde (titans dès la 16e, léviathans dès la 26e, au plus
+  50 vaisseaux : au-delà, ils grossissent) ; un boss toutes les cinq (cuirassé, Titan, Léviathan, Colosse), puis plusieurs
+  à la fois ; passé la 20e, la recherche des Errants monte d'un niveau toutes les deux vagues (élite). Une vague sur
+  quatre dès la 7e a un thème : essaim, armada lourde, porte-avions. Chaque vague battue paie les places debout
+  (200 + 40 par vague). Plus aucune station termine la partie, sur un tableau des scores : un dixième de la valeur des
+  Errants abattus, 1 000 par boss, 100 fois le numéro de chaque vague battue, 2 par seconde d'avance ; les dix meilleures
+  parties par nombre de joueurs restent sur la machine (`user://survival-records.json`), aussi montrées au salon.
+  L'IA défend les stations de toute l'équipe. `--wave=N` fait commencer une partie de vérification à la vague N.
 - Contrôle de zone : trois balises (le centre, deux points symétriques loin des stations) ; les vaisseaux d'un seul
   camp en prennent une en 12 s (après avoir défait la prise adverse), deux camps la gèlent. Une balise tenue rapporte
   0,1 point/s à son camp tant qu'il a une station ; le premier au score (100) gagne, détruire les stations aussi.

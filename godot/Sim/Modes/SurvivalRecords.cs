@@ -64,11 +64,12 @@ public static class SurvivalRecords
 
     /// <summary>
     /// Adds a game to the list, which keeps the best Kept of each number of seats: its rank among
-    /// those of its number of seats (0, the best), or -1 when it does not make them.
+    /// those of its number of seats (0, the best), or -1 when it does not make them. A game that
+    /// scored nothing is no record.
     /// </summary>
     public static int Insert(List<SurvivalRecord> records, SurvivalRecord game)
     {
-        if (!Valid(game)) return -1;
+        if (!Valid(game) || game.Score == 0) return -1;
         records.Add(game);
         var kept = Trim(records);
         records.Clear();

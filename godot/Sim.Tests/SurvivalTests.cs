@@ -258,6 +258,7 @@ public class SurvivalTests
         Assert.Equal(SurvivalRecords.Kept, SurvivalRecords.Best(list, 1).Count);
         Assert.Equal(1200, SurvivalRecords.Best(list, 1)[0].Score);
         Assert.Equal(-1, SurvivalRecords.Insert(list, Game(50)));
+        Assert.Equal(-1, SurvivalRecords.Insert([], Game(0)));
         Assert.Equal(0, SurvivalRecords.Insert(list, Game(5000)));
         // At the same score, the older game keeps its place.
         Assert.Equal(4, SurvivalRecords.Insert(list, Game(1000, 1, 99)));

@@ -30,7 +30,8 @@ public static class SurvivalScores
     {
         var all = Load();
         var rank = SurvivalRecords.Insert(all, game);
-        if (rank >= 0 && Dev.Shot is null) Save(all);
+        // Nor a game started at a later wave (--wave): its waves were not played.
+        if (rank >= 0 && Dev.Shot is null && Dev.Wave == 0) Save(all);
         return (rank, SurvivalRecords.Best(all, game.Seats));
     }
 
