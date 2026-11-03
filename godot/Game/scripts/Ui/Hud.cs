@@ -592,6 +592,7 @@ public partial class Hud : CanvasLayer
             TextPart($"Coque {N(Math.Ceiling(e.Hull))} / {N(Js.Round(e.MaxHull))}" + (e.MaxShield > 0 ? $", bouclier {N(Math.Ceiling(e.Shield))} / {N(Js.Round(e.MaxShield))}" : ""), size: size, wrap: false),
         };
         if (e.Build < 1) lines.Add(TextPart($"En construction : {Percent(e.Build)}", size: size, wrap: false));
+        if (e.Rank > 0) lines.Add(TextPart(RankName(e.Rank), Palette.Accent, size, wrap: false));
         foreach (var a in e.Abilities)
         {
             var state = a.Active > 0 ? "active" : a.Cooldown > 0 ? $"recharge {N(Math.Ceiling(a.Cooldown))} s" : "prête";
@@ -600,7 +601,7 @@ public partial class Hud : CanvasLayer
         if (e.Side == Player && e.Kind == EntityKind.Ship)
         {
             var doing = e.Order is { } o ? OrderName(o.Type) : e.TargetId is not null ? "Au combat" : "Inactif";
-            lines.Add(TextPart(doing, Palette.Muted, size, wrap: false));
+            lines.Add(TextPart($"{doing}, posture : {Selection.StanceName(e.Stance)}", Palette.Muted, size, wrap: false));
         }
         Sync(tipLines, lines);
         tip.Visible = true;
@@ -610,7 +611,17 @@ public partial class Hud : CanvasLayer
     {
         OrderType.Move => "En route",
         OrderType.AttackMove => "Attaque-mouvement",
+        OrderType.Patrol => "En patrouille",
+        OrderType.Guard => "En escorte",
         _ => "Attaque",
+    };
+
+    /// <summary>A veteran's rank, as the selection panel and the tooltip name it.</summary>
+    static string RankName(int rank) => rank switch
+    {
+        1 => "Vétéran, rang 1",
+        2 => "Vétéran, rang 2",
+        _ => "Élite, rang 3",
     };
 
     /// <summary>Control groups, idle ships and the last alert, one click away.</summary>

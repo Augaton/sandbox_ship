@@ -252,6 +252,8 @@ public class FuzzTests
             new Command.Move(ids, 100.5, 200.25, true), new Command.Attack(ids, ids[0]), new Command.Stop(ids),
             new Command.EnqueueShip(ShipClass.Frigate, 5), new Command.PlaceStructure(BuildableType.Mine, 300, 400),
             new Command.UseAbility(ids[0], AbilityId.Cloak, new Aim(1, 2, 3)), new Command.SetAutoAbilities(true),
+            new Command.Move(ids, 5, 6, Queued: true), new Command.Patrol(ids, [new Point(1, 2), new Point(300, 400)], true),
+            new Command.Guard(ids, ids[0], true), new Command.SetStance(ids, Stance.Hold),
         ];
         Survives("Commands.ReadCommand", commands.Select(c => Bytes(bw => Commands.Write(bw, c))), bytes => Commands.ReadCommand(new BinaryReader(new MemoryStream(bytes))));
     }

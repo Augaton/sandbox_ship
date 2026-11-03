@@ -5584,3 +5584,159 @@ msgstr "Samples"
 #: Sim/BattleHistory.cs
 msgid "Camps"
 msgstr "Sides"
+
+#: Game/scripts/Battle/BattleScreen.cs
+msgid "{0} promu : rang {1}"
+msgstr "{0} promoted: rank {1}"
+
+#: Game/scripts/Battle/Selection.cs, Sim/Commands.cs
+msgid "Choisis un allié"
+msgstr "Pick an ally"
+
+#: Game/scripts/Battle/Selection.cs
+msgid "Agressive"
+msgstr "Aggressive"
+
+#: Game/scripts/Battle/Selection.cs
+msgid "Tenir la position"
+msgstr "Hold position"
+
+#: Game/scripts/Battle/Selection.cs
+msgid "Passive"
+msgstr "Passive"
+
+#: Game/scripts/Battle/Selection.cs
+msgid "Défensive"
+msgstr "Defensive"
+
+#: Game/scripts/Battle/Selection.cs
+msgid "Posture : {0}"
+msgstr "Stance: {0}"
+
+#: Game/scripts/Core/Bindings.cs
+msgid "Patrouille, puis clic (Maj + clics : plusieurs points)"
+msgstr "Patrol, then click (Shift + clicks: several points)"
+
+#: Game/scripts/Core/Bindings.cs
+msgid "Garder ou escorter, puis clic sur un allié"
+msgstr "Guard or escort, then click an ally"
+
+#: Game/scripts/Core/Bindings.cs
+msgid "Posture suivante : agressive, défensive, tenir, passive"
+msgstr "Next stance: aggressive, defensive, hold, passive"
+
+#: Game/scripts/Ui/Controls.cs
+msgid "Maj + clic droit"
+msgstr "Shift + right click"
+
+#: Game/scripts/Ui/Controls.cs
+msgid "Ordre en file : après ceux déjà donnés"
+msgstr "Queued order: after those already given"
+
+#: Game/scripts/Ui/Controls.cs
+msgid "{0} puis clic"
+msgstr "{0} then click"
+
+#: Game/scripts/Ui/Controls.cs
+msgid "Patrouille aller-retour, en combattant (Maj + clics : plusieurs points)"
+msgstr "Patrol back and forth, fighting on the way (Shift + clicks: several points)"
+
+#: Game/scripts/Ui/Controls.cs
+msgid "{0} puis clic, clic droit sur un allié"
+msgstr "{0} then click, right click an ally"
+
+#: Game/scripts/Ui/Controls.cs
+msgid "Garder ou escorter un vaisseau ou un bâtiment allié"
+msgstr "Guard or escort an allied ship or structure"
+
+#: Game/scripts/Ui/Controls.cs
+msgid "Clic droit sur un allié"
+msgstr "Right click an ally"
+
+#: Game/scripts/Ui/Controls.cs
+msgid "Posture suivante : agressive (poursuit loin), défensive (riposte et revient), tenir la position, passive (ne tire pas)"
+msgstr "Next stance: aggressive (chases far), defensive (fights back and returns), hold position, passive (holds fire)"
+
+#: Game/scripts/Ui/Hud.Selection.cs
+msgid "Clic : où patrouiller ; Maj + clics : plusieurs points"
+msgstr "Click: where to patrol; Shift + clicks: several points"
+
+#: Game/scripts/Ui/Hud.Selection.cs
+msgid "Clic sur un allié à garder ou escorter"
+msgstr "Click an ally to guard or escort"
+
+#: Game/scripts/Ui/Hud.Selection.cs
+msgid "Patrouille ({0})"
+msgstr "Patrol ({0})"
+
+#: Game/scripts/Ui/Hud.Selection.cs
+msgid "Garder ({0})"
+msgstr "Guard ({0})"
+
+#: Game/scripts/Ui/Hud.Selection.cs
+msgid "Va chercher l'ennemi de loin et le poursuit"
+msgstr "Seeks the enemy from afar and chases it"
+
+#: Game/scripts/Ui/Hud.Selection.cs
+msgid "Ne bouge pas : tire sur ce qui passe à portée"
+msgstr "Does not move: fires at what comes within range"
+
+#: Game/scripts/Ui/Hud.Selection.cs
+msgid "Ne tire pas, sauf ordre d'attaque : pour les éclaireurs"
+msgstr "Holds fire unless ordered to attack: for scouts"
+
+#: Game/scripts/Ui/Hud.Selection.cs
+msgid "Riposte, puis revient à son poste"
+msgstr "Fights back, then returns to its post"
+
+#: Game/scripts/Ui/Hud.Selection.cs
+msgid "Recrue"
+msgstr "Rookie"
+
+#: Game/scripts/Ui/Hud.cs
+msgid "{0}, posture : {1}"
+msgstr "{0}, stance: {1}"
+
+#: Game/scripts/Ui/Hud.cs
+msgid "En patrouille"
+msgstr "Patrolling"
+
+#: Game/scripts/Ui/Hud.cs
+msgid "En escorte"
+msgstr "Escorting"
+
+#: Game/scripts/Ui/Hud.cs
+msgid "Vétéran, rang 1"
+msgstr "Veteran, rank 1"
+
+#: Game/scripts/Ui/Hud.cs
+msgid "Vétéran, rang 2"
+msgstr "Veteran, rank 2"
+
+#: Game/scripts/Ui/Hud.cs
+msgid "Élite, rang 3"
+msgstr "Elite, rank 3"
+
+#: Game/scripts/Ui/Tutorial.cs
+msgid "Postures et ordres"
+msgstr "Stances and orders"
+
+#: Game/scripts/Ui/Tutorial.cs
+msgid "{0} change la posture des vaisseaux sélectionnés : agressive, défensive, tenir la position ou passive. {1} les fait patrouiller, {2} garde un allié, {3} met un ordre à la suite des autres. Le panneau de sélection a les mêmes boutons."
+msgstr "{0} changes the selected ships' stance: aggressive, defensive, hold position or passive. {1} sends them on patrol, {2} guards an ally, {3} queues an order after the others. The selection panel has the same buttons."
+
+#: Game/scripts/Ui/Tutorial.cs
+msgid "Posture suivante"
+msgstr "Next stance"
+
+#: Game/scripts/Ui/Tutorial.cs
+msgid "Patrouille"
+msgstr "Patrol"
+
+#: Game/scripts/Ui/Tutorial.cs
+msgid "Garder"
+msgstr "Guard"
+
+#: Game/scripts/Ui/Tutorial.cs
+msgid "Ordre en file"
+msgstr "Queued order"

@@ -578,6 +578,9 @@ public partial class BattleScreen : Node
                 case Rebuilt r:
                     if (r.Side == Opts.Player) Hud.Toast($"{Names.TypeName(r.Role)} reconstruit");
                     break;
+                case Promoted p:
+                    if (p.Side == Opts.Player && w.Entities.Get(p.Id) is { } veteran) Hud.Toast($"{Names.EntityName(veteran)} promu : rang {p.Rank}");
+                    break;
                 case AbilityUsed { Id: AbilityId.StarLance } lance when !Opts.Demo:
                     Hud.Toast(lance.Side == Opts.Player ? "Frappe stellaire lancée" : "Frappe stellaire en approche : fuyez la zone !");
                     Sfx.Play(Sound.Horn);

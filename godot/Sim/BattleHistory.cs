@@ -30,8 +30,6 @@ public sealed class BattleHistory
     public const int MaxAces = 5;
     /// <summary>Seconds between two samples, at first: a short battle drawn finely, a long one at a pace that halves as it goes.</summary>
     public const double FirstEvery = 2;
-    /// <summary>How far a destroyed ship's killer is looked for: past the longest guns (600), well short of the whole battle.</summary>
-    const double CreditReach = 900;
 
     public double Every = FirstEvery;
     public double NextAt;
@@ -118,28 +116,14 @@ public sealed class BattleHistory
     };
 
     /// <summary>
-    /// A ship or structure of the other side down: its killer is the ship of side `by` nearest to
-    /// it among those aiming at it (a turret counting as its ship), else the nearest one; within
-    /// reach, it is credited with it, and its side's best ships are kept up.
+    /// A ship or structure of the other side down: the ship of side `by` that dealt the last blow
+    /// (Entity.ShooterId: a turret's or a craft's own ship) is credited with it, and its side's best
+    /// ships are kept up. A mine's blow, a structure's, or a shot that lands after its ship is
+    /// gone, is no ship's.
     /// </summary>
     public void Credit(World world, Entity victim, Side by)
     {
-        Entity? best = null;
-        var bestAiming = false;
-        var bestD = double.PositiveInfinity;
-        foreach (var t in world.Grid.Near(victim.X, victim.Y, CreditReach))
-        {
-            if (t.Side != by || t.Hull <= 0 || t.Kind is not (EntityKind.Ship or EntityKind.Hardpoint)) continue;
-            var d = Worlds.Dist(t, victim);
-            if (d > CreditReach) continue;
-            // A ship aims by its guns or its order; a turret by its own guns, at its ship's place.
-            var aiming = t.TargetId == victim.Id || t.Order is { Type: OrderType.Attack } o && o.TargetId == victim.Id;
-            if (best is not null && (bestAiming && !aiming || bestAiming == aiming && d >= bestD)) continue;
-            var ship = t.Kind == EntityKind.Ship ? t : world.Entities.Get(t.ParentId);
-            if (ship is not { Kind: EntityKind.Ship, Hull: > 0 }) continue;
-            (best, bestAiming, bestD) = (ship, aiming, d);
-        }
-        if (best is null) return;
+        if (world.Entities.Get(victim.ShooterId) is not { Kind: EntityKind.Ship } best || best.Side != by) return;
         best.Kills++;
         best.KilledValue += ValueOf(victim);
         if (!Aces.TryGetValue(by, out var aces)) Aces[by] = aces = [];

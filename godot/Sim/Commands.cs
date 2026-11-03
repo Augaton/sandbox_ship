@@ -10,11 +10,20 @@ namespace SandboxShip.Sim;
 /// <summary>A battle command. Ships ordered together are listed in the order they were selected: it sets their places in the formation.</summary>
 public abstract record Command
 {
-    /// <summary>Ships to a point in formation; with `AttackMove`, they fight what they meet on the way.</summary>
-    public sealed record Move(int[] Ships, double X, double Y, bool AttackMove = false) : Command;
+    /// <summary>
+    /// Ships to a point in formation; with `AttackMove`, they fight what they meet on the way. Orders
+    /// `Queued` (Shift) wait for the ones before them to be done.
+    /// </summary>
+    public sealed record Move(int[] Ships, double X, double Y, bool AttackMove = false, bool Queued = false) : Command;
     /// <summary>Ships at a foe the issuer's team sees.</summary>
-    public sealed record Attack(int[] Ships, int Target) : Command;
+    public sealed record Attack(int[] Ships, int Target, bool Queued = false) : Command;
     public sealed record Stop(int[] Ships) : Command;
+    /// <summary>Ships round the points and back for good, fighting what they meet (Movement.IssuePatrol).</summary>
+    public sealed record Patrol(int[] Ships, Point[] Points, bool Queued = false) : Command;
+    /// <summary>Ships guarding one of the issuer's side or of an ally's, ship or structure, and following it.</summary>
+    public sealed record Guard(int[] Ships, int Ward, bool Queued = false) : Command;
+    /// <summary>How ships fight between orders.</summary>
+    public sealed record SetStance(int[] Ships, Stance Stance) : Command;
     /// <summary>One ability of one ship or structure, at the aim when it needs one.</summary>
     public sealed record UseAbility(int Caster, AbilityId Ability, Aim? Aim = null) : Command;
     /// <summary>`Count` ships of a class at once (Shift: five), as many as the queue and the credits allow.</summary>
@@ -114,18 +123,38 @@ public static partial class Commands
             case Command.Move m:
                 if (!Finite(m.X, m.Y)) return Invalid;
                 if (Own(world, issuer, m.Ships) is { Ok: false } moveRefused) return moveRefused;
-                Movement.IssueMove(world, m.Ships, m.X, m.Y, m.AttackMove);
+                Movement.IssueMove(world, m.Ships, m.X, m.Y, m.AttackMove, m.Queued);
                 return Result.OK;
             case Command.Attack a:
             {
                 if (Own(world, issuer, a.Ships) is { Ok: false } refused) return refused;
                 if (world.Entities.Get(a.Target) is not { } target || !Vision.IsVisible(world, issuer, target)) return Result.Fail("Cible hors de vue");
-                Movement.IssueAttack(world, a.Ships, a.Target);
+                Movement.IssueAttack(world, a.Ships, a.Target, a.Queued);
                 return Result.OK;
             }
             case Command.Stop s:
                 if (Own(world, issuer, s.Ships) is { Ok: false } stopRefused) return stopRefused;
                 Movement.IssueStop(world, s.Ships);
+                return Result.OK;
+            case Command.Patrol p:
+            {
+                if (p.Points is not { Length: > 0 and < Movement.MaxRoute } points) return Invalid;
+                foreach (var point in points) if (!Finite(point.X, point.Y)) return Invalid;
+                if (Own(world, issuer, p.Ships) is { Ok: false } refused) return refused;
+                Movement.IssuePatrol(world, p.Ships, points, p.Queued);
+                return Result.OK;
+            }
+            case Command.Guard g:
+            {
+                if (Own(world, issuer, g.Ships) is { Ok: false } refused) return refused;
+                if (world.Entities.Get(g.Ward) is not { } ward || !Worlds.Allies(world, issuer, ward.Side)) return Result.Fail("Choisis un allié");
+                Movement.IssueGuard(world, g.Ships, g.Ward, g.Queued);
+                return Result.OK;
+            }
+            case Command.SetStance st:
+                if (!Defined(st.Stance)) return Invalid;
+                if (Own(world, issuer, st.Ships) is { Ok: false } stanceRefused) return stanceRefused;
+                Movement.SetStance(world, st.Ships, st.Stance);
                 return Result.OK;
             case Command.UseAbility u:
             {
@@ -190,6 +219,7 @@ public static partial class Commands
             {
                 if (OwnShip(world, issuer, p.Ship) is not { } s) return NotYours;
                 s.Order = null;
+                s.Queue?.Clear();
                 s.Pilot = new Pilot { AimX = s.X, AimY = s.Y };
                 return Result.OK;
             }

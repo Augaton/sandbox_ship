@@ -13,6 +13,10 @@ public abstract record Mode;
 public sealed record SelectMode : Mode;
 public sealed record PlaceMode(BuildableType Type) : Mode;
 public sealed record AttackMoveMode : Mode;
+/// <summary>Picking a patrol's points: each Shift + click adds one, a plain click (or letting Shift go) sends it.</summary>
+public sealed record PatrolMode(List<Point> Points) : Mode;
+/// <summary>Picking the ally the selected ships guard.</summary>
+public sealed record GuardMode : Mode;
 /// <summary>Picking where (or whom) an ability is aimed at.</summary>
 public sealed record AbilityMode(AbilityId Id) : Mode;
 /// <summary>Sandbox: `What` is a ship class, a structure, "station" or a hero role, as the web version names them.</summary>
@@ -156,6 +160,10 @@ public partial class Selection : Node
             case InputEventMouseButton { Pressed: false } mb:
                 OnUp(mb);
                 break;
+            // Shift let go with patrol points picked: the patrol goes.
+            case InputEventKey { Pressed: false, Keycode: Key.Shift } when Mode is PatrolMode { Points.Count: > 0 } pm:
+                SendPatrol(pm.Points);
+                break;
         }
     }
 
@@ -175,14 +183,31 @@ public partial class Selection : Node
         if (p.ButtonIndex == MouseButton.Right)
         {
             if (Mode is not SelectMode) SetMode(new SelectMode());
-            else if (p.CtrlPressed) AttackMove(w.X, w.Y);
-            else OrderAt(w.X, w.Y);
+            else if (p.CtrlPressed) AttackMove(w.X, w.Y, p.ShiftPressed);
+            else OrderAt(w.X, w.Y, p.ShiftPressed);
             return;
         }
         if (p.ButtonIndex != MouseButton.Left) return;
         var shift = p.ShiftPressed;
         switch (Mode)
         {
+            case PatrolMode m:
+                m.Points.Add(new Point(w.X, w.Y));
+                scene.Marker(w.X, w.Y, Palette.Hex(0xe8a13a));
+                if (!shift || m.Points.Count >= Movement.MaxRoute - 1) SendPatrol(m.Points);
+                break;
+            case GuardMode:
+            {
+                var ward = PickAt(World, w.X, w.Y, Slop, Player);
+                if (ward is null || !Worlds.Allies(World, ward.Side, Player))
+                {
+                    scene.Hud.Toast("Choisis un allié");
+                    break;
+                }
+                GuardOrder(ward, shift);
+                if (!shift) SetMode(new SelectMode());
+                break;
+            }
             case PlaceMode m:
             {
                 var r = Sink.Send(new Command.PlaceStructure(m.Type, w.X, w.Y));
@@ -213,12 +238,74 @@ public partial class Selection : Node
         }
     }
 
-    void AttackMove(double x, double y)
+    void AttackMove(double x, double y, bool queued = false)
     {
         var ids = OwnShips().Select(s => s.Id).ToArray();
         if (ids.Length == 0) return;
-        Sink.Send(new Command.Move(ids, x, y, true));
+        Sink.Send(new Command.Move(ids, x, y, true, queued));
         scene.Marker(x, y, Palette.Hex(0xe8a13a));
+    }
+
+    /// <summary>The selected ships round the points picked, from where they are; back to selecting.</summary>
+    void SendPatrol(List<Point> points)
+    {
+        var ids = OwnShips().Select(s => s.Id).ToArray();
+        if (ids.Length > 0) Report(Sink.Send(new Command.Patrol(ids, [.. points])));
+        SetMode(new SelectMode());
+    }
+
+    /// <summary>The selected ships, but the ward itself, guard it.</summary>
+    void GuardOrder(Entity ward, bool queued)
+    {
+        var ids = OwnShips().Where(s => s.Id != ward.Id).Select(s => s.Id).ToArray();
+        if (ids.Length == 0) return;
+        Report(Sink.Send(new Command.Guard(ids, ward.Id, queued)));
+        scene.Marker(ward.X, ward.Y, Palette.Hex(0x5aa9e6));
+    }
+
+    /// <summary>The order after the first selected ship's current stance, for all of them; its name shown.</summary>
+    public void CycleStance()
+    {
+        var ships = OwnShips();
+        if (ships.Count == 0) return;
+        var i = Array.IndexOf(StanceOrder, ships[0].Stance);
+        SetStance(StanceOrder[(i + 1) % StanceOrder.Length]);
+    }
+
+    /// <summary>Stances in the order the key goes through them, and the panel shows them.</summary>
+    public static readonly Stance[] StanceOrder = [Stance.Aggressive, Stance.Defensive, Stance.Hold, Stance.Passive];
+
+    public static string StanceName(Stance s) => s switch
+    {
+        Stance.Aggressive => "Agressive",
+        Stance.Hold => "Tenir la position",
+        Stance.Passive => "Passive",
+        _ => "Défensive",
+    };
+
+    public void SetStance(Stance stance)
+    {
+        var ids = OwnShips().Select(s => s.Id).ToArray();
+        if (ids.Length == 0) return;
+        if (Report(Sink.Send(new Command.SetStance(ids, stance)))) scene.Hud.Toast($"Posture : {StanceName(stance)}");
+    }
+
+    /// <summary>Patrol or guard mode for the selected ships, from the keys or the panel's buttons.</summary>
+    public void ArmPatrol()
+    {
+        if (OwnShips().Count > 0) SetMode(new PatrolMode([]));
+    }
+
+    public void ArmGuard()
+    {
+        if (OwnShips().Count > 0) SetMode(new GuardMode());
+    }
+
+    /// <summary>A refusal shows as a toast; whether the command went through.</summary>
+    bool Report(Result r)
+    {
+        if (!r.Ok) scene.Hud.Toast(r.Reason);
+        return r.Ok;
     }
 
     /// <summary>Sends the selected ships to a point, from the minimap: a plain move or an attack-move.</summary>
@@ -325,22 +412,31 @@ public partial class Selection : Node
         return e is not null && parent?.Kind == EntityKind.Ship && e.Side == Player ? parent : e;
     }
 
-    /// <summary>Right click: attack the foe under the cursor, or move there. With the station selected, sets the rally point.</summary>
-    void OrderAt(double x, double y)
+    /// <summary>
+    /// Right click: attack the foe under the cursor, guard the ally under it (one not selected),
+    /// or move there; `queued` (Shift), once the orders given before are done. With the station
+    /// selected, sets the rally point.
+    /// </summary>
+    void OrderAt(double x, double y, bool queued = false)
     {
         var ships = OwnShips();
         if (ships.Count > 0)
         {
             var t = PickAt(World, x, y, Slop, Player);
             var ids = ships.Select(s => s.Id).ToArray();
+            var ward = t is null ? null : AbilitySystem.OwnerOf(World, t);
             if (t is not null && Worlds.Foes(World, t.Side, Player))
             {
-                Sink.Send(new Command.Attack(ids, t.Id));
+                Sink.Send(new Command.Attack(ids, t.Id, queued));
                 scene.Marker(t.X, t.Y, Palette.Hex(0xe05a4a));
+            }
+            else if (ward is not null && !scene.Selected.Contains(ward.Id) && ward.Kind != EntityKind.Hardpoint)
+            {
+                GuardOrder(ward, queued);
             }
             else
             {
-                Sink.Send(new Command.Move(ids, x, y));
+                Sink.Send(new Command.Move(ids, x, y, Queued: queued));
                 scene.Marker(x, y, Palette.Hex(0x6fd08c));
             }
             return;
@@ -428,6 +524,9 @@ public partial class Selection : Node
         {
             if (OwnShips().Count > 0) SetMode(new AttackMoveMode());
         }
+        else if (Bindings.Pressed(ev, Bindings.Patrol)) ArmPatrol();
+        else if (Bindings.Pressed(ev, Bindings.Guard)) ArmGuard();
+        else if (Bindings.Pressed(ev, Bindings.Stance)) CycleStance();
         else if (Bindings.Pressed(ev, Bindings.Stop)) Sink.Send(new Command.Stop([.. OwnShips().Select(s => s.Id)]));
         else if (Bindings.Pressed(ev, Bindings.CenterSelection)) CenterOnSelection();
         else if (Bindings.Pressed(ev, Bindings.LastAlert)) scene.JumpToAlert();

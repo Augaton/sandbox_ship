@@ -6,14 +6,36 @@ namespace SandboxShip.Sim;
 
 public enum EntityKind { Ship, Structure, Hardpoint }
 
-public enum OrderType { Move, AttackMove, Attack }
+public enum OrderType { Move, AttackMove, Attack, Patrol, Guard }
 
-/// <summary>An order; `Group` is set when several ships got it together, to move as one fleet.</summary>
-public sealed record Order(OrderType Type, double X = 0, double Y = 0, int TargetId = 0, MoveGroup? Group = null)
+/// <summary>
+/// An order; `Group` is set when several ships got it together, to move as one fleet. A patrol
+/// goes round its `Route` for good, fighting what it meets, (X, Y) the point `Leg` it heads for;
+/// a guard keeps by entity TargetId, at (X, Y) in its frame (x forward). Patrols and guards are
+/// not in the web version.
+/// </summary>
+public sealed record Order(OrderType Type, double X = 0, double Y = 0, int TargetId = 0, MoveGroup? Group = null,
+    IReadOnlyList<Point>? Route = null, int Leg = 0)
 {
     public static Order Move(double x, double y, MoveGroup? group = null) => new(OrderType.Move, x, y, Group: group);
     public static Order AttackMove(double x, double y, MoveGroup? group = null) => new(OrderType.AttackMove, x, y, Group: group);
     public static Order Attack(int targetId, MoveGroup? group = null) => new(OrderType.Attack, TargetId: targetId, Group: group);
+    public static Order Patrol(IReadOnlyList<Point> route, int leg = 0, MoveGroup? group = null) =>
+        new(OrderType.Patrol, route[leg].X, route[leg].Y, Group: group, Route: route, Leg: leg);
+    public static Order Guard(int wardId, double slotX, double slotY) => new(OrderType.Guard, slotX, slotY, wardId);
+}
+
+/// <summary>How a ship fights on its own, when no order says otherwise (not in the web version).</summary>
+public enum Stance
+{
+    /// <summary>Fights back and comes back: chases what comes near its post, never far from it. The default.</summary>
+    Defensive,
+    /// <summary>Goes for foes from further, after them as far as they go, and stays where the fight took it.</summary>
+    Aggressive,
+    /// <summary>Never moves for a fight: shoots what comes within reach.</summary>
+    Hold,
+    /// <summary>Never shoots unless ordered to attack: scouts that must not give themselves away.</summary>
+    Passive,
 }
 
 /// <summary>
@@ -113,6 +135,8 @@ public sealed class Strike
     public StrikeKind Kind;
     /// <summary>Whose blow: it spares that side and its allies.</summary>
     public Side Side;
+    /// <summary>What called it down, credited with the damage while it stands (not in the web version).</summary>
+    public int? By;
     /// <summary>Center of the blast, or start of the beam.</summary>
     public double X, Y;
     /// <summary>End of the beam; the center again for a blast.</summary>
@@ -160,8 +184,15 @@ public sealed class Entity : IPoint
     public int? TargetId;
     public double Retarget;
     public Order? Order;
+    /// <summary>Orders given after this one (Shift): each starts once the one before it is done (not in the web version).</summary>
+    public List<Order>? Queue;
     /// <summary>Where an idle ship holds position and returns after a chase.</summary>
     public double GuardX, GuardY;
+    /// <summary>How it fights between orders (not in the web version).</summary>
+    public Stance Stance;
+    /// <summary>A veteran's experience, in its own worth of foes destroyed, and the rank it gave (Veterans.cs).</summary>
+    public double Xp;
+    public int Rank;
     /// <summary>0..1; a structure only works once fully built.</summary>
     public double Build = 1;
     public double BuildTime;
@@ -209,6 +240,11 @@ public sealed class Entity : IPoint
     public double? Expires;
     /// <summary>Side that hit it last: the kill is theirs.</summary>
     public Side? LastHitBy;
+    /// <summary>
+    /// The ship whose weapons or abilities dealt that last blow (Veterans.Shooter), null for a
+    /// mine's or what was no ship's (not in the web version).
+    /// </summary>
+    public int? ShooterId;
     /// <summary>What it destroyed and what that was worth, as BattleHistory.Credit counts it, for the end screen (not in the web version).</summary>
     public int Kills;
     public double KilledValue;
@@ -235,6 +271,8 @@ public sealed class Projectile : IPoint
     public bool Homing;
     public double Ttl;
     // Not in the web version.
+    /// <summary>The entity that fired it, credited with the hit while it stands (Veterans.cs).</summary>
+    public int From;
     /// <summary>How hard it hits shields and hulls: an ion bolt's are 2 and a fifth.</summary>
     public double ShieldMult = 1, HullMult = 1;
     /// <summary>What it takes to shoot it down in flight (torpedoes and missiles); 0 for what cannot be.</summary>
@@ -354,6 +392,8 @@ public sealed record Researched(Side Side, TechId Tech) : SimEvent;
 public sealed record AbilityUsed(AbilityId Id, Side Side, int EntityId, double X, double Y, double Tx, double Ty) : SimEvent;
 public sealed record StrikeLanded(Strike Strike) : SimEvent;
 public sealed record Rebuilt(int Id, Side Side, HardpointRole Role) : SimEvent;
+/// <summary>A ship of `Side` rose to veteran rank `Rank` (Veterans.cs, not in the web version).</summary>
+public sealed record Promoted(int Id, Side Side, int Rank) : SimEvent;
 /// <summary>`Side` won, with its team if it has one (0: alone): its allies won with it.</summary>
 public sealed record Victory(Side Side, int Team) : SimEvent;
 /// <summary>A raid boss fell to `Side`: its bounty, and the tech that gained a level, if any.</summary>

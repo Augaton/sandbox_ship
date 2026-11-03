@@ -156,9 +156,13 @@ public static class Movement
     /// How far a fleet member still has to go: along the fleet's heading for a move, to the
     /// edge of its reach for an attack.
     /// </summary>
-    static double Remaining(World world, Entity e, Order o) => o.Type == OrderType.Attack
-        ? (world.Entities.Get(o.TargetId) is { } t ? Dist(e, t) - t.Radius - Math.Max(e.Range * 1.6, 350) : 0)
-        : (o.X - e.X) * o.Group!.DirX + (o.Y - e.Y) * o.Group.DirY;
+    static double Remaining(World world, Entity e, Order o) => o.Type switch
+    {
+        OrderType.Attack => world.Entities.Get(o.TargetId) is { } t ? Dist(e, t) - t.Radius - Math.Max(e.Range * 1.6, 350) : 0,
+        // A patrol's legs turn: what is left of this one, straight.
+        OrderType.Patrol => Hypot(o.X - e.X, o.Y - e.Y),
+        _ => (o.X - e.X) * o.Group!.DirX + (o.Y - e.Y) * o.Group.DirY,
+    };
 
     /// <summary>
     /// A fleet member's motion: held to the fleet's pace (twice that under the afterburner),
@@ -279,7 +283,7 @@ public static class Movement
     static bool Mend(World world, Entity e, Motion def, double dt)
     {
         var o = e.Order;
-        var free = o is null || (o.Type == OrderType.AttackMove && world.Factions.GetValueOrDefault(e.Side)?.AI is null);
+        var free = o is null || (o.Type is OrderType.AttackMove or OrderType.Patrol or OrderType.Guard && world.Factions.GetValueOrDefault(e.Side)?.AI is null);
         if (!free || e.Launched || e.Expires is not null || e.Retreating || (e.Mending && e.Hull >= e.MaxHull * Mended))
         {
             e.Mending = false;
@@ -316,13 +320,15 @@ public static class Movement
         }
         var o = e.Order;
         var arrive = Math.Max(6, e.Radius * 0.3);
+        // Holding the line: no stepping aside, no falling back, no chase.
+        var hold = e.Stance == Stance.Hold;
         // Out of a blow coming down first, unless the player said where to go.
-        if (o?.Type != OrderType.Move && Dodge(world, e) is { } way)
+        if (o?.Type != OrderType.Move && !hold && Dodge(world, e) is { } way)
         {
             SteerTo(world, e, def, way.X, way.Y, dt, 0);
             return;
         }
-        if (Mend(world, e, def, dt)) return;
+        if (!hold && Mend(world, e, def, dt)) return;
 
         if (o?.Type == OrderType.Attack)
         {
@@ -333,13 +339,22 @@ public static class Movement
                 Engage(world, e, Pace(world, e, def, o), t, dt);
                 return;
             }
-            e.Order = null;
-            e.GuardX = e.X;
-            e.GuardY = e.Y;
+            if (Done(e, e.X, e.Y)) return;
+        }
+        else if (o?.Type == OrderType.Guard)
+        {
+            var ward = world.Entities.Get(o.TargetId);
+            if (ward is not null && ward != e && Allies(world, e.Side, ward.Side))
+            {
+                Escort(world, e, def, ward, o.X, o.Y, dt);
+                return;
+            }
+            if (Done(e, e.X, e.Y)) return;
         }
         else if (o is not null)
         {
-            var t = o.Type == OrderType.AttackMove ? HostileTarget(world, e) : null;
+            // Holding, it shoots what it passes within reach but keeps going.
+            var t = o.Type != OrderType.Move && !hold ? HostileTarget(world, e) : null;
             if (t is not null)
             {
                 Engage(world, e, def, t, dt);
@@ -347,22 +362,56 @@ public static class Movement
             }
             if (SteerTo(world, e, Pace(world, e, def, o), o.X, o.Y, dt, arrive))
             {
-                e.Order = null;
-                e.GuardX = o.X;
-                e.GuardY = o.Y;
+                if (o.Route is { } route)
+                {
+                    var leg = (o.Leg + 1) % route.Count;
+                    e.Order = o with { Leg = leg, X = route[leg].X, Y = route[leg].Y };
+                }
+                else Done(e, o.X, o.Y);
             }
             return;
         }
 
         if (CarrierOf(world, e) is { } carrier)
         {
-            Escort(world, e, def, carrier, dt);
+            Escort(world, e, def, carrier, e.SlotX, e.SlotY, dt);
             return;
         }
-        var hostile = HostileTarget(world, e);
-        if (hostile is not null && Dist(hostile, new Point(e.GuardX, e.GuardY)) < Leash) Engage(world, e, def, hostile, dt);
+        var hostile = hold ? null : HostileTarget(world, e);
+        var aggressive = e.Stance == Stance.Aggressive;
+        if (hostile is not null && (aggressive || Dist(hostile, new Point(e.GuardX, e.GuardY)) < Leash))
+        {
+            Engage(world, e, def, hostile, dt);
+            // It stays where the fight took it.
+            if (aggressive)
+            {
+                e.GuardX = e.X;
+                e.GuardY = e.Y;
+            }
+        }
         else if (Hypot(e.GuardX - e.X, e.GuardY - e.Y) > 30) SteerTo(world, e, def, e.GuardX, e.GuardY, dt, arrive);
         else Brake(e, def, dt);
+    }
+
+    /// <summary>Most orders a ship keeps waiting after its own: past them, more are dropped.</summary>
+    public const int MaxQueue = 32;
+
+    /// <summary>
+    /// The order is done: the next one given with Shift starts, else the ship holds at (x, y).
+    /// Returns whether another order started.
+    /// </summary>
+    static bool Done(Entity e, double x, double y)
+    {
+        if (e.Queue is { Count: > 0 } queue)
+        {
+            e.Order = queue[0];
+            queue.RemoveAt(0);
+            return true;
+        }
+        e.Order = null;
+        e.GuardX = x;
+        e.GuardY = y;
+        return false;
     }
 
     /// <summary>The ship or structure a launched craft flies for, while it stands.</summary>
@@ -391,21 +440,25 @@ public static class Movement
 
     /// <summary>
     /// Craft go for what their carrier fights, else for enemies near it; otherwise they keep
-    /// their place beside it, flying along when it moves.
+    /// their place beside it, (slotX, slotY) in its frame, flying along when it moves. So do
+    /// ships guarding another, but for those holding or passive, who keep their place.
     /// </summary>
-    static void Escort(World world, Entity e, Motion def, Entity carrier, double dt)
+    static void Escort(World world, Entity e, Motion def, Entity carrier, double slotX, double slotY, double dt)
     {
         var c = Math.Cos(carrier.Angle);
         var s = Math.Sin(carrier.Angle);
-        var sx = carrier.X + e.SlotX * c - e.SlotY * s;
-        var sy = carrier.Y + e.SlotX * s + e.SlotY * c;
+        var sx = carrier.X + slotX * c - slotY * s;
+        var sy = carrier.Y + slotX * s + slotY * c;
         // Should the carrier fall, they hold where they last were with it.
         e.GuardX = sx;
         e.GuardY = sy;
         // A taunted craft goes for the bulwark; otherwise for what its carrier fights, or what comes near it.
         var t = e.Effects.Taunted > 0 ? HostileTarget(world, e) : null;
-        t ??= FocusOf(world, carrier);
-        if (t is null && HostileTarget(world, e) is { } hostile && Dist(hostile, carrier) < Leash) t = hostile;
+        if (e.Stance is not (Stance.Hold or Stance.Passive))
+        {
+            t ??= FocusOf(world, carrier);
+            if (t is null && HostileTarget(world, e) is { } hostile && Dist(hostile, carrier) < Leash) t = hostile;
+        }
         if (t is not null)
         {
             Engage(world, e, def, t, dt);
@@ -565,34 +618,135 @@ public static class Movement
     /// <summary>
     /// Sends ships to a point in formation, facing the way they go: warships in the front rows,
     /// toughest in the middle, small craft and support ships behind them, all at the pace of
-    /// the slowest.
+    /// the slowest. `queued` (Shift): once what they were told before is done.
     /// </summary>
-    public static void IssueMove(World world, IEnumerable<int> ids, double x, double y, bool attackMove = false)
+    public static void IssueMove(World world, IEnumerable<int> ids, double x, double y, bool attackMove = false, bool queued = false)
     {
         var ships = OwnShips(world, ids);
         if (ships.Count == 0) return;
-        var spacing = ships.Max(s => s.Radius) * 2.4;
-        var cx = ships.Average(s => s.X);
-        var cy = ships.Average(s => s.Y);
-        var heading = Hypot(x - cx, y - cy) > 1
-            ? Math.Atan2(y - cy, x - cx)
-            : Math.Atan2(ships.Sum(s => Math.Sin(s.Angle)), ships.Sum(s => Math.Cos(s.Angle)));
-        var (dx, dy) = (Math.Cos(heading), Math.Sin(heading));
-        // Stable sorts: equals keep the order they were selected in.
-        var front = ships.Where(s => !Rear(s)).OrderByDescending(Toughness).ToList();
-        var back = ships.Where(Rear).OrderByDescending(Toughness).ToList();
-        ships = [.. front, .. back];
-        var slots = FleetSlots(front.Count, back.Count, spacing);
+        var (dx, dy, slots) = Formation(world, ships, x, y, queued);
         var group = GroupOf(world, ships, dx, dy);
-        // The structures, picked out once for the whole fleet rather than once per ship.
-        var structures = new List<Entity>();
-        foreach (var e in world.Entities) if (e.Kind == EntityKind.Structure) structures.Add(e);
+        var structures = Structures(world);
         for (var i = 0; i < ships.Count; i++)
         {
             var (f, l) = slots[i];
             var p = Reachable(world, structures, ships[i], x + f * dx - l * dy, y + f * dy + l * dx);
-            ships[i].Order = attackMove ? Order.AttackMove(p.X, p.Y, group) : Order.Move(p.X, p.Y, group);
+            Give(ships[i], attackMove ? Order.AttackMove(p.X, p.Y, group) : Order.Move(p.X, p.Y, group), queued);
         }
+    }
+
+    /// <summary>
+    /// The fleet's heading to (x, y), and the places in it, (forward, lateral), of `ships`, sorted
+    /// in place to fill them: from where they stand, or with `queued` where their orders leave them.
+    /// </summary>
+    static (double Dx, double Dy, List<(double Forward, double Lateral)> Slots) Formation(World world, List<Entity> ships, double x, double y, bool queued)
+    {
+        var spacing = ships.Max(s => s.Radius) * 2.4;
+        var (cx, cy) = Centre(world, ships, queued);
+        var heading = Hypot(x - cx, y - cy) > 1
+            ? Math.Atan2(y - cy, x - cx)
+            : Math.Atan2(ships.Sum(s => Math.Sin(s.Angle)), ships.Sum(s => Math.Cos(s.Angle)));
+        // Stable sorts: equals keep the order they were selected in.
+        var front = ships.Where(s => !Rear(s)).OrderByDescending(Toughness).ToList();
+        var back = ships.Where(Rear).OrderByDescending(Toughness).ToList();
+        ships.Clear();
+        ships.AddRange(front);
+        ships.AddRange(back);
+        return (Math.Cos(heading), Math.Sin(heading), FleetSlots(front.Count, back.Count, spacing));
+    }
+
+    /// <summary>The middle of a fleet: of where its ships stand, or with `queued` of where their orders leave them.</summary>
+    static (double X, double Y) Centre(World world, List<Entity> ships, bool queued) =>
+        (ships.Average(s => queued ? PlanEnd(world, s).X : s.X), ships.Average(s => queued ? PlanEnd(world, s).Y : s.Y));
+
+    /// <summary>The structures, picked out once for a whole fleet rather than once per ship.</summary>
+    static List<Entity> Structures(World world)
+    {
+        var structures = new List<Entity>();
+        foreach (var e in world.Entities) if (e.Kind == EntityKind.Structure) structures.Add(e);
+        return structures;
+    }
+
+    /// <summary>Where a ship will be once its orders are done, as far as can be told now.</summary>
+    static Point PlanEnd(World world, Entity s)
+    {
+        var last = s.Queue is { Count: > 0 } q ? q[^1] : s.Order;
+        return last?.Type switch
+        {
+            OrderType.Move or OrderType.AttackMove or OrderType.Patrol => new Point(last.X, last.Y),
+            OrderType.Attack or OrderType.Guard when world.Entities.Get(last.TargetId) is { } t => new Point(t.X, t.Y),
+            _ => new Point(s.X, s.Y),
+        };
+    }
+
+    /// <summary>Gives a ship an order now, or with `queued` once the ones it has are done; a full queue takes no more.</summary>
+    static void Give(Entity s, Order o, bool queued)
+    {
+        if (queued && s.Order is not null)
+        {
+            s.Queue ??= [];
+            if (s.Queue.Count < MaxQueue) s.Queue.Add(o);
+            return;
+        }
+        s.Order = o;
+        s.Queue?.Clear();
+    }
+
+    /// <summary>Most points of a patrol, where it starts included.</summary>
+    public const int MaxRoute = 16;
+
+    /// <summary>
+    /// Sends ships round a patrol for good, in formation, fighting what they meet: from where they
+    /// are (queued: where their orders leave them) through each point and back.
+    /// </summary>
+    public static void IssuePatrol(World world, IEnumerable<int> ids, IReadOnlyList<Point> points, bool queued = false)
+    {
+        var ships = OwnShips(world, ids);
+        if (ships.Count == 0 || points.Count == 0) return;
+        var (sx, sy) = Centre(world, ships, queued);
+        var (dx, dy, slots) = Formation(world, ships, points[0].X, points[0].Y, queued);
+        var group = GroupOf(world, ships, dx, dy);
+        var structures = Structures(world);
+        var count = Math.Min(points.Count, MaxRoute - 1) + 1;
+        for (var i = 0; i < ships.Count; i++)
+        {
+            // Each keeps its place in the fleet the whole way round.
+            var (f, l) = slots[i];
+            var (ox, oy) = (f * dx - l * dy, f * dy + l * dx);
+            var route = new Point[count];
+            for (var k = 0; k < count; k++)
+            {
+                var p = k == 0 ? new Point(sx, sy) : points[k - 1];
+                route[k] = Reachable(world, structures, ships[i], p.X + ox, p.Y + oy);
+            }
+            Give(ships[i], Order.Patrol(route, 1, group), queued);
+        }
+    }
+
+    /// <summary>
+    /// Sets ships to guard one of their side's or an ally's: around it, they go for what it fights
+    /// or what comes near it, and follow it where it goes. A ship never guards itself.
+    /// </summary>
+    public static void IssueGuard(World world, IEnumerable<int> ids, int wardId, bool queued = false)
+    {
+        if (world.Entities.Get(wardId) is not { } part) return;
+        // A part is guarded through what it belongs to.
+        var ward = AbilitySystem.OwnerOf(world, part);
+        var ships = OwnShips(world, ids).Where(s => s != ward && Allies(world, s.Side, ward.Side)).ToList();
+        // Spread behind it, in an arc that closes into a ring for many.
+        var spread = ships.Count > 0 ? Math.Min(Math.PI * 2 / ships.Count, 0.6) : 0;
+        for (var i = 0; i < ships.Count; i++)
+        {
+            var a = Math.PI + (i - (ships.Count - 1) / 2.0) * spread;
+            var r = ward.Radius + ships[i].Radius * 2 + 30;
+            Give(ships[i], Order.Guard(ward.Id, Math.Cos(a) * r, Math.Sin(a) * r), queued);
+        }
+    }
+
+    /// <summary>How ships fight between orders.</summary>
+    public static void SetStance(World world, IEnumerable<int> ids, Stance stance)
+    {
+        foreach (var s in OwnShips(world, ids)) s.Stance = stance;
     }
 
     /// <summary>
@@ -624,12 +778,12 @@ public static class Movement
     }
 
     /// <summary>Sends ships at a foe; together, they close in at the pace of the slowest. Allies of the target stay put.</summary>
-    public static void IssueAttack(World world, IEnumerable<int> ids, int targetId)
+    public static void IssueAttack(World world, IEnumerable<int> ids, int targetId, bool queued = false)
     {
         var target = world.Entities.Get(targetId);
         var ships = OwnShips(world, ids).Where(s => target is null || Foes(world, s.Side, target.Side)).ToList();
         var group = GroupOf(world, ships, 0, 0);
-        foreach (var s in ships) s.Order = Order.Attack(targetId, group);
+        foreach (var s in ships) Give(s, Order.Attack(targetId, group), queued);
     }
 
     public static void IssueStop(World world, IEnumerable<int> ids)
@@ -637,6 +791,7 @@ public static class Movement
         foreach (var s in OwnShips(world, ids))
         {
             s.Order = null;
+            s.Queue?.Clear();
             s.GuardX = s.X;
             s.GuardY = s.Y;
         }

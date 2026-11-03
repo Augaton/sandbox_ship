@@ -182,6 +182,8 @@ public static class Ai
         var spot = new Point(at.X, at.Y);
         var escort = ships.Where(e => e.Order is null && !Modes.Kept(world, e)).OrderBy(e => Dist(e, spot)).FirstOrDefault();
         if (escort is null) return Result.Fail("Aucune escorte");
+        // It holds the spot rather than chase what passes by (not in the web version).
+        escort.Stance = Stance.Hold;
         Movement.IssueMove(world, [escort.Id], at.X, at.Y);
         return Result.Fail(EscortOnTheWay);
     }
@@ -392,13 +394,13 @@ public static class Ai
             var home = ships.Where(e => e.Order?.Type != OrderType.AttackMove && !Modes.Kept(world, e)).ToList();
             var out_ = home.Count < ships.Count;
             var needed = f.AI!.WaveValue * (out_ ? ReinforceShare : AllInShare);
-            if (home.Count > 0 && home.Sum(ShipValue) >= needed) Movement.IssueMove(world, home.Select(e => e.Id), enemy.X, enemy.Y, true);
+            if (home.Count > 0 && home.Sum(ShipValue) >= needed) Send(world, home, enemy, Stance.Aggressive);
             return outmatched;
         }
         if (threatened)
         {
-            // Ships already out on a wave keep going; only the home fleet defends.
-            Movement.IssueMove(world, idle.Select(e => e.Id), station.X, station.Y, true);
+            // Ships already out on a wave keep going; only the home fleet defends, and comes back.
+            Send(world, idle, station, Stance.Defensive);
             return outmatched;
         }
         var value = idle.Sum(ShipValue);
@@ -407,18 +409,28 @@ public static class Ai
         var stronger = intel.Army > 0 && army > intel.Army * (1.4 - 0.3 * pressure) && value >= EdgeWave(world, f);
         if (enemy is not null && !outmatched && (value >= f.AI!.WaveValue * (1 - 0.4 * pressure) || stronger))
         {
-            Movement.IssueMove(world, idle.Select(e => e.Id), enemy.X, enemy.Y, true);
+            Send(world, idle, enemy, Stance.Aggressive);
             f.AI!.WaveValue = Math.Min(f.AI.WaveValue * 1.2, MaxWave);
         }
         // Between waves, the fleet at home waits in a nebula near the station, if there is one:
         // out of the enemy's sight until it comes close (Terrain.cs). Shields come back slowly
-        // there: a ship goes once they are up.
+        // there: a ship goes once they are up. One holding a spot for a mine stays there.
         else if (world.Terrain.Count > 0 && Hideout(world, station) is { } hide)
         {
-            var exposed = idle.Where(e => !Terrains.InNebula(world, e.X, e.Y) && e.Shield >= e.MaxShield * 0.9).Select(e => e.Id).ToList();
+            var exposed = idle.Where(e => e.Stance != Stance.Hold && !Terrains.InNebula(world, e.X, e.Y) && e.Shield >= e.MaxShield * 0.9).Select(e => e.Id).ToList();
             if (exposed.Count > 0) Movement.IssueMove(world, exposed, hide.X, hide.Y);
         }
         return outmatched;
+    }
+
+    /// <summary>
+    /// Sends ships at a station on attack-move (not in the web version: the stance): a wave goes
+    /// for what it sees and stays on it, the home fleet fights back and comes back.
+    /// </summary>
+    static void Send(World world, List<Entity> ships, Entity at, Stance stance)
+    {
+        foreach (var e in ships) e.Stance = stance;
+        Movement.IssueMove(world, ships.Select(e => e.Id), at.X, at.Y, true);
     }
 
     /// <summary>A nebula this close to the station hides its fleet; the fleet waits on the station's side of it.</summary>

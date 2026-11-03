@@ -179,8 +179,16 @@ public static class Combat
         return best;
     }
 
-    /// <summary>Ships look further than they shoot, so that they move in to engage.</summary>
-    static double AggroRange(Entity e) => e.Kind == EntityKind.Ship ? Math.Max(e.Range * 1.6, 350) : e.Range;
+    /// <summary>
+    /// Ships look further than they shoot, so that they move in to engage; aggressive ones further
+    /// still, and those holding their place only as far as they shoot.
+    /// </summary>
+    static double AggroRange(Entity e) => e.Kind != EntityKind.Ship ? e.Range : e.Stance switch
+    {
+        Stance.Aggressive => Math.Max(e.Range * 2.2, 550),
+        Stance.Hold => e.Range,
+        _ => Math.Max(e.Range * 1.6, 350),
+    };
 
     /// <summary>Armed entities pick targets; so do ships whose weapons sit on their turrets, to close in.</summary>
     public static void UpdateTargeting(World world, double dt)
@@ -192,7 +200,8 @@ public static class Combat
             e.Retarget -= dt;
             if (e.Retarget > 0) continue;
             e.Retarget = RetargetInterval;
-            e.TargetId = BestHostile(world, e, AggroRange(e))?.Id;
+            // A passive ship and its turrets pick nothing: they only fire at what they are ordered to attack.
+            e.TargetId = OwnerOf(world, e).Stance == Stance.Passive ? null : BestHostile(world, e, AggroRange(e))?.Id;
             // Craft fly for their carrier: they go for what it fights (not in the web version).
             if (Movement.CarrierOf(world, e) is { } carrier && Movement.FocusOf(world, carrier) is { } focus) e.TargetId = focus.Id;
             // Taunted: only the bulwark that did it, while it can be seen (not in the web version).
@@ -214,6 +223,8 @@ public static class Combat
         // Stations and platforms, and the guns on them, hit harder with fortifications research.
         if (owner.Kind == EntityKind.Structure) m *= 1 + Techs.FortificationBonus * ResearchLevel(world, e.Side, TechId.Fortification);
         if (InCommandAura(world, owner)) m *= 1.15;
+        // A veteran, and the guns on it, hit harder (Veterans.cs).
+        if (owner.Rank > 0) m *= Veterans.DamageMult(owner);
         return m;
     }
 
@@ -265,7 +276,7 @@ public static class Combat
         var lane = w.Burst > 1 && w.Homing ? (state.Shots - (w.Burst + 1) / 2.0) * 5 : 0;
         world.Projectiles.Add(new Projectile
         {
-            Id = world.NextId++, Side = e.Side, Kind = w.Kind,
+            Id = world.NextId++, Side = e.Side, Kind = w.Kind, From = e.Id,
             X = e.X - ay / len * lane, Y = e.Y + ax / len * lane,
             Vx = ax / len * w.ProjectileSpeed, Vy = ay / len * w.ProjectileSpeed,
             Speed = w.ProjectileSpeed, Damage = w.Damage * DamageMult(world, e), Mult = w.Multipliers,
@@ -281,7 +292,7 @@ public static class Combat
     static void HoldBeam(World world, Entity e, WeaponState w, Entity t, double dt)
     {
         var d = w.Def;
-        Hurt(world, t, d.Damage * DamageMult(world, e) * d.Multipliers.Of(t.Size) * dt, e.Side, d.ShieldMult, d.HullMult);
+        Hurt(world, t, d.Damage * DamageMult(world, e) * d.Multipliers.Of(t.Size) * dt, e.Side, d.ShieldMult, d.HullMult, e);
         world.Beams.Add(new BeamLine(e.Id, t.Id, e.Side));
         w.Cooldown -= dt;
         if (w.Cooldown > 0) return;
@@ -481,7 +492,7 @@ public static class Combat
                 var owner = OwnerOf(world, t);
                 var shieldOf = owner.Kind == EntityKind.Ship ? owner : t;
                 int? shieldId = shieldOf.Shield > 0 ? shieldOf.Id : null;
-                Hurt(world, t, p.Damage * p.Mult.Of(t.Size), p.Side, p.ShieldMult, p.HullMult);
+                Hurt(world, t, p.Damage * p.Mult.Of(t.Size), p.Side, p.ShieldMult, p.HullMult, world.Entities.Get(p.From));
                 world.Events.Add(new Hit(p.X, p.Y, p.Kind, t.Id, t.Side, shieldId));
                 // Landed: point defense rounds still after it give up.
                 p.Ttl = 0;
@@ -535,8 +546,8 @@ public static class Combat
     {
         foreach (var e in world.Entities)
         {
-            // Slower in a nebula (Terrain.cs).
-            var share = Terrains.RepairShare(world, e);
+            // Slower in a nebula (Terrain.cs), faster for a veteran (Veterans.cs).
+            var share = Terrains.RepairShare(world, e) * (e.Rank > 0 ? Veterans.RegenMult(e) : 1);
             // Biomechanical hulls mend themselves, but a ship already lost stays lost.
             var regen = Factions.Trait(e.Race).HullRegen;
             if (regen > 0 && e.Kind == EntityKind.Ship && e.Hull > 0) e.Hull = Math.Min(e.MaxHull, e.Hull + e.MaxHull * regen * share * dt);

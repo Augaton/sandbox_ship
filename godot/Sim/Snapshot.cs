@@ -40,9 +40,10 @@ public static partial class Snapshot
     /// included: a reader refuses any other version. 2: the battle modes' state and events. 3: deltas,
     /// records in segments, the parts of a ship placed by the reader. 4: beams, and torpedoes and
     /// missiles shot down. 5: sent in parts, one a packet (SnapshotParts.cs). 6: endless survival,
-    /// each seat's score and the time held, and how far ahead a wave was beaten.
+    /// each seat's score and the time held, and how far ahead a wave was beaten. 7: the terrain.
+    /// 8: veterans (rank, experience, Promoted), stances, patrols and orders queued.
     /// </summary>
-    public const ushort Version = 7;
+    public const ushort Version = 8;
     const uint Magic = 0x504E5353;
 
     /// <summary>Room around the team's sight within which shots and blows still show: they fly in from the dark.</summary>
@@ -75,12 +76,14 @@ public static partial class Snapshot
         Engines = 1 << 7, ShieldGens = 1 << 8, Launched = 1 << 9,
         // Only for the viewer's own entities.
         Pilot = 1 << 10, Order = 1 << 11, Range = 1 << 12,
+        // A veteran's rank, for everyone; and only for the viewer's own, a stance but the default, and a patrol or orders queued.
+        Rank = 1 << 13, Stance = 1 << 14, Plan = 1 << 15,
     }
 
     enum Tag : byte
     {
         Destroyed = 1, Hit, Built, Delivered, Researched, AbilityUsed, StrikeLanded, Rebuilt, Victory, RaidWon, LanceOnline,
-        WaveIncoming, WaveCleared, BeaconTaken, BeaconLost, FlagshipLost, ClockWarning, Intercepted, MineBlast,
+        WaveIncoming, WaveCleared, BeaconTaken, BeaconLost, FlagshipLost, ClockWarning, Intercepted, MineBlast, Promoted,
     }
 
     /// <summary>
@@ -516,7 +519,9 @@ public static partial class Snapshot
             | (e.Expires is not null ? Has.Expires : 0) | (e.Hangar is not null ? Has.Hangar : 0)
             | (e.Income > 0 ? Has.Income : 0) | (e.Engines is not null ? Has.Engines : 0) | (e.ShieldGens is not null ? Has.ShieldGens : 0)
             | (e.Launched ? Has.Launched : 0)
-            | (own && e.Pilot is not null ? Has.Pilot : 0) | (own && e.Order is not null ? Has.Order : 0) | (own ? Has.Range : 0);
+            | (own && e.Pilot is not null ? Has.Pilot : 0) | (own && e.Order is not null ? Has.Order : 0) | (own ? Has.Range : 0)
+            | (e.Rank > 0 || own && e.Xp > 0 ? Has.Rank : 0) | (own && e.Stance != Stance.Defensive ? Has.Stance : 0)
+            | (own && (e.Order?.Route is not null || e.Queue is { Count: > 0 }) ? Has.Plan : 0);
         w.Write((ushort)has);
         if ((has & Has.Weapons) != 0) w.Write7BitEncodedInt(e.Weapons.Count);
         if (e.TargetId is int target) w.Write7BitEncodedInt(target);
@@ -561,15 +566,37 @@ public static partial class Snapshot
             w.Write((float)p.AimY);
             w.Write(p.Firing);
         }
-        if ((has & Has.Order) != 0)
-        {
-            var o = e.Order!;
-            w.Write((byte)o.Type);
-            w.Write((float)o.X);
-            w.Write((float)o.Y);
-            w.Write7BitEncodedInt(o.TargetId);
-        }
+        if ((has & Has.Order) != 0) WriteOrder(w, e.Order!);
         if ((has & Has.Range) != 0) w.Write((float)e.Range);
+        if ((has & Has.Rank) != 0)
+        {
+            w.Write((byte)e.Rank);
+            if (own) w.Write((float)e.Xp);
+        }
+        if ((has & Has.Stance) != 0) w.Write((byte)e.Stance);
+        if ((has & Has.Plan) != 0)
+        {
+            var route = e.Order?.Route ?? [];
+            w.Write7BitEncodedInt(route.Count);
+            foreach (var p in route)
+            {
+                w.Write((float)p.X);
+                w.Write((float)p.Y);
+            }
+            if (route.Count > 0) w.Write7BitEncodedInt(e.Order!.Leg);
+            var queue = e.Queue ?? [];
+            w.Write7BitEncodedInt(queue.Count);
+            foreach (var q in queue) WriteOrder(w, q);
+        }
+    }
+
+    /// <summary>An order as the view draws it: u8 type, f32 x, y, n target; a patrol's route goes with the plan.</summary>
+    static void WriteOrder(BinaryWriter w, Order o)
+    {
+        w.Write((byte)o.Type);
+        w.Write((float)o.X);
+        w.Write((float)o.Y);
+        w.Write7BitEncodedInt(o.TargetId);
     }
 
     static void WriteType(BinaryWriter w, string type)
@@ -715,6 +742,7 @@ public static partial class Snapshot
         // The battle modes' news: waves, beacons, flagships and the assault's clock are everyone's.
         WaveIncoming or WaveCleared or BeaconTaken or BeaconLost or FlagshipLost or ClockWarning => true,
         Rebuilt r => Allies(world, r.Side, viewer),
+        Promoted p => Allies(world, p.Side, viewer),
         _ => false,
     };
 
@@ -784,6 +812,12 @@ public static partial class Snapshot
                 w.Write7BitEncodedInt(r.Id);
                 w.Write7BitEncodedInt(r.Side.Id);
                 w.Write((byte)r.Role);
+                break;
+            case Promoted p:
+                w.Write((byte)Tag.Promoted);
+                w.Write7BitEncodedInt(p.Id);
+                w.Write7BitEncodedInt(p.Side.Id);
+                w.Write((byte)p.Rank);
                 break;
             case Victory v:
                 w.Write((byte)Tag.Victory);

@@ -62,13 +62,24 @@ public static class AbilitySystem
     /// <summary>
     /// Deals damage from a side, through the shields of the ship a part belongs to. Allies are
     /// never hurt. `shieldMult` and `hullMult`: how hard it hits each (an ion bolt's, see ApplyDamage).
+    /// `by`: what fired, if anything did (not a mine): its ship learns from it (Veterans.cs).
     /// </summary>
-    public static void Hurt(World world, Entity t, double amount, Side from, double shieldMult = 1, double hullMult = 1)
+    public static void Hurt(World world, Entity t, double amount, Side from, double shieldMult = 1, double hullMult = 1, Entity? by = null)
     {
         if (Allies(world, from, t.Side)) return;
         var parent = t.Kind == EntityKind.Hardpoint && t.ParentId is not null ? world.Entities.Get(t.ParentId) : null;
         var dealt = amount * DamageTaken(world, t);
-        ApplyDamage(t, dealt, parent?.Kind == EntityKind.Ship ? parent : t, shieldMult, hullMult);
+        var shieldOf = parent?.Kind == EntityKind.Ship ? parent : t;
+        var (hull, shield) = (t.Hull, shieldOf.Shield);
+        ApplyDamage(t, dealt, shieldOf, shieldMult, hullMult);
+        // A blow on a wreck not yet cleared away changes nothing of who downed it.
+        if (hull > 0)
+        {
+            var shooter = by is null ? null : Veterans.Shooter(world, by);
+            t.ShooterId = shooter?.Id;
+            if (parent is not null) parent.ShooterId = shooter?.Id;
+            if (shooter is not null) Veterans.Credit(world, shooter, t, shield - shieldOf.Shield + hull - Math.Max(0, t.Hull), t.Hull <= 0);
+        }
         t.LastHitBy = from;
         t.HitAt = world.Time;
         if (parent is not null)
@@ -144,7 +155,7 @@ public static class AbilitySystem
                 var len = def.Range!.Value;
                 world.Strikes.Add(new Strike
                 {
-                    Kind = StrikeKind.Beam, Side = e.Side, X = e.X, Y = e.Y, X2 = e.X + Math.Cos(a) * len, Y2 = e.Y + Math.Sin(a) * len,
+                    Kind = StrikeKind.Beam, Side = e.Side, By = e.Id, X = e.X, Y = e.Y, X2 = e.X + Math.Cos(a) * len, Y2 = e.Y + Math.Sin(a) * len,
                     Radius = SpinalWidth, Damage = SpinalDamage, Delay = Abilities.SpinalCharge, Total = Abilities.SpinalCharge,
                 });
                 break;
@@ -152,14 +163,14 @@ public static class AbilitySystem
             case AbilityId.OrbitalStrike:
                 world.Strikes.Add(new Strike
                 {
-                    Kind = StrikeKind.Orbital, Side = e.Side, X = p.X, Y = p.Y, X2 = p.X, Y2 = p.Y,
+                    Kind = StrikeKind.Orbital, Side = e.Side, By = e.Id, X = p.X, Y = p.Y, X2 = p.X, Y2 = p.Y,
                     Radius = def.Radius!.Value, Damage = OrbitalDamage, Delay = Abilities.OrbitalDelay, Total = Abilities.OrbitalDelay,
                 });
                 break;
             case AbilityId.StarLance:
                 world.Strikes.Add(new Strike
                 {
-                    Kind = StrikeKind.Stellar, Side = e.Side, X = p.X, Y = p.Y, X2 = p.X, Y2 = p.Y,
+                    Kind = StrikeKind.Stellar, Side = e.Side, By = e.Id, X = p.X, Y = p.Y, X2 = p.X, Y2 = p.Y,
                     Radius = def.Radius!.Value, Damage = Abilities.StarLanceDamage, Delay = Abilities.StarLanceDelay, Total = Abilities.StarLanceDelay,
                 });
                 break;
@@ -218,7 +229,8 @@ public static class AbilitySystem
             var d = s.Kind != StrikeKind.Beam ? Hypot(t.X - s.X, t.Y - s.Y) : SegmentDistance(t, s);
             if (d <= s.Radius + t.Radius) hit.Add(t);
         }
-        foreach (var t in hit) Hurt(world, t, s.Damage, s.Side);
+        var by = world.Entities.Get(s.By);
+        foreach (var t in hit) Hurt(world, t, s.Damage, s.Side, by: by);
         if (s.Kind != StrikeKind.Beam && world.Terrain.Count > 0) Terrains.Blast(world, s.X, s.Y, s.Radius);
         world.Events.Add(new StrikeLanded(s));
     }

@@ -108,33 +108,35 @@ public class BattleHistoryTests
     }
 
     [Fact]
-    public void The_killer_is_the_ship_that_aimed_before_one_that_was_near()
+    public void The_killer_is_the_ship_that_dealt_the_last_blow_not_one_that_aimed_or_was_near()
     {
         var w = NewWorld();
         var victim = SpawnShip(w, Faction.Nairan, ShipClass.Scout, 2000, 2000);
-        var aiming = SpawnShip(w, Faction.Klaed, ShipClass.Frigate, 2600, 2000);
+        var aiming = SpawnShip(w, Faction.Klaed, ShipClass.Frigate, 2100, 2000);
         aiming.TargetId = victim.Id;
-        var near = SpawnShip(w, Faction.Klaed, ShipClass.Frigate, 2100, 2000);
-        var far = SpawnShip(w, Faction.Klaed, ShipClass.Frigate, 3200, 2000);
-        w.Grid.Rebuild(w.Entities);
+        var shooter = SpawnShip(w, Faction.Klaed, ShipClass.Frigate, 2600, 2000);
+        var carrier = SpawnShip(w, Faction.Klaed, ShipClass.Battlecruiser, 3000, 2000);
         var klaed = w.Factions.Values.First().Id;
         var h = new BattleHistory();
+        AbilitySystem.Hurt(w, victim, 1, klaed, by: shooter);
         h.Credit(w, victim, klaed);
-        Assert.Equal(1, aiming.Kills);
-        Assert.Equal(Ships.UnitValue(ShipClass.Scout), aiming.KilledValue);
-        Assert.Equal(0, near.Kills);
-        // None aiming: the nearest close by.
-        aiming.TargetId = 0;
+        Assert.Equal((0, 1), (aiming.Kills, shooter.Kills));
+        Assert.Equal(Ships.UnitValue(ShipClass.Scout), shooter.KilledValue);
+        // A turret's blow is its ship's.
+        var turret = ChildrenOf(w, carrier.Id).First();
+        AbilitySystem.Hurt(w, victim, 1, klaed, by: turret);
         h.Credit(w, victim, klaed);
-        Assert.Equal(1, near.Kills);
-        // None close by: nobody.
-        near.Hull = 0;
-        aiming.Hull = 0;
+        Assert.Equal(1, carrier.Kills);
+        // A mine's is nobody's, nor is a shot's once its ship is gone.
+        AbilitySystem.Hurt(w, victim, 1, Terrains.Neutral);
         h.Credit(w, victim, klaed);
-        Assert.Equal(0, far.Kills);
+        AbilitySystem.Hurt(w, victim, 1, klaed, by: aiming);
+        w.Entities.Remove(aiming.Id);
+        h.Credit(w, victim, klaed);
+        Assert.Equal((0, 1, 1), (aiming.Kills, shooter.Kills, carrier.Kills));
         // A tie in kills goes to the one that destroyed the most, then to the first built.
-        Assert.Equal([aiming.Id, near.Id], h.Aces[klaed].Select(a => a.Id));
-        h.Lost(near);
+        Assert.Equal([shooter.Id, carrier.Id], h.Aces[klaed].Select(a => a.Id));
+        h.Lost(carrier);
         Assert.Equal([true, false], h.Aces[klaed].Select(a => a.Alive));
     }
 
@@ -148,9 +150,8 @@ public class BattleHistoryTests
         for (var i = 0; i < ships.Count; i++)
         {
             var victim = SpawnShip(w, Faction.Nairan, ShipClass.Scout, 500 + i * 200, 600);
-            w.Grid.Rebuild(w.Entities);
             // The i-th ship destroys i+1 of them.
-            ships[i].TargetId = victim.Id;
+            victim.ShooterId = ships[i].Id;
             for (var k = 0; k <= i; k++) h.Credit(w, victim, klaed);
         }
         Assert.Equal(ships.AsEnumerable().Reverse().Take(BattleHistory.MaxAces).Select(s => s.Id), h.Aces[klaed].Select(a => a.Id));

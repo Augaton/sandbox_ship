@@ -43,9 +43,64 @@ public partial class Hud
             }
             parts = [Title($"{ents.Count} unités"), Chips(counts)];
         }
+        parts.AddRange(OrderParts(ents));
         parts.AddRange(AbilityParts(ents));
         Sync(selection, parts);
     }
+
+    /// <summary>
+    /// For the selected own ships: their stance, four buttons with the one they all have marked
+    /// (dimly when only some have it), and the patrol and guard orders, a click from their mode.
+    /// </summary>
+    List<Part> OrderParts(List<Entity> ents)
+    {
+        var ships = ents.Where(e => e.Side == Player && e.Kind == EntityKind.Ship && !e.Launched).ToList();
+        if (ships.Count == 0) return [];
+        var c = scene.Controls;
+        return
+        [
+            GapPart(6),
+            new Part("stances", () =>
+            {
+                var flow = Flow(4);
+                foreach (var s in Selection.StanceOrder)
+                {
+                    var stance = s;
+                    flow.AddChild(Button(Selection.StanceName(s), () => c.SetStance(stance), StanceTip(s), 30));
+                }
+                return flow;
+            }, n =>
+            {
+                for (var i = 0; i < Selection.StanceOrder.Length; i++)
+                {
+                    var s = Selection.StanceOrder[i];
+                    Outline(n.GetChild<Button>(i), ships.All(e => e.Stance == s) ? Palette.Accent : ships.Any(e => e.Stance == s) ? Palette.Muted : null);
+                }
+            }),
+            new Part("orders", () =>
+            {
+                var flow = Flow(4);
+                flow.AddChild(Button("", c.ArmPatrol, "Clic : où patrouiller ; Maj + clics : plusieurs points", 30));
+                flow.AddChild(Button("", c.ArmGuard, "Clic sur un allié à garder ou escorter", 30));
+                return flow;
+            }, n =>
+            {
+                var (patrol, guard) = (n.GetChild<Button>(0), n.GetChild<Button>(1));
+                patrol.Text = $"Patrouille ({Bindings.Label(Bindings.Patrol)})";
+                guard.Text = $"Garder ({Bindings.Label(Bindings.Guard)})";
+                Outline(patrol, c.Mode is PatrolMode ? Palette.Accent : null);
+                Outline(guard, c.Mode is GuardMode ? Palette.Accent : null);
+            }),
+        ];
+    }
+
+    static string StanceTip(Stance s) => s switch
+    {
+        Stance.Aggressive => "Va chercher l'ennemi de loin et le poursuit",
+        Stance.Hold => "Ne bouge pas : tire sur ce qui passe à portée",
+        Stance.Passive => "Ne tire pas, sauf ordre d'attaque : pour les éclaireurs",
+        _ => "Riposte, puis revient à son poste",
+    };
 
     static Part Title(string text) => new("title", () =>
     {
@@ -97,6 +152,16 @@ public partial class Hud
             lines.Add(BarPart(e.Shield / e.MaxShield, Palette.Shield));
         }
         if (e.Build < 1) lines.Add(TextPart($"En construction : {Percent(e.Build)}"));
+        if (e.Kind == EntityKind.Ship && (e.Rank > 0 || own && e.Xp > 0))
+        {
+            lines.Add(TextPart(e.Rank > 0 ? RankName(e.Rank) : "Recrue", Palette.Accent));
+            // Towards the next rank, for the player's own: experience is theirs to know.
+            if (own && e.Rank < Veterans.MaxRank)
+            {
+                var from = e.Rank > 0 ? Veterans.Needed(e.Rank) : 0;
+                lines.Add(BarPart((e.Xp - from) / (Veterans.Needed(e.Rank + 1) - from), Palette.Accent));
+            }
+        }
         if (e.Type == "station")
         {
             lines.Add(TextPart($"Niveau {e.Level}, {Worlds.ChildrenOf(World, e.Id).Count} points d'attache"));
