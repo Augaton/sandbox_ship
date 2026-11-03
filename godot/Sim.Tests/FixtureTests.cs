@@ -25,6 +25,11 @@ public class FixtureTests
     /// the titan. Their turrets keep their places and their number of weapons.
     /// </summary>
     static readonly HashSet<ShipClass> Rearmed = [ShipClass.Frigate, ShipClass.Battlecruiser, ShipClass.Dreadnought, ShipClass.Titan];
+    /// <summary>
+    /// Races whose trait this version balances again, measured in games between AIs: the Kla'ed,
+    /// +15 % damage and −10 % shields instead of +10 % and −15 %.
+    /// </summary>
+    static readonly HashSet<Faction> Retuned = [Faction.Klaed];
     /// <summary>Techs of this version only; the web's go further here, their first three levels unchanged.</summary>
     static readonly HashSet<TechId> NewTechs = [TechId.Logistics, TechId.Repair, TechId.Fortification, TechId.Energy];
     static IEnumerable<BuildableType> WebBuildables => Buildables.All.Where(b => b is not (BuildableType.Lab or BuildableType.StarLance));
@@ -134,9 +139,12 @@ public class FixtureTests
             Assert.Equal(j.GetProperty("color").GetUInt32(), d.Color);
             var t = j.GetProperty("trait");
             Assert.Equal(t.GetProperty("name").GetString(), d.Trait.Name);
-            Assert.Equal(t.GetProperty("description").GetString(), d.Trait.Description);
-            Assert.Equal(t.GetProperty("damage").GetDouble(), d.Trait.Damage);
-            Assert.Equal(t.GetProperty("shield").GetDouble(), d.Trait.Shield);
+            if (!Retuned.Contains(f))
+            {
+                Assert.Equal(t.GetProperty("description").GetString(), d.Trait.Description);
+                Assert.Equal(t.GetProperty("damage").GetDouble(), d.Trait.Damage);
+                Assert.Equal(t.GetProperty("shield").GetDouble(), d.Trait.Shield);
+            }
             Assert.Equal(t.GetProperty("hull").GetDouble(), d.Trait.Hull);
             Assert.Equal(t.GetProperty("speed").GetDouble(), d.Trait.Speed);
             Assert.Equal(t.GetProperty("cost").GetDouble(), d.Trait.Cost);
