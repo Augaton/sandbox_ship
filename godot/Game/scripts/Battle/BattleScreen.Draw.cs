@@ -918,6 +918,7 @@ public partial class BattleScreen
         var amber = Palette.Hex(0xe8a13a);
         // Green for the player's own, red for a foe, grey for an ally: neither to command nor to strike.
         Color Whose(Entity e) => e.Side == player ? green : Worlds.Foes(World, e.Side, player) ? red : Palette.Muted;
+        planned.Clear();
         DrawFlagships(g, rect, z);
         foreach (var e in World.Entities)
         {
@@ -1038,6 +1039,9 @@ public partial class BattleScreen
             Draw.Ring(g, t.X, t.Y, t.Radius + 10 / z, color with { A = 0.9f }, 2 / z, z);
     }
 
+    /// <summary>The fleets whose way DrawPlan showed this frame.</summary>
+    readonly HashSet<MoveGroup> planned = [];
+
     /// <summary>
     /// Where a selected ship of the player's is going: its order, the rest of its patrol back to
     /// the start, then the orders queued after it, each leg from the end of the one before.
@@ -1056,6 +1060,8 @@ public partial class BattleScreen
         }
         var order = e.Order!;
         Leg(order, 0.5f);
+        // A fleet ordered together shows the rest of its way once, not once a ship.
+        if (order.Group is { } group && !planned.Add(group)) return;
         if (order.Route is { Count: > 1 } route)
         {
             for (var k = 1; k <= route.Count; k++)
@@ -1073,14 +1079,14 @@ public partial class BattleScreen
     {
         var gold = Palette.Hex(0xe8c14a);
         var w = Math.Max(28 / z, e.Radius * 1.6);
-        var x = e.X + w / 2 + 6 / z;
+        var x = e.X + w / 2 + 9 / z;
         var y = e.Y - e.Radius - 4 / z;
-        var (half, rise) = (3.5 / z, 2.5 / z);
+        var (half, rise) = (5 / z, 3.5 / z);
         for (var i = 0; i < e.Rank; i++)
         {
-            var cy = y - i * 3.5 / z;
-            Draw.Line(g, x - half, cy, x, cy - rise, gold, 1.5 / z);
-            Draw.Line(g, x, cy - rise, x + half, cy, gold, 1.5 / z);
+            var cy = y - i * 4.5 / z;
+            Draw.Line(g, x - half, cy, x, cy - rise, gold, 2 / z);
+            Draw.Line(g, x, cy - rise, x + half, cy, gold, 2 / z);
         }
     }
 

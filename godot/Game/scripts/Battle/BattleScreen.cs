@@ -164,6 +164,30 @@ public partial class BattleScreen : Node
             StressProbe.Attach(this, GetViewport(), fogMask);
         }
         if (Dev.At is Vector2 at) CenterOn(at.X, at.Y);
+        if (Dev.Veterans is { } which && own is not null && o.Net is null) ShowVeterans(own, which == "one");
+    }
+
+    /// <summary>
+    /// --veterans: the player's first three warships promoted to ranks 3, 2 and 1, then the fleet
+    /// (with "one", only the first) selected, holding, on a patrol with a move queued after it.
+    /// A dev run's look at what the selection panel and the field show of them.
+    /// </summary>
+    void ShowVeterans(FactionState own, bool one)
+    {
+        own.AI = null;
+        var ships = World.Entities.Where(e => e.Side == Opts.Player && e.Kind == EntityKind.Ship && !e.Launched).ToList();
+        if (ships.Count == 0) return;
+        for (var i = 0; i < Math.Min(3, ships.Count); i++) Veterans.Promote(World, ships[i], 3 - i, news: false);
+        var pick = one ? ships.Take(1).ToList() : ships;
+        Selected.Clear();
+        foreach (var s in pick) Selected.Add(s.Id);
+        var ids = pick.Select(s => s.Id).ToArray();
+        var c = new Point(pick.Average(s => s.X), pick.Average(s => s.Y));
+        var ahead = c.X < World.Width / 2 ? 700 : -700;
+        Sink.Send(new Command.SetStance(ids, Stance.Hold));
+        Sink.Send(new Command.Patrol(ids, [new Point(c.X + ahead, c.Y), new Point(c.X + ahead, c.Y + 450)]));
+        Sink.Send(new Command.Move(ids, c.X, c.Y - 350, Queued: true));
+        CenterOn(c.X + ahead / 2.0, c.Y + 100);
     }
 
     public override void _ExitTree()

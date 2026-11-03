@@ -227,6 +227,18 @@ public class StancesTests
         Assert.Equal((OrderType.Guard, station.Id), (own.Order!.Type, own.Order.TargetId));
     }
 
+    [Fact]
+    public void A_ship_does_not_guard_the_one_that_guards_it()
+    {
+        var w = NewWorld();
+        var a = SpawnShip(w, Klaed, ShipClass.Frigate, 1000, 1000);
+        var b = SpawnShip(w, Klaed, ShipClass.Frigate, 1200, 1000);
+        IssueGuard(w, [a.Id], b.Id);
+        IssueGuard(w, [b.Id], a.Id);
+        Assert.Equal(OrderType.Guard, a.Order?.Type);
+        Assert.Null(b.Order);
+    }
+
     // Orders queued.
 
     [Fact]

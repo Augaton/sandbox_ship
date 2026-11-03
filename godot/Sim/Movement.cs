@@ -732,7 +732,9 @@ public static class Movement
         if (world.Entities.Get(wardId) is not { } part) return;
         // A part is guarded through what it belongs to.
         var ward = AbilitySystem.OwnerOf(world, part);
-        var ships = OwnShips(world, ids).Where(s => s != ward && Allies(world, s.Side, ward.Side)).ToList();
+        // Nor does it guard the ship guarding it: the two would chase each other's places.
+        var ships = OwnShips(world, ids)
+            .Where(s => s != ward && Allies(world, s.Side, ward.Side) && !(ward.Order is { Type: OrderType.Guard } wo && wo.TargetId == s.Id)).ToList();
         // Spread behind it, in an arc that closes into a ring for many.
         var spread = ships.Count > 0 ? Math.Min(Math.PI * 2 / ships.Count, 0.6) : 0;
         for (var i = 0; i < ships.Count; i++)

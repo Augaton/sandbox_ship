@@ -40,7 +40,9 @@ d'IA et où `--teams=1,2,…` place les équipes dans l'ordre des places),
 (sprites composés, stations, pièces et bâtiments dessinés par le jeu, et `boot.png`, le logo de
 l'écran de démarrage), `--no-hud` (la bataille sans son interface, pour capturer le terrain ;
 `--start=gallery` montre chaque vaisseau, puis pour chaque race ses stations des niveaux 1 à 4 et
-chacun de ses bâtiments à chacun de ses niveaux). Ajouter `--disable-vsync`
+chacun de ses bâtiments à chacun de ses niveaux), `--veterans[=one]` (bataille locale : les trois
+premiers vaisseaux du joueur promus aux rangs 3, 2 et 1, la flotte, ou avec `one` le premier,
+sélectionnée, en position tenue, sur une patrouille suivie d'un déplacement en file). Ajouter `--disable-vsync`
 avant `--` si la fenêtre est cachée : sinon le compositeur la ralentit. Avec `--shot`, la
 fenêtre ne prend pas le clavier, et ni les réglages ni la sauvegarde de campagne ne sont touchés.
 Pour une capture sans aucune fenêtre à l'écran (gamescope, déjà installé) :
