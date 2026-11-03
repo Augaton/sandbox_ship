@@ -110,7 +110,7 @@ public static class Protocol
     /// 3: acknowledged battle snapshots (Ack), the campaign's chart apart (Chart). 4: the chat (Say,
     /// Said), the challenge of a password (Challenge, Hello's key) and players who only watch (Hello's Watches).
     /// </summary>
-    public const int Version = 4;
+    public const int Version = 5;
     /// <summary>Where a host listens for players, unless told otherwise.</summary>
     public const int DefaultPort = 24680;
     /// <summary>Where hosts call out to the local network, and the join screen listens.</summary>
@@ -317,6 +317,7 @@ public static class Protocol
                 w.Write7BitEncodedInt(v.ZoneTarget);
                 w.Write7BitEncodedInt(v.AssaultMinutes);
                 w.Write(v.Spectators);
+                w.Write((byte)v.Terrain);
                 break;
             default: throw new ArgumentException($"Demande sans format : {q.GetType().Name}");
         }
@@ -332,7 +333,7 @@ public static class Protocol
         6 => new LobbyRequest.AddBot(),
         7 => new LobbyRequest.Remove(r.ReadVarint()),
         8 => new LobbyRequest.Settings(new LobbySettings((MapKind)r.ReadByte(), (MapSize)r.ReadByte(), r.ReadVarint(), r.ReadBoolean(),
-            r.ReadBoolean(), r.ReadVarint(), r.ReadVarint(), r.ReadBoolean())),
+            r.ReadBoolean(), r.ReadVarint(), r.ReadVarint(), r.ReadBoolean(), (TerrainDensity)r.ReadByte())),
         var tag => throw new InvalidDataException($"Demande inconnue : {tag}"),
     };
 

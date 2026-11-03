@@ -74,6 +74,7 @@ public partial class Minimap : Control
         {
             DrawCircle(new Vector2((float)(f.X * sx), (float)(f.Y * sy)), (float)Math.Max(2, f.Radius * sx), Palette.Line);
         }
+        BattleScreen.DrawTerrainMap(this, w.Terrain, sx, sy);
         foreach (var e in w.Entities)
         {
             if (e.Kind == EntityKind.Hardpoint) continue;

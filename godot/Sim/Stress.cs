@@ -19,11 +19,12 @@ public static class Stress
     /// <summary>Distance from the map center to each fleet's center: close enough to fight at once.</summary>
     const double FleetRing = 750;
 
-    public static World Create(int seed = 7)
+    /// <summary>The scene, on the terrain of `terrain` (none by default: the measures before terrain stay comparable).</summary>
+    public static World Create(int seed = 7, TerrainDensity terrain = TerrainDensity.None)
     {
         var w = Scenario.CreateSkirmish(new SkirmishOptions
         {
-            Player = Faction.Klaed, Enemies = [Faction.Nairan, Faction.Nautolan], EnemyAI = true, Seed = seed, Size = MapSize.Large,
+            Player = Faction.Klaed, Enemies = [Faction.Nairan, Faction.Nautolan], EnemyAI = true, Seed = seed, Size = MapSize.Large, Terrain = terrain,
         });
         var (cx, cy) = (w.Width / 2, w.Height / 2);
         var i = 0;

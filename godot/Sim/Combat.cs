@@ -469,6 +469,13 @@ public static class Combat
             p.X += p.Vx * dt;
             p.Y += p.Vy * dt;
             p.Ttl -= dt;
+            // Crashed on the rocks of a belt (Terrain.cs): a spark, as a shot brought down.
+            if (world.Terrain.Count > 0 && Terrains.Stops(world, p.Kind, p.X, p.Y))
+            {
+                world.Events.Add(new Intercepted(p.X, p.Y, p.Side));
+                p.Ttl = 0;
+                continue;
+            }
             if (t is not null && Dist(p, t) <= t.Radius)
             {
                 var owner = OwnerOf(world, t);
@@ -543,7 +550,7 @@ public static class Combat
                 continue;
             }
             var boost = IsActive(world, e, AbilityId.Overcharge) ? 4 : 1;
-            e.Shield = Math.Min(e.MaxShield, e.Shield + e.ShieldRegen * boost * dt);
+            e.Shield = Math.Min(e.MaxShield, e.Shield + e.ShieldRegen * boost * Terrains.ShieldShare(world, e) * dt);
         }
     }
 

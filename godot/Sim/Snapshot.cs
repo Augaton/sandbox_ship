@@ -42,7 +42,7 @@ public static partial class Snapshot
     /// missiles shot down. 5: sent in parts, one a packet (SnapshotParts.cs). 6: endless survival,
     /// each seat's score and the time held, and how far ahead a wave was beaten.
     /// </summary>
-    public const ushort Version = 6;
+    public const ushort Version = 7;
     const uint Magic = 0x504E5353;
 
     /// <summary>Room around the team's sight within which shots and blows still show: they fly in from the dark.</summary>
@@ -80,7 +80,7 @@ public static partial class Snapshot
     enum Tag : byte
     {
         Destroyed = 1, Hit, Built, Delivered, Researched, AbilityUsed, StrikeLanded, Rebuilt, Victory, RaidWon, LanceOnline,
-        WaveIncoming, WaveCleared, BeaconTaken, BeaconLost, FlagshipLost, ClockWarning, Intercepted,
+        WaveIncoming, WaveCleared, BeaconTaken, BeaconLost, FlagshipLost, ClockWarning, Intercepted, MineBlast,
     }
 
     /// <summary>
@@ -117,7 +117,7 @@ public static partial class Snapshot
         w.Write7BitEncodedInt(frame.Seq);
         w.Write7BitEncodedInt(baseline?.Seq ?? 0);
         w.Write(world.Time);
-        WriteWorld(world, viewer, w);
+        WriteWorld(world, viewer, w, baseline is null);
         var shown = WriteEntities(world, viewer, w, frame, baseline, frames);
         var sight = new Sight(world, viewer);
         WriteShots(world, viewer, sight, w, frame, baseline, frames);
@@ -125,8 +125,8 @@ public static partial class Snapshot
         WriteTail(world, viewer, shown, sight, w, events, vital);
     }
 
-    /// <summary>The world, after its time: its size and flags, the mode's state, the sides, the fields.</summary>
-    static void WriteWorld(World world, Side viewer, BinaryWriter w)
+    /// <summary>The world, after its time: its size and flags, the mode's state, the sides, the fields, the terrain (whole in a whole snapshot).</summary>
+    static void WriteWorld(World world, Side viewer, BinaryWriter w, bool whole)
     {
         w.Write(world.Width);
         w.Write(world.Height);
@@ -147,6 +147,37 @@ public static partial class Snapshot
             w.Write((float)f.Radius);
             w.Write7BitEncodedInt(f.MineId ?? -1);
         }
+        WriteTerrain(world, w, whole);
+    }
+
+    /// <summary>
+    /// The terrain (Terrain.cs) does not move: its pieces go in a whole snapshot only, the one a
+    /// player starts from (and gets again after a long loss); every snapshot then says how many
+    /// mines each minefield has left, in the pieces' order.
+    /// </summary>
+    static void WriteTerrain(World world, BinaryWriter w, bool whole)
+    {
+        var pieces = whole && world.Terrain.Count > 0;
+        w.Write(pieces);
+        if (pieces)
+        {
+            w.Write7BitEncodedInt(world.Terrain.Count);
+            foreach (var p in world.Terrain)
+            {
+                w.Write7BitEncodedInt(p.Id);
+                w.Write((byte)p.Kind);
+                w.Write((float)p.X);
+                w.Write((float)p.Y);
+                w.Write((float)p.X2);
+                w.Write((float)p.Y2);
+                w.Write((float)p.Radius);
+                w.Write7BitEncodedInt(p.MaxMines);
+            }
+        }
+        var fields = 0;
+        foreach (var p in world.Terrain) if (p.Kind == TerrainKind.Minefield) fields++;
+        w.Write7BitEncodedInt(fields);
+        foreach (var p in world.Terrain) if (p.Kind == TerrainKind.Minefield) w.Write7BitEncodedInt(p.Mines);
     }
 
     /// <summary>After the shots: the beams, the zones, the strikes, then the events (those that must not be lost into `vital`, if given).</summary>
@@ -673,6 +704,8 @@ public static partial class Snapshot
         Destroyed d => Allies(world, d.Side, viewer) || sight.Sees(d.X, d.Y),
         Hit h => Allies(world, h.Side, viewer) || sight.Sees(h.X, h.Y),
         Intercepted i => Allies(world, i.Side, viewer) || sight.Sees(i.X, i.Y),
+        // A mine blows under a ship: its team sees there.
+        MineBlast m => sight.Sees(m.X, m.Y),
         Built b => shown.Contains(b.Id) || world.Entities.Get(b.Id) is { Type: "starLance" },
         LanceOnline => true,
         Delivered d => shown.Contains(d.Id),
@@ -800,6 +833,11 @@ public static partial class Snapshot
                 w.Write((float)i.X);
                 w.Write((float)i.Y);
                 w.Write7BitEncodedInt(i.Side.Id);
+                break;
+            case MineBlast mb:
+                w.Write((byte)Tag.MineBlast);
+                w.Write((float)mb.X);
+                w.Write((float)mb.Y);
                 break;
         }
     }

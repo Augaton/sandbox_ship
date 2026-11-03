@@ -24,12 +24,13 @@ public abstract record LobbyRequest
 }
 
 /// <summary>A lobby's map and rules: everything but its mode and its seats; and whether it takes spectators.</summary>
-public sealed record LobbySettings(MapKind Map, MapSize Size, int Seed, bool Raid, bool Fog, int ZoneTarget, int AssaultMinutes, bool Spectators = true)
+public sealed record LobbySettings(MapKind Map, MapSize Size, int Seed, bool Raid, bool Fog, int ZoneTarget, int AssaultMinutes, bool Spectators = true,
+    TerrainDensity Terrain = TerrainDensity.Light)
 {
-    public static LobbySettings Of(Lobby l) => new(l.Map, l.Size, l.Seed, l.Raid, l.Fog, l.ZoneTarget, l.AssaultMinutes, l.Spectators);
+    public static LobbySettings Of(Lobby l) => new(l.Map, l.Size, l.Seed, l.Raid, l.Fog, l.ZoneTarget, l.AssaultMinutes, l.Spectators, l.Terrain);
 
-    /// <summary>Known values only: a map, a size, a seed from 1, a zone target and an assault length the lobby offers.</summary>
-    public bool Sane => Enum.IsDefined(Map) && Enum.IsDefined(Size) && Seed >= 1
+    /// <summary>Known values only: a map, a size, a terrain, a seed from 1, a zone target and an assault length the lobby offers.</summary>
+    public bool Sane => Enum.IsDefined(Map) && Enum.IsDefined(Size) && Enum.IsDefined(Terrain) && Seed >= 1
         && Lobby.ZoneTargets.Contains(ZoneTarget) && Lobby.AssaultLengths.Contains(AssaultMinutes);
 }
 
@@ -94,8 +95,8 @@ public static class LobbyRules
             }
             case LobbyRequest.Settings { Values: var v }:
                 if (!leads || !v.Sane) return false;
-                (l.Map, l.Size, l.Seed, l.Raid, l.Fog, l.ZoneTarget, l.AssaultMinutes, l.Spectators) =
-                    (v.Map, v.Size, v.Seed, v.Raid, v.Fog, v.ZoneTarget, v.AssaultMinutes, v.Spectators);
+                (l.Map, l.Size, l.Seed, l.Raid, l.Fog, l.ZoneTarget, l.AssaultMinutes, l.Spectators, l.Terrain) =
+                    (v.Map, v.Size, v.Seed, v.Raid, v.Fog, v.ZoneTarget, v.AssaultMinutes, v.Spectators, v.Terrain);
                 l.Fit();
                 return true;
         }

@@ -47,7 +47,7 @@ public sealed class Replay
 public static class Replays
 {
     /// <summary>Layout of the file below: a replay of another layout is not read. Bumped with any change, as Commands.WireVersion with the commands'.</summary>
-    public const int FormatVersion = 1;
+    public const int FormatVersion = 2;
     /// <summary>"SSRP", the file's first four bytes.</summary>
     const uint Magic = 0x50525353;
 
@@ -144,7 +144,8 @@ public static class Replays
         if (r.ReadUInt32() != Magic) throw new InvalidDataException("Ce fichier n'est pas une rediffusion.");
         var format = r.ReadInt32();
         var wire = r.ReadInt32();
-        if (format != FormatVersion || wire != Commands.WireVersion) throw new InvalidDataException("Rediffusion d'une autre version du jeu, illisible par celle-ci.");
+        // Format 1, before the terrain, still reads: its battles had none.
+        if (format is not (1 or FormatVersion) || wire != Commands.WireVersion) throw new InvalidDataException("Rediffusion d'une autre version du jeu, illisible par celle-ci.");
         var version = r.ReadText();
         var savedAt = r.ReadInt64();
         var length = r.ReadInt64();
@@ -152,7 +153,7 @@ public static class Replays
         var player = new Side(r.ReadInt32());
         var winner = r.ReadInt32();
         var sandbox = r.ReadBoolean();
-        var options = ReadOptions(r);
+        var options = ReadOptions(r, format);
         var count = r.ReadInt32();
         if (length < 0 || count < 0) throw new InvalidDataException("Rediffusion abîmée.");
         var commands = new List<LoggedCommand>(headerOnly ? 0 : Math.Min(count, 1 << 16));
@@ -195,9 +196,10 @@ public static class Replays
         w.Write(o.Fog);
         w.Write((byte)o.Difficulty);
         w.Write(o.Raid);
+        w.Write((byte)o.Terrain);
     }
 
-    static SkirmishOptions ReadOptions(BinaryReader r)
+    static SkirmishOptions ReadOptions(BinaryReader r, int format)
     {
         var o = new SkirmishOptions { Mode = Named<BattleMode>(r.ReadByte()), ZoneTarget = r.ReadInt32(), AssaultMinutes = r.ReadInt32() };
         var slots = r.ReadInt32();
@@ -224,11 +226,13 @@ public static class Replays
         o.Fog = r.ReadBoolean();
         o.Difficulty = Named<Difficulty>(r.ReadByte());
         o.Raid = r.ReadBoolean();
+        if (format >= 2) o.Terrain = Named<TerrainDensity>(r.ReadByte());
         return o;
     }
 
+    /// <summary>A known value of an enum, whatever its underlying type, or the file is refused.</summary>
     static T Named<T>(byte b) where T : struct, Enum =>
-        Enum.IsDefined(typeof(T), (int)b) ? (T)Enum.ToObject(typeof(T), b) : throw new InvalidDataException("Rediffusion abîmée.");
+        Enum.ToObject(typeof(T), b) is T v && Enum.IsDefined(v) ? v : throw new InvalidDataException("Rediffusion abîmée.");
 }
 
 /// <summary>

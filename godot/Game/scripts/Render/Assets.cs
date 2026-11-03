@@ -394,6 +394,8 @@ public static class Assets
         var clear = new Color(1, 1, 1, 0);
         Add("fog-brush", Radial(256, (0, white), (0.8, white), (1, clear)), 256, 256, 1);
         Add("ph-spark", Radial(8, (0, white), (1, clear)), 8, 8, 1);
+        // The terrain's clouds (Battle/BattleScreen.Terrain.cs), tinted and drawn smoothed.
+        Add("ph-cloud", Radial(96, (0, white), (0.45, new Color(1, 1, 1, 0.55f)), (1, clear)), 96, 96, 1);
         Add("ph-smoke", Radial(32, (0, new Color(70 / 255f, 70 / 255f, 76 / 255f, 0.95f)), (0.5, new Color(90 / 255f, 90 / 255f, 96 / 255f, 0.6f)), (1, new Color(90 / 255f, 90 / 255f, 96 / 255f, 0))), 32, 32, 1);
         Add("ph-boom", Radial(64, (0, new Color(1, 1, 230 / 255f, 1)), (0.35, new Color(1, 190 / 255f, 90 / 255f, 0.9f)), (1, new Color(1, 80 / 255f, 20 / 255f, 0))), 64, 64, 1);
         var debris = Image.CreateEmpty(6, 4, false, Image.Format.Rgba8);

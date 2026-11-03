@@ -91,7 +91,7 @@ public static class Battle
     /// Defender on the left around its station, attacker arriving from the right. Both sides
     /// bring their research, and the AI handles their ship abilities unless told otherwise.
     /// </summary>
-    public static World CreatePlanetBattle(BattleSide attacker, BattleSide defender, PlanetDefense defense, int seed = 1)
+    public static World CreatePlanetBattle(BattleSide attacker, BattleSide defender, PlanetDefense defense, int seed = 1, bool nebula = false)
     {
         var w = CreateWorld(Width, Height, seed);
         w.Fog = true;
@@ -121,6 +121,7 @@ public static class Battle
         if (defense.IonCannon > 0) SpawnStructure(w, defender.Side, BuildableType.IonCannon, home.X - 260, home.Y - 260);
         PlaceShips(w, defender, home.X + 550, home.Y, 0);
         PlaceShips(w, attacker, Width - 500, home.Y, Math.PI);
+        if (nebula) Terrains.PlanetNebula(w, home, new Point(Width - 500, home.Y));
         return w;
     }
 

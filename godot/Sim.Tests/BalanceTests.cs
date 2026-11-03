@@ -2,6 +2,7 @@
 // normal difficulty, each side taking each start in turn. Prints win rates, game lengths and
 // what got built. A measure, not a check, and a long one: it only runs when asked,
 //   BALANCE=1 dotnet test Sim.Tests --filter Balance --logger "console;verbosity=detailed"
+// TERRAIN=light or dense: the same games on that battle terrain (none by default).
 using SandboxShip.Sim.Data;
 using Xunit;
 using Xunit.Abstractions;
@@ -14,6 +15,9 @@ public class BalanceTests(ITestOutputHelper output)
     // An hour: dearer station upgrades make games longer than in the web version (30 min there).
     const double Limit = 60 * 60;
     const double Dt = 1.0 / 30;
+    /// <summary>The terrain of every measured game: TERRAIN=none|light|dense, none by default.</summary>
+    internal static readonly TerrainDensity Terrain =
+        Enum.TryParse<TerrainDensity>(Environment.GetEnvironmentVariable("TERRAIN"), true, out var t) ? t : TerrainDensity.None;
 
     [Fact]
     public void Measures_the_factions_against_each_other()
@@ -31,7 +35,7 @@ public class BalanceTests(ITestOutputHelper output)
                 if (a == b) continue;
                 for (var seed = 1; seed <= Seeds; seed++)
                 {
-                    var w = Scenario.CreateSkirmish(new SkirmishOptions { Player = a, Enemies = [b], EnemyAI = true, Seed = seed * 101 });
+                    var w = Scenario.CreateSkirmish(new SkirmishOptions { Player = a, Enemies = [b], EnemyAI = true, Seed = seed * 101, Terrain = Terrain });
                     w.Factions[a].AI = Worlds.NewAI();
                     w.Factions[a].AutoAbilities = true;
                     var seen = new HashSet<int>();

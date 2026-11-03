@@ -527,6 +527,7 @@ public static class Structures
         {
             if (e.Kind != EntityKind.Ship && Dist(e, spot) < e.Radius + def.Radius + 10) return At(Result.Fail("Emplacement occupé"), x, y);
         }
+        if (world.Terrain.Count > 0 && !Terrains.Clear(world, x, y, def.Radius)) return At(Result.Fail("Terrain impraticable"), x, y);
         return At(Result.OK, x, y);
     }
 

@@ -121,6 +121,7 @@ public sealed partial class Session : Node
     {
         var lobby = Lobby.Create(mode, Random.Shared.Next(1, 1_000_000));
         lobby.Dedicated = true;
+        if (Dev.Terrain is { } terrain) lobby.Terrain = terrain;
         foreach (var seat in lobby.Seats) lobby.SetKind(seat, SeatKind.Open);
         var s = new Session { As = Role.Server, Port = port, Game = game, Me = -1, Room = new LobbyRoom(lobby), password = Passwords.Clean(password) };
         return s.Listen();

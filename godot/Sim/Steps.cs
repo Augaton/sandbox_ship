@@ -22,6 +22,7 @@ public static class Steps
         Combat.UpdateTargeting(world, dt);
         AbilitySystem.UpdateAbilities(world, dt);
         Movement.UpdateShips(world, dt);
+        Terrains.Update(world, dt);
         Movement.Separate(world);
         Worlds.AttachHardpoints(world);
         Combat.UpdateWeapons(world, dt);

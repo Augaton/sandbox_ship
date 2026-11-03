@@ -83,18 +83,18 @@ public partial class Main : Node
             case "battle" or "raid":
                 StartBattle(new BattleOptions
                 {
-                    Player = Faction.Klaed, Raid = true, Size = Dev.Size, Rules = Dev.Mode,
+                    Player = Faction.Klaed, Raid = true, Size = Dev.Size, Rules = Dev.Mode, Terrain = Dev.Terrain ?? TerrainDensity.None,
                     // An assault needs its two teams: the player defends.
                     Slots = Dev.Mode == BattleMode.Assault ? [new Slot(Faction.Klaed, Faction.Klaed, 1), new Slot(Faction.Nairan, Faction.Nairan, 2, Difficulty.Normal)]
                         : BattleOptions.Versus(Faction.Klaed, [Faction.Nairan]),
                 });
                 break;
-            case "sandbox" or "gallery": StartBattle(new BattleOptions { Player = Faction.Klaed, Slots = BattleOptions.Versus(Faction.Klaed, [Faction.Nairan]), Mode = GameMode.Sandbox, Size = Dev.Size }); break;
+            case "sandbox" or "gallery": StartBattle(new BattleOptions { Player = Faction.Klaed, Slots = BattleOptions.Versus(Faction.Klaed, [Faction.Nairan]), Mode = GameMode.Sandbox, Size = Dev.Size, Terrain = Dev.Terrain ?? TerrainDensity.None }); break;
             case "campaign": StartCampaign(new MenuChoice { Size = Dev.Size }); break;
             case "tutorial": StartBattle(Ui.Tutorial.Options()); break;
             case "replay" when Dev.Replay is string file && ReplayStore.Load(file, out _) is { } replay: StartBattle(BattleOptions.Watch(replay)); break;
             // With --host, the lobby first: the battle is served (Session.Launch).
-            case "stress" when !Dev.Host: StartBattle(new BattleOptions { Player = Faction.Klaed, Slots = BattleOptions.Versus(Faction.Klaed, [Faction.Nairan, Faction.Nautolan]), Size = MapSize.Large, Seed = 7 }); break;
+            case "stress" when !Dev.Host: StartBattle(new BattleOptions { Player = Faction.Klaed, Slots = BattleOptions.Versus(Faction.Klaed, [Faction.Nairan, Faction.Nautolan]), Size = MapSize.Large, Seed = 7, Terrain = Dev.Terrain ?? TerrainDensity.None }); break;
             default: ShowMenu(); break;
         }
     }
@@ -261,7 +261,7 @@ public partial class Main : Node
         StartBattle(new BattleOptions
         {
             Player = me, Slots = o.Slots, Mode = lobby.Mode == LobbyMode.Sandbox ? GameMode.Sandbox : GameMode.Skirmish,
-            Seed = o.Seed, Map = o.Map, Size = o.Size, Raid = o.Raid, Fog = o.Fog, Rules = o.Mode, ZoneTarget = o.ZoneTarget, AssaultMinutes = o.AssaultMinutes,
+            Seed = o.Seed, Map = o.Map, Size = o.Size, Raid = o.Raid, Terrain = o.Terrain, Fog = o.Fog, Rules = o.Mode, ZoneTarget = o.ZoneTarget, AssaultMinutes = o.AssaultMinutes,
             Net = net,
         });
     }

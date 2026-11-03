@@ -78,12 +78,12 @@ public partial class BattleScreen : Node
             Replay = new ReplayPlayer(recorded);
             World = Replay.World;
         }
-        else World = o.Net?.World ?? o.Campaign?.World ?? (Dev.Start == "stress" ? Stress.Create(o.Seed ?? 7) : Scenario.CreateSkirmish(new SkirmishOptions
+        else World = o.Net?.World ?? o.Campaign?.World ?? (Dev.Start == "stress" ? Stress.Create(o.Seed ?? 7, o.Terrain) : Scenario.CreateSkirmish(new SkirmishOptions
         {
             // In the sandbox, nobody plays by itself: the others only do what the player spawns.
             Slots = [.. o.Slots.Select(s => sandbox ? s with { AI = null } : s)],
             Credits = sandbox ? 50000 : o.Tutorial ? Ui.Tutorial.Credits : Scenario.StartCredits, Seed = o.Seed ?? 1,
-            Map = o.Map, Size = o.Size, Fog = o.Fog && !sandbox, Raid = o.Raid,
+            Map = o.Map, Size = o.Size, Fog = o.Fog && !sandbox, Raid = o.Raid, Terrain = o.Terrain,
             Mode = o.Rules, ZoneTarget = o.ZoneTarget, AssaultMinutes = o.AssaultMinutes,
         }));
         // The sandbox's tools are open in a game played alone, outside the campaign; a replay has them as recorded.
@@ -505,6 +505,11 @@ public partial class BattleScreen : Node
                 case Intercepted i:
                     Spark(i.X, i.Y);
                     Play(Sound.Hit, i.X, i.Y, 0.35);
+                    break;
+                case MineBlast mb:
+                    DebrisAt(mb.X, mb.Y, 14);
+                    Boom(mb.X, mb.Y, 1.1, 1.6, 420);
+                    Play(Sound.Explosion, mb.X, mb.Y, 0.55);
                     break;
                 case RaidWon rw:
                     var tech = rw.Tech is TechId t ? $", {Techs.Defs[t].Name} niveau {World.Factions[rw.Side].Research[t]}" : "";

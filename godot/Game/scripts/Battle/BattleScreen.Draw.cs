@@ -143,6 +143,7 @@ public partial class BattleScreen
         worldRoot = new Node2D();
         AddChild(worldRoot);
         DrawFields();
+        BuildTerrainView();
         viewsRoot = new Node2D();
         worldRoot.AddChild(viewsRoot);
         trails = Layer(Depth.Ship - 1, "trails", DrawTrails);
@@ -211,6 +212,7 @@ public partial class BattleScreen
         transientsTop.QueueRedraw();
         overlay.QueueRedraw();
         modeMarks?.QueueRedraw();
+        RedrawTerrain();
         fogVeil.Visible = World.Fog && !Reveal;
         // Units move a few pixels a frame under 16-pixel fog texels, blurred: redrawing the mask
         // every other frame looks the same and halves its cost. In between it keeps its picture.
