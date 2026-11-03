@@ -5369,3 +5369,43 @@ msgstr "Lose 10 battles."
 #: Game/scripts/Ui/Menu.Profile.cs
 msgid "{0} parties"
 msgstr "{0} games"
+
+#: Game/scripts/Ui/Menu.Lobby.cs
+msgid "Avec les couleurs adaptées, chaque place a la sienne (Options, Accessibilité)."
+msgstr "With adapted colors, each seat has its own (Options, Accessibility)."
+
+#: Game/scripts/Ui/Menu.Lobby.cs
+msgid "Adaptée"
+msgstr "Adapted"
+
+#: Game/scripts/Ui/Menu.cs
+msgid "Nouvelle version {0} disponible"
+msgstr "New version {0} available"
+
+#: Game/scripts/Ui/Menu.cs
+msgid "Ouvre la page de la version sur GitHub"
+msgstr "Opens the release page on GitHub"
+
+#: Game/scripts/Ui/Options.cs
+msgid "Mises à jour"
+msgstr "Updates"
+
+#: Game/scripts/Ui/Options.cs
+msgid "Vérifier au lancement si une nouvelle version est sortie"
+msgstr "Check at launch whether a new version is out"
+
+#: Game/scripts/Ui/Options.cs
+msgid "Couleurs des camps"
+msgstr "Side colors"
+
+#: Game/scripts/Ui/Options.cs
+msgid "Standard"
+msgstr "Standard"
+
+#: Game/scripts/Ui/Options.cs
+msgid "Adaptées aux daltoniens"
+msgstr "Color-blind friendly"
+
+#: Game/scripts/Ui/Options.cs
+msgid "Des couleurs que chaque daltonisme courant distingue, une par camp, et sa forme à côté de ses barres, sur la minicarte et au salon."
+msgstr "Colors every common color blindness tells apart, one per side, and its shape beside its bars, on the minimap and in the lobby."

@@ -236,18 +236,29 @@ public partial class Menu
     {
         var key = $"seat:{seat.Id}";
         var plays = seat.Plays;
-        var number = UiTheme.Text(n.ToString(CultureInfo.InvariantCulture), plays ? Palette.Hex(seat.Color) : Palette.Muted, 17);
+        // The side the seat will play, and the color it will show there: with adapted colors, its side's.
+        Side? side = plays ? Lobby.SideOf(l.Playing.ToList().IndexOf(seat)) : null;
+        var shown = side is { } s ? Palette.SideRgb(s, seat.Color) : seat.Color;
+        var number = UiTheme.Text(n.ToString(CultureInfo.InvariantCulture), plays ? Palette.Hex(shown) : Palette.Muted, 17);
         number.AddThemeFontOverride("font", Bold);
         number.CustomMinimumSize = new Vector2(16, 0);
         number.HorizontalAlignment = HorizontalAlignment.Center;
         number.VerticalAlignment = VerticalAlignment.Center;
-        grid.AddChild(number);
+        if (Palette.Marked && side is { } marked)
+        {
+            var cell = new HBoxContainer();
+            cell.AddThemeConstantOverride("separation", 2);
+            cell.AddChild(number);
+            cell.AddChild(SideMark(marked, Palette.Hex(shown)));
+            grid.AddChild(cell);
+        }
+        else grid.AddChild(number);
 
         grid.AddChild(KindDrop(l, seat, key, n));
 
         var races = Factions.All;
         var race = Drop($"{key}:race", $"Race de la place {n}", races.Select(f => Factions.Defs[f].Name), races.ToList().IndexOf(seat.Race),
-            i => Edit(new LobbyRequest.SetRace(seat.Id, races[i])), i => Logos.Emblem(races[i], 1, seat.Color));
+            i => Edit(new LobbyRequest.SetRace(seat.Id, races[i])), i => Logos.Emblem(races[i], 1, shown));
         race.Disabled = !plays || !Mine(seat) || l.Resumed;
         grid.AddChild(race);
 
@@ -265,15 +276,26 @@ public partial class Menu
         grid.AddChild(team);
 
         var colors = Lobby.Colors;
-        var color = Drop($"{key}:color", $"Couleur de la place {n}", ColorNames, colors.ToList().IndexOf(seat.Color),
-            i => Edit(new LobbyRequest.SetColor(seat.Id, colors[i])), i => Swatch(colors[i]));
-        for (var i = 0; i < colors.Count; i++)
+        OptionButton color;
+        if (Palette.Marked)
         {
-            if (l.ColorFree(seat, colors[i])) continue;
-            color.SetItemDisabled(i, true);
-            color.SetItemTooltip(i, "Déjà prise");
+            // Nothing to choose: the list shows the color the seat gets, not the one it would have.
+            color = Drop($"{key}:color", $"Couleur de la place {n}", ["Adaptée"], 0, _ => { }, _ => Swatch(shown));
+            color.Disabled = true;
+            color.TooltipText = "Avec les couleurs adaptées, chaque place a la sienne (Options, Accessibilité).";
         }
-        color.Disabled = !plays || !Mine(seat) || l.Resumed;
+        else
+        {
+            color = Drop($"{key}:color", $"Couleur de la place {n}", ColorNames, colors.ToList().IndexOf(seat.Color),
+                i => Edit(new LobbyRequest.SetColor(seat.Id, colors[i])), i => Swatch(colors[i]));
+            for (var i = 0; i < colors.Count; i++)
+            {
+                if (l.ColorFree(seat, colors[i])) continue;
+                color.SetItemDisabled(i, true);
+                color.SetItemTooltip(i, "Déjà prise");
+            }
+            color.Disabled = !plays || !Mine(seat) || l.Resumed;
+        }
         grid.AddChild(color);
 
         // Once it is gone, the focus goes to the seat that takes its place, or to the one before.
@@ -494,6 +516,14 @@ public partial class Menu
         return drop;
     }
 
+    /// <summary>A side's mark, small, beside its seat's number: the shape it wears in battle with adapted colors.</summary>
+    static Control SideMark(Side side, Color color)
+    {
+        var mark = new Control { CustomMinimumSize = new Vector2(14, 14), MouseFilter = Control.MouseFilterEnum.Ignore, SizeFlagsVertical = Control.SizeFlags.ShrinkCenter };
+        mark.Draw += () => Draw.Mark(mark, side, 7, 7, 5, color, 1);
+        return mark;
+    }
+
     static readonly Dictionary<uint, Texture2D> swatches = [];
 
     /// <summary>A small square of a color, with a dark edge, for the color list.</summary>
@@ -588,8 +618,9 @@ public partial class Menu
         }
         foreach (var (at, k, capital) in marks)
         {
-            var color = Palette.Hex(slots[k].Color ?? Worlds.DefaultColor(slots[k].Side, slots[k].Race));
-            if (capital) g.DrawCircle(at, 6, color, true, -1, true);
+            var color = Palette.Hex(Palette.SideRgb(slots[k].Side, slots[k].Color ?? Worlds.DefaultColor(slots[k].Side, slots[k].Race)));
+            if (Palette.Marked) Draw.Mark(g, slots[k].Side, at.X, at.Y, 6, color, 1);
+            else if (capital) g.DrawCircle(at, 6, color, true, -1, true);
             else g.DrawRect(new Rect2(at.X - 5, at.Y - 5, 10, 10), color);
             // The seat's number, as in its row, beside its mark.
             var text = (l.Seats.IndexOf(playing[k]) + 1).ToString(CultureInfo.InvariantCulture);

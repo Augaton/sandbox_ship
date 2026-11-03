@@ -65,6 +65,52 @@ public static class Draw
         else g.DrawColoredPolygon([a, b, c], color);
     }
 
+    /// <summary>
+    /// A side's mark, `r` across its half, on a dark edge: the second cue after its color for those
+    /// who tell colors apart badly. One shape per side, so two sides of the same race differ too:
+    /// a triangle, a disc, a square, a diamond (the Errants), a cross, a triangle upside down, a hexagon.
+    /// </summary>
+    public static void Mark(CanvasItem g, Side side, double x, double y, double r, Color color, double zoom)
+    {
+        Shape(g, side.Id, x, y, r + 1.2 / zoom, Core.Palette.Bg, zoom);
+        Shape(g, side.Id, x, y, r, color, zoom);
+    }
+
+    static void Shape(CanvasItem g, int id, double x, double y, double r, Color color, double zoom)
+    {
+        Vector2 At(double dx, double dy) => new((float)(x + dx), (float)(y + dy));
+        switch (Math.Abs(id) % 7)
+        {
+            case 0:
+                Triangle(g, At(0, -r), At(r * 0.95, r * 0.75), At(-r * 0.95, r * 0.75), color);
+                break;
+            case 1:
+                Disc(g, x, y, r * 0.85, color, zoom);
+                break;
+            case 2:
+                Rect(g, x - r * 0.75, y - r * 0.75, r * 1.5, r * 1.5, color);
+                break;
+            case 3:
+                Triangle(g, At(0, -r), At(r * 0.8, 0), At(0, r), color);
+                Triangle(g, At(0, -r), At(0, r), At(-r * 0.8, 0), color);
+                break;
+            case 4:
+                Rect(g, x - r, y - r * 0.32, r * 2, r * 0.64, color);
+                Rect(g, x - r * 0.32, y - r, r * 0.64, r * 2, color);
+                break;
+            case 5:
+                Triangle(g, At(0, r), At(-r * 0.95, -r * 0.75), At(r * 0.95, -r * 0.75), color);
+                break;
+            default:
+                for (var i = 0; i < 6; i++)
+                {
+                    var (a, b) = (i * Math.Tau / 6, (i + 1) * Math.Tau / 6);
+                    Triangle(g, At(0, 0), At(Math.Cos(a) * r, Math.Sin(a) * r), At(Math.Cos(b) * r, Math.Sin(b) * r), color);
+                }
+                break;
+        }
+    }
+
     public static void Line(CanvasItem g, double x0, double y0, double x1, double y1, Color color, double width)
     {
         if (BatchOf(g) is { } b) b.Line(new Vector2((float)x0, (float)y0), new Vector2((float)x1, (float)y1), color, (float)width);

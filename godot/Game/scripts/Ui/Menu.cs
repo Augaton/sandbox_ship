@@ -138,6 +138,9 @@ public partial class Menu : Node
         start = NetStart(start);
         width = WidthOf(start);
         Show(start);
+        Updates.Found += OnNewer;
+        TreeExiting += () => Updates.Found -= OnNewer;
+        Updates.Check(Main.Instance);
     }
 
     public override void _Input(InputEvent e)
@@ -205,7 +208,7 @@ public partial class Menu : Node
         for (var i = 0; i < sides.Count; i++)
         {
             if (i > 0 && i == sides.Count - 1) caption.AddChild(Shadowed("contre"));
-            caption.AddChild(Picture(Logos.Emblem(sides[i].Race, 1, sides[i].Color), new Vector2(16, 16)));
+            caption.AddChild(Picture(Logos.Emblem(sides[i].Race, 1, Palette.SideRgb(sides[i].Id, sides[i].Color)), new Vector2(16, 16)));
             caption.AddChild(Shadowed(Factions.Defs[sides[i].Race].Name + (i < sides.Count - 2 ? "," : "")));
         }
     }
@@ -427,6 +430,24 @@ public partial class Menu : Node
         body.AddChild(nav);
         body.AddChild(Spacer(0.5f));
         footer.AddChild(UiTheme.Text($"Version {Version}", Palette.Muted, 13));
+        if (Updates.Page is not null) footer.AddChild(NewerLink());
+    }
+
+    /// <summary>A newer version is out: a quiet line beside the version, that opens its release page.</summary>
+    Button NewerLink()
+    {
+        var b = Btn($"Nouvelle version {Updates.Newer} disponible", () => OS.ShellOpen(Updates.Page!), NavItem);
+        b.CustomMinimumSize = new Vector2(0, 0);
+        b.AddThemeFontSizeOverride("font_size", 13);
+        b.AddThemeColorOverride("font_color", Palette.Accent);
+        b.TooltipText = "Ouvre la page de la version sur GitHub";
+        return b;
+    }
+
+    /// <summary>The answer came while the home screen shows: the line joins its footer.</summary>
+    void OnNewer()
+    {
+        if (screen == Screen.Home && IsInstanceValid(footer)) footer.AddChild(NewerLink());
     }
 
     /// <summary>What a save holds: its name if the player gave it one, then race, planets and date.</summary>

@@ -35,6 +35,13 @@ public partial class Main : Node
             GetTree().Quit();
             return;
         }
+        if (Dev.SfxDump is string sounds)
+        {
+            Sfx.Dump(sounds);
+            GetTree().Quit();
+            return;
+        }
+        if (Dev.Colors is { } colors) Settings.Current.Colors = colors;
         // A headless service (a dedicated server; the online server and its measure, without even a game):
         // no window needed, nothing to forge, draw or warm up, only the network.
         if (Dev.Service)

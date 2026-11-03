@@ -18,7 +18,7 @@ public partial class BattleScreen : Node
     /// <summary>Detail levels by zoom: below Simple, flames, turrets and sparks go; below Icons, small craft become chevrons.</summary>
     public const double LodSimple = 0.5, LodIcons = 0.35;
 
-    static readonly HashSet<Sound> QuietAfar = [Sound.Bullet, Sound.Laser, Sound.Hit, Sound.Shield];
+    static readonly HashSet<Sound> QuietAfar = [Sound.Bullet, Sound.Laser, Sound.Hit, Sound.Shield, Sound.Burst, Sound.Intercept];
 
     public World World { get; private set; } = null!;
     public BattleOptions Opts { get; private set; } = null!;
@@ -169,6 +169,8 @@ public partial class BattleScreen : Node
     {
         StressProbe.Detach();
         PlayerProfile.Flush();
+        // The beams' hum goes with the battle.
+        if (!Opts.Demo) Sfx.StopHum();
         // The battle's replay, as it stands when the player leaves it.
         if (World?.Log is not null && Replays.Of(World, Opts.Player, Ui.Menu.Version, DateTimeOffset.UtcNow.ToUnixTimeMilliseconds()) is { } replay)
             ReplayStore.Save(replay);
@@ -507,7 +509,7 @@ public partial class BattleScreen : Node
                     break;
                 case Intercepted i:
                     Spark(i.X, i.Y);
-                    Play(Sound.Hit, i.X, i.Y, 0.35);
+                    Play(Sound.Intercept, i.X, i.Y, 0.5);
                     break;
                 case RaidWon rw:
                     var tech = rw.Tech is TechId t ? $", {Techs.Defs[t].Name} niveau {World.Factions[rw.Side].Research[t]}" : "";
