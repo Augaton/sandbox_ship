@@ -29,8 +29,14 @@ public sealed class ModeState
     public BattleMode Kind;
     /// <summary>Survival: waves sent so far, and the last one beaten (every Errant down).</summary>
     public int Wave, Cleared;
-    /// <summary>Survival: world time the next wave comes; never, after the last one.</summary>
+    /// <summary>Survival: world time the next wave comes.</summary>
     public double NextWave = double.PositiveInfinity;
+    /// <summary>Survival: each seat's score and what made it.</summary>
+    public Dictionary<Side, SurvivalTally> Tallies = [];
+    /// <summary>Survival: how long the team held, once it is over; 0 until then.</summary>
+    public double Held;
+    /// <summary>Survival: the bosses still flying, by entity id (the host's business, not the view's).</summary>
+    public HashSet<int> BossIds = [];
     /// <summary>Zones: the score that wins.</summary>
     public int ZoneTarget;
     public List<Beacon> Beacons = [];
@@ -48,8 +54,8 @@ public sealed class ModeState
 
 /// <summary>Survival: wave `Wave` comes in at (X, Y), with a boss of that class or none.</summary>
 public sealed record WaveIncoming(int Wave, double X, double Y, ShipClass? Boss) : SimEvent;
-/// <summary>Survival: no Errant left, up to wave `Wave`.</summary>
-public sealed record WaveCleared(int Wave) : SimEvent;
+/// <summary>Survival: no Errant left, up to wave `Wave`, beaten `Ahead` seconds before the next one was due.</summary>
+public sealed record WaveCleared(int Wave, int Ahead = 0) : SimEvent;
 /// <summary>Zones: beacon number `Beacon` is `Side`'s now.</summary>
 public sealed record BeaconTaken(int Beacon, Side Side) : SimEvent;
 /// <summary>Zones: `Side` lost beacon number `Beacon`, which is nobody's now.</summary>
@@ -144,6 +150,12 @@ public static class Modes
         var m = world.Mode;
         return m.Kind == BattleMode.Regicide
             && ((m.Flagships.TryGetValue(e.Side, out var id) && id == e.Id) || (m.Escorts.TryGetValue(e.Side, out var escort) && escort.Contains(e.Id)));
+    }
+
+    /// <summary>A ship or structure down, before it leaves the world: what the mode counts of it.</summary>
+    public static void Downed(World world, Entity e)
+    {
+        if (world.Mode.Kind == BattleMode.Survival) Survival.Downed(world, e);
     }
 
     /// <summary>After each of its thoughts, what a skirmish AI does for the mode.</summary>

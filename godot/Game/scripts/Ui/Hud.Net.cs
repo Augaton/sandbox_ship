@@ -53,13 +53,13 @@ public partial class Hud
     {
         var session = scene.Opts.Net!.Session;
         var watch = Button("Continuer à regarder", CloseModal);
-        var parts = new List<Control> { Para(EndText(won), max: 672), StatsTable() };
+        var parts = new List<Control> { Para(EndText(won), max: 672), EndTable() };
         if (session.Leads) parts.Add(Actions(Primary(Button("Retour au salon", session.BackToLobby)), watch));
         else
         {
             parts.Add(Para("L'hôte ramènera tout le monde au salon.", Palette.Muted));
             parts.Add(Actions(Button("Quitter la partie", scene.ToMenu), watch));
         }
-        OpenModal(Dialog(won ? "Victoire" : "Défaite", [.. parts]));
+        OpenModal(Dialog(EndTitle(won), [.. parts]));
     }
 }

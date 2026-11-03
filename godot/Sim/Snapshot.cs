@@ -39,9 +39,10 @@ public static partial class Snapshot
     /// Bumped with any change to the layout, the type table (a new ship class, structure or part)
     /// included: a reader refuses any other version. 2: the battle modes' state and events. 3: deltas,
     /// records in segments, the parts of a ship placed by the reader. 4: beams, and torpedoes and
-    /// missiles shot down. 5: sent in parts, one a packet (SnapshotParts.cs).
+    /// missiles shot down. 5: sent in parts, one a packet (SnapshotParts.cs). 6: endless survival,
+    /// each seat's score and the time held, and how far ahead a wave was beaten.
     /// </summary>
-    public const ushort Version = 5;
+    public const ushort Version = 6;
     const uint Magic = 0x504E5353;
 
     /// <summary>Room around the team's sight within which shots and blows still show: they fly in from the dark.</summary>
@@ -195,6 +196,15 @@ public static partial class Snapshot
                     w.Write7BitEncodedInt(m.Wave);
                     w.Write7BitEncodedInt(m.Cleared);
                     w.Write(m.NextWave);
+                    w.Write(m.Held);
+                    w.Write7BitEncodedInt(m.Tallies.Count);
+                    foreach (var (side, t) in m.Tallies)
+                    {
+                        w.Write7BitEncodedInt(side.Id);
+                        w.Write7BitEncodedInt(t.Score);
+                        w.Write7BitEncodedInt(t.Downed);
+                        w.Write7BitEncodedInt(t.Bosses);
+                    }
                     break;
                 case BattleMode.Zones:
                     w.Write7BitEncodedInt(m.ZoneTarget);
@@ -763,6 +773,7 @@ public static partial class Snapshot
             case WaveCleared wc:
                 w.Write((byte)Tag.WaveCleared);
                 w.Write7BitEncodedInt(wc.Wave);
+                w.Write7BitEncodedInt(wc.Ahead);
                 break;
             case BeaconTaken bt:
                 w.Write((byte)Tag.BeaconTaken);

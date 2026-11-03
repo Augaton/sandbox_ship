@@ -119,6 +119,15 @@ public static partial class Snapshot
                 mode.Wave = m.Read7BitEncodedInt();
                 mode.Cleared = m.Read7BitEncodedInt();
                 mode.NextWave = m.ReadDouble();
+                mode.Held = m.ReadDouble();
+                mode.Tallies.Clear();
+                for (var t = Count(m); t > 0; t--)
+                {
+                    mode.Tallies[new Side(m.Read7BitEncodedInt())] = new SurvivalTally
+                    {
+                        Score = m.Read7BitEncodedInt(), Downed = m.Read7BitEncodedInt(), Bosses = m.Read7BitEncodedInt(),
+                    };
+                }
                 break;
             case BattleMode.Zones:
                 mode.ZoneTarget = m.Read7BitEncodedInt();
@@ -572,7 +581,7 @@ public static partial class Snapshot
         Tag.Victory => new Victory(new Side(r.Read7BitEncodedInt()), r.Read7BitEncodedInt()),
         Tag.RaidWon => new RaidWon(new Side(r.Read7BitEncodedInt()), r.ReadDouble(), r.ReadByte() is var t && t != byte.MaxValue ? (TechId)t : null),
         Tag.WaveIncoming => new WaveIncoming(r.Read7BitEncodedInt(), r.ReadSingle(), r.ReadSingle(), r.ReadByte() is var boss && boss != byte.MaxValue ? (ShipClass)boss : null),
-        Tag.WaveCleared => new WaveCleared(r.Read7BitEncodedInt()),
+        Tag.WaveCleared => new WaveCleared(r.Read7BitEncodedInt(), r.Read7BitEncodedInt()),
         Tag.BeaconTaken => new BeaconTaken(r.Read7BitEncodedInt(), new Side(r.Read7BitEncodedInt())),
         Tag.BeaconLost => new BeaconLost(r.Read7BitEncodedInt(), new Side(r.Read7BitEncodedInt())),
         Tag.FlagshipLost => new FlagshipLost(new Side(r.Read7BitEncodedInt()), r.ReadSingle(), r.ReadSingle()),

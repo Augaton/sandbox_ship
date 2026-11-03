@@ -92,12 +92,14 @@ public partial class BattleScreen
         switch (ev)
         {
             case WaveIncoming wi:
-                var boss = wi.Boss is ShipClass b ? $", avec un {Ships.Defs[b].Name}" : "";
-                Alert($"Vague {wi.Wave} : les Errants arrivent{boss}", wi.X, wi.Y, true);
+                Alert(Hud.WaveNews(wi.Wave), wi.X, wi.Y, true);
                 if (wi.Boss is not null) Sfx.Play(Sound.Horn);
+                // A level more of elite Errants is worth a word of its own.
+                if (Survival.Elite(wi.Wave) > Survival.Elite(wi.Wave - 1))
+                    Hud.Toast($"Errants d'élite, niveau {Survival.Elite(wi.Wave)} : plus solides, et leurs armes frappent plus fort");
                 break;
             case WaveCleared wc:
-                Hud.Toast(wc.Wave >= Survival.Waves ? "Dernière vague repoussée" : $"Vague {wc.Wave} repoussée");
+                Hud.WaveBeaten(wc);
                 break;
             case BeaconTaken bt:
                 var taken = Hud.BeaconName(bt.Beacon);

@@ -203,6 +203,7 @@ public partial class Menu
         body.AddChild(l.Resumed ? Section("Galaxie", Note("La galaxie, les camps et la partie de la campagne sauvegardée par l'hôte, là où elle s'était arrêtée."))
             : Locked(MapSection(l)));
         if (RulesSection(l) is { } rules) body.AddChild(Locked(rules));
+        if (l.Mode == LobbyMode.Survival) body.AddChild(RecordsSection(l.Seats.Count));
 
         var problems = l.Problems();
         var line = Paragraph(problems.Count > 0 ? problems[0] : Summary(l), problems.Count > 0 ? Palette.Danger : Palette.Muted, 13);

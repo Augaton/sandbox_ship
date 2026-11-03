@@ -38,9 +38,13 @@ public class SnapshotModesTests
             r.Beacons.Select(b => ((float)b.X, (float)b.Y, b.Holder, b.Claim, (float)b.Progress, b.Contested)));
         Assert.Equal(h.Scores.OrderBy(s => s.Key.Id), r.Scores.OrderBy(s => s.Key.Id));
         Assert.Equal(h.Flagships.OrderBy(s => s.Key.Id), r.Flagships.OrderBy(s => s.Key.Id));
-        // The escorts and the worn hulls are the host's business.
+        Assert.Equal(h.Held, r.Held);
+        Assert.Equal(h.Tallies.OrderBy(t => t.Key.Id).Select(t => (t.Key, t.Value.Score, t.Value.Downed, t.Value.Bosses)),
+            r.Tallies.OrderBy(t => t.Key.Id).Select(t => (t.Key, t.Value.Score, t.Value.Downed, t.Value.Bosses)));
+        // The escorts, the worn hulls and the bosses are the host's business.
         Assert.Empty(r.Escorts);
         Assert.Empty(r.Worn);
+        Assert.Empty(r.BossIds);
     }
 
     [Theory]

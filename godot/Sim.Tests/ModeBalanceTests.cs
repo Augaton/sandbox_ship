@@ -53,7 +53,8 @@ public class ModeBalanceTests(ITestOutputHelper output)
         {
             var w = Play(g.Item2);
             var m = w.Mode;
-            return (g.Item1, w, Worlds.Won(w, g.Item2.Slots[0].Side) ? "victoire" : $"vague {m.Wave}, {m.Cleared} repoussées");
+            // Endless since this version: how far the team got, and its score.
+            return (g.Item1, w, $"vague {m.Wave}, {m.Cleared} repoussées, score {Survival.TeamScore(w)}");
         }).ToList();
         Report("survie", games);
     }

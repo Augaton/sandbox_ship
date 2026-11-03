@@ -95,8 +95,14 @@ public partial class BattleScreen : Node
             return r;
         }));
         // A battle of a lobby, played alone or stepped here for everyone, keeps its commands for its replay.
-        if (o.Replay is null && !o.Tutorial && o.Campaign is null && !o.Demo && (o.Net is null || o.Net.Host is not null) && Dev.Skip == 0
+        if (o.Replay is null && !o.Tutorial && o.Campaign is null && !o.Demo && (o.Net is null || o.Net.Host is not null) && Dev.Skip == 0 && Dev.Wave == 0
             && Dev.Start is "menu" or "battle" or "sandbox") Replays.Record(World);
+        // Checking the late waves of a survival game, or its end: it begins at wave --wave, a few seconds away.
+        if (Dev.Wave > 1 && World.Mode.Kind == BattleMode.Survival && o.Replay is null && (o.Net is null || o.Net.Host is not null))
+        {
+            World.Mode.Wave = World.Mode.Cleared = Dev.Wave - 1;
+            World.Mode.NextWave = World.Time + 5;
+        }
         // A campaign battle's AI plays the side facing the player.
         if (o.Campaign is { } cb) campaignFoe = [cb.Attacker == o.Player ? cb.Defender : cb.Attacker];
         // The player's ships use their abilities by themselves if the player wants so.

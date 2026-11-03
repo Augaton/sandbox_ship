@@ -337,6 +337,7 @@ public static class Worlds
             {
                 if (e.Kind == EntityKind.Ship && world.Factions.TryGetValue(e.Side, out var own)) own.Stats.Lost++;
                 if (e.LastHitBy is Side by && by != e.Side && world.Factions.TryGetValue(by, out var killer)) killer.Stats.Kills++;
+                Modes.Downed(world, e);
             }
             // A ship shot down pays its killer, hangar craft included.
             if (e.Kind == EntityKind.Ship && e.LastHitBy is Side hunter && hunter != e.Side && world.Factions.TryGetValue(hunter, out var paid))

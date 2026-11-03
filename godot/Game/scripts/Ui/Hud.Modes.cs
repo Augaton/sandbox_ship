@@ -83,17 +83,8 @@ public partial class Hud
         switch (m.Kind)
         {
             case BattleMode.Survival:
-            {
-                var errants = World.Entities.Count(e => e.Kind == EntityKind.Ship && e.Side == (Side)Faction.Errant && !e.Launched);
-                parts.Add(Heading("Survie", $"{Survival.Waves} vagues à repousser"));
-                parts.Add(SpansPart(16, ($"Vague {m.Wave} / {Survival.Waves}", Palette.Text, true), ($"Errants : {errants}", Palette.Muted, false)));
-                var next = m.Wave + 1;
-                var boss = Survival.Boss(next) is ShipClass b ? $", avec un {Ships.Defs[b].Name}" : "";
-                parts.Add(m.Wave < Survival.Waves
-                    ? TextPart($"{(m.Wave == 0 ? "Premiers Errants" : $"Vague {next}")} dans {Clock(m.NextWave - now)}{boss}", Palette.Muted, 14, wrap: false)
-                    : TextPart("Dernière vague : abattez-les tous", Palette.Danger, 14, wrap: false));
+                parts.AddRange(SurvivalParts(now));
                 break;
-            }
             case BattleMode.Zones:
                 parts.Add(Heading("Contrôle de zone", $"premier à {m.ZoneTarget} points"));
                 foreach (var camp in Camps())
@@ -210,9 +201,7 @@ public partial class Hud
         switch (m.Kind)
         {
             case BattleMode.Survival:
-                return won
-                    ? $"Les {Survival.Waves} vagues sont repoussées, en {Names.Duration(World.Time)}."
-                    : $"Les Errants ont détruit les stations à la vague {m.Wave} : {m.Cleared} repoussée{(m.Cleared > 1 ? "s" : "")}, tenu {Names.Duration(World.Time)}.";
+                return $"Les Errants ont détruit les stations à la vague {m.Wave} : {m.Cleared} repoussée{(m.Cleared > 1 ? "s" : "")}, tenu {Names.Duration(m.Held > 0 ? m.Held : World.Time)}.";
             case BattleMode.Zones when winner is Side w && ZoneControl.Score(World, w) >= m.ZoneTarget:
                 return won ? $"{m.ZoneTarget} points atteints : les balises sont à toi." : $"{Who(w)} atteignent {m.ZoneTarget} points.";
             case BattleMode.Assault:
