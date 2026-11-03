@@ -5009,3 +5009,27 @@ msgstr "Player {0} of game {1}: rate too high"
 #: Sim/Net/RelayHub.cs
 msgid "Débit trop élevé pour le serveur en ligne."
 msgstr "Rate too high for the online server."
+
+#: Game/scripts/Ui/Menu.Lobby.cs
+msgid "Liaison directe : les joueurs qui l'acceptent passent sans le serveur en ligne"
+msgstr "Direct link: players who accept it skip the online server"
+
+#: Game/scripts/Ui/Menu.Lobby.cs
+msgid "Chacun voit alors l'adresse IP de l'autre : toi celle de ces joueurs, eux la tienne. Sans elle, tout passe par le serveur en ligne, qui ne donne l'adresse de personne."
+msgstr "Each side then sees the other's IP address: you see those players', they see yours. Without it, everything goes through the online server, which gives out nobody's address."
+
+#: Game/scripts/Ui/Menu.Network.cs
+msgid "Accepter la liaison directe quand l'hôte d'une partie en ligne la propose"
+msgstr "Accept the direct link when the host of an online game offers it"
+
+#: Game/scripts/Ui/Menu.Network.cs
+msgid "Plus rapide : la partie passe sans le serveur en ligne, mais l'hôte voit alors ton adresse IP, et toi la sienne. Sans elle, tout passe par le serveur en ligne, qui ne donne l'adresse de personne."
+msgstr "Faster: the game skips the online server, but the host then sees your IP address, and you see theirs. Without it, everything goes through the online server, which gives out nobody's address."
+
+#: Game/scripts/Ui/Menu.Network.cs
+msgid "Par le serveur en ligne ; l'hôte propose la liaison directe"
+msgstr "Through the online server; the host offers a direct link"
+
+#: Game/scripts/Ui/Menu.Network.cs
+msgid ", liaison directe proposée"
+msgstr ", direct link offered"

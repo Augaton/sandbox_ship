@@ -77,6 +77,11 @@ public sealed class Lobby
     /// <summary>Over the network: players may come in to watch, without a seat, the lobby as the battle.</summary>
     public bool Spectators { get; set; } = true;
     /// <summary>
+    /// Online: the host offers the direct link (Sim/Net/Relay.cs), its players who accept it then
+    /// seeing its address, and it theirs. Off unless the host turns it on, for this game only.
+    /// </summary>
+    public bool Direct { get; set; }
+    /// <summary>
     /// A saved campaign played over the network, resumed (Resume): its seats are the save's sides
     /// in order, with their races, teams and colors, and the map is the save's; nothing of that
     /// changes. Each player who played rejoins the seat kept for their name.

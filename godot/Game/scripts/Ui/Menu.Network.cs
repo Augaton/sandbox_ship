@@ -17,6 +17,11 @@ public partial class Menu
     string? hostError, joinStatus;
     /// <summary>The password of the game hosted, and the one to join with: typed, kept in memory only, never in the settings.</summary>
     string hostPassword = Dev.Password ?? "", joinPassword = Dev.Password ?? "";
+    /// <summary>
+    /// Online, this machine accepts the direct link with a host that offers it, each then seeing
+    /// the other's address: off until checked, kept in memory only, never in the settings.
+    /// </summary>
+    static bool acceptDirect = Dev.Direct;
     /// <summary>The lobby shown is a host's this machine joined: when that game ends, the multiplayer screen says why.</summary>
     bool joined;
     BeaconListener? listener;
@@ -313,7 +318,12 @@ public partial class Menu
 
         gamesBox = new VBoxContainer();
         gamesBox.AddThemeConstantOverride("separation", 4);
-        body.AddChild(Section("Parties", status, Legend(), Columns(), gamesBox));
+        var direct = HudKit.Check("Accepter la liaison directe quand l'hôte d'une partie en ligne la propose", acceptDirect, on => acceptDirect = on,
+            "Plus rapide : la partie passe sans le serveur en ligne, mais l'hôte voit alors ton adresse IP, et toi la sienne. "
+            + "Sans elle, tout passe par le serveur en ligne, qui ne donne l'adresse de personne.");
+        direct.FocusMode = Control.FocusModeEnum.All;
+        direct.AutowrapMode = TextServer.AutowrapMode.WordSmart;
+        body.AddChild(Section("Parties", status, Legend(), Columns(), gamesBox, direct));
 
         var row = new HBoxContainer();
         row.AddThemeConstantOverride("separation", 8);
@@ -480,7 +490,7 @@ public partial class Menu
         button.CustomMinimumSize = new Vector2(0, 38);
         button.Disabled = why is not null;
         button.AccessibilityName = $"{l.Game.Name}, {mode}, {l.Game.Taken} joueurs sur {l.Game.Seats}, {kind}{(l.Ping >= 0 ? $", {l.Ping} ms" : "")}{(why is not null ? $", {why}" : "")}";
-        button.TooltipText = l.Kind == Found.Online ? "Par le serveur en ligne" : l.Address;
+        button.TooltipText = l.Kind != Found.Online ? l.Address : l.Game.Direct ? "Par le serveur en ligne ; l'hôte propose la liaison directe" : "Par le serveur en ligne";
         // A double click joins at once.
         button.GuiInput += e =>
         {
@@ -503,6 +513,7 @@ public partial class Menu
             cells.MoveChild(padlock, 0);
             button.AccessibilityName += ", protégée par un mot de passe";
         }
+        if (l.Game.Direct) button.AccessibilityName += ", liaison directe proposée";
         pad.AddChild(cells);
         line.AddChild(pad);
         tile.AddChild(line);
@@ -544,7 +555,7 @@ public partial class Menu
     void JoinListed(Listed l, bool watch = false)
     {
         if (Unjoinable(l) is not null || Session.Current is not null) return;
-        if (l.Kind == Found.Online) joinStatus = Session.JoinOnline(l.Room, l.Game.Name, joinPassword, watch);
+        if (l.Kind == Found.Online) joinStatus = Session.JoinOnline(l.Room, l.Game.Name, joinPassword, watch, acceptDirect);
         else
         {
             var (host, port) = Relay.Address(l.Address, Protocol.DefaultPort);

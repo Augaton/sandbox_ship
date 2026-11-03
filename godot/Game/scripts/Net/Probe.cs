@@ -29,7 +29,7 @@ public static class Probe
         {
             var clock = Stopwatch.StartNew();
             while (host.Room == 0 && clock.Elapsed.TotalSeconds < 10) host.Poll(_ => { }, _ => { }, (_, _) => { }, (_, _) => { });
-            if (host.Room > 0) Measure("par le serveur en ligne", host, RelayTransport.Join(Session.MasterAddress, host.Room, out _)!);
+            if (host.Room > 0) Measure("par le serveur en ligne", host, RelayTransport.Join(Session.MasterAddress, host.Room, false, out _)!);
             else GD.PrintErr($"Serveur en ligne {Session.MasterAddress} : {host.Lost ?? "pas de réponse"}");
             host.Close();
         }

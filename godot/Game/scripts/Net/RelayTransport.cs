@@ -5,13 +5,15 @@
 // Every message keeps the reliability Transport gives it, on both legs. When the server turns a
 // player away or loses it, the player hears it as its host's Bye, with the reason.
 //
-// The server also introduces a host and its new player to each other (Meet): the host sends a few
+// When both accepted the direct link (the host offering it in its lobby, the player on the
+// multiplayer screen), the server introduces them to each other (Meet): the host sends a few
 // packets toward the player from the socket the server sees, which opens the way in through its
 // box for that machine, and the player connects to that socket from one of its own, the server's
 // token in its connection's data. Once that connection is up, their messages take it; the relay
 // stays, and carries them again if it drops. Through boxes that will not let it pass (one that
 // lets in only the very port it sent to, or that changes ports for each address), nothing gets
-// through in a few seconds: the game stays relayed, as it always was.
+// through in a few seconds: the game stays relayed, as it always was. An introduction that comes
+// though this end did not accept it (from a server that does not keep to it) is ignored.
 using Godot;
 using SandboxShip.Sim;
 using SandboxShip.Sim.Net;
@@ -30,6 +32,8 @@ public sealed class RelayTransport : ITransport
     bool playing;
     /// <summary>Player: in its game, its host told; the end already told (Bye), nothing more to say. Closed by its session.</summary>
     bool joined, told, closed;
+    /// <summary>Player: it accepts the direct link (a host offers it in its game as listed).</summary>
+    readonly bool direct;
     string? lost;
 
     /// <summary>Straight connections up, by peer as the session knows it (a player's number; for a player, its host).</summary>
@@ -42,7 +46,8 @@ public sealed class RelayTransport : ITransport
     ENetConnection? dialer;
     ENetPacketPeer? dialed;
 
-    RelayTransport(RelayLink link, bool hosting, LanGame listed) => (this.link, this.hosting, this.listed) = (link, hosting, listed);
+    RelayTransport(RelayLink link, bool hosting, LanGame listed, bool direct = false) =>
+        (this.link, this.hosting, this.listed, this.direct) = (link, hosting, listed, direct);
 
     public Dictionary<int, long> Sent { get; } = [];
     /// <summary>Host: its game's number on the server, once listed; 0 until then.</summary>
@@ -61,11 +66,14 @@ public sealed class RelayTransport : ITransport
         return link is null ? null : new RelayTransport(link, true, game);
     }
 
-    /// <summary>Joins game `room` through the server at `master`; null with the reason when it cannot start.</summary>
-    public static RelayTransport? Join(string master, int room, out string? error)
+    /// <summary>
+    /// Joins game `room` through the server at `master`, accepting the direct link if `direct`;
+    /// null with the reason when it cannot start.
+    /// </summary>
+    public static RelayTransport? Join(string master, int room, bool direct, out string? error)
     {
-        var link = RelayLink.Open(master, new RelayFrame.Join(Relay.Wire, room, Protocol.Version, Ui.Menu.Version), out error);
-        return link is null ? null : new RelayTransport(link, false, null!);
+        var link = RelayLink.Open(master, new RelayFrame.Join(Relay.Wire, room, Protocol.Version, Ui.Menu.Version, direct), out error);
+        return link is null ? null : new RelayTransport(link, false, null!, direct);
     }
 
     public MultiplayerPeer.ConnectionStatus Status => link.Down ? MultiplayerPeer.ConnectionStatus.Disconnected
@@ -117,10 +125,10 @@ public sealed class RelayTransport : ITransport
         else Farewell(why, received);
     }
 
-    /// <summary>The server introduced the other end: the way gets opened toward it for a few seconds (unless --no-direct).</summary>
+    /// <summary>The server introduced the other end: the way gets opened toward it for a few seconds, if this end accepted the direct link.</summary>
     void Meet(RelayFrame.Meet m)
     {
-        if (Core.Dev.NoDirect) return;
+        if (!(hosting ? listed.Direct : direct)) return;
         var now = Time.GetTicksMsec();
         meetings[hosting ? m.Player : Transport.HostPeer] = (m.Address, m.Port, m.Token, now + TryMs, now);
     }
@@ -146,7 +154,6 @@ public sealed class RelayTransport : ITransport
         }
     }
 
-    /// <summary>A straight connection came up: a host binds it to the player whose token it carries; a player, to its host.</summary>
     /// <summary>
     /// Host: a straight connection came up on the socket the server sees: bound to the player
     /// whose token it carries, refused without one.

@@ -98,9 +98,11 @@ public abstract record Message
 
 /// <summary>
 /// A host on the local network, as it calls out on the beacon port every second; Dedicated: a
-/// server nobody plays on (--server); Locked: joined only with its password.
+/// server nobody plays on (--server); Locked: joined only with its password. Direct: a game
+/// listed by the online server whose host offers the direct link (Relay.cs); never in a beacon.
 /// </summary>
-public sealed record LanGame(int Protocol, string Version, string Name, LobbyMode Mode, int Taken, int Seats, int Port, bool Dedicated = false, bool Locked = false);
+public sealed record LanGame(int Protocol, string Version, string Name, LobbyMode Mode, int Taken, int Seats, int Port, bool Dedicated = false, bool Locked = false,
+    bool Direct = false);
 
 public static class Protocol
 {
@@ -317,6 +319,7 @@ public static class Protocol
                 w.Write7BitEncodedInt(v.ZoneTarget);
                 w.Write7BitEncodedInt(v.AssaultMinutes);
                 w.Write(v.Spectators);
+                w.Write(v.Direct);
                 break;
             default: throw new ArgumentException($"Demande sans format : {q.GetType().Name}");
         }
@@ -332,7 +335,7 @@ public static class Protocol
         6 => new LobbyRequest.AddBot(),
         7 => new LobbyRequest.Remove(r.ReadVarint()),
         8 => new LobbyRequest.Settings(new LobbySettings(r.ReadEnum<MapKind>(), r.ReadEnum<MapSize>(), r.ReadVarint(), r.ReadBoolean(),
-            r.ReadBoolean(), r.ReadVarint(), r.ReadVarint(), r.ReadBoolean())),
+            r.ReadBoolean(), r.ReadVarint(), r.ReadVarint(), r.ReadBoolean(), r.ReadBoolean())),
         var tag => throw new InvalidDataException($"Demande inconnue : {tag}"),
     };
 

@@ -17,12 +17,14 @@
 // (Went, or Closed with the reason); the server says Closed, and why, before it lets anyone go.
 // A dedicated server Opens as Public: listed with its own address, joined directly.
 //
-// From relay format 2 on, a host and a player who Joins its game are each told where the other
-// is, as the server sees them (Meet), with a token: each sends a few packets to the other from the
-// connection it holds with the server, which opens the way through their boxes, and the player
-// then connects straight to its host, the token in its connection's data. Their messages then go
-// that way; the relay stays, for when it does not get through. A machine of format 1 is never
-// introduced, and relayed as before.
+// The direct link, from relay format 3 on, and only when both ends accept it: a host that offers
+// it (Direct in its game) and a player who Joins its game accepting it are each told where the
+// other is, as the server sees them (Meet), with a token: each sends a few packets to the other
+// from the connection it holds with the server, which opens the way through their boxes, and the
+// player then connects straight to its host, the token in its connection's data. Their messages
+// then go that way; the relay stays, for when it does not get through. Each then knows the other's
+// address: without both consents the server tells nobody where anybody is, and everything stays
+// relayed. A machine of an older format is never introduced.
 using System.Text;
 using SandboxShip.Sim.Data;
 
@@ -39,8 +41,8 @@ public abstract record RelayFrame
     public sealed record Open(int Wire, LanGame Game, bool Public, string Address) : RelayFrame;
     /// <summary>What the list says of the host's game: its players, and whether a battle or a campaign is under way.</summary>
     public sealed record Update(LanGame Game, bool Playing) : RelayFrame;
-    /// <summary>A player joins a relayed game, with the formats its game speaks.</summary>
-    public sealed record Join(int Wire, int Room, int Protocol, string Version) : RelayFrame;
+    /// <summary>A player joins a relayed game, with the formats its game speaks, and whether it accepts the direct link (format 3 on).</summary>
+    public sealed record Join(int Wire, int Room, int Protocol, string Version, bool Direct = false) : RelayFrame;
     /// <summary>A host's message for one of its players: a Protocol message, carried as it is.</summary>
     public sealed record ToPlayer(int Player, byte[] Payload) : RelayFrame;
     /// <summary>A player's message for its host.</summary>
@@ -79,9 +81,10 @@ public static class Relay
 {
     /// <summary>
     /// Layout of the frames above: bumped with any change. The games carried keep their own
-    /// versions, which the server does not need to know. 2: Meet. A server takes MinWire on.
+    /// versions, which the server does not need to know. 2: Meet. 3: the direct link only by
+    /// consent (Direct in a game, in a Join). A server takes MinWire on.
     /// </summary>
-    public const int Wire = 2, MinWire = 1;
+    public const int Wire = 3, MinWire = 1;
     /// <summary>Where the online server listens, unless told otherwise.</summary>
     public const int DefaultPort = 27029;
     /// <summary>
@@ -138,6 +141,7 @@ public static class Relay
                 w.Write7BitEncodedInt(j.Room);
                 w.Write7BitEncodedInt(j.Protocol);
                 w.Write(j.Version);
+                if (j.Wire >= 3) w.Write(j.Direct);
                 break;
             case RelayFrame.ToPlayer t: w.Write((byte)Tag.ToPlayer); w.Write7BitEncodedInt(t.Player); w.Write(t.Payload); break;
             case RelayFrame.ToHost t: w.Write((byte)Tag.ToHost); w.Write(t.Payload); break;
@@ -178,7 +182,7 @@ public static class Relay
         Tag.List => new RelayFrame.List(Count(r)),
         Tag.Open => new RelayFrame.Open(Count(r), ReadGame(r), r.ReadBoolean(), Protocol.Text(r)),
         Tag.Update => new RelayFrame.Update(ReadGame(r), r.ReadBoolean()),
-        Tag.Join => new RelayFrame.Join(Count(r), Count(r), Count(r), Protocol.Text(r)),
+        Tag.Join => ReadJoin(r),
         Tag.ToPlayer => new RelayFrame.ToPlayer(Count(r), Payload(r)),
         Tag.ToHost => new RelayFrame.ToHost(Payload(r)),
         Tag.Kick => new RelayFrame.Kick(Count(r)),
@@ -193,6 +197,13 @@ public static class Relay
         Tag.Meet => new RelayFrame.Meet(Count(r), Protocol.Text(r), r.ReadUInt16(), r.ReadInt32()),
         var tag => throw new InvalidDataException($"Message inconnu : {tag}"),
     };
+
+    /// <summary>A Join: the consent to the direct link only from format 3 on, an older game never giving it.</summary>
+    static RelayFrame.Join ReadJoin(BinaryReader r)
+    {
+        var (wire, room, protocol, version) = (Count(r), Count(r), Count(r), Protocol.Text(r));
+        return new RelayFrame.Join(wire, room, protocol, version, wire >= 3 && r.ReadBoolean());
+    }
 
     /// <summary>A number that cannot be negative: a version, a game, a player.</summary>
     static int Count(BinaryReader r)
@@ -209,8 +220,11 @@ public static class Relay
         return r.ReadBytes((int)n);
     }
 
-    /// <summary>The bit of a game's mode byte that says it is locked: a server of an older build carries it along with the mode, unread.</summary>
-    const int LockedBit = 0x80;
+    /// <summary>
+    /// The bits of a game's mode byte that say it is locked, and that its host offers the direct
+    /// link: a server of an older build carries them along with the mode, unread.
+    /// </summary>
+    const int LockedBit = 0x80, DirectBit = 0x40;
 
     /// <summary>A game as its host says it, the mode left as it is: a newer game's mode is still listed, as of another version.</summary>
     static void WriteGame(BinaryWriter w, LanGame g)
@@ -218,7 +232,7 @@ public static class Relay
         w.Write7BitEncodedInt(g.Protocol);
         w.Write(g.Version);
         w.Write(g.Name);
-        w.Write((byte)((int)g.Mode | (g.Locked ? LockedBit : 0)));
+        w.Write((byte)((int)g.Mode | (g.Locked ? LockedBit : 0) | (g.Direct ? DirectBit : 0)));
         w.Write((byte)g.Taken);
         w.Write((byte)g.Seats);
         w.Write((ushort)g.Port);
@@ -228,7 +242,8 @@ public static class Relay
     static LanGame ReadGame(BinaryReader r)
     {
         var (protocol, version, name, mode) = (Count(r), Protocol.Text(r), Protocol.Text(r), r.ReadByte());
-        var g = new LanGame(protocol, version, name, (LobbyMode)(mode & ~LockedBit), r.ReadByte(), r.ReadByte(), r.ReadUInt16(), r.ReadBoolean(), (mode & LockedBit) != 0);
+        var g = new LanGame(protocol, version, name, (LobbyMode)(mode & ~(LockedBit | DirectBit)), r.ReadByte(), r.ReadByte(), r.ReadUInt16(), r.ReadBoolean(),
+            (mode & LockedBit) != 0, (mode & DirectBit) != 0);
         if (g.Seats > MaxSeats || g.Taken > g.Seats) throw new InvalidDataException($"{g.Taken} joueurs sur {g.Seats}");
         return g;
     }

@@ -167,6 +167,8 @@ public sealed partial class Session : Node
     /// <summary>A host's game listed on the online server: it opens there, and its players come through it.</summary>
     string? ListenOnline()
     {
+        // --direct: a dev run's game offers the direct link from the start.
+        if (Dev.Direct) Room!.Lobby.Direct = true;
         relay = RelayTransport.Host(MasterAddress, Announce(Room!), out var error);
         if (relay is null) return error;
         net = relay;
@@ -178,14 +180,15 @@ public sealed partial class Session : Node
 
     /// <summary>
     /// Joins a game the online server lists, through it, with its password if it has one, to play
-    /// or only to `watch`; the menu follows the connection as for a host joined at its address.
+    /// or only to `watch`, accepting the direct link if `direct`; the menu follows the connection
+    /// as for a host joined at its address.
     /// </summary>
-    public static string? JoinOnline(int room, string game, string? password = null, bool watch = false)
+    public static string? JoinOnline(int room, string game, string? password = null, bool watch = false, bool direct = false)
     {
         var s = new Session { As = Role.Client, name = PlayerName, Me = -1, target = $"« {game} » par le serveur en ligne", password = Passwords.Clean(password), watching = watch };
-        (Rejoin, RejoinName) = (() => JoinOnline(room, game, password, watch), $"« {game} »");
+        (Rejoin, RejoinName) = (() => JoinOnline(room, game, password, watch, direct), $"« {game} »");
         s.Status = $"Connexion à {s.target}…";
-        s.relay = RelayTransport.Join(MasterAddress, room, out var error);
+        s.relay = RelayTransport.Join(MasterAddress, room, direct, out var error);
         if (s.relay is null) return error;
         s.net = s.relay;
         s.Begin();
@@ -270,7 +273,7 @@ public sealed partial class Session : Node
     {
         var seats = room.Lobby.Seats;
         return new LanGame(Protocol.Version, Ui.Menu.Version, Game, room.Lobby.Mode, seats.Count(s => s.Kind == SeatKind.Human),
-            seats.Count(s => s.Kind is SeatKind.Human or SeatKind.Open), Port, As == Role.Server, password is not null);
+            seats.Count(s => s.Kind is SeatKind.Human or SeatKind.Open), Port, As == Role.Server, password is not null, room.Lobby.Direct);
     }
 
     public void Send(Message m)

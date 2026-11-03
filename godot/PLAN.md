@@ -374,9 +374,14 @@ tests de `FixtureTests` et `CrossTests` les listent.
     adresses, touches, volumes, échelle, taille de fenêtre, images par seconde). Les noms de sauvegarde restaient sûrs
     (lettres, chiffres et tirets seulement), les rediffusions et les annonces du réseau local déjà refusées proprement.
   - CI : actions épinglées par leur commit, butler par sa version et son empreinte, ENet par son empreinte.
-  - Ouvert : la liaison directe donne l'adresse de l'hôte à tout joueur qui rejoint une partie listée (l'hôte ne la cache
-    plus derrière le serveur en ligne) ; aucun chiffrement ni authentification des messages (ENet nu) ; un hôte malveillant
-    reste cru de ses joueurs sur ce qu'il leur montre, seules les lectures sont bornées.
+  - Liaison directe sur accord (relais 3) : l'hôte la propose au salon (éteinte par défaut, jamais gardée d'une partie à
+    l'autre, seul l'hôte la change), le joueur l'accepte sur l'écran Multijoueur (case gardée en mémoire seulement). Le
+    serveur en ligne (`RelayHub.Introduce`) ne présente l'un à l'autre que si les deux l'ont acceptée, tous deux en relais 3 ;
+    sinon aucune trame qu'il envoie ne porte d'adresse (`RelayMeetTests`). Côté jeu, une présentation non acceptée (d'un
+    serveur qui ne s'y tiendrait pas) est ignorée. Un hôte qui la propose en cours de salon présente les joueurs déjà là
+    qui l'acceptent ; la retirer ne reprend pas les adresses déjà données.
+  - Ouvert : aucun chiffrement ni authentification des messages (ENet nu) ; un hôte malveillant reste cru de ses joueurs
+    sur ce qu'il leur montre, seules les lectures sont bornées.
 
 ## Ce qui change de technique
 
