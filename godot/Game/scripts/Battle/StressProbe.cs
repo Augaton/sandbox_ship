@@ -21,7 +21,7 @@ public sealed class StressProbe
     double process, physics, gpu, fogGpu, renderCpu, drawCalls, objects, primitives, entities;
     ulong last;
     int frame;
-    long alloc0;
+    long alloc0, main0;
     TimeSpan pause0;
     int gc0, gc1, gc2;
     bool measuring, done;
@@ -87,6 +87,7 @@ public sealed class StressProbe
         {
             measuring = true;
             alloc0 = GC.GetTotalAllocatedBytes();
+            main0 = GC.GetAllocatedBytesForCurrentThread();
             pause0 = GC.GetTotalPauseDuration();
             (gc0, gc1, gc2) = (GC.CollectionCount(0), GC.CollectionCount(1), GC.CollectionCount(2));
         }
@@ -124,7 +125,8 @@ public sealed class StressProbe
         GD.Print($"  frame ms: avg {frames.Average():F2}, p50 {sorted[n / 2]:F2}, p95 {sorted[(int)(n * 0.95)]:F2}, p99 {sorted[(int)(n * 0.99)]:F2}, worst {sorted[^1]:F2}; over 33 ms: {frames.Count(f => f > 33.4)}");
         GD.Print($"  process (worst of each second) {process / n:F2} ms, physics {physics / n:F2} ms, render cpu {renderCpu / n:F2} ms, gpu {gpu / n:F2} ms (fog mask {fogGpu / n:F2})");
         GD.Print($"  draw calls {drawCalls / n:F0}, objects {objects / n:F0}, primitives {primitives / n:F0}");
-        GD.Print($"  allocated {(GC.GetTotalAllocatedBytes() - alloc0) / (double)n / 1024:F1} KiB/frame, GCs gen0 {GC.CollectionCount(0) - gc0}, gen1 {GC.CollectionCount(1) - gc1}, gen2 {GC.CollectionCount(2) - gc2}, paused {(GC.GetTotalPauseDuration() - pause0).TotalMilliseconds:F1} ms in all");
+        // The whole process, the warm-up on its thread included while it runs; then the main thread alone.
+        GD.Print($"  allocated {(GC.GetTotalAllocatedBytes() - alloc0) / (double)n / 1024:F1} KiB/frame (main thread {(GC.GetAllocatedBytesForCurrentThread() - main0) / (double)n / 1024:F1}), GCs gen0 {GC.CollectionCount(0) - gc0}, gen1 {GC.CollectionCount(1) - gc1}, gen2 {GC.CollectionCount(2) - gc2}, paused {(GC.GetTotalPauseDuration() - pause0).TotalMilliseconds:F1} ms in all");
         GD.Print("  average ms: " + string.Join(", ", sections.OrderByDescending(s => s.Value).Select(s => $"{s.Key} {s.Value / n:F2}")));
         GD.Print("  worst ms: " + string.Join(", ", worst.OrderByDescending(s => s.Value).Select(s => $"{s.Key} {s.Value:F1}")));
         GD.Print("  allocated KiB/frame: " + string.Join(", ", bytes.Where(s => s.Value > 0).OrderByDescending(s => s.Value).Select(s => $"{s.Key} {s.Value / n / 1024:F2}")));

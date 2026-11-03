@@ -9,40 +9,37 @@ public static partial class Galaxies
     /// <summary>Share of its hull a fleet out of supply loses per second (10 % a minute), down to this floor.</summary>
     public const double SupplyWear = 0.1 / 60, SupplyFloor = 0.3;
 
-    /// <summary>Planets a side is supplied at: its own and its allies', and their neighbours.</summary>
-    public static HashSet<int> SupplyZone(Galaxy g, Side side)
-    {
-        var zone = new HashSet<int>();
-        bool Held(Planet p) => p.Owner is Side o && Allies(g, o, side);
-        foreach (var p in g.Planets) if (Held(p)) zone.Add(p.Id);
-        foreach (var (a, b) in g.Lanes)
-        {
-            if (Held(g.Planets[a])) zone.Add(b);
-            if (Held(g.Planets[b])) zone.Add(a);
-        }
-        return zone;
-    }
-
     /// <summary>
-    /// Whether a fleet is supplied: its planet, or either end of its lane, is one of its faction's
-    /// or next to one. Fleets of no galaxy faction, the Errants', always are.
+    /// Whether a fleet is supplied: its planet, or either end of its lane, is one of its side's or
+    /// its allies', or next to one. Fleets of no galaxy faction, the Errants', always are. Asked of
+    /// every fleet each step: the lanes are walked rather than a set of planets made each time.
     /// </summary>
-    public static bool Supplied(Galaxy g, Fleet fleet, HashSet<int>? zone = null)
+    public static bool Supplied(Galaxy g, Fleet fleet)
     {
         if (!g.Factions.ContainsKey(fleet.Side)) return true;
-        zone ??= SupplyZone(g, fleet.Side);
-        return fleet.At is int at ? zone.Contains(at) : zone.Contains(fleet.From) || (fleet.To is int to && zone.Contains(to));
+        var side = fleet.Side;
+        return fleet.At is int at ? InSupply(g, side, at) : InSupply(g, side, fleet.From) || (fleet.To is int to && InSupply(g, side, to));
     }
+
+    static bool InSupply(Galaxy g, Side side, int planet)
+    {
+        if (Held(g, side, planet)) return true;
+        foreach (var (a, b) in g.Lanes)
+        {
+            if ((a == planet && Held(g, side, b)) || (b == planet && Held(g, side, a))) return true;
+        }
+        return false;
+    }
+
+    static bool Held(Galaxy g, Side side, int planet) => g.Planets[planet].Owner is Side o && Allies(g, o, side);
 
     /// <summary>Fleets out of supply wear out, down to the floor; fighting ones are left to their battle.</summary>
     static void WearUnsupplied(Galaxy g, double dt)
     {
-        var zones = new Dictionary<Side, HashSet<int>>();
         foreach (var f in g.Fleets.Values)
         {
-            if (f.BattleId is not null || f.Condition <= SupplyFloor || !g.Factions.ContainsKey(f.Side)) continue;
-            if (!zones.TryGetValue(f.Side, out var zone)) zones[f.Side] = zone = SupplyZone(g, f.Side);
-            if (!Supplied(g, f, zone)) f.Condition = Math.Max(SupplyFloor, f.Condition - SupplyWear * dt);
+            if (f.BattleId is not null || f.Condition <= SupplyFloor) continue;
+            if (!Supplied(g, f)) f.Condition = Math.Max(SupplyFloor, f.Condition - SupplyWear * dt);
         }
     }
 }

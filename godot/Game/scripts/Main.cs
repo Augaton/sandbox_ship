@@ -76,7 +76,10 @@ public partial class Main : Node
         {
             try
             {
+                var clock = System.Diagnostics.Stopwatch.StartNew();
                 Warmup.Run();
+                // The stress scene's measures overlap it while it runs: they say when it ended.
+                if (Dev.Start == "stress") GD.Print($"warm-up done in {clock.Elapsed.TotalSeconds:F1} s");
             }
             catch (Exception e)
             {

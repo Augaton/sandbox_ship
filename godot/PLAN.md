@@ -358,6 +358,19 @@ tests de `FixtureTests` et `CrossTests` les listent.
     flottes par planète en un passage et passe les planètes vides (30 → 9 Kio) ; les délais des héros ne sont plus
     copiés quand il n'y en a pas. Résultat identique, tests de galaxie compris.
   - Serveur en ligne : le relais léger (`godot/Relay/`, .NET seul) tient une partie avec 41 Mo au lieu de 170.
+- Performances, quatrième passe (2026-11-03, avant la 1.0.0 : postures, vétérans, terrain, courbes, diplomatie,
+  personnalités), sur un export release, machine chargée (charge 5 à 6 sur 4 cœurs) :
+  - Bataille de mesure sans terrain : 16,7 ms par image en moyenne (60 images/s), 3,1 ms de simulation, 10,1 Kio
+    alloués par image sur le fil principal, comme à la troisième passe. En terrain dense : 17,1 ms, 4,4 ms de simulation,
+    9,9 Kio. La sonde distingue maintenant le fil principal : le total du processus (33 Kio par image) compte aussi la
+    musique, composée sur son propre fil pendant les premières secondes. Le préchauffage finit avant la mesure (2,2 s).
+  - Campagne (banc de 4 IA, galaxie moyenne, 300 s mesurées après 600 s) : le ravitaillement ne fait plus un ensemble de
+    planètes par camp et par pas, il suit les couloirs (`GalaxySupply.cs`) ; `WearUnsupplied` passe de 10,8 à 0,2 Kio
+    et de 0,010 à 0,001 ms par pas, la réparation des coques vivantes et l'IA en profitent aussi. Total : 34,2 → 29,8 Kio
+    par pas (personnalités mêlées), 31,8 → 29,4 (équilibrées), 0,2 à 0,4 ms par pas ; même galaxie à la fin (crédits,
+    état des flottes, vaisseaux). Le même banc sur la troisième passe : 32,5 à 33,3 Kio et 0,28 à 0,35 ms par pas.
+  - Non mesuré cette fois : démarrage et mémoire au menu, débit réseau par joueur (rien n'a changé dans les
+    instantanés v8 ni le chiffrement depuis leurs mesures).
 - Équilibrage (2026-11-03, après les nouvelles armes et l'IA des vaisseaux), mesuré en parties entre IA de difficulté normale,
   chaque paire de races dans les deux sens, une heure au plus par partie. Les pourcentages sont les victoires de chaque race.
 
@@ -445,6 +458,33 @@ tests de `FixtureTests` et `CrossTests` les listent.
     ligne (un échange de clés authentifié par mot de passe, PAKE, l'empêcherait : .NET n'en fournit pas) ; la taille et le
     rythme des paquets restent visibles ; un hôte malveillant reste cru de ses joueurs sur ce qu'il leur montre, seules les
     lectures sont bornées.
+- Sécurité, passe finale (2026-11-03, avant la 1.0.0) : ce qui s'est ajouté depuis (postures, patrouilles, gardes, files,
+  diplomatie, personnalités, courbes, terrain, rediffusions 3, profil, records, alerte de mise à jour). Chaque faille a
+  son test, qui échouait avant (`FinalSecurityTests`, `GalaxyNetTests`) :
+  - Point de ralliement fini mais hors carte (1e300) : gardé tel quel, les vaisseaux construits y partaient et
+    l'instantané l'écrivait en infini. Ramené dans la carte.
+  - Apparitions du bac à sable hors carte, rejouées par une rediffusion forgée : la grille spatiale plantait au premier
+    pas. Ramenées dans la carte.
+  - Offres de la campagne en réseau : refusée puis refaite, une offre inondait sa cible (216 en 10 s). L'hôte en prend 4
+    d'un coup puis une toutes les 5 s par joueur.
+  - Rediffusions dont les réglages n'existent dans aucun salon (deux places sur un camp, camp hors limites, Errants
+    jouables, crédits NaN ou négatifs, score de zones nul) : lues, elles faisaient lever `CreateSkirmish` à l'ouverture.
+    Refusées à la lecture (`Scenario.Check`), avec les camps du joueur, du vainqueur et des ordres.
+  - Alerte de mise à jour : « v9.9.9\n » ou des chiffres d'une autre écriture passaient pour une version, dont l'adresse
+    ouverte était faite. Chiffres ASCII jusqu'au bout (`Sim/Releases.cs`).
+  - Ordres de galaxie : les camps se lisent bornés (`ReadSide`).
+  - Déjà tenus, vérifiés : patrouilles de 15 points et files de 32 ordres bornées par l'hôte, coordonnées finies et
+    ramenées dans la carte, gardes d'un allié seulement, attaque d'une cible vue ; tributs finis dans leurs bornes, pas
+    d'accord avec soi-même ni un camp éliminé ; `SetPersonality` réservé au meneur, sur un bot ; `Record` borné ; terrain
+    des instantanés fini ; profil, records de Survie et réglages bornés.
+  - Robustesse étendue (`FuzzTests`, `ValuesTests`) : ordres de galaxie, attaque en file, instantanés en terrain dense
+    avec patrouilles, gardes, postures et vétérans, galaxie et sauvegarde avec accords, tributs, offres et rangs,
+    rediffusions jouées, records de Survie.
+  - CI : actions épinglées par commit (vérifiés contre leurs tags), Godot, appimagetool, runtime, Inno Setup et butler par
+    empreinte, permissions en lecture sauf la publication. `dotnet list package --vulnerable` : rien sur Sim, Sim.Tests,
+    Game, Relay. `--outdated` : seuls les paquets de test (xunit, son lanceur, Test.Sdk), jamais livrés.
+  - Ouvert : les flottants d'un instantané restent crus du joueur (un hôte malveillant reste cru) ; les crédits du bac à
+    sable ne sont pas bornés (solo seulement).
 
 ## Ce qui change de technique
 
