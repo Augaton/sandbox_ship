@@ -196,9 +196,10 @@ public static class Ai
         // A first squadron early: it escorts the miners and scouts the map.
         var fleet = Warships(world, f).Count;
         if (fleet == 0 && HasHardpoint(world, station.Id, HardpointRole.Shipyard)) return new AIGoal(GoalKind.Ship, Cls: ShipClass.Scout);
-        // The technological AI keeps its lab busy before anything else.
-        if (f.AI.Personality == Personality.Technological && f.Researching is null && Structures.HasLab(world, f.Id) && PickTech(f, station) is TechId first)
-            return new AIGoal(GoalKind.Research, Tech: first);
+        // The technological AI puts its lab before anything else, by its research odds: always
+        // was too much (13 games won of 16 against the others).
+        if (f.AI.Personality == Personality.Technological && f.Researching is null && Structures.HasLab(world, f.Id) && Rand(world) < def.ResearchOdds
+            && PickTech(f, station) is TechId first) return new AIGoal(GoalKind.Research, Tech: first);
         // Outmatched: dig in before anything else.
         var room = Structures.PlatformRoom(world, f.Id) > 0;
         if (defensive && room && Count(world, f, "platform") < station.Level * Math.Max(2, def.Platforms)) return new AIGoal(GoalKind.Platform);

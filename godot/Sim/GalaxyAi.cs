@@ -196,13 +196,13 @@ public static partial class GalaxyAi
         if (danger.Count > 0) return [.. danger, .. out_, .. ships, .. infra];
         // Otherwise alternate between growing the fleet and the infrastructure, by turns of 20 s:
         // one in two, two in three for the aggressive AI, one in three for the defensive one,
-        // and none in the thrifty one's first ten minutes.
+        // and none in the thrifty one's first five minutes.
         var turn = Math.Floor(g.Time / 20);
         var shipsFirst = personality switch
         {
             Personality.Aggressive => turn % 3 != 2,
             Personality.Defensive => turn % 3 == 0,
-            Personality.Economic => g.Time >= 600 && turn % 2 == 0,
+            Personality.Economic => g.Time >= 300 && turn % 2 == 0,
             _ => turn % 2 == 0,
         };
         return shipsFirst ? [.. out_, .. ships, .. infra] : [.. out_, .. infra, .. ships];

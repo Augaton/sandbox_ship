@@ -159,6 +159,13 @@ tests de `FixtureTests` et `CrossTests` les listent.
   d'avant, au calcul près), agressive, défensive, économe, technologique. Au salon, « Au hasard » par
   défaut, tiré de la graine et de la place (le même partout, sans toucher aux tirages du monde) ;
   rediffusions 3. Tests : `PersonalityTests` ; séries IA contre IA : `PersonalityBalanceTests`.
+  - Séries du 2026-11-03 (chaque paire, même race des deux côtés, chaque départ tour à tour : 16
+    parties par personnalité). Bataille (60 min au plus) : technologique 75 %, défensive 63 %,
+    équilibrée 44 %, économe 31 %, agressive 25 % ; 2 nuls ; médiane 38 min. La technologique fait
+    jeu égal avec l'équilibrée et bat surtout les trois autres. Avant réglage : agressive 6 %,
+    technologique 81 %. Campagne (petite galaxie, 60 min au plus) : équilibrée, agressive et
+    technologique 56 %, économe 38 %, défensive 31 % ; 2 nuls ; médiane 31 min. À ±24 points près
+    sur 16 parties : la technologique en bataille reste à surveiller.
 - Campagne, IA : offensives groupées (rassemblement puis attaque à 1,4 fois la défense, 1,1 après
   6 min d'attente), renforts vers une planète menacée, récupération des épaves, retour des flottes
   usées. Parties entre IA : toutes finies, médiane 14 min.
