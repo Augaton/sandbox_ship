@@ -1,0 +1,4887 @@
+# Sandbox Ship, English.
+# Each msgid is the French text as the code writes it; {0}, {1}... stand for the values a
+# composed text takes (numbers, names): the game finds them in the French text it shows and
+# puts them in the English one (scripts/Core/Lang.cs). Keep the holes, in any order.
+# Kept up to date with godot/tools/lang.py (--check lists what is missing, --add adds it).
+msgid ""
+msgstr ""
+"Language: en\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+
+# Texts the code makes at run time out of words of its own, found by godot/tools/lang-check.sh
+# rather than in the code: forms of the code's words, and templates too plain for lang.py.
+
+#. Menu.Lobby.cs, Players
+msgid "{0} à {1} joueurs"
+msgstr "{0} to {1} players"
+
+msgid "{0} à {1} camps"
+msgstr "{0} to {1} sides"
+
+#. HudKit.ShortReason
+msgid "Niveau {0}"
+msgstr "Level {0}"
+
+#. Menu.Network.cs, the address field's hint
+msgid "adresse:{0}"
+msgstr "address:{0}"
+
+msgid "aucun"
+msgstr "none"
+
+#. Menu.cs, who fights behind the menu
+msgid "contre"
+msgstr "versus"
+
+#. Sim/Data/Heroes.cs, the heroes' titles
+msgid "amiral"
+msgstr "admiral"
+
+msgid "amirale"
+msgstr "admiral"
+
+msgid "as"
+msgstr "ace"
+
+msgid "ingénieur"
+msgstr "engineer"
+
+msgid "ingénieure"
+msgstr "engineer"
+
+msgid "rôdeur"
+msgstr "prowler"
+
+msgid "greffeur"
+msgstr "grafter"
+
+msgid "mère-nef"
+msgstr "mothership"
+
+#. The Lobby's sizes and difficulties, in a sentence
+msgid "petite"
+msgstr "small"
+
+msgid "moyenne"
+msgstr "medium"
+
+msgid "grande"
+msgstr "large"
+
+msgid "facile"
+msgstr "easy"
+
+msgid "normale"
+msgstr "normal"
+
+msgid "difficile"
+msgstr "hard"
+
+#. Menu.Lobby.cs, the summary under the lobby
+msgid "raid"
+msgstr "raid"
+
+msgid "joueurs"
+msgstr "players"
+
+msgid "joueur"
+msgstr "player"
+
+#. Names that read the same
+msgid "zintoki"
+msgstr "zintoki"
+
+msgid "Ctrl + A"
+msgstr "Ctrl + A"
+
+#. Godot's own, already English
+msgid "Search"
+msgstr "Search"
+
+#: Game/scripts/Battle/BattleScreen.Draw.cs
+msgid "{0} en service"
+msgstr "{0} in service"
+
+#: Game/scripts/Battle/BattleScreen.Draw.cs
+msgid "Un {0} ennemi est apparu"
+msgstr "An enemy {0} has appeared"
+
+#: Game/scripts/Battle/BattleScreen.Modes.cs
+msgid ", avec un {0}"
+msgstr ", with a {0}"
+
+#: Game/scripts/Battle/BattleScreen.Modes.cs
+msgid "Vague {0} : les Errants arrivent{1}"
+msgstr "Wave {0}: the Errants are coming{1}"
+
+#: Game/scripts/Battle/BattleScreen.Modes.cs
+msgid "Dernière vague repoussée"
+msgstr "Last wave repelled"
+
+#: Game/scripts/Battle/BattleScreen.Modes.cs
+msgid "Vague {0} repoussée"
+msgstr "Wave {0} repelled"
+
+#: Game/scripts/Battle/BattleScreen.Modes.cs
+msgid "Balise {0} prise"
+msgstr "Beacon {0} taken"
+
+#: Game/scripts/Battle/BattleScreen.Modes.cs
+msgid "Balise {0} prise par un allié"
+msgstr "Beacon {0} taken by an ally"
+
+#: Game/scripts/Battle/BattleScreen.Modes.cs
+msgid "Les {0} ont pris la balise {1}"
+msgstr "The {0} took beacon {1}"
+
+#: Game/scripts/Battle/BattleScreen.Modes.cs
+msgid "Balise {0} perdue"
+msgstr "Beacon {0} lost"
+
+#: Game/scripts/Battle/BattleScreen.Modes.cs
+msgid "Balise {0} reprise aux {1}"
+msgstr "Beacon {0} retaken from the {1}"
+
+#: Game/scripts/Battle/BattleScreen.Modes.cs
+msgid "Ton vaisseau amiral est détruit"
+msgstr "Your flagship is destroyed"
+
+#: Game/scripts/Battle/BattleScreen.Modes.cs
+msgid "Le vaisseau amiral d'un allié est détruit : sa flotte s'autodétruit"
+msgstr "An ally's flagship is destroyed: its fleet self-destructs"
+
+#: Game/scripts/Battle/BattleScreen.Modes.cs
+msgid "Vaisseau amiral des {0} abattu : leur flotte s'autodétruit"
+msgstr "The {0} flagship is down: their fleet self-destructs"
+
+#: Game/scripts/Battle/BattleScreen.Modes.cs
+msgid "Mort subite dans {0} min : les vaisseaux amiraux perdront leurs boucliers et ne se répareront plus"
+msgstr "Sudden death in {0} min: flagships will lose their shields and stop repairing"
+
+#: Game/scripts/Battle/BattleScreen.Modes.cs
+msgid "Mort subite : les vaisseaux amiraux n'ont plus de bouclier et ne se réparent plus"
+msgstr "Sudden death: flagships have no shields left and no longer repair"
+
+#: Game/scripts/Battle/BattleScreen.Modes.cs
+msgid "Assaut : plus que {0} min"
+msgstr "Assault: {0} min left"
+
+#: Game/scripts/Battle/BattleScreen.Net.cs
+msgid "Les {0} l'emportent."
+msgstr "The {0} prevail."
+
+#: Game/scripts/Battle/BattleScreen.Net.cs
+msgid "Pause demandée par {0}"
+msgstr "Pause asked by {0}"
+
+#: Game/scripts/Battle/BattleScreen.Net.cs
+msgid "{0} relance la partie"
+msgstr "{0} resumes the game"
+
+#: Game/scripts/Battle/BattleScreen.cs
+msgid "Rediffusion : aucun ordre possible"
+msgstr "Replay: no orders possible"
+
+#: Game/scripts/Battle/BattleScreen.cs
+msgid "Aucun tir depuis longtemps : dans 30 s, l'attaquant se replie"
+msgstr "No shots for a long while: in 30 s, the attacker falls back"
+
+#: Game/scripts/Battle/BattleScreen.cs
+msgid "Colosse abattu : +{0} crédits{1}"
+msgstr "Colossus down: +{0} credits{1}"
+
+#: Game/scripts/Battle/BattleScreen.cs
+msgid "Les {0} ont abattu le Colosse"
+msgstr "The {0} brought down the Colossus"
+
+#: Game/scripts/Battle/BattleScreen.cs
+msgid "Lance stellaire en service : elle charge"
+msgstr "Star lance in service: it is charging"
+
+#: Game/scripts/Battle/BattleScreen.cs
+msgid "Construction terminée"
+msgstr "Construction complete"
+
+#: Game/scripts/Battle/BattleScreen.cs
+msgid "Les {0} ont mis en service une Lance stellaire"
+msgstr "The {0} have a Star lance in service"
+
+#: Game/scripts/Battle/BattleScreen.cs
+msgid "Frappe stellaire lancée"
+msgstr "Stellar strike launched"
+
+#: Game/scripts/Battle/BattleScreen.cs
+msgid "Frappe stellaire en approche : fuyez la zone !"
+msgstr "Stellar strike incoming: clear the area!"
+
+#: Game/scripts/Battle/BattleScreen.cs
+msgid "Frappe stellaire"
+msgstr "Stellar strike"
+
+#: Game/scripts/Battle/BattleScreen.cs
+msgid "Attaque : tes vaisseaux"
+msgstr "Attack: your ships"
+
+#: Game/scripts/Battle/BattleScreen.cs
+msgid "Aucune alerte"
+msgstr "No alerts"
+
+#: Game/scripts/Battle/Selection.cs
+msgid "Aucun vaisseau inactif"
+msgstr "No idle ships"
+
+#: Game/scripts/Battle/Selection.cs
+msgid "Son coupé"
+msgstr "Sound off"
+
+#: Game/scripts/Battle/Selection.cs
+msgid "Son rétabli"
+msgstr "Sound on"
+
+#: Game/scripts/Battle/Selection.cs
+msgid "Capacité en recharge"
+msgstr "Ability recharging"
+
+#: Game/scripts/Battle/Selection.cs
+msgid "Sélectionne un seul de tes vaisseaux pour le piloter"
+msgstr "Select a single ship of yours to fly it"
+
+#: Game/scripts/Battle/Selection.cs
+msgid "Vaisseau perdu"
+msgstr "Ship lost"
+
+#: Game/scripts/Core/Bindings.cs
+msgid "Vue vers le haut ; en pilotant, avancer"
+msgstr "View up; when flying, thrust forward"
+
+#: Game/scripts/Core/Bindings.cs
+msgid "Vue vers la gauche ; en pilotant, tourner"
+msgstr "View left; when flying, turn"
+
+#: Game/scripts/Core/Bindings.cs
+msgid "Vue vers le bas ; en pilotant, reculer"
+msgstr "View down; when flying, back up"
+
+#: Game/scripts/Core/Bindings.cs
+msgid "Vue vers la droite ; en pilotant, tourner"
+msgstr "View right; when flying, turn"
+
+#: Game/scripts/Core/Bindings.cs
+msgid "Zoom avant"
+msgstr "Zoom in"
+
+#: Game/scripts/Core/Bindings.cs
+msgid "Zoom arrière"
+msgstr "Zoom out"
+
+#: Game/scripts/Core/Bindings.cs
+msgid "Stop ; sur la carte, arrêter la flotte en route"
+msgstr "Stop; on the map, halt the moving fleet"
+
+#: Game/scripts/Core/Bindings.cs
+msgid "Tous tes vaisseaux"
+msgstr "All your ships"
+
+#: Game/scripts/Core/Bindings.cs
+msgid "Attaque-mouvement, puis clic"
+msgstr "Attack-move, then click"
+
+#: Game/scripts/Core/Bindings.cs
+msgid "Capacité des vaisseaux sélectionnés"
+msgstr "Ability of the selected ships"
+
+#: Game/scripts/Core/Bindings.cs
+msgid "Piloter le vaisseau sélectionné"
+msgstr "Fly the selected ship"
+
+#: Game/scripts/Core/Bindings.cs
+msgid "Centrer la vue sur la sélection"
+msgstr "Center the view on the selection"
+
+#: Game/scripts/Core/Bindings.cs
+msgid "Centrer la vue sur la station"
+msgstr "Center the view on the station"
+
+#: Game/scripts/Core/Bindings.cs
+msgid "Aller à la dernière alerte"
+msgstr "Go to the last alert"
+
+#: Game/scripts/Core/Bindings.cs
+msgid "Vaisseau inactif suivant (Maj : tous)"
+msgstr "Next idle ship (Shift: all)"
+
+#: Game/scripts/Core/Bindings.cs
+msgid "Couper ou rétablir le son"
+msgstr "Mute or unmute"
+
+#: Game/scripts/Core/Bindings.cs
+msgid "Revoir toute la galaxie"
+msgstr "See the whole galaxy"
+
+#: Game/scripts/Core/Bindings.cs
+msgid "Volet des flottes"
+msgstr "Fleets panel"
+
+#: Game/scripts/Core/Bindings.cs
+msgid "Vue d'ensemble de l'empire"
+msgstr "Empire overview"
+
+#: Game/scripts/Core/Bindings.cs
+msgid "Retour arrière"
+msgstr "Backspace"
+
+#: Game/scripts/Core/Bindings.cs
+msgid "Échap"
+msgstr "Esc"
+
+#: Game/scripts/Core/Bindings.cs
+msgid "Entrée"
+msgstr "Enter"
+
+#: Game/scripts/Core/Bindings.cs
+msgid "Entrée du pavé"
+msgstr "Keypad Enter"
+
+#: Game/scripts/Core/Bindings.cs
+msgid "Début"
+msgstr "Home"
+
+#: Game/scripts/Core/Bindings.cs
+msgid "Page préc."
+msgstr "Page Up"
+
+#: Game/scripts/Core/Bindings.cs
+msgid "Page suiv."
+msgstr "Page Down"
+
+#: Game/scripts/Core/Bindings.cs
+msgid "+ du pavé"
+msgstr "Keypad +"
+
+#: Game/scripts/Core/Bindings.cs
+msgid "- du pavé"
+msgstr "Keypad -"
+
+#: Game/scripts/Core/Bindings.cs
+msgid "Verr. maj."
+msgstr "Caps Lock"
+
+#: Game/scripts/Core/ReplayStore.cs
+msgid "Bac à sable"
+msgstr "Sandbox"
+
+#: Game/scripts/Core/ReplayStore.cs
+msgid "Contrôle de zone"
+msgstr "Zone control"
+
+#: Game/scripts/Core/ReplayStore.cs
+msgid "Régicide"
+msgstr "Regicide"
+
+#: Game/scripts/Core/ReplayStore.cs
+msgid " et "
+msgstr " and"
+
+#: Game/scripts/Core/ReplayStore.cs
+msgid ", victoire de {0}"
+msgstr ", won by {0}"
+
+#: Game/scripts/Core/ReplayStore.cs
+msgid ", sans vainqueur"
+msgstr ", no winner"
+
+#: Game/scripts/Galaxy/GalaxyHud.Diplomacy.cs
+msgid ", hors ravitaillement"
+msgstr ", out of supply"
+
+#: Game/scripts/Galaxy/GalaxyHud.Diplomacy.cs
+msgid "Éliminée"
+msgstr "Eliminated"
+
+#: Game/scripts/Galaxy/GalaxyHud.Diplomacy.cs
+msgid "Trêve : encore {0}"
+msgstr "Truce: {0} left"
+
+#: Game/scripts/Galaxy/GalaxyHud.Diplomacy.cs
+msgid "Propose une trêve : réponse sous {0}"
+msgstr "Offers a truce: answer within {0}"
+
+#: Game/scripts/Galaxy/GalaxyHud.Diplomacy.cs
+msgid "En guerre ; trêve rompue, refuse toute trêve encore {0}"
+msgstr "At war; truce broken, refuses any truce for {0}"
+
+#: Game/scripts/Galaxy/GalaxyHud.Diplomacy.cs
+msgid "En guerre"
+msgstr "At war"
+
+#: Game/scripts/Galaxy/GalaxyHud.Diplomacy.cs
+msgid "Une trêve dure {0} : aucun combat entre vous, ni sur les planètes ni en chemin, et aucune flotte envoyée chez l'autre. Une faction l'accepte quand elle se sent la plus faible, ou qu'elle se bat déjà ailleurs ; un joueur répond lui-même. Rompue, elle refuse toute trêve pendant {1}. Jamais de trêve avec les Errants."
+msgstr "A truce lasts {0}: no fighting between you, neither on planets nor on the way, and no fleet sent to the other. A faction accepts when it feels the weaker, or is already fighting elsewhere; a player answers for themselves. Broken, it refuses any truce for {1}. Never a truce with the Errants."
+
+#: Game/scripts/Galaxy/GalaxyHud.Diplomacy.cs
+msgid "Elle n'a pas oublié la trêve rompue"
+msgstr "It has not forgotten the broken truce"
+
+#: Game/scripts/Galaxy/GalaxyHud.Diplomacy.cs
+msgid "Proposer {0} de trêve"
+msgstr "Offer a {0} truce"
+
+#: Game/scripts/Galaxy/GalaxyHud.Diplomacy.cs
+msgid "Trêves entre les autres : {0}"
+msgstr "Truces between the others: {0}"
+
+#: Game/scripts/Galaxy/GalaxyHud.Diplomacy.cs
+msgid "{0} et {1} ({2})"
+msgstr "{0} and {1} ({2})"
+
+#: Game/scripts/Galaxy/GalaxyHud.Diplomacy.cs
+msgid "Proposer une trêve"
+msgstr "Offer a truce"
+
+#: Game/scripts/Galaxy/GalaxyHud.Diplomacy.cs
+msgid "Rompre la trêve"
+msgstr "Break the truce"
+
+#: Game/scripts/Galaxy/GalaxyHud.Diplomacy.cs
+msgid "{0} refuse la trêve : {1}"
+msgstr "{0} refuses the truce: {1}"
+
+#: Game/scripts/Galaxy/GalaxyHud.Diplomacy.cs
+msgid "Trêve proposée à {0} : réponse sous {1}"
+msgstr "Truce offered to {0}: answer within {1}"
+
+#: Game/scripts/Galaxy/GalaxyHud.Diplomacy.cs
+msgid "L'offre de {0} n'est plus valable"
+msgstr "{0}'s offer no longer stands"
+
+#: Game/scripts/Galaxy/GalaxyHud.Diplomacy.cs
+msgid "Trêve de {0} refusée"
+msgstr "{0}'s truce declined"
+
+#: Game/scripts/Galaxy/GalaxyHud.Diplomacy.cs
+msgid "Rompre la trêve avec {0} ?"
+msgstr "Break the truce with {0}?"
+
+#: Game/scripts/Galaxy/GalaxyHud.Diplomacy.cs
+msgid "Vos flottes pourront de nouveau se battre, sur les planètes comme en chemin. {0} refusera alors toute trêve pendant {1}."
+msgstr "Your fleets will be able to fight again, on planets as on the way. {0} will then refuse any truce for {1}."
+
+#: Game/scripts/Galaxy/GalaxyHud.Diplomacy.cs
+msgid "{0} propose une trêve"
+msgstr "{0} offers a truce"
+
+#: Game/scripts/Galaxy/GalaxyHud.Diplomacy.cs
+msgid "{0} sans aucun combat entre vous, ni sur les planètes ni en chemin, et aucune flotte envoyée chez l'autre. L'offre tient {1} ; la liste Diplomatie (T) la garde jusque-là."
+msgstr "{0} without any fighting between you, neither on planets nor on the way, and no fleet sent to the other. The offer stands for {1}; the Diplomacy list (T) keeps it until then."
+
+#: Game/scripts/Galaxy/GalaxyHud.Diplomacy.cs
+msgid "Plus tard"
+msgstr "Later"
+
+#: Game/scripts/Galaxy/GalaxyHud.Diplomacy.cs
+msgid "{0} propose une trêve de {1}"
+msgstr "{0} offers a truce of {1}"
+
+#: Game/scripts/Galaxy/GalaxyHud.Diplomacy.cs
+msgid "Trêve signée avec {0} : {1} sans combat"
+msgstr "Truce signed with {0}: {1} without fighting"
+
+#: Game/scripts/Galaxy/GalaxyHud.Diplomacy.cs
+msgid "Trêve entre {0} et {1}"
+msgstr "Truce between {0} and {1}"
+
+#: Game/scripts/Galaxy/GalaxyHud.Diplomacy.cs
+msgid "Trêve rompue avec {0} : plus de trêve avec elle avant {1}"
+msgstr "Truce broken with {0}: no truce with them before {1}"
+
+#: Game/scripts/Galaxy/GalaxyHud.Diplomacy.cs
+msgid "Fin de la trêve avec {0}"
+msgstr "End of the truce with {0}"
+
+#: Game/scripts/Galaxy/GalaxyHud.Diplomacy.cs
+msgid "Fin de la trêve entre {0} et {1}"
+msgstr "End of the truce between {0} and {1}"
+
+#: Game/scripts/Galaxy/GalaxyHud.Diplomacy.cs
+msgid "Ruines de {0} explorées : +{1} crédits{2}"
+msgstr "Ruins of {0} explored: +{1} credits{2}"
+
+#: Game/scripts/Galaxy/GalaxyHud.Diplomacy.cs
+msgid "{0} explore les ruines de {1}"
+msgstr "{0} explores the ruins of {1}"
+
+#: Game/scripts/Galaxy/GalaxyHud.Diplomacy.cs
+msgid "Une flotte abandonnée dérive à {0} : à la première flotte qui s'y arrête"
+msgstr "An abandoned fleet drifts at {0}: it goes to the first fleet that stops there"
+
+#: Game/scripts/Galaxy/GalaxyHud.Diplomacy.cs
+msgid "Une bande errante se rassemble à {0} : elle frappera {1} dans {2} s"
+msgstr "A roaming band gathers at {0}: it will strike {1} in {2} s"
+
+#: Game/scripts/Galaxy/GalaxyHud.Diplomacy.cs
+msgid "Une bande errante menace {0} ({1})"
+msgstr "A roaming band threatens {0} ({1})"
+
+#: Game/scripts/Galaxy/GalaxyHud.Diplomacy.cs
+msgid "Tempête ionique entre {0} et {1} : vitesse divisée par deux pendant {2}"
+msgstr "Ion storm between {0} and {1}: speed halved for {2}"
+
+#: Game/scripts/Galaxy/GalaxyHud.Diplomacy.cs
+msgid "Essor commercial à {0}{1} : revenu doublé pendant {2}"
+msgstr "Trade boom at {0}{1}: income doubled for {2}"
+
+#: Game/scripts/Galaxy/GalaxyHud.Diplomacy.cs
+msgid "Flotte abandonnée récupérée à {0}"
+msgstr "Abandoned fleet recovered at {0}"
+
+#: Game/scripts/Galaxy/GalaxyHud.Diplomacy.cs
+msgid "{0} récupère la flotte abandonnée de {1}"
+msgstr "{0} recovers the abandoned fleet at {1}"
+
+#: Game/scripts/Galaxy/GalaxyHud.Diplomacy.cs
+msgid "La flotte abandonnée de {0} s'éloigne"
+msgstr "The abandoned fleet at {0} drifts away"
+
+#: Game/scripts/Galaxy/GalaxyHud.Diplomacy.cs
+msgid "{0} pillée par une bande errante : ses mines sont perdues"
+msgstr "{0} raided by a roaming band: its mines are lost"
+
+#: Game/scripts/Galaxy/GalaxyHud.Diplomacy.cs
+msgid "Une bande errante pille {0} ({1})"
+msgstr "A roaming band raids {0} ({1})"
+
+#: Game/scripts/Galaxy/GalaxyHud.Diplomacy.cs
+msgid "La tempête ionique entre {0} et {1} se dissipe"
+msgstr "The ion storm between {0} and {1} clears"
+
+#: Game/scripts/Galaxy/GalaxyHud.Diplomacy.cs
+msgid "L'essor commercial de {0} retombe"
+msgstr "The trade boom at {0} fades"
+
+#: Game/scripts/Galaxy/GalaxyHud.Diplomacy.cs
+msgid "Flotte abandonnée"
+msgstr "Abandoned fleet"
+
+#: Game/scripts/Galaxy/GalaxyHud.Diplomacy.cs
+msgid "{0}, abîmés : à la première flotte qui s'arrête ici."
+msgstr "{0}, damaged: for the first fleet that stops here."
+
+#: Game/scripts/Galaxy/GalaxyHud.Diplomacy.cs
+msgid "Bande errante"
+msgstr "Roaming band"
+
+#: Game/scripts/Galaxy/GalaxyHud.Diplomacy.cs
+msgid "Elle se rassemble ici et frappera {0}. Elle pille, ne prend rien."
+msgstr "It gathers here and will strike {0}. It raids, it takes nothing."
+
+#: Game/scripts/Galaxy/GalaxyHud.Diplomacy.cs
+msgid "Bande errante en approche"
+msgstr "Roaming band incoming"
+
+#: Game/scripts/Galaxy/GalaxyHud.Diplomacy.cs
+msgid "Elle se rassemble à {0} : sans défense, la planète perdra ses mines."
+msgstr "It gathers at {0}: without defenses, the planet will lose its mines."
+
+#: Game/scripts/Galaxy/GalaxyHud.Diplomacy.cs
+msgid "Tempête ionique"
+msgstr "Ion storm"
+
+#: Game/scripts/Galaxy/GalaxyHud.Diplomacy.cs
+msgid "Vers {0} : vitesse divisée par deux."
+msgstr "Toward {0}: speed halved."
+
+#: Game/scripts/Galaxy/GalaxyHud.Diplomacy.cs
+msgid "Essor commercial"
+msgstr "Trade boom"
+
+#: Game/scripts/Galaxy/GalaxyHud.Diplomacy.cs
+msgid "Revenu de la planète doublé."
+msgstr "Planet income doubled."
+
+#: Game/scripts/Galaxy/GalaxyHud.Diplomacy.cs
+msgid "Trêve"
+msgstr "Truce"
+
+#: Game/scripts/Galaxy/GalaxyHud.Diplomacy.cs
+msgid "Avec {0} : ni combat ici, ni flotte envoyée ; tes flottes y passent."
+msgstr "With {0}: no fighting here, no fleet sent; your fleets pass through."
+
+#: Game/scripts/Galaxy/GalaxyHud.Empire.cs
+msgid "Tes flottes"
+msgstr "Your fleets"
+
+#: Game/scripts/Galaxy/GalaxyHud.Empire.cs
+msgid "Vue d'ensemble"
+msgstr "Overview"
+
+#: Game/scripts/Galaxy/GalaxyHud.Empire.cs
+msgid "Fermer (Échap)"
+msgstr "Close (Esc)"
+
+#: Game/scripts/Galaxy/GalaxyHud.Empire.cs
+msgid "Combat à {0}"
+msgstr "Battle at {0}"
+
+#: Game/scripts/Galaxy/GalaxyHud.Empire.cs
+msgid "Interception entre {0} et {1}"
+msgstr "Interception between {0} and {1}"
+
+#: Game/scripts/Galaxy/GalaxyHud.Empire.cs
+msgid "{0}, arrivée dans {1} s"
+msgstr "{0}, arriving in {1} s"
+
+#: Game/scripts/Galaxy/GalaxyHud.Empire.cs
+msgid "Aucune flotte."
+msgstr "No fleets."
+
+#: Game/scripts/Galaxy/GalaxyHud.Empire.cs
+msgid "Clic : sélectionner la flotte et centrer la vue sur elle."
+msgstr "Click: select the fleet and center the view on it."
+
+#: Game/scripts/Galaxy/GalaxyHud.Empire.cs
+msgid "Revenu total"
+msgstr "Total income"
+
+#: Game/scripts/Galaxy/GalaxyHud.Empire.cs
+msgid "{0} planète{1}"
+msgstr "{0} planet{1:s}"
+
+#: Game/scripts/Galaxy/GalaxyHud.Empire.cs
+msgid "Recherche : {0} niveau {1}, {2}"
+msgstr "Research: {0} level {1}, {2}"
+
+#: Game/scripts/Galaxy/GalaxyHud.Empire.cs
+msgid " ({0} en file)"
+msgstr " ({0} queued)"
+
+#: Game/scripts/Galaxy/GalaxyHud.Empire.cs
+msgid "Recherche à l'arrêt"
+msgstr "Research stopped"
+
+#: Game/scripts/Galaxy/GalaxyHud.Empire.cs
+msgid "Recherche : laboratoire requis"
+msgstr "Research: lab required"
+
+#: Game/scripts/Galaxy/GalaxyHud.Empire.cs
+msgid "Clic : sélectionner la planète et centrer la vue sur elle."
+msgstr "Click: select the planet and center the view on it."
+
+#: Game/scripts/Galaxy/GalaxyHud.Empire.cs
+msgid "Vaisseaux : boucle en attente"
+msgstr "Ships: loop waiting"
+
+#: Game/scripts/Galaxy/GalaxyHud.Empire.cs
+msgid "Bâtiments : {0}"
+msgstr "Buildings: {0}"
+
+#: Game/scripts/Galaxy/GalaxyHud.Empire.cs
+msgid "Combat en cours"
+msgstr "Battle in progress"
+
+#: Game/scripts/Galaxy/GalaxyHud.Empire.cs
+msgid "Inactive : rien en production"
+msgstr "Idle: nothing in production"
+
+#: Game/scripts/Galaxy/GalaxyHud.Empire.cs
+msgid "Pas de station"
+msgstr "No station"
+
+#: Game/scripts/Galaxy/GalaxyHud.Empire.cs
+msgid "Rien à signaler pour l'instant."
+msgstr "Nothing to report for now."
+
+#: Game/scripts/Galaxy/GalaxyHud.Empire.cs
+msgid "Clic : centrer la vue sur la planète."
+msgstr "Click: center the view on the planet."
+
+#: Game/scripts/Galaxy/GalaxyHud.Empire.cs
+msgid "En combat : aucun ordre possible"
+msgstr "In battle: no orders possible"
+
+#: Game/scripts/Galaxy/GalaxyHud.Empire.cs
+msgid "S'arrêter à {0}"
+msgstr "Stop at {0}"
+
+#: Game/scripts/Galaxy/GalaxyHud.Empire.cs
+msgid "La flotte s'arrête à la prochaine planète de sa route (X)"
+msgstr "The fleet stops at the next planet on its route (X)"
+
+#: Game/scripts/Galaxy/GalaxyHud.Empire.cs
+msgid "La flotte s'arrête déjà là"
+msgstr "The fleet already stops there"
+
+#: Game/scripts/Galaxy/GalaxyHud.Empire.cs
+msgid "Clic droit sur une planète : changer de destination ; la flotte fait demi-tour si c'est plus court."
+msgstr "Right click on a planet: change destination; the fleet turns back if that is shorter."
+
+#: Game/scripts/Galaxy/GalaxyHud.Empire.cs
+msgid "Les vaisseaux construits ici partent seuls vers une planète : clic ici puis sur elle, ou Ctrl + clic droit sur elle. Vaut pour toutes les planètes sélectionnées."
+msgstr "Ships built here head off on their own to a planet: click here then on it, or Ctrl + right click on it. Applies to every selected planet."
+
+#: Game/scripts/Galaxy/GalaxyHud.Empire.cs
+msgid "Retirer le point de ralliement"
+msgstr "Remove the rally point"
+
+#: Game/scripts/Galaxy/GalaxyHud.Empire.cs
+msgid "état {0}"
+msgstr "condition {0}"
+
+#: Game/scripts/Galaxy/GalaxyHud.Empire.cs
+msgid "Arrêtée par le combat"
+msgstr "Stopped by the battle"
+
+#: Game/scripts/Galaxy/GalaxyHud.Empire.cs
+msgid "Arrivée à {0} dans {1} s"
+msgstr "Arriving at {0} in {1} s"
+
+#: Game/scripts/Galaxy/GalaxyHud.Empire.cs
+msgid "Pas de ralliement"
+msgstr "No rally point"
+
+#: Game/scripts/Galaxy/GalaxyHud.Lance.cs
+msgid "Frappe une planète ennemie à {0} voies au plus : plateformes, canon ionique et dock détruits, station abaissée d'un niveau, une mine perdue, flottes réduites de moitié. Recharge 5 min."
+msgstr "Strikes an enemy planet up to {0} lanes away: platforms, ion cannon and dock destroyed, station lowered one level, one mine lost, fleets halved. Recharge 5 min."
+
+#: Game/scripts/Galaxy/GalaxyHud.Lance.cs
+msgid "Lance stellaire : charge {0}"
+msgstr "Star lance: charge {0}"
+
+#: Game/scripts/Galaxy/GalaxyHud.Lance.cs
+msgid "Lance stellaire prête"
+msgstr "Star lance ready"
+
+#: Game/scripts/Galaxy/GalaxyHud.Lance.cs
+msgid "Lance stellaire : {0} frappée"
+msgstr "Star lance: {0} struck"
+
+#: Game/scripts/Galaxy/GalaxyHud.Lance.cs
+msgid "{0} frappée par la Lance stellaire des {1}"
+msgstr "{0} struck by the {1} Star lance"
+
+#: Game/scripts/Galaxy/GalaxyHud.Lance.cs
+msgid "Les {0} frappent {1} de leur Lance stellaire"
+msgstr "The {0} strike {1} with their Star lance"
+
+#: Game/scripts/Galaxy/GalaxyHud.cs
+msgid "Planète"
+msgstr "Planet"
+
+#: Game/scripts/Galaxy/GalaxyHud.cs
+msgid "Bâtiments"
+msgstr "Buildings"
+
+#: Game/scripts/Galaxy/GalaxyHud.cs
+msgid "aucun vaisseau"
+msgstr "no ships"
+
+#: Game/scripts/Galaxy/GalaxyHud.cs
+msgid ", état {0}"
+msgstr ", condition {0}"
+
+#: Game/scripts/Galaxy/GalaxyHud.cs
+msgid "Abattre leur Colosse rapporte {0} crédits et un niveau de recherche ; chaque"
+msgstr "Bringing down their Colossus earns {0} credits and a research level; each"
+
+#: Game/scripts/Galaxy/GalaxyHud.cs
+msgid "Leur Colosse est tombé ; chaque"
+msgstr "Their Colossus has fallen; each"
+
+#: Game/scripts/Galaxy/GalaxyHud.cs
+msgid " vaisseau abattu rapporte {0} de sa valeur."
+msgstr " ship destroyed earns {0} of its value."
+
+#: Game/scripts/Galaxy/GalaxyHud.cs
+msgid "Crédits"
+msgstr "Credits"
+
+#: Game/scripts/Galaxy/GalaxyHud.cs
+msgid "En pause, demandée par {0} ({1})"
+msgstr "Paused, asked by {0} ({1})"
+
+#: Game/scripts/Galaxy/GalaxyHud.cs
+msgid "L'hôte règle la vitesse pour tous"
+msgstr "The host sets the speed for everyone"
+
+#: Game/scripts/Galaxy/GalaxyHud.cs
+msgid "{0} : aucune planète n'a pris l'ordre{1}"
+msgstr "{0}: no planet took the order{1}"
+
+#: Game/scripts/Galaxy/GalaxyHud.cs
+msgid "{0} : 1 planète sur {1} a pris l'ordre{2}"
+msgstr "{0}: 1 planet of {1} took the order{2}"
+
+#: Game/scripts/Galaxy/GalaxyHud.cs
+msgid "{0} : {1} planètes sur {2} ont pris l'ordre{3}"
+msgstr "{0}: {1} planets of {2} took the order{3}"
+
+#: Game/scripts/Galaxy/GalaxyHud.cs
+msgid "{0} : production en boucle arrêtée{1}"
+msgstr "{0}: production loop stopped{1}"
+
+#: Game/scripts/Galaxy/GalaxyHud.cs
+msgid "{0} : production en boucle lancée"
+msgstr "{0}: production loop started"
+
+#: Game/scripts/Galaxy/GalaxyHud.cs
+msgid "{0} : production en boucle impossible{1}"
+msgstr "{0}: production loop impossible{1}"
+
+#: Game/scripts/Galaxy/GalaxyHud.cs
+msgid "{0} : production en boucle lancée sur {1} planète{2} sur {3}{4}"
+msgstr "{0}: production loop started on {1} planet{2:s} of {3}{4}"
+
+#: Game/scripts/Galaxy/GalaxyHud.cs
+msgid "Sélection : {0} planètes"
+msgstr "Selection: {0} planets"
+
+#: Game/scripts/Galaxy/GalaxyHud.cs
+msgid "Flotte en route"
+msgstr "Fleet on the way"
+
+#: Game/scripts/Galaxy/GalaxyHud.cs
+msgid "Carte galactique"
+msgstr "Galaxy map"
+
+#: Game/scripts/Galaxy/GalaxyHud.cs
+msgid "Clic sur une planète : la sélectionner. Maj + clic, ou glisser sur la carte : en sélectionner plusieurs.\nClic droit sur une autre : y envoyer ta flotte."
+msgstr "Click a planet: select it. Shift + click, or drag on the map: select several.\nRight click another: send your fleet there."
+
+#: Game/scripts/Galaxy/GalaxyHud.cs
+msgid "Une flotte seule sur une planète sans défense la prend après quelques secondes."
+msgstr "A fleet alone on an undefended planet takes it after a few seconds."
+
+#: Game/scripts/Galaxy/GalaxyHud.cs
+msgid "Clic : un vaisseau sur chacune des {0} planètes. Clic droit : production en boucle sur toutes. Les héros, sur {1} seulement."
+msgstr "Click: one ship on each of the {0} planets. Right click: production loop on all of them. Heroes, on {1} only."
+
+#: Game/scripts/Galaxy/GalaxyHud.cs
+msgid "Clic droit sur un vaisseau : production en boucle, qui attend les crédits."
+msgstr "Right click a ship: production loop, which waits for the credits."
+
+#: Game/scripts/Galaxy/GalaxyHud.cs
+msgid "Sur {0} seulement."
+msgstr "On {0} only."
+
+#: Game/scripts/Galaxy/GalaxyHud.cs
+msgid "Site de raid neutre"
+msgstr "Neutral raid site"
+
+#: Game/scripts/Galaxy/GalaxyHud.cs
+msgid "Les Errants gardent cette planète sans jamais en bouger, ni construire ; ils ne comptent pas pour la victoire. {0} Vaincus, ils laissent la planète au vainqueur."
+msgstr "The Errants guard this planet without ever leaving it or building; they do not count toward victory. {0} Defeated, they leave the planet to the victor."
+
+#: Game/scripts/Galaxy/GalaxyHud.cs
+msgid "Hors de portée de tes capteurs : défenses et flottes inconnues. Approche une flotte ou prends une planète voisine pour voir."
+msgstr "Out of your sensors' range: defenses and fleets unknown. Bring a fleet close or take a neighboring planet to see."
+
+#: Game/scripts/Galaxy/GalaxyHud.cs
+msgid "Revenu +{0}/s{1}, plus {2}/s par mine"
+msgstr "Income +{0}/s{1}, plus {2}/s per mine"
+
+#: Game/scripts/Galaxy/GalaxyHud.cs
+msgid "dock de réparation"
+msgstr "repair dock"
+
+#: Game/scripts/Galaxy/GalaxyHud.cs
+msgid "canon ionique"
+msgstr "ion cannon"
+
+#: Game/scripts/Galaxy/GalaxyHud.cs
+msgid "Flottes de la sélection"
+msgstr "Fleets of the selection"
+
+#: Game/scripts/Galaxy/GalaxyHud.cs
+msgid "Clic droit sur une planète : y envoyer toutes ces flottes, entières."
+msgstr "Right click on a planet: send all these fleets there, whole."
+
+#: Game/scripts/Galaxy/GalaxyHud.cs
+msgid "Aucune flotte à toi sur ces planètes."
+msgstr "No fleets of yours on these planets."
+
+#: Game/scripts/Galaxy/GalaxyHud.cs
+msgid "Ta flotte"
+msgstr "Your fleet"
+
+#: Game/scripts/Galaxy/GalaxyHud.cs
+msgid "{0} à envoyer"
+msgstr "{0} to send"
+
+#: Game/scripts/Galaxy/GalaxyHud.cs
+msgid "Clic droit sur une planète : envoyer ces vaisseaux."
+msgstr "Right click on a planet: send these ships."
+
+#: Game/scripts/Galaxy/GalaxyHud.cs
+msgid "File vide"
+msgstr "Queue empty"
+
+#: Game/scripts/Galaxy/GalaxyHud.cs
+msgid "File de {0} (clic droit : annuler)"
+msgstr "Queue of {0} (right click: cancel)"
+
+#: Game/scripts/Galaxy/GalaxyHud.cs
+msgid "File (clic droit : annuler)"
+msgstr "Queue (right click: cancel)"
+
+#: Game/scripts/Galaxy/GalaxyHud.cs
+msgid "Recherche commune à toute ta faction. Il faut un laboratoire, et une station du niveau visé (niveau 4 pour les derniers niveaux)."
+msgstr "Research is shared by your whole faction. It needs a lab, and a station of the level aimed at (level 4 for the last levels)."
+
+#: Game/scripts/Galaxy/GalaxyHud.cs
+msgid " Les archives anciennes accélèrent la recherche."
+msgstr " The ancient archives speed research up."
+
+#: Game/scripts/Galaxy/GalaxyHud.cs
+msgid "Aucune recherche en file"
+msgstr "No research queued"
+
+#: Game/scripts/Galaxy/GalaxyHud.cs
+msgid "état {0}{1}"
+msgstr "condition {0}{1}"
+
+#: Game/scripts/Galaxy/GalaxyHud.cs
+msgid "Prise par {0} dans {1} s"
+msgstr "Taken by {0} in {1} s"
+
+#: Game/scripts/Galaxy/GalaxyHud.cs
+msgid "Terminé"
+msgstr "Done"
+
+#: Game/scripts/Galaxy/GalaxyHud.cs
+msgid "{0} cr, {1}/{2} planètes"
+msgstr "{0} cr, {1}/{2} planets"
+
+#: Game/scripts/Galaxy/GalaxyHud.cs
+msgid ", en boucle"
+msgstr ", looping"
+
+#: Game/scripts/Galaxy/GalaxyHud.cs
+msgid "Clic : un sur chaque planète sélectionnée. Clic droit : production en boucle sur toutes."
+msgstr "Click: one on each selected planet. Right click: production loop on all of them."
+
+#: Game/scripts/Galaxy/GalaxyHud.cs
+msgid "Clic droit : production en boucle."
+msgstr "Right click: production loop."
+
+#: Game/scripts/Galaxy/GalaxyHud.cs
+msgid "Site de raid : le Colosse vaut {0} crédits"
+msgstr "Raid site: the Colossus is worth {0} credits"
+
+#: Game/scripts/Galaxy/GalaxyHud.cs
+msgid "Site de raid : le Colosse est tombé"
+msgstr "Raid site: the Colossus has fallen"
+
+#: Game/scripts/Galaxy/GalaxyHud.cs
+msgid "Hors de portée de tes capteurs"
+msgstr "Out of your sensors' range"
+
+#: Game/scripts/Galaxy/GalaxyHud.cs
+msgid "Station niveau {0}"
+msgstr "Station level {0}"
+
+#: Game/scripts/Galaxy/GalaxyHud.cs
+msgid "Canon ionique"
+msgstr "Ion cannon"
+
+#: Game/scripts/Galaxy/GalaxyHud.cs
+msgid "La campagne se sauvegarde seule ; « Continuer la campagne » reprend la sauvegarde la plus récente. Tu peux aussi en garder une sous le nom de ton choix."
+msgstr "The campaign saves by itself; \"Continue the campaign\" resumes the latest save. You can also keep one under a name of your choice."
+
+#: Game/scripts/Galaxy/GalaxyHud.cs
+msgid "Nom de la sauvegarde"
+msgstr "Save name"
+
+#: Game/scripts/Galaxy/GalaxyHud.cs
+msgid "Sauvegardée : {0}"
+msgstr "Saved: {0}"
+
+#: Game/scripts/Galaxy/GalaxyHud.cs
+msgid "Sauvegarde impossible"
+msgstr "Could not save"
+
+#: Game/scripts/Galaxy/GalaxyHud.cs
+msgid "Menu principal"
+msgstr "Main menu"
+
+#: Game/scripts/Galaxy/GalaxyHud.cs
+msgid "Quitter la partie ?"
+msgstr "Leave the game?"
+
+#: Game/scripts/Galaxy/GalaxyHud.cs
+msgid "La partie s'arrête pour tous les joueurs. Elle est sauvegardée : « Multijoueur », héberger, puis « Reprendre la campagne », la rouvre, chacun reprenant sa place."
+msgstr "The game stops for every player. It is saved: \"Multiplayer\", host, then \"Resume the campaign\" reopens it, everyone taking back their seat."
+
+#: Game/scripts/Galaxy/GalaxyHud.cs
+msgid "L'IA prend ta place jusqu'à la fin."
+msgstr "The AI takes your place until the end."
+
+#: Game/scripts/Galaxy/GalaxyHud.cs
+msgid "{0} est à toi"
+msgstr "{0} is yours"
+
+#: Game/scripts/Galaxy/GalaxyHud.cs
+msgid "{0} : les Errants tombent devant {1}"
+msgstr "{0}: the Errants fall to {1}"
+
+#: Game/scripts/Galaxy/GalaxyHud.cs
+msgid "{0} : {1} terminé"
+msgstr "{0}: {1} complete"
+
+#: Game/scripts/Galaxy/GalaxyHud.cs
+msgid "Recherche terminée : {0} niveau {1}"
+msgstr "Research complete: {0} level {1}"
+
+#: Game/scripts/Galaxy/GalaxyHud.cs
+msgid "de l'interception entre {0} et {1}"
+msgstr "of the interception between {0} and {1}"
+
+#: Game/scripts/Galaxy/GalaxyHud.cs
+msgid "de la bataille de {0}"
+msgstr "of the battle of {0}"
+
+#: Game/scripts/Galaxy/GalaxyHud.cs
+msgid "Primes {0} : +{1} crédits{2}"
+msgstr "{0} bounties: +{1} credits{2}"
+
+#: Game/scripts/Galaxy/GalaxyHud.cs
+msgid "l'ennemi se replie"
+msgstr "the enemy falls back"
+
+#: Game/scripts/Galaxy/GalaxyHud.cs
+msgid "défaite"
+msgstr "defeat"
+
+#: Game/scripts/Galaxy/GalaxyHud.cs
+msgid "Rester sur la carte"
+msgstr "Stay on the map"
+
+#: Game/scripts/Galaxy/GalaxyHud.cs
+msgid "station niveau {0}"
+msgstr "station level {0}"
+
+#: Game/scripts/Galaxy/GalaxyHud.cs
+msgid "les Errants"
+msgstr "the Errants"
+
+#: Game/scripts/Galaxy/GalaxyHud.cs
+msgid "Ta flotte croise une flotte {0} en chemin : impossible de passer sans combattre."
+msgstr "Your fleet meets a {0} fleet on the way: no passing without a fight."
+
+#: Game/scripts/Galaxy/GalaxyHud.cs
+msgid "{0} joue en face : la bataille commence quand vous avez choisi tous les deux. Si l'un de vous la commande, l'IA prend le camp de celui qui la laisse se résoudre seule."
+msgstr "{0} plays the other side: the battle starts once you have both chosen. If one of you commands it, the AI takes the side of whoever lets it resolve on its own."
+
+#: Game/scripts/Galaxy/GalaxyHud.cs
+msgid "Tes forces"
+msgstr "Your forces"
+
+#: Game/scripts/Galaxy/GalaxyHud.cs
+msgid "En face"
+msgstr "Facing you"
+
+#: Game/scripts/Galaxy/GalaxyHud.cs
+msgid "Coque et boucliers"
+msgstr "Hull and shields"
+
+#: Game/scripts/Galaxy/GalaxyHud.cs
+msgid "Commander la bataille"
+msgstr "Command the battle"
+
+#: Game/scripts/Galaxy/GalaxyHud.cs
+msgid "Résolution automatique"
+msgstr "Auto-resolve"
+
+#: Game/scripts/Galaxy/GalaxyHud.cs
+msgid "Défaite"
+msgstr "Defeat"
+
+#: Game/scripts/Galaxy/GalaxyHud.cs
+msgid "Plus aucune faction rivale n'a de planète."
+msgstr "No rival faction has a planet left."
+
+#: Game/scripts/Galaxy/GalaxyHud.cs
+msgid "Tu n'as plus aucune planète."
+msgstr "You have no planets left."
+
+#: Game/scripts/Galaxy/GalaxyHud.cs
+msgid "Retourner au menu termine la partie pour tous les joueurs."
+msgstr "Going back to the menu ends the game for every player."
+
+#: Game/scripts/Galaxy/GalaxyHud.cs
+msgid "Une flotte seule prend une planète sans défense en {0} s ({1} s si elle est neutre). Quand deux camps se rencontrent, la bataille se commande dans la vue tactique ou se résout seule. Les flottes traversent les planètes neutres ou alliées et s'arrêtent aux planètes ennemies. Tu perds quand tu n'as plus de planète. Chaque planète a deux files : bâtiments et vaisseaux. Certaines planètes ont un bonus. À plus d'une voie de tes planètes, une flotte est hors ravitaillement : elle s'use de {2} par minute. La liste Diplomatie (T) propose et rompt les trêves. Toutes les quelques minutes, un événement survient : épave à récupérer, bande errante, tempête ionique, essor commercial. Les Errants, neutres, gardent la planète la plus isolée avec leur Colosse : ils n'en bougent jamais et ne comptent pas pour la victoire. Chaque vaisseau abattu rapporte {3} de sa valeur ; le Colosse, {4} crédits et un niveau de recherche. La campagne se sauvegarde toute seule ; « Continuer la campagne » la reprend depuis le menu."
+msgstr "A fleet alone takes an undefended planet in {0} s ({1} s if it is neutral). When two sides meet, the battle is commanded in the tactical view or resolves on its own. Fleets pass through neutral or allied planets and stop at enemy ones. You lose when you have no planet left. Each planet has two queues: buildings and ships. Some planets have a bonus. More than one lane away from your planets, a fleet is out of supply: it wears down by {2} a minute. The Diplomacy list (T) offers and breaks truces. Every few minutes, something happens: a wreck to recover, a roaming band, an ion storm, a trade boom. The Errants, neutral, guard the most isolated planet with their Colossus: they never leave it and do not count toward victory. Each ship destroyed earns {3} of its value; the Colossus, {4} credits and a research level. The campaign saves by itself; \"Continue the campaign\" resumes it from the menu."
+
+#: Game/scripts/Galaxy/GalaxyScreen.Lance.cs
+msgid "Clique sur une planète ennemie à portée (Échap : annuler)"
+msgstr "Click an enemy planet in range (Esc: cancel)"
+
+#: Game/scripts/Galaxy/GalaxyScreen.Lance.cs
+msgid "Tir annulé"
+msgstr "Strike cancelled"
+
+#: Game/scripts/Galaxy/GalaxyScreen.Net.cs
+msgid "{0} relance la galaxie"
+msgstr "{0} resumes the galaxy"
+
+#: Game/scripts/Galaxy/GalaxyScreen.Net.cs
+msgid "de {0}"
+msgstr "of {0}"
+
+#: Game/scripts/Galaxy/GalaxyScreen.Net.cs
+msgid "des {0}"
+msgstr "of the {0}"
+
+#: Game/scripts/Galaxy/GalaxyScreen.Net.cs
+msgid "{0}, commandée par {1} : la galaxie attend sa fin."
+msgstr "{0}, commanded by {1}: the galaxy waits for its end."
+
+#: Game/scripts/Galaxy/GalaxyScreen.Net.cs
+msgid "{0} : la galaxie attend le choix de {1}."
+msgstr "{0}: the galaxy waits for {1}'s choice."
+
+#: Game/scripts/Galaxy/GalaxyScreen.Net.cs
+msgid "{0} la commande{1} : la galaxie attend sa fin. Tu peux la regarder, avec les yeux {2}."
+msgstr "{0} commands it{1}: the galaxy waits for its end. You can watch it, through the eyes {2}."
+
+#: Game/scripts/Galaxy/GalaxyScreen.View.cs
+msgid "Ralliement annulé"
+msgstr "Rally cancelled"
+
+#: Game/scripts/Galaxy/GalaxyScreen.View.cs
+msgid "La flotte s'arrêtera à {0}"
+msgstr "The fleet will stop at {0}"
+
+#: Game/scripts/Galaxy/GalaxyScreen.View.cs
+msgid "Clique sur la planète de ralliement (Échap : annuler)"
+msgstr "Click the rally planet (Esc: cancel)"
+
+#: Game/scripts/Galaxy/GalaxyScreen.View.cs
+msgid "Sélectionne d'abord une de tes planètes"
+msgstr "First select one of your planets"
+
+#: Game/scripts/Galaxy/GalaxyScreen.View.cs
+msgid "{0} planètes"
+msgstr "{0} planets"
+
+#: Game/scripts/Galaxy/GalaxyScreen.View.cs
+msgid "Ralliement de {0} : {1}"
+msgstr "{0} rally: {1}"
+
+#: Game/scripts/Galaxy/GalaxyScreen.View.cs
+msgid "Ralliement de {0} retiré"
+msgstr "{0} rally removed"
+
+#: Game/scripts/Galaxy/GalaxyScreen.cs
+msgid "Seules tes planètes, et celles où attend ta flotte, s'ajoutent à la sélection"
+msgstr "Only your planets, and those where your fleet waits, add to the selection"
+
+#: Game/scripts/Galaxy/GalaxyScreen.cs
+msgid "Aucune flotte à toi sur cette planète"
+msgstr "No fleet of yours on this planet"
+
+#: Game/scripts/Galaxy/GalaxyScreen.cs
+msgid "Aucune flotte à envoyer depuis ces planètes"
+msgstr "No fleet to send from these planets"
+
+#: Game/scripts/Galaxy/GalaxyScreen.cs
+msgid "Aucune flotte n'est partie"
+msgstr "No fleet left"
+
+#: Game/scripts/Galaxy/GalaxyScreen.cs
+msgid "1 flotte partie vers {0}"
+msgstr "1 fleet sent to {0}"
+
+#: Game/scripts/Galaxy/GalaxyScreen.cs
+msgid "{0} flottes parties vers {1}"
+msgstr "{0} fleets sent to {1}"
+
+#: Game/scripts/Galaxy/GalaxyScreen.cs
+msgid "{0} ; restée{1} : {2}"
+msgstr "{0}; stayed behind{1:}: {2}"
+
+#: Game/scripts/Main.cs
+msgid "Forge de la flotte"
+msgstr "Forging the fleet"
+
+#: Game/scripts/Main.cs
+msgid "Préparation de la bataille"
+msgstr "Preparing the battle"
+
+#: Game/scripts/Main.cs
+msgid "Chargement de la galaxie"
+msgstr "Loading the galaxy"
+
+#: Game/scripts/Net/Master.cs
+msgid "Serveur en ligne injoignable{0}."
+msgstr "Online server unreachable{0}."
+
+#: Game/scripts/Net/Master.cs
+msgid "Serveur en ligne {0} injoignable{1} : nouvel essai dans {2} s."
+msgstr "Online server {0} unreachable{1}: trying again in {2} s."
+
+#: Game/scripts/Net/NetBattle.cs
+msgid "Tu regardes la bataille"
+msgstr "You are watching the battle"
+
+#: Game/scripts/Net/Probe.cs
+msgid "par le serveur en ligne"
+msgstr "through the online server"
+
+#: Game/scripts/Net/RelayLink.cs
+msgid "Aucun serveur en ligne : son adresse se règle dans les options."
+msgstr "No online server: its address is set in the options."
+
+#: Game/scripts/Net/RelayLink.cs
+msgid "Connexion impossible ({0})."
+msgstr "Cannot connect ({0})."
+
+#: Game/scripts/Net/RelayLink.cs
+msgid "Adresse du serveur en ligne introuvable{0}."
+msgstr "Online server address not found{0}."
+
+#: Game/scripts/Net/RelayLink.cs
+msgid "Réponse illisible du serveur en ligne : {0}"
+msgstr "Unreadable answer from the online server: {0}"
+
+#: Game/scripts/Net/RelayTransport.cs
+msgid "Connexion au serveur en ligne perdue."
+msgstr "Connection to the online server lost."
+
+#: Game/scripts/Net/Session.Battle.cs
+msgid "{0} de {1} vaisseaux vers ({2}, {3})"
+msgstr "{0} of {1} ships toward ({2}, {3})"
+
+#: Game/scripts/Net/Session.Battle.cs
+msgid "{0} a quitté la partie : l'IA tient sa place jusqu'à son retour."
+msgstr "{0} left the game: the AI holds their seat until they come back."
+
+#: Game/scripts/Net/Session.Battle.cs
+msgid "La bataille a commencé sans toi."
+msgstr "The battle started without you."
+
+#: Game/scripts/Net/Session.Battle.cs
+msgid "Instantané illisible : {0}"
+msgstr "Unreadable snapshot: {0}"
+
+#: Game/scripts/Net/Session.Battle.cs
+msgid "Événements illisibles : {0}"
+msgstr "Unreadable events: {0}"
+
+#: Game/scripts/Net/Session.Campaign.cs
+msgid "Cette sauvegarde ne se reprend pas en réseau."
+msgstr "This save cannot be resumed over the network."
+
+#: Game/scripts/Net/Session.Campaign.cs
+msgid "La campagne a commencé sans toi."
+msgstr "The campaign started without you."
+
+#: Game/scripts/Net/Session.cs
+msgid "liaison directe avec l'hôte"
+msgstr "direct link with the host"
+
+#: Game/scripts/Net/Session.cs
+msgid "liaison par le serveur en ligne"
+msgstr "link through the online server"
+
+#: Game/scripts/Net/Session.cs
+msgid "un joueur en liaison directe"
+msgstr "one player on a direct link"
+
+#: Game/scripts/Net/Session.cs
+msgid "{0} joueurs en liaison directe"
+msgstr "{0} players on a direct link"
+
+#: Game/scripts/Net/Session.cs
+msgid "Partie de {0}"
+msgstr "{0}'s game"
+
+#: Game/scripts/Net/Session.cs
+msgid "Inscription au serveur en ligne{0}…"
+msgstr "Registering with the online server{0}…"
+
+#: Game/scripts/Net/Session.cs
+msgid "« {0} » par le serveur en ligne"
+msgstr "\"{0}\" through the online server"
+
+#: Game/scripts/Net/Session.cs
+msgid "Connexion à {0}…"
+msgstr "Connecting to {0}…"
+
+#: Game/scripts/Net/Session.cs
+msgid "Impossible de joindre {0}."
+msgstr "Cannot reach {0}."
+
+#: Game/scripts/Net/Session.cs
+msgid "Pas de réponse."
+msgstr "No answer."
+
+#: Game/scripts/Net/Session.cs
+msgid "Connecté, en attente de l'hôte…"
+msgstr "Connected, waiting for the host…"
+
+#: Game/scripts/Net/Session.cs
+msgid "L'hôte a quitté la partie."
+msgstr "The host left the game."
+
+#: Game/scripts/Net/Session.cs
+msgid "Message illisible : versions incompatibles ?"
+msgstr "Unreadable message: incompatible versions?"
+
+#: Game/scripts/Net/Session.cs
+msgid "Une campagne ne se regarde pas en spectateur."
+msgstr "A campaign cannot be watched as a spectator."
+
+#: Game/scripts/Net/Session.cs
+msgid "Une bataille est en cours : reviens à la fin, ou regarde-la en spectateur."
+msgstr "A battle is in progress: come back at the end, or watch it as a spectator."
+
+#: Game/scripts/Net/Session.cs
+msgid "Une campagne est en cours : seuls ceux qui la jouent la rejoignent, sous le même nom."
+msgstr "A campaign is in progress: only those who play it can join, under the same name."
+
+#: Game/scripts/Net/Session.cs
+msgid "{0} est de retour : il reprend sa place."
+msgstr "{0} is back: they take their seat again."
+
+#: Game/scripts/Net/Session.cs
+msgid "Trop de messages d'un coup : attends un peu."
+msgstr "Too many messages at once: wait a little."
+
+#: Game/scripts/Net/Session.cs
+msgid "Cette partie est protégée : saisis son mot de passe sur l'écran Multijoueur, puis rejoins-la."
+msgstr "This game is protected: enter its password on the Multiplayer screen, then join it."
+
+#: Game/scripts/Net/Session.cs
+msgid "Mot de passe incorrect."
+msgstr "Wrong password."
+
+#: Game/scripts/Net/Session.cs
+msgid "L'hôte t'a retiré ta place."
+msgstr "The host took your seat away."
+
+#: Game/scripts/Net/Transport.cs
+msgid "Le port {0} est déjà pris."
+msgstr "Port {0} is already taken."
+
+#: Game/scripts/Net/Transport.cs
+msgid "Impossible d'écouter sur le port {0} ({1})."
+msgstr "Cannot listen on port {0} ({1})."
+
+#: Game/scripts/Net/Transport.cs
+msgid "Adresse introuvable : {0}:{1} ({2})."
+msgstr "Address not found: {0}:{1} ({2})."
+
+#: Game/scripts/Ui/ChatBox.cs
+msgid "Écrire aux autres joueurs"
+msgstr "Write to the other players"
+
+#: Game/scripts/Ui/ChatBox.cs
+msgid "Message (Entrée : envoyer, Échap : fermer)"
+msgstr "Message (Enter: send, Esc: close)"
+
+#: Game/scripts/Ui/ChatBox.cs
+msgid "Message aux autres joueurs"
+msgstr "Message to the other players"
+
+#: Game/scripts/Ui/ChatBox.cs
+msgid "Personne n'a encore rien écrit."
+msgstr "Nobody has written anything yet."
+
+#: Game/scripts/Ui/Controls.cs
+msgid "Clic gauche"
+msgstr "Left click"
+
+#: Game/scripts/Ui/Controls.cs
+msgid "Sélectionner (glisser : rectangle, Maj : ajouter)"
+msgstr "Select (drag: box, Shift: add)"
+
+#: Game/scripts/Ui/Controls.cs
+msgid "Double clic, Ctrl + clic"
+msgstr "Double click, Ctrl + click"
+
+#: Game/scripts/Ui/Controls.cs
+msgid "Tous les vaisseaux de la même classe à l'écran"
+msgstr "Every ship of the same class on screen"
+
+#: Game/scripts/Ui/Controls.cs
+msgid "Clic droit"
+msgstr "Right click"
+
+#: Game/scripts/Ui/Controls.cs
+msgid "Déplacer, ou attaquer la cible visée"
+msgstr "Move, or attack the target under the pointer"
+
+#: Game/scripts/Ui/Controls.cs
+msgid "{0} puis clic, Ctrl + clic droit"
+msgstr "{0} then click, Ctrl + right click"
+
+#: Game/scripts/Ui/Controls.cs
+msgid "Attaque-mouvement : engage tout ce qui croise la route"
+msgstr "Attack-move: engages everything on the way"
+
+#: Game/scripts/Ui/Controls.cs
+msgid "Ctrl + clic droit"
+msgstr "Ctrl + right click"
+
+#: Game/scripts/Ui/Controls.cs
+msgid "Capacité des vaisseaux sélectionnés (puis clic pour viser si elle se vise)"
+msgstr "Ability of the selected ships (then click to aim if it is aimed)"
+
+#: Game/scripts/Ui/Controls.cs
+msgid "Piloter le vaisseau sélectionné : {0} ou flèches, clic gauche pour tirer"
+msgstr "Fly the selected ship: {0} or arrows, left click to fire"
+
+#: Game/scripts/Ui/Controls.cs
+msgid "Ctrl ou Maj + 1 à 9"
+msgstr "Ctrl or Shift + 1 to 9"
+
+#: Game/scripts/Ui/Controls.cs
+msgid "Créer un groupe"
+msgstr "Create a group"
+
+#: Game/scripts/Ui/Controls.cs
+msgid "Rappeler un groupe (deux fois : centrer)"
+msgstr "Recall a group (twice: center)"
+
+#: Game/scripts/Ui/Controls.cs
+msgid "{0}, flèches, bords, clic molette"
+msgstr "{0}, arrows, edges, middle click"
+
+#: Game/scripts/Ui/Controls.cs
+msgid "Déplacer la vue (Maj : plus vite)"
+msgstr "Move the view (Shift: faster)"
+
+#: Game/scripts/Ui/Controls.cs
+msgid "Flèches, bords, clic molette"
+msgstr "Arrows, edges, middle click"
+
+#: Game/scripts/Ui/Controls.cs
+msgid "Molette, {0} et {1}"
+msgstr "Wheel, {0} and {1}"
+
+#: Game/scripts/Ui/Controls.cs
+msgid "Aller à la dernière alerte (encore : la précédente)"
+msgstr "Go to the last alert (again: the one before)"
+
+#: Game/scripts/Ui/Controls.cs
+msgid "Vaisseau inactif suivant, tous les inactifs"
+msgstr "Next idle ship, all idle ships"
+
+#: Game/scripts/Ui/Controls.cs
+msgid "Clic droit sur la minicarte"
+msgstr "Right click on the minimap"
+
+#: Game/scripts/Ui/Controls.cs
+msgid "Envoyer la sélection (Ctrl : attaque-mouvement)"
+msgstr "Send the selection (Ctrl: attack-move)"
+
+#: Game/scripts/Ui/Controls.cs
+msgid "Maj + clic sur un vaisseau à produire"
+msgstr "Shift + click on a ship to build"
+
+#: Game/scripts/Ui/Controls.cs
+msgid "En commander 5 ; clic droit : production en boucle"
+msgstr "Order 5; right click: production loop"
+
+#: Game/scripts/Ui/Controls.cs
+msgid "Clic droit sur la file"
+msgstr "Right click on the queue"
+
+#: Game/scripts/Ui/Controls.cs
+msgid "Annuler un élément"
+msgstr "Cancel an item"
+
+#: Game/scripts/Ui/Controls.cs
+msgid "Maj + clic en posant"
+msgstr "Shift + click when placing"
+
+#: Game/scripts/Ui/Controls.cs
+msgid "Poser plusieurs bâtiments de suite"
+msgstr "Place several buildings in a row"
+
+#: Game/scripts/Ui/Controls.cs
+msgid "Annuler le mode en cours, puis la sélection"
+msgstr "Cancel the current mode, then the selection"
+
+#: Game/scripts/Ui/Controls.cs
+msgid "Sélectionner une planète ou ta flotte en route"
+msgstr "Select a planet or your fleet on the way"
+
+#: Game/scripts/Ui/Controls.cs
+msgid "Maj + clic, glisser sur la carte"
+msgstr "Shift + click, drag on the map"
+
+#: Game/scripts/Ui/Controls.cs
+msgid "Sélectionner plusieurs de tes planètes (rectangle ; Maj : ajouter)"
+msgstr "Select several of your planets (box; Shift: add)"
+
+#: Game/scripts/Ui/Controls.cs
+msgid "Envoyer la flotte de la planète sélectionnée (les vaisseaux choisis dans l'onglet Planète) ; de plusieurs planètes, toutes leurs flottes"
+msgstr "Send the selected planet's fleet (the ships chosen in the Planet tab); from several planets, all their fleets"
+
+#: Game/scripts/Ui/Controls.cs
+msgid "Clic droit, {0}"
+msgstr "Right click, {0}"
+
+#: Game/scripts/Ui/Controls.cs
+msgid "Flotte en route : changer sa destination (demi-tour si plus court) ; l'arrêter à la prochaine planète"
+msgstr "Fleet on the way: change its destination (turns back if shorter); stop it at the next planet"
+
+#: Game/scripts/Ui/Controls.cs
+msgid "Ralliement des planètes sélectionnées (sur elle-même : le retirer)"
+msgstr "Rally point of the selected planets (on itself: remove it)"
+
+#: Game/scripts/Ui/Controls.cs
+msgid "Clic sur un vaisseau à produire"
+msgstr "Click on a ship to build"
+
+#: Game/scripts/Ui/Controls.cs
+msgid "Un sur chaque planète sélectionnée ; clic droit : production en boucle"
+msgstr "One on each selected planet; right click: production loop"
+
+#: Game/scripts/Ui/Controls.cs
+msgid "{0}, Début"
+msgstr "{0}, Home"
+
+#: Game/scripts/Ui/Controls.cs
+msgid "Flottes, vue d'ensemble, journal, diplomatie"
+msgstr "Fleets, overview, log, diplomacy"
+
+#: Game/scripts/Ui/Controls.cs
+msgid "Annuler, fermer le volet, désélectionner"
+msgstr "Cancel, close the panel, deselect"
+
+#: Game/scripts/Ui/Hud.Dialogs.cs
+msgid "La bataille repart du début, sur la même carte."
+msgstr "The battle starts over, on the same map."
+
+#: Game/scripts/Ui/Hud.Dialogs.cs
+msgid "La bataille en cours sera perdue."
+msgstr "The battle in progress will be lost."
+
+#: Game/scripts/Ui/Hud.Dialogs.cs
+msgid "Laisser l'IA finir"
+msgstr "Let the AI finish"
+
+#: Game/scripts/Ui/Hud.Dialogs.cs
+msgid "La bataille continue seule ; tu retrouves la carte galactique"
+msgstr "The battle goes on by itself; you go back to the galaxy map"
+
+#: Game/scripts/Ui/Hud.Dialogs.cs
+msgid "Bataille en cours depuis {0}."
+msgstr "Battle in progress for {0}."
+
+#: Game/scripts/Ui/Hud.Dialogs.cs
+msgid "Durée : {0}"
+msgstr "Duration: {0}"
+
+#: Game/scripts/Ui/Hud.Dialogs.cs
+msgid "Détruits"
+msgstr "Destroyed"
+
+#: Game/scripts/Ui/Hud.Dialogs.cs
+msgid "Dégâts"
+msgstr "Damage"
+
+#: Game/scripts/Ui/Hud.Dialogs.cs
+msgid "Crédits gagnés"
+msgstr "Credits earned"
+
+#: Game/scripts/Ui/Hud.Dialogs.cs
+msgid "Rejouer la même carte"
+msgstr "Replay the same map"
+
+#: Game/scripts/Ui/Hud.Dialogs.cs
+msgid "Nouvelle carte"
+msgstr "New map"
+
+#: Game/scripts/Ui/Hud.Dialogs.cs
+msgid "Continuer à regarder"
+msgstr "Keep watching"
+
+#: Game/scripts/Ui/Hud.Dialogs.cs
+msgid "Retour à la carte"
+msgstr "Back to the map"
+
+#: Game/scripts/Ui/Hud.Dialogs.cs
+msgid "Bataille terminée"
+msgstr "Battle over"
+
+#: Game/scripts/Ui/Hud.Dialogs.cs
+msgid "{0} Les survivants regagnent la carte galactique."
+msgstr "{0} The survivors return to the galaxy map."
+
+#: Game/scripts/Ui/Hud.Dialogs.cs
+msgid "[b]Capacités.[/b] Chaque classe de vaisseau et chaque héros en a une. Le panneau de sélection dit ce qu'elle fait et si elle est prête, active ou en recharge. E (ou son bouton) la déclenche ; certaines se visent d'un clic. Case « Automatique » : tes vaisseaux s'en servent seuls quand c'est utile. Sur le champ de bataille, un anneau coloré montre une capacité active, et son nom s'affiche quand elle part."
+msgstr "[b]Abilities.[/b] Every ship class and every hero has one. The selection panel says what it does and whether it is ready, active or recharging. E (or its button) triggers it; some are aimed with a click. \"Automatic\" box: your ships use them by themselves when it helps. On the battlefield, a colored ring shows an active ability, and its name appears when it goes off."
+
+#: Game/scripts/Ui/Hud.Dialogs.cs
+msgid "[b]Construction.[/b] Autour de la station et des avant-postes. Un avant-poste se pose loin de la base, là où un de tes vaisseaux tient la position, hors combat ; il ouvre une nouvelle zone de construction. Plateformes et docks se construisent aussi près de tes mines. Sélectionne une plateforme ou un avant-poste pour l'améliorer."
+msgstr "[b]Building.[/b] Around the station and the outposts. An outpost goes far from the base, where one of your ships holds the position, out of combat; it opens a new building area. Platforms and docks can also be built near your mines. Select a platform or an outpost to upgrade it."
+
+#: Game/scripts/Ui/Hud.Dialogs.cs
+msgid "Détruire les points d'attache d'une station la désarme : chantier naval, hangar, générateur de bouclier, tourelles. Le brouillard de guerre cache ce que tes unités ne voient pas, l'IA comprise. Les héros et le Titan sont uniques ; un héros détruit se reconstruit après un délai."
+msgstr "Destroying a station's hardpoints disarms it: shipyard, hangar, shield generator, turrets. The fog of war hides what your units do not see, for the AI too. Heroes and the Titan are unique; a destroyed hero is rebuilt after a delay."
+
+#: Game/scripts/Ui/Hud.Modes.cs
+msgid "{0} vagues à repousser"
+msgstr "{0} waves to repel"
+
+#: Game/scripts/Ui/Hud.Modes.cs
+msgid "{0} dans {1}{2}"
+msgstr "{0} in {1}{2}"
+
+#: Game/scripts/Ui/Hud.Modes.cs
+msgid "Dernière vague : abattez-les tous"
+msgstr "Last wave: bring them all down"
+
+#: Game/scripts/Ui/Hud.Modes.cs
+msgid "premier à {0} points"
+msgstr "first to {0} points"
+
+#: Game/scripts/Ui/Hud.Modes.cs
+msgid "tu défends la forteresse"
+msgstr "you defend the fortress"
+
+#: Game/scripts/Ui/Hud.Modes.cs
+msgid "tu attaques la forteresse"
+msgstr "you attack the fortress"
+
+#: Game/scripts/Ui/Hud.Modes.cs
+msgid "à tenir"
+msgstr "to hold"
+
+#: Game/scripts/Ui/Hud.Modes.cs
+msgid "pour la détruire"
+msgstr "to destroy it"
+
+#: Game/scripts/Ui/Hud.Modes.cs
+msgid "vaisseaux amiraux"
+msgstr "flagships"
+
+#: Game/scripts/Ui/Hud.Modes.cs
+msgid "Les {0}"
+msgstr "The {0}"
+
+#: Game/scripts/Ui/Hud.Modes.cs
+msgid "Les {0} vagues sont repoussées, en {1}."
+msgstr "The {0} waves are repelled, in {1}."
+
+#: Game/scripts/Ui/Hud.Modes.cs
+msgid "Les Errants ont détruit les stations à la vague {0} : {1} repoussée{2}, tenu {3}."
+msgstr "The Errants destroyed the stations at wave {0}: {1} repelled, held for {3}."
+
+#: Game/scripts/Ui/Hud.Modes.cs
+msgid "{0} points atteints : les balises sont à toi."
+msgstr "{0} points reached: the beacons are yours."
+
+#: Game/scripts/Ui/Hud.Modes.cs
+msgid "{0} atteignent {1} points."
+msgstr "{0} reach {1} points."
+
+#: Game/scripts/Ui/Hud.Modes.cs
+msgid "La forteresse a tenu jusqu'au bout."
+msgstr "The fortress held to the end."
+
+#: Game/scripts/Ui/Hud.Modes.cs
+msgid "La tête de pont ennemie est détruite."
+msgstr "The enemy beachhead is destroyed."
+
+#: Game/scripts/Ui/Hud.Modes.cs
+msgid "La forteresse est tombée."
+msgstr "The fortress has fallen."
+
+#: Game/scripts/Ui/Hud.Modes.cs
+msgid "Le temps est écoulé : la forteresse a tenu."
+msgstr "Time is up: the fortress held."
+
+#: Game/scripts/Ui/Hud.Modes.cs
+msgid "Ta tête de pont est détruite."
+msgstr "Your beachhead is destroyed."
+
+#: Game/scripts/Ui/Hud.Modes.cs
+msgid "Le dernier vaisseau amiral ennemi est abattu."
+msgstr "The last enemy flagship is down."
+
+#: Game/scripts/Ui/Hud.Modes.cs
+msgid "Ton vaisseau amiral est détruit."
+msgstr "Your flagship is destroyed."
+
+#: Game/scripts/Ui/Hud.Modes.cs
+msgid "La station ennemie est détruite."
+msgstr "The enemy station is destroyed."
+
+#: Game/scripts/Ui/Hud.Modes.cs
+msgid "Ta station est détruite."
+msgstr "Your station is destroyed."
+
+#: Game/scripts/Ui/Hud.Net.cs
+msgid "La partie s'arrête pour tous les joueurs."
+msgstr "The game stops for every player."
+
+#: Game/scripts/Ui/Hud.Net.cs
+msgid "Retour au salon"
+msgstr "Back to the lobby"
+
+#: Game/scripts/Ui/Hud.Net.cs
+msgid "Quitter la partie"
+msgstr "Leave the game"
+
+#: Game/scripts/Ui/Hud.Net.cs
+msgid "La partie continue pendant ce menu : Espace la met en pause pour tous."
+msgstr "The game goes on behind this menu: Space pauses it for everyone."
+
+#: Game/scripts/Ui/Hud.Net.cs
+msgid "L'hôte ramènera tout le monde au salon."
+msgstr "The host will bring everyone back to the lobby."
+
+#: Game/scripts/Ui/Hud.Selection.cs
+msgid "Aucune sélection"
+msgstr "No selection"
+
+#: Game/scripts/Ui/Hud.Selection.cs
+msgid "Clic gauche ou rectangle : sélectionner.\nClic droit : déplacer ou attaquer.\nAide : toutes les commandes."
+msgstr "Left click or box: select.\nRight click: move or attack.\nHelp: all the controls."
+
+#: Game/scripts/Ui/Hud.Selection.cs
+msgid "{0} unités"
+msgstr "{0} units"
+
+#: Game/scripts/Ui/Hud.Selection.cs
+msgid "Garder seulement : {0}"
+msgstr "Keep only: {0}"
+
+#: Game/scripts/Ui/Hud.Selection.cs
+msgid "En construction : {0}"
+msgstr "Under construction: {0}"
+
+#: Game/scripts/Ui/Hud.Selection.cs
+msgid "Niveau {0}, {1} points d'attache"
+msgstr "Level {0}, {1} hardpoints"
+
+#: Game/scripts/Ui/Hud.Selection.cs
+msgid "Clic droit : point de ralliement"
+msgstr "Right click: rally point"
+
+#: Game/scripts/Ui/Hud.Selection.cs
+msgid "Améliorer au niveau {0} ({1} cr)"
+msgstr "Upgrade to level {0} ({1} cr)"
+
+#: Game/scripts/Ui/Hud.Selection.cs
+msgid "Appareils lancés : {0} / {1}"
+msgstr "Craft launched: {0} / {1}"
+
+#: Game/scripts/Ui/Hud.Selection.cs
+msgid "Revenu : +{0} cr/s"
+msgstr "Income: +{0} cr/s"
+
+#: Game/scripts/Ui/Hud.Selection.cs
+msgid "Sur : {0}"
+msgstr "On: {0}"
+
+#: Game/scripts/Ui/Hud.Selection.cs
+msgid "réacteurs {0} / {1}"
+msgstr "engines {0} / {1}"
+
+#: Game/scripts/Ui/Hud.Selection.cs
+msgid "Pièces : {0}"
+msgstr "Parts: {0}"
+
+#: Game/scripts/Ui/Hud.Selection.cs
+msgid "Générateur de bouclier détruit"
+msgstr "Shield generator destroyed"
+
+#: Game/scripts/Ui/Hud.Selection.cs
+msgid "marqué {0} s"
+msgstr "marked {0} s"
+
+#: Game/scripts/Ui/Hud.Selection.cs
+msgid "paralysé {0} s"
+msgstr "paralyzed {0} s"
+
+#: Game/scripts/Ui/Hud.Selection.cs
+msgid "rongé {0} s"
+msgstr "corroded {0} s"
+
+#: Game/scripts/Ui/Hud.Selection.cs
+msgid "provoqué {0} s"
+msgstr "taunted {0} s"
+
+#: Game/scripts/Ui/Hud.Selection.cs
+msgid "bouclier rompu {0} s"
+msgstr "shield broken {0} s"
+
+#: Game/scripts/Ui/Hud.Selection.cs
+msgid "disparaît dans {0} s"
+msgstr "vanishes in {0} s"
+
+#: Game/scripts/Ui/Hud.Selection.cs
+msgid "Capacité : {0}. {1}"
+msgstr "Ability: {0}. {1}"
+
+#: Game/scripts/Ui/Hud.Selection.cs
+msgid "Piloté"
+msgstr "Hand-flown"
+
+#: Game/scripts/Ui/Hud.Selection.cs
+msgid "En position"
+msgstr "Holding position"
+
+#: Game/scripts/Ui/Hud.Selection.cs
+msgid "Tes vaisseaux utilisent leurs capacités seuls quand c'est utile"
+msgstr "Your ships use their abilities by themselves when it helps"
+
+#: Game/scripts/Ui/Hud.Selection.cs
+msgid ", puis clic où viser"
+msgstr ", then click where to aim"
+
+#: Game/scripts/Ui/Hud.Selection.cs
+msgid ", puis clic sur un ennemi"
+msgstr ", then click on an enemy"
+
+#: Game/scripts/Ui/Hud.Selection.cs
+msgid "active encore {0} s"
+msgstr "active for {0} s more"
+
+#: Game/scripts/Ui/Hud.Selection.cs
+msgid "prête : E{0}"
+msgstr "ready: E{0}"
+
+#: Game/scripts/Ui/Hud.Selection.cs
+msgid "clique pour viser, Échap pour annuler"
+msgstr "click to aim, Esc to cancel"
+
+#: Game/scripts/Ui/Hud.Spectate.cs
+msgid "Spectateur, vue :"
+msgstr "Spectator, view:"
+
+#: Game/scripts/Ui/Hud.Spectate.cs
+msgid "Tout voir"
+msgstr "See everything"
+
+#: Game/scripts/Ui/Hud.Spectate.cs
+msgid "Toute la bataille, sans brouillard"
+msgstr "The whole battle, without fog"
+
+#: Game/scripts/Ui/Hud.Spectate.cs
+msgid "La bataille comme les {0} la voient"
+msgstr "The battle as the {0} see it"
+
+#: Game/scripts/Ui/Hud.cs
+msgid "Les survivants regagnent la planète d'où ils venaient"
+msgstr "The survivors go back to the planet they came from"
+
+#: Game/scripts/Ui/Hud.cs
+msgid ", Lance stellaire en construction {0}"
+msgstr ", Star lance under construction {0}"
+
+#: Game/scripts/Ui/Hud.cs
+msgid ", Lance stellaire {0}"
+msgstr ", Star lance {0}"
+
+#: Game/scripts/Ui/Hud.cs
+msgid ", Lance stellaire prête"
+msgstr ", Star lance ready"
+
+#: Game/scripts/Ui/Hud.cs
+msgid "allié"
+msgstr "ally"
+
+#: Game/scripts/Ui/Hud.cs
+msgid "{0} : production en boucle {1}"
+msgstr "{0}: production loop {1}"
+
+#: Game/scripts/Ui/Hud.cs
+msgid "Héros"
+msgstr "Heroes"
+
+#: Game/scripts/Ui/Hud.cs
+msgid "Ingénieur"
+msgstr "Engineer"
+
+#: Game/scripts/Ui/Hud.cs
+msgid "Élément"
+msgstr "Item"
+
+#: Game/scripts/Ui/Hud.cs
+msgid "Placer au clic"
+msgstr "Place on click"
+
+#: Game/scripts/Ui/Hud.cs
+msgid "Brouillard de guerre"
+msgstr "Fog of war"
+
+#: Game/scripts/Ui/Hud.cs
+msgid "IA ennemie active"
+msgstr "Enemy AI on"
+
+#: Game/scripts/Ui/Hud.cs
+msgid "+5 000 crédits"
+msgstr "+5,000 credits"
+
+#: Game/scripts/Ui/Hud.cs
+msgid "Détruire la sélection"
+msgstr "Destroy the selection"
+
+#: Game/scripts/Ui/Hud.cs
+msgid "Retour arrière : aller à la dernière alerte"
+msgstr "Backspace: go to the last alert"
+
+#: Game/scripts/Ui/Hud.cs
+msgid "[b]Pilotage : {0}[/b] [color=#949eb0]{1} ou flèches : piloter. Clic gauche maintenu : tirer sur la cible marquée. {2} ou Échap : rendre la main.[/color]"
+msgstr "[b]Flying: {0}[/b] [color=#949eb0]{1} or arrows: fly. Hold left click: fire at the marked target. {2} or Esc: let go.[/color]"
+
+#: Game/scripts/Ui/Hud.cs
+msgid "prête"
+msgstr "ready"
+
+#: Game/scripts/Ui/Hud.cs
+msgid "Au combat"
+msgstr "In combat"
+
+#: Game/scripts/Ui/Hud.cs
+msgid "En route"
+msgstr "On the way"
+
+#: Game/scripts/Ui/Hud.cs
+msgid "Groupe {0} (touche {1}, deux fois : centrer)"
+msgstr "Group {0} (key {1}, twice: center)"
+
+#: Game/scripts/Ui/Hud.cs
+msgid "Vaisseaux inactifs ({0} : le suivant, Maj + {1} : tous)"
+msgstr "Idle ships ({0}: the next one, Shift + {1}: all)"
+
+#: Game/scripts/Ui/Hud.cs
+msgid "Aller à la dernière alerte ({0})"
+msgstr "Go to the last alert ({0})"
+
+#: Game/scripts/Ui/Hud.cs
+msgid "Station détruite"
+msgstr "Station destroyed"
+
+#: Game/scripts/Ui/Hud.cs
+msgid "Crédits insuffisants"
+msgstr "Not enough credits"
+
+#: Game/scripts/Ui/Hud.cs
+msgid ". Armes : {0}. Maj + clic : 5 d'un coup. Clic droit : production en boucle."
+msgstr ". Weapons: {0}. Shift + click: 5 at once. Right click: production loop."
+
+#: Game/scripts/Ui/Hud.cs
+msgid "Station niveau {0} requise"
+msgstr "Station level {0} required"
+
+#: Game/scripts/Ui/Hud.cs
+msgid "Améliorer la station au niveau {0} ({1} cr){2}"
+msgstr "Upgrade the station to level {0} ({1} cr){2}"
+
+#: Game/scripts/Ui/Hud.cs
+msgid "Station au niveau maximum"
+msgstr "Station at the top level"
+
+#: Game/scripts/Ui/Hud.cs
+msgid "File vide : choisis un vaisseau ci-dessus."
+msgstr "Queue empty: pick a ship above."
+
+#: Game/scripts/Ui/Hud.cs
+msgid "Amélioration de la station"
+msgstr "Station upgrade"
+
+#: Game/scripts/Ui/Hud.cs
+msgid "Amélioration"
+msgstr "Upgrade"
+
+#: Game/scripts/Ui/Hud.cs
+msgid "Rien en construction."
+msgstr "Nothing under construction."
+
+#: Game/scripts/Ui/Hud.cs
+msgid "Aucune recherche en file. Chaque niveau demande une station du même niveau (niveau 4 pour les derniers)."
+msgstr "No research queued. Each level needs a station of the same level (level 4 for the last ones)."
+
+#: Game/scripts/Ui/HudKit.cs
+msgid "DejaVu Sans Mono"
+msgstr "DejaVu Sans Mono"
+
+#: Game/scripts/Ui/HudKit.cs
+msgid "Liberation Mono"
+msgstr "Liberation Mono"
+
+#: Game/scripts/Ui/HudKit.cs
+msgid "Trop cher"
+msgstr "Too dear"
+
+#: Game/scripts/Ui/HudKit.cs
+msgid "^Station niveau (\\d) requise$"
+msgstr "^Station niveau (\\\\d) requise$"
+
+#: Game/scripts/Ui/Intro.cs
+msgid "présente"
+msgstr "presents"
+
+#: Game/scripts/Ui/Intro.cs
+msgid "Propulsé par"
+msgstr "Powered by"
+
+#: Game/scripts/Ui/Intro.cs
+msgid "Godot Engine"
+msgstr "Godot Engine"
+
+#: Game/scripts/Ui/Intro.cs
+msgid "C# et .NET"
+msgstr "C# and .NET"
+
+#: Game/scripts/Ui/Intro.cs
+msgid "Void Fleet, Void Environment, Void Main Ship"
+msgstr "Void Fleet, Void Environment, Void Main Ship"
+
+#: Game/scripts/Ui/Intro.cs
+msgid "Space Breaker"
+msgstr "Space Breaker"
+
+#: Game/scripts/Ui/Intro.cs
+msgid "Des packs offerts en CC0 : merci à eux."
+msgstr "Packs given away under CC0: our thanks to them."
+
+#: Game/scripts/Ui/KeysEditor.cs
+msgid "En bataille"
+msgstr "In battle"
+
+#: Game/scripts/Ui/KeysEditor.cs
+msgid "Sur la carte galactique"
+msgstr "On the galaxy map"
+
+#: Game/scripts/Ui/KeysEditor.cs
+msgid "Remettre les touches par défaut"
+msgstr "Reset the keys to their defaults"
+
+#: Game/scripts/Ui/KeysEditor.cs
+msgid "Touches par défaut rétablies."
+msgstr "Default keys restored."
+
+#: Game/scripts/Ui/KeysEditor.cs
+msgid "Appuie sur la nouvelle touche ; Échap garde l'ancienne."
+msgstr "Press the new key; Esc keeps the old one."
+
+#: Game/scripts/Ui/KeysEditor.cs
+msgid "1 à 9 servent aux groupes : choisis une autre touche."
+msgstr "1 to 9 are for groups: pick another key."
+
+#: Game/scripts/Ui/KeysEditor.cs
+msgid "{0} sert aussi à {1} : change l'une des deux."
+msgstr "{0} is also used for {1}: change one of the two."
+
+#: Game/scripts/Ui/KeysEditor.cs
+msgid "Appuie sur une touche…"
+msgstr "Press a key…"
+
+#: Game/scripts/Ui/Loading.cs
+msgid "Un bouclier tombé à zéro reste coupé quelques secondes : c'est le moment de concentrer le feu."
+msgstr "A shield that drops to zero stays down a few seconds: time to focus fire."
+
+#: Game/scripts/Ui/Loading.cs
+msgid "Chaque vaisseau abattu rapporte 20 % de sa valeur à celui qui l'achève."
+msgstr "Every ship destroyed earns 20% of its value to whoever finishes it off."
+
+#: Game/scripts/Ui/Loading.cs
+msgid "Le Colosse des Errants garde un coin de la carte : 8 000 crédits et un niveau de recherche à qui l'abat."
+msgstr "The Errants' Colossus guards a corner of the map: 8,000 credits and a research level to whoever brings it down."
+
+#: Game/scripts/Ui/Loading.cs
+msgid "Le Rempart provoque les ennemis proches : ils le visent au lieu de tes vaisseaux fragiles."
+msgstr "The Bulwark taunts nearby enemies: they aim at it instead of your fragile ships."
+
+#: Game/scripts/Ui/Loading.cs
+msgid "Les appareils d'un transporteur attaquent la cible de leur porteur."
+msgstr "A carrier's craft attack their carrier's target."
+
+#: Game/scripts/Ui/Loading.cs
+msgid "Une flotte avance au pas de son vaisseau le plus lent : les lourds devant, les petits derrière."
+msgstr "A fleet moves at the pace of its slowest ship: heavy ones in front, small ones behind."
+
+#: Game/scripts/Ui/Loading.cs
+msgid "Détruire les points d'attache d'une station la désarme : chantier, hangar, bouclier, tourelles."
+msgstr "Destroying a station's hardpoints disarms it: shipyard, hangar, shield, turrets."
+
+#: Game/scripts/Ui/Loading.cs
+msgid "Ctrl + 1 à 9 crée un groupe ; le chiffre seul le rappelle, deux fois le centre."
+msgstr "Ctrl + 1 to 9 creates a group; the digit alone recalls it, twice centers it."
+
+#: Game/scripts/Ui/Loading.cs
+msgid "Il faut un laboratoire pour lancer une recherche."
+msgstr "You need a lab to start research."
+
+#: Game/scripts/Ui/Loading.cs
+msgid "Plateformes de défense : 3 autour de la station, 2 par avant-poste, 1 par mine."
+msgstr "Defense platforms: 3 around the station, 2 per outpost, 1 per mine."
+
+#: Game/scripts/Ui/Loading.cs
+msgid "En campagne, un clic droit sur un vaisseau à produire le met en boucle sur la planète."
+msgstr "In the campaign, a right click on a ship to build puts it in a loop on the planet."
+
+#: Game/scripts/Ui/Loading.cs
+msgid "Retour arrière ramène la vue sur la dernière alerte."
+msgstr "Backspace brings the view to the last alert."
+
+#: Game/scripts/Ui/Menu.Lobby.cs
+msgid "Campagne galactique"
+msgstr "Galactic campaign"
+
+#: Game/scripts/Ui/Menu.Lobby.cs
+msgid "Conquiers une galaxie planète après planète. Chaque rencontre se joue en bataille, ou se résout seule."
+msgstr "Conquer a galaxy planet by planet. Each encounter is played as a battle, or resolves on its own."
+
+#: Game/scripts/Ui/Menu.Lobby.cs
+msgid "Une seule bataille : chacun sa station, le dernier à en garder une gagne."
+msgstr "A single battle: each side has its station, the last one to keep one wins."
+
+#: Game/scripts/Ui/Menu.Lobby.cs
+msgid "Tous ensemble contre des vagues d'Errants, de plus en plus fortes."
+msgstr "All together against waves of Errants, stronger and stronger."
+
+#: Game/scripts/Ui/Menu.Lobby.cs
+msgid "Tiens les balises pour marquer des points : le premier à l'objectif gagne."
+msgstr "Hold the beacons to score points: the first to reach the goal wins."
+
+#: Game/scripts/Ui/Menu.Lobby.cs
+msgid "L'équipe 1 défend sa forteresse, l'équipe 2 doit la prendre à temps."
+msgstr "Team 1 defends its fortress, team 2 must take it in time."
+
+#: Game/scripts/Ui/Menu.Lobby.cs
+msgid "Chacun son vaisseau amiral : le perdre, c'est perdre la partie."
+msgstr "Each side has its flagship: lose it, and you lose the game."
+
+#: Game/scripts/Ui/Menu.Lobby.cs
+msgid "IA coupée, 50 000 crédits : place ce que tu veux, où tu veux."
+msgstr "AI off, 50,000 credits: place what you want, where you want."
+
+#: Game/scripts/Ui/Menu.Lobby.cs
+msgid "Héberger en ligne"
+msgstr "Host online"
+
+#: Game/scripts/Ui/Menu.Lobby.cs
+msgid "Héberger en local"
+msgstr "Host locally"
+
+#: Game/scripts/Ui/Menu.Lobby.cs
+msgid "Choisis le mode : ta partie s'affiche chez tous les joueurs, par le serveur en ligne. Échap : retour"
+msgstr "Pick the mode: your game shows up for every player, through the online server. Esc: back"
+
+#: Game/scripts/Ui/Menu.Lobby.cs
+msgid "Choisis le mode : les joueurs te rejoignent dans son salon. Échap : retour"
+msgstr "Pick the mode: players join you in its lobby. Esc: back"
+
+#: Game/scripts/Ui/Menu.Lobby.cs
+msgid "Mot de passe de la partie, facultatif"
+msgstr "Game password, optional"
+
+#: Game/scripts/Ui/Menu.Lobby.cs
+msgid "aucun : qui la voit peut la rejoindre"
+msgstr "none: whoever sees it can join"
+
+#: Game/scripts/Ui/Menu.Lobby.cs
+msgid "Nouvelle partie"
+msgstr "New game"
+
+#: Game/scripts/Ui/Menu.Lobby.cs
+msgid "Choisis un mode. Échap : retour"
+msgstr "Pick a mode. Esc: back"
+
+#: Game/scripts/Ui/Menu.Lobby.cs
+msgid "{0}, {1} planète{2}{3}, le {4}"
+msgstr "{0}, {1} planet{2:s}{3}, {4}"
+
+#: Game/scripts/Ui/Menu.Lobby.cs
+msgid "Reprendre la campagne : {0}"
+msgstr "Resume the campaign: {0}"
+
+#: Game/scripts/Ui/Menu.Lobby.cs
+msgid "Reprendre la campagne"
+msgstr "Resume the campaign"
+
+#: Game/scripts/Ui/Menu.Lobby.cs
+msgid "{0}. Chacun reprend sa place en rejoignant sous le même nom."
+msgstr "{0}. Everyone takes back their seat by joining under the same name."
+
+#: Game/scripts/Ui/Menu.Lobby.cs
+msgid "{0} Échap : retour"
+msgstr "{0} Esc: back"
+
+#: Game/scripts/Ui/Menu.Lobby.cs
+msgid "Joueurs · {0} sur {1}"
+msgstr "Players · {0} of {1}"
+
+#: Game/scripts/Ui/Menu.Lobby.cs
+msgid "La galaxie, les camps et la partie de la campagne sauvegardée par l'hôte, là où elle s'était arrêtée."
+msgstr "The galaxy, the sides and the game of the campaign the host saved, where it stopped."
+
+#: Game/scripts/Ui/Menu.Lobby.cs
+msgid "Fermer la partie"
+msgstr "Close the game"
+
+#: Game/scripts/Ui/Menu.Lobby.cs
+msgid "Lancer la partie"
+msgstr "Start the game"
+
+#: Game/scripts/Ui/Menu.Lobby.cs
+msgid "Équipe"
+msgstr "Team"
+
+#: Game/scripts/Ui/Menu.Lobby.cs
+msgid "Race de la place {0}"
+msgstr "Race of seat {0}"
+
+#: Game/scripts/Ui/Menu.Lobby.cs
+msgid "Défense"
+msgstr "Defense"
+
+#: Game/scripts/Ui/Menu.Lobby.cs
+msgid "Équipe 1"
+msgstr "Team 1"
+
+#: Game/scripts/Ui/Menu.Lobby.cs
+msgid "Équipe 2"
+msgstr "Team 2"
+
+#: Game/scripts/Ui/Menu.Lobby.cs
+msgid "Équipe 3"
+msgstr "Team 3"
+
+#: Game/scripts/Ui/Menu.Lobby.cs
+msgid "Équipe de la place {0}"
+msgstr "Team of seat {0}"
+
+#: Game/scripts/Ui/Menu.Lobby.cs
+msgid "En survie, tout le monde fait équipe contre les vagues."
+msgstr "In survival, everyone teams up against the waves."
+
+#: Game/scripts/Ui/Menu.Lobby.cs
+msgid "Couleur de la place {0}"
+msgstr "Color of seat {0}"
+
+#: Game/scripts/Ui/Menu.Lobby.cs
+msgid "Déjà prise"
+msgstr "Already taken"
+
+#: Game/scripts/Ui/Menu.Lobby.cs
+msgid "Retirer la place"
+msgstr "Remove the seat"
+
+#: Game/scripts/Ui/Menu.Lobby.cs
+msgid "Retirer la place {0}"
+msgstr "Remove seat {0}"
+
+#: Game/scripts/Ui/Menu.Lobby.cs
+msgid "Réservée à {0} · absent"
+msgstr "Kept for {0} · away"
+
+#: Game/scripts/Ui/Menu.Lobby.cs
+msgid "Joueur distant · libre"
+msgstr "Remote player · free"
+
+#: Game/scripts/Ui/Menu.Lobby.cs
+msgid "Joueur distant · {0}"
+msgstr "Remote player · {0}"
+
+#: Game/scripts/Ui/Menu.Lobby.cs
+msgid "Joueur distant"
+msgstr "Remote player"
+
+#: Game/scripts/Ui/Menu.Lobby.cs
+msgid "Fermé"
+msgstr "Closed"
+
+#: Game/scripts/Ui/Menu.Lobby.cs
+msgid "Pour jouer à plusieurs : « Multijoueur », au menu principal."
+msgstr "To play with others: \"Multiplayer\", in the main menu."
+
+#: Game/scripts/Ui/Menu.Lobby.cs
+msgid "Choisis « Toi » pour prendre cette place."
+msgstr "Choose \"You\" to take this seat."
+
+#: Game/scripts/Ui/Menu.Lobby.cs
+msgid "Ajouter un bot"
+msgstr "Add a bot"
+
+#: Game/scripts/Ui/Menu.Lobby.cs
+msgid " « Joueur distant » : une place libre pour qui rejoint ; un joueur qui part la libère."
+msgstr " \"Remote player\": a free seat for whoever joins; a player who leaves frees it."
+
+#: Game/scripts/Ui/Menu.Lobby.cs
+msgid "Campagne reprise : chacun retrouve sa place, sa race et son équipe. Une place réservée attend son joueur, qui rejoint sous le même nom ; l'hôte peut la donner à un bot."
+msgstr "Campaign resumed: everyone gets back their seat, race and team. A kept seat waits for its player, who joins under the same name; the host can give it to a bot."
+
+#: Game/scripts/Ui/Menu.Lobby.cs
+msgid "L'ordre des places donne les capitales : les deux premières sont les plus éloignées."
+msgstr "The order of the seats gives the capitals: the first two are the farthest apart."
+
+#: Game/scripts/Ui/Menu.Lobby.cs
+msgid "Tout le monde fait équipe contre les vagues d'Errants."
+msgstr "Everyone teams up against the waves of Errants."
+
+#: Game/scripts/Ui/Menu.Lobby.cs
+msgid "Défense : tenir la forteresse jusqu'au bout. Attaque : la prendre avant."
+msgstr "Defense: hold the fortress to the end. Attack: take it before then."
+
+#: Game/scripts/Ui/Menu.Lobby.cs
+msgid "IA coupée au départ : le panneau du bac à sable la rallume à la difficulté choisie."
+msgstr "AI off at the start: the sandbox panel turns it back on at the chosen difficulty."
+
+#: Game/scripts/Ui/Menu.Lobby.cs
+msgid "Une équipe : des alliés qui gagnent ensemble. L'ordre des places donne les positions de départ."
+msgstr "A team: allies who win together. The order of the seats gives the starting positions."
+
+#: Game/scripts/Ui/Menu.Lobby.cs
+msgid "{0} Les places ouvertes ou fermées ne jouent pas."
+msgstr "{0} Open or closed seats do not play."
+
+#: Game/scripts/Ui/Menu.Lobby.cs
+msgid "Aléatoire"
+msgstr "Random"
+
+#: Game/scripts/Ui/Menu.Lobby.cs
+msgid "Taille de la carte"
+msgstr "Map size"
+
+#: Game/scripts/Ui/Menu.Lobby.cs
+msgid "Taille de la galaxie"
+msgstr "Galaxy size"
+
+#: Game/scripts/Ui/Menu.Lobby.cs
+msgid "Aperçu de la carte : chaque place a sa station, à son numéro et à sa couleur"
+msgstr "Map preview: each seat has its station, with its number and its color"
+
+#: Game/scripts/Ui/Menu.Lobby.cs
+msgid "Aperçu de la galaxie : chaque place a sa capitale, à son numéro et à sa couleur"
+msgstr "Galaxy preview: each seat has its capital, with its number and its color"
+
+#: Game/scripts/Ui/Menu.Lobby.cs
+msgid " La carte classique est faite pour deux."
+msgstr " The classic map is made for two."
+
+#: Game/scripts/Ui/Menu.Lobby.cs
+msgid " La galaxie classique a sa taille."
+msgstr " The classic galaxy has its own size."
+
+#: Game/scripts/Ui/Menu.Lobby.cs
+msgid "La même graine redonne la même carte.{0}"
+msgstr "The same seed gives the same map again.{0}"
+
+#: Game/scripts/Ui/Menu.Lobby.cs
+msgid "Nouvelle graine"
+msgstr "New seed"
+
+#: Game/scripts/Ui/Menu.Lobby.cs
+msgid "Durée de l'assaut"
+msgstr "Assault duration"
+
+#: Game/scripts/Ui/Menu.Lobby.cs
+msgid "Raid : un Colosse neutre garde un coin de la carte ({0} crédits au premier qui l'abat)"
+msgstr "Raid: a neutral Colossus guards a corner of the map ({0} credits to the first who brings it down)"
+
+#: Game/scripts/Ui/Menu.Lobby.cs
+msgid "Spectateurs : on peut entrer sans place pour regarder la bataille"
+msgstr "Spectators: anyone can come in without a seat to watch the battle"
+
+#: Game/scripts/Ui/Menu.Lobby.cs
+msgid "Règles"
+msgstr "Rules"
+
+#: Game/scripts/Ui/Menu.Lobby.cs
+msgid "Campagne reprise : {0}"
+msgstr "Campaign resumed: {0}"
+
+#: Game/scripts/Ui/Menu.Lobby.cs
+msgid "{0} contre les vagues"
+msgstr "{0} against the waves"
+
+#: Game/scripts/Ui/Menu.Lobby.cs
+msgid "{0} contre {1}, {2} min"
+msgstr "{0} against {1}, {2} min"
+
+#: Game/scripts/Ui/Menu.Lobby.cs
+msgid "galaxie classique"
+msgstr "classic galaxy"
+
+#: Game/scripts/Ui/Menu.Lobby.cs
+msgid "carte {0} classique"
+msgstr "classic {0} map"
+
+#: Game/scripts/Ui/Menu.Lobby.cs
+msgid "sans brouillard"
+msgstr "no fog"
+
+#: Game/scripts/Ui/Menu.Lobby.cs
+msgid "IA coupée"
+msgstr "AI off"
+
+#: Game/scripts/Ui/Menu.Lobby.cs
+msgid "{0} joueurs, chacun pour soi"
+msgstr "{0} players, each for themselves"
+
+#: Game/scripts/Ui/Menu.Network.cs
+msgid "{0}{1}{2}. Échap : quitter"
+msgstr "{0}{1}{2}. Esc: leave"
+
+#: Game/scripts/Ui/Menu.Network.cs
+msgid "{0} Échap : fermer la partie"
+msgstr "{0} Esc: close the game"
+
+#: Game/scripts/Ui/Menu.Network.cs
+msgid "Partie en ligne : tous les joueurs la trouvent dans « Multijoueur », sans rien ouvrir{0}. Échap : fermer la partie"
+msgstr "Online game: every player finds it in \"Multiplayer\", nothing to open{0}. Esc: close the game"
+
+#: Game/scripts/Ui/Menu.Network.cs
+msgid " à l'adresse {0}"
+msgstr " at address {0}"
+
+#: Game/scripts/Ui/Menu.Network.cs
+msgid " sur le port {0}"
+msgstr " on port {0}"
+
+#: Game/scripts/Ui/Menu.Network.cs
+msgid "Partie hébergée{0} : les joueurs la trouvent dans « Multijoueur ». Échap : fermer la partie"
+msgstr "Game hosted{0}: players find it in \"Multiplayer\". Esc: close the game"
+
+#: Game/scripts/Ui/Menu.Network.cs
+msgid "Prêt · annuler"
+msgstr "Ready · cancel"
+
+#: Game/scripts/Ui/Menu.Network.cs
+msgid "Je suis prêt"
+msgstr "I am ready"
+
+#: Game/scripts/Ui/Menu.Network.cs
+msgid "Tu n'es plus prêt"
+msgstr "You are no longer ready"
+
+#: Game/scripts/Ui/Menu.Network.cs
+msgid "La partie démarre quand tous les joueurs sont prêts"
+msgstr "The game starts when every player is ready"
+
+#: Game/scripts/Ui/Menu.Network.cs
+msgid "Réseau local"
+msgstr "Local network"
+
+#: Game/scripts/Ui/Menu.Network.cs
+msgid "En ligne"
+msgstr "Online"
+
+#: Game/scripts/Ui/Menu.Network.cs
+msgid "Serveur dédié"
+msgstr "Dedicated server"
+
+#: Game/scripts/Ui/Menu.Network.cs
+msgid "Rejoins une partie de la liste, ou héberge la tienne. Échap : retour"
+msgstr "Join a game from the list, or host your own. Esc: back"
+
+#: Game/scripts/Ui/Menu.Network.cs
+msgid "Demande la liste au serveur en ligne ; elle se met aussi à jour d'elle-même"
+msgstr "Ask the online server for the list; it also updates by itself"
+
+#: Game/scripts/Ui/Menu.Network.cs
+msgid "Adresse de l'hôte"
+msgstr "Host address"
+
+#: Game/scripts/Ui/Menu.Network.cs
+msgid "Revenir dans {0}"
+msgstr "Back in {0}"
+
+#: Game/scripts/Ui/Menu.Network.cs
+msgid "Par adresse"
+msgstr "By address"
+
+#: Game/scripts/Ui/Menu.Network.cs
+msgid "Mot de passe, pour une partie qui en demande un"
+msgstr "Password, for a game that asks for one"
+
+#: Game/scripts/Ui/Menu.Network.cs
+msgid "Héberger"
+msgstr "Host"
+
+#: Game/scripts/Ui/Menu.Network.cs
+msgid "En local : les joueurs de ton réseau te trouvent dans cette liste ; par Internet, ouvre le port {0} (UDP) vers ta machine. En ligne : ta partie passe par le serveur en ligne, rien à ouvrir. Tu joues sous le nom « {1} » : il se change dans les options{2}."
+msgstr "Locally: players on your network find you in this list; over the Internet, open port {0} (UDP) to your machine. Online: your game goes through the online server, nothing to open. You play under the name \"{1}\": it can be changed in the options{2}."
+
+#: Game/scripts/Ui/Menu.Network.cs
+msgid "Rejoindre la partie"
+msgstr "Join the game"
+
+#: Game/scripts/Ui/Menu.Network.cs
+msgid "● Serveur en ligne joignable{0}{1}"
+msgstr "● Online server reachable{0}{1}"
+
+#: Game/scripts/Ui/Menu.Network.cs
+msgid "● {0} Seules les parties du réseau local s'affichent."
+msgstr "● {0} Only local network games are shown."
+
+#: Game/scripts/Ui/Menu.Network.cs
+msgid "● Serveur en ligne{0} : connexion…"
+msgstr "● Online server{0}: connecting…"
+
+#: Game/scripts/Ui/Menu.Network.cs
+msgid "Il faut que le serveur en ligne réponde"
+msgstr "The online server must answer"
+
+#: Game/scripts/Ui/Menu.Network.cs
+msgid "Ta partie s'affiche chez tous les joueurs, sans port à ouvrir"
+msgstr "Your game shows up for every player, with no port to open"
+
+#: Game/scripts/Ui/Menu.Network.cs
+msgid "en partie"
+msgstr "in progress"
+
+#: Game/scripts/Ui/Menu.Network.cs
+msgid "complète"
+msgstr "full"
+
+#: Game/scripts/Ui/Menu.Network.cs
+msgid "Mode inconnu"
+msgstr "Unknown mode"
+
+#: Game/scripts/Ui/Menu.Network.cs
+msgid "Aucune partie pour l'instant : celles du réseau local et du serveur en ligne apparaissent ici d'elles-mêmes."
+msgstr "No games for now: those on the local network and on the online server show up here by themselves."
+
+#: Game/scripts/Ui/Menu.Network.cs
+msgid "{0}, {1}, {2} joueurs sur {3}, {4}{5}{6}"
+msgstr "{0}, {1}, {2} players of {3}, {4}{5}{6}"
+
+#: Game/scripts/Ui/Menu.Network.cs
+msgid "Par le serveur en ligne"
+msgstr "Through the online server"
+
+#: Game/scripts/Ui/Menu.Network.cs
+msgid ", protégée par un mot de passe"
+msgstr ", password protected"
+
+#: Game/scripts/Ui/Menu.Network.cs
+msgid "Choisis d'abord une partie dans la liste (un double clic la rejoint aussi)"
+msgstr "First pick a game in the list (a double click joins it too)"
+
+#: Game/scripts/Ui/Menu.Network.cs
+msgid "Une place libre ; dans une partie en cours, la tienne, si tu l'as quittée sous le même nom"
+msgstr "A free seat; in a game in progress, yours, if you left it under the same name"
+
+#: Game/scripts/Ui/Menu.Network.cs
+msgid "Entrer sans place, pour regarder la bataille, en cours ou à venir, si l'hôte prend des spectateurs"
+msgstr "Come in without a seat, to watch the battle, in progress or to come, if the host takes spectators"
+
+#: Game/scripts/Ui/Menu.Network.cs
+msgid "Indique l'adresse de l'hôte."
+msgstr "Enter the host's address."
+
+#: Game/scripts/Ui/Menu.Replays.cs
+msgid "Chaque bataille jouée depuis un salon s'enregistre ; les 30 dernières restent. Échap : retour"
+msgstr "Every battle played from a lobby is recorded; the last 30 are kept. Esc: back"
+
+#: Game/scripts/Ui/Menu.Replays.cs
+msgid "Aucune rediffusion pour l'instant : la prochaine bataille jouée apparaîtra ici."
+msgstr "No replays for now: the next battle played will show up here."
+
+#: Game/scripts/Ui/Menu.Replays.cs
+msgid "Fichier illisible."
+msgstr "Unreadable file."
+
+#: Game/scripts/Ui/Menu.Replays.cs
+msgid "Supprimer pour de bon"
+msgstr "Delete for good"
+
+#: Game/scripts/Ui/Menu.Replays.cs
+msgid "Supprimer cette rediffusion"
+msgstr "Delete this replay"
+
+#: Game/scripts/Ui/Menu.cs
+msgid "Les changements s'appliquent tout de suite."
+msgstr "Changes apply at once."
+
+#: Game/scripts/Ui/Menu.cs
+msgid "Clique une touche, puis appuie sur la nouvelle. Échap : retour"
+msgstr "Click a command, then press the new key. Esc: back"
+
+#: Game/scripts/Ui/Menu.cs
+msgid "Souris et touches fixes, en bataille"
+msgstr "Mouse and fixed keys, in battle"
+
+#: Game/scripts/Ui/Menu.cs
+msgid "Souris et touches fixes, sur la carte galactique"
+msgstr "Mouse and fixed keys, on the galaxy map"
+
+#: Game/scripts/Ui/Menu.cs
+msgid "Sprites : packs Void (flottes, environnement, vaisseau principal) de Foozle, et Space Breaker de zintoki, tous en CC0. Merci à eux."
+msgstr "Sprites: the Void packs (fleets, environment, main ship) by Foozle, and Space Breaker by zintoki, all under CC0. Our thanks to them."
+
+#: Game/scripts/Ui/Menu.cs
+msgid "Vaisseaux des Errants, Rempart, Transporteur, Titan, Léviathan et Colosse : dessinés par le jeu dans la manière de ces packs."
+msgstr "Errant ships, Bulwark, Carrier, Titan, Leviathan and Colossus: drawn by the game in the manner of those packs."
+
+#: Game/scripts/Ui/Menu.cs
+msgid "Emblèmes, logo et jeu : Sandbox Ship."
+msgstr "Emblems, logo and game: Sandbox Ship."
+
+#: Game/scripts/Ui/Menu.cs
+msgid "Fait avec Godot Engine. Logo Godot : Andrea Calabró, CC BY 4.0 ; son texte est éclairci pour le fond sombre."
+msgstr "Made with Godot Engine. Godot logo: Andrea Calabró, CC BY 4.0; its text is lightened for the dark background."
+
+#: Game/scripts/Ui/Menu.cs
+msgid "Échap : retour"
+msgstr "Esc: back"
+
+#: Game/scripts/Ui/Menu.cs
+msgid "Sandbox Ship"
+msgstr "Sandbox Ship"
+
+#: Game/scripts/Ui/Menu.cs
+msgid "Stratégie spatiale en temps réel"
+msgstr "Real-time space strategy"
+
+#: Game/scripts/Ui/Menu.cs
+msgid "Continuer la campagne"
+msgstr "Continue the campaign"
+
+#: Game/scripts/Ui/Menu.cs
+msgid "Charger une partie"
+msgstr "Load a game"
+
+#: Game/scripts/Ui/Menu.cs
+msgid "{0}, {1} planète{2}, le {3}"
+msgstr "{0}, {1} planet{2:s}, {3}"
+
+#: Game/scripts/Ui/Menu.cs
+msgid "La plus récente en premier. Échap : retour"
+msgstr "The most recent first. Esc: back"
+
+#: Game/scripts/Ui/Menu.cs
+msgid "Aucune sauvegarde. Une campagne se sauvegarde seule en cours de partie ; « Sauvegarder », dans son menu, en garde une de plus."
+msgstr "No saves. A campaign saves itself during play; \"Save\", in its menu, keeps one more."
+
+#: Game/scripts/Ui/Menu.cs
+msgid "Sauvegarde automatique"
+msgstr "Autosave"
+
+#: Game/scripts/Ui/Menu.cs
+msgid "Supprimer cette sauvegarde (il faut confirmer)"
+msgstr "Delete this save (asks to confirm)"
+
+#: Game/scripts/Ui/Names.cs
+msgid "flak antimissile"
+msgstr "point-defense flak"
+
+#: Game/scripts/Ui/Names.cs
+msgid "canon à rafales"
+msgstr "burst cannon"
+
+#: Game/scripts/Ui/Names.cs
+msgid "rayon lourd"
+msgstr "heavy ray"
+
+#: Game/scripts/Ui/Names.cs
+msgid "rayon continu"
+msgstr "continuous beam"
+
+#: Game/scripts/Ui/Names.cs
+msgid "essaim de missiles"
+msgstr "missile swarm"
+
+#: Game/scripts/Ui/Names.cs
+msgid "canon à ions"
+msgstr "ion cannon"
+
+#: Game/scripts/Ui/Names.cs
+msgid "aucune arme"
+msgstr "no weapons"
+
+#: Game/scripts/Ui/Options.cs
+msgid "Déplacer la vue quand le pointeur touche un bord de l'écran"
+msgstr "Move the view when the pointer touches a screen edge"
+
+#: Game/scripts/Ui/Options.cs
+msgid "Toujours afficher les barres de coque et de bouclier"
+msgstr "Always show hull and shield bars"
+
+#: Game/scripts/Ui/Options.cs
+msgid "Mes vaisseaux utilisent leurs capacités seuls quand c'est utile"
+msgstr "My ships use their abilities by themselves when it helps"
+
+#: Game/scripts/Ui/Options.cs
+msgid "Couper le son (touche {0} en bataille)"
+msgstr "Mute the sound (key {0} in battle)"
+
+#: Game/scripts/Ui/Options.cs
+msgid "Accessibilité"
+msgstr "Accessibility"
+
+#: Game/scripts/Ui/Options.cs
+msgid "Réduire les animations : ouverture, menus, secousses de la vue"
+msgstr "Reduce animations: opening, menus, view shakes"
+
+#: Game/scripts/Ui/Options.cs
+msgid "Volume de la musique"
+msgstr "Music volume"
+
+#: Game/scripts/Ui/Options.cs
+msgid "Nom du joueur"
+msgstr "Player name"
+
+#: Game/scripts/Ui/Options.cs
+msgid "Serveur en ligne"
+msgstr "Online server"
+
+#: Game/scripts/Ui/Options.cs
+msgid "Taille de la fenêtre"
+msgstr "Window size"
+
+#: Game/scripts/Ui/Options.cs
+msgid "Fenêtre"
+msgstr "Window"
+
+#: Game/scripts/Ui/Options.cs
+msgid "Plein écran"
+msgstr "Fullscreen"
+
+#: Game/scripts/Ui/Options.cs
+msgid "Plein écran sans bordure"
+msgstr "Borderless fullscreen"
+
+#: Game/scripts/Ui/Options.cs
+msgid "Échelle de l'interface"
+msgstr "Interface scale"
+
+#: Game/scripts/Ui/Options.cs
+msgid "Images par seconde"
+msgstr "Frames per second"
+
+#: Game/scripts/Ui/Options.cs
+msgid "Sans limite"
+msgstr "No limit"
+
+#: Game/scripts/Ui/Options.cs
+msgid "Synchronisation verticale (évite les déchirures de l'image)"
+msgstr "Vertical sync (avoids image tearing)"
+
+#: Game/scripts/Ui/Options.cs
+msgid "Volume des effets"
+msgstr "Effects volume"
+
+#: Game/scripts/Ui/ReplayBar.cs
+msgid "Avancer de 30 secondes, sans les explosions ni les sons"
+msgstr "Skip ahead 30 seconds, without explosions or sounds"
+
+#: Game/scripts/Ui/ReplayBar.cs
+msgid "Revoir depuis le début"
+msgstr "Watch from the start"
+
+#: Game/scripts/Ui/ReplayBar.cs
+msgid "Retour au menu (Échap)"
+msgstr "Back to the menu (Esc)"
+
+#: Game/scripts/Ui/ReplayBar.cs
+msgid "Enregistrée avec la version {0} du jeu : elle peut ne pas rejouer exactement la même bataille."
+msgstr "Recorded with version {0} of the game: it may not replay exactly the same battle."
+
+#: Game/scripts/Ui/ReplayBar.cs
+msgid "Voir la bataille avec le brouillard d'un camp, ou tout voir"
+msgstr "See the battle with one side's fog, or see everything"
+
+#: Game/scripts/Ui/ReplayBar.cs
+msgid "Fin de la rediffusion."
+msgstr "End of the replay."
+
+#: Game/scripts/Ui/ReplayBar.cs
+msgid "Cette rediffusion ne rejoue plus la bataille enregistrée : elle vient sans doute d'une autre version du jeu."
+msgstr "This replay no longer plays the recorded battle: it most likely comes from another version of the game."
+
+#: Game/scripts/Ui/Tutorial.cs
+msgid "(voir « Commandes »)"
+msgstr "(see \"Controls\")"
+
+#: Game/scripts/Ui/Tutorial.cs
+msgid "La vue"
+msgstr "The view"
+
+#: Game/scripts/Ui/Tutorial.cs
+msgid "Déplace la vue ({0}) et zoome ({1})."
+msgstr "Move the view ({0}) and zoom ({1})."
+
+#: Game/scripts/Ui/Tutorial.cs
+msgid "Sélectionner"
+msgstr "Select"
+
+#: Game/scripts/Ui/Tutorial.cs
+msgid "{0} sur tes vaisseaux, près de ta station : glisser trace un rectangle autour de plusieurs."
+msgstr "{0} on your ships, near your station: dragging draws a box around several."
+
+#: Game/scripts/Ui/Tutorial.cs
+msgid "Déplacer"
+msgstr "Move"
+
+#: Game/scripts/Ui/Tutorial.cs
+msgid "{0} sur un point libre : les vaisseaux sélectionnés y vont, en formation."
+msgstr "{0} on a free spot: the selected ships go there, in formation."
+
+#: Game/scripts/Ui/Tutorial.cs
+msgid "Une mine"
+msgstr "A mine"
+
+#: Game/scripts/Ui/Tutorial.cs
+msgid "Les mines rapportent des crédits. Onglet « Bâtiments » en bas, choisis la mine, puis clique sur un champ d'astéroïdes près de ta station."
+msgstr "Mines bring in credits. \"Buildings\" tab at the bottom, pick the mine, then click an asteroid field near your station."
+
+#: Game/scripts/Ui/Tutorial.cs
+msgid "Onglet « Vaisseaux » : commande une frégate. Elle sort du chantier de ta station dès qu'elle est prête."
+msgstr "\"Ships\" tab: order a frigate. It leaves your station's shipyard as soon as it is ready."
+
+#: Game/scripts/Ui/Tutorial.cs
+msgid "Vaisseaux sélectionnés, {0} sur un ennemi l'attaque ; {1} engage tout ce qui croise la route."
+msgstr "With ships selected, {0} on an enemy attacks it; {1} engages everything on the way."
+
+#: Game/scripts/Ui/Tutorial.cs
+msgid "Une capacité"
+msgstr "An ability"
+
+#: Game/scripts/Ui/Tutorial.cs
+msgid "Chaque vaisseau a une capacité : sélectionne une frégate et appuie sur {0}. Le panneau de sélection dit ce qu'elle fait."
+msgstr "Every ship has an ability: select a frigate and press {0}. The selection panel says what it does."
+
+#: Game/scripts/Ui/Tutorial.cs
+msgid "Un groupe"
+msgstr "A group"
+
+#: Game/scripts/Ui/Tutorial.cs
+msgid "{0} garde la sélection sous un chiffre ; {1} la rappelle."
+msgstr "{0} keeps the selection under a digit; {1} recalls it."
+
+#: Game/scripts/Ui/Tutorial.cs
+msgid "La victoire"
+msgstr "Victory"
+
+#: Game/scripts/Ui/Tutorial.cs
+msgid "Détruis la station ennemie, à l'autre bout de la carte : ses tourelles d'abord, puis sa coque. Produis des renforts au besoin."
+msgstr "Destroy the enemy station, at the other end of the map: its turrets first, then its hull. Build reinforcements if needed."
+
+#: Game/scripts/Ui/Tutorial.cs
+msgid "Passer cette étape"
+msgstr "Skip this step"
+
+#: Game/scripts/Ui/Tutorial.cs
+msgid "Quitter le didacticiel"
+msgstr "Leave the tutorial"
+
+#: Game/scripts/Ui/Tutorial.cs
+msgid "Retour au menu"
+msgstr "Back to the menu"
+
+#: Game/scripts/Ui/Tutorial.cs
+msgid "Didacticiel terminé"
+msgstr "Tutorial complete"
+
+#: Game/scripts/Ui/Tutorial.cs
+msgid "Tu connais l'essentiel. Toutes les commandes sont dans le menu, « Commandes » ; la suite se joue en escarmouche ou en campagne."
+msgstr "You know the essentials. All the controls are in the menu, \"Controls\"; the rest is played in skirmish or in the campaign."
+
+#: Game/scripts/Ui/Tutorial.cs
+msgid "Didacticiel, étape {0} sur {1}"
+msgstr "Tutorial, step {0} of {1}"
+
+#: Sim/AbilitySystem.cs
+msgid "Aucune capacité"
+msgstr "No ability"
+
+#: Sim/AbilitySystem.cs
+msgid "Prête dans {0} s"
+msgstr "Ready in {0} s"
+
+#: Sim/AbilitySystem.cs
+msgid "Paralysé"
+msgstr "Paralyzed"
+
+#: Sim/AbilitySystem.cs
+msgid "Choisis un ennemi"
+msgstr "Pick an enemy"
+
+#: Sim/AbilitySystem.cs
+msgid "Cible hors de portée"
+msgstr "Target out of range"
+
+#: Sim/AbilitySystem.cs
+msgid "Choisis un point"
+msgstr "Pick a spot"
+
+#: Sim/Ai.cs
+msgid "Un vaisseau doit tenir la position"
+msgstr "A ship must hold the position"
+
+#: Sim/Ai.cs
+msgid "Escorte en route"
+msgstr "Escort on the way"
+
+#: Sim/Ai.cs
+msgid "Aucune escorte"
+msgstr "No escort"
+
+#: Sim/Ai.cs
+msgid "Aucun champ accessible"
+msgstr "No reachable field"
+
+#: Sim/Ai.cs
+msgid "Aucun emplacement"
+msgstr "No room"
+
+#: Sim/Commands.cs
+msgid "Ordre invalide"
+msgstr "Invalid order"
+
+#: Sim/Commands.cs
+msgid "Pas sous tes ordres"
+msgstr "Not under your orders"
+
+#: Sim/Commands.cs
+msgid "Cible hors de vue"
+msgstr "Target out of sight"
+
+#: Sim/Commands.cs
+msgid "Unité détruite"
+msgstr "Unit destroyed"
+
+#: Sim/Commands.cs
+msgid "Vaisseau non piloté"
+msgstr "Ship not hand-flown"
+
+#: Sim/Commands.cs
+msgid "Réservé au bac à sable"
+msgstr "Sandbox only"
+
+#: Sim/Commands.cs
+msgid "Camp inconnu"
+msgstr "Unknown side"
+
+#: Sim/Commands.cs
+msgid "Limite de {0} éléments atteinte"
+msgstr "Limit of {0} items reached"
+
+#: Sim/Commands.cs
+msgid "Aucun héros pour cette faction"
+msgstr "No hero for this faction"
+
+#: Sim/Data/Abilities.cs
+msgid "Vitesse doublée pendant 5 s."
+msgstr "Speed doubled for 5 s."
+
+#: Sim/Data/Abilities.cs
+msgid "Réparation d'urgence"
+msgstr "Emergency repair"
+
+#: Sim/Data/Abilities.cs
+msgid "Répare de 25 % les alliés proches."
+msgstr "Repairs nearby allies by 25%."
+
+#: Sim/Data/Abilities.cs
+msgid "Cadence de tir triplée pendant 6 s."
+msgstr "Rate of fire tripled for 6 s."
+
+#: Sim/Data/Abilities.cs
+msgid "Surcharge des boucliers"
+msgstr "Shield overcharge"
+
+#: Sim/Data/Abilities.cs
+msgid "Boucliers pleins, recharge ×4 pendant 8 s."
+msgstr "Shields full, recharge ×4 for 8 s."
+
+#: Sim/Data/Abilities.cs
+msgid "Tir de barrage"
+msgstr "Barrage"
+
+#: Sim/Data/Abilities.cs
+msgid "Dégâts +50 % pendant 8 s."
+msgstr "Damage +50% for 8 s."
+
+#: Sim/Data/Abilities.cs
+msgid "Bordée"
+msgstr "Broadside"
+
+#: Sim/Data/Abilities.cs
+msgid "Toutes les tourelles rechargées, dégâts ×2 pendant 5 s."
+msgstr "All turrets reloaded, damage ×2 for 5 s."
+
+#: Sim/Data/Abilities.cs
+msgid "Rayon spinal"
+msgstr "Spinal ray"
+
+#: Sim/Data/Abilities.cs
+msgid "Charge 2 s, puis un rayon de 1200 de long frappe tout ce qui est sur sa ligne (900 dégâts)."
+msgstr "Charges 2 s, then a ray 1200 long hits everything in its line (900 damage)."
+
+#: Sim/Data/Abilities.cs
+msgid "Les ennemis à 650 ou moins le prennent pour cible pendant 8 s (sauf ordre d'attaque explicite)."
+msgstr "Enemies within 650 target it for 8 s (unless given an explicit attack order)."
+
+#: Sim/Data/Abilities.cs
+msgid "Ses hangars lancent trois fois plus vite pendant 12 s."
+msgstr "Its hangars launch three times as fast for 12 s."
+
+#: Sim/Data/Abilities.cs
+msgid "Bombardement orbital"
+msgstr "Orbital bombardment"
+
+#: Sim/Data/Abilities.cs
+msgid "Après 2,5 s, une zone explose : 650 dégâts à tous les ennemis dedans. Le délai laisse le temps de fuir."
+msgstr "After 2.5 s, an area explodes: 650 damage to every enemy inside. The delay leaves time to flee."
+
+#: Sim/Data/Abilities.cs
+msgid "Marque du chasseur"
+msgstr "Hunter's mark"
+
+#: Sim/Data/Abilities.cs
+msgid "La cible subit +50 % de dégâts de toutes parts pendant 12 s."
+msgstr "The target takes +50% damage from every source for 12 s."
+
+#: Sim/Data/Abilities.cs
+msgid "Tourelle de campagne"
+msgstr "Field turret"
+
+#: Sim/Data/Abilities.cs
+msgid "Déploie une plateforme de défense armée pendant 45 s."
+msgstr "Deploys an armed defense platform for 45 s."
+
+#: Sim/Data/Abilities.cs
+msgid "Dôme de bouclier"
+msgstr "Shield dome"
+
+#: Sim/Data/Abilities.cs
+msgid "Les alliés sous le dôme subissent 50 % de dégâts en moins pendant 10 s."
+msgstr "Allies under the dome take 50% less damage for 10 s."
+
+#: Sim/Data/Abilities.cs
+msgid "Invisible et intouchable pendant 8 s, dégâts ×2 en embuscade."
+msgstr "Invisible and untouchable for 8 s, damage ×2 from ambush."
+
+#: Sim/Data/Abilities.cs
+msgid "Impulsion IEM"
+msgstr "EMP pulse"
+
+#: Sim/Data/Abilities.cs
+msgid "Les ennemis proches perdent leurs boucliers et restent paralysés 4 s."
+msgstr "Nearby enemies lose their shields and stay paralyzed for 4 s."
+
+#: Sim/Data/Abilities.cs
+msgid "Lâche 8 chasseurs organiques qui vivent 30 s."
+msgstr "Releases 8 organic fighters that live 30 s."
+
+#: Sim/Data/Abilities.cs
+msgid "Spores corrosives"
+msgstr "Corrosive spores"
+
+#: Sim/Data/Abilities.cs
+msgid "Ronge la coque de la cible, à travers les boucliers, pendant 8 s."
+msgstr "Eats at the target's hull, through the shields, for 8 s."
+
+#: Sim/Data/Abilities.cs
+msgid "Les alliés proches régénèrent 3 % de leur coque par seconde pendant 10 s."
+msgstr "Nearby allies regenerate 3% of their hull a second for 10 s."
+
+#: Sim/Data/Abilities.cs
+msgid "Après 5 s d'alerte visible de tous, un rayon venu des étoiles frappe n'importe quel point de la carte : 9 000 dégâts dans un grand rayon."
+msgstr "After a 5 s warning everyone can see, a ray from the stars strikes any point of the map: 9,000 damage in a wide radius."
+
+#: Sim/Data/Galaxy.cs
+msgid "Gisement riche"
+msgstr "Rich deposit"
+
+#: Sim/Data/Galaxy.cs
+msgid "Les mines rapportent le double."
+msgstr "Mines yield double."
+
+#: Sim/Data/Galaxy.cs
+msgid "Chantier orbital"
+msgstr "Orbital shipyard"
+
+#: Sim/Data/Galaxy.cs
+msgid "Les vaisseaux sont construits 30 % plus vite."
+msgstr "Ships are built 30% faster."
+
+#: Sim/Data/Galaxy.cs
+msgid "Deux plateformes de défense de plus."
+msgstr "Two more defense platforms."
+
+#: Sim/Data/Galaxy.cs
+msgid "Archives anciennes"
+msgstr "Ancient archives"
+
+#: Sim/Data/Galaxy.cs
+msgid "Tant que la planète est à toi, la recherche va 25 % plus vite."
+msgstr "As long as the planet is yours, research goes 25% faster."
+
+#: Sim/Data/Galaxy.cs
+msgid "Nébuleuse"
+msgstr "Nebula"
+
+#: Sim/Data/Galaxy.cs
+msgid "Les flottes qui s'y trouvent sont invisibles pour leurs ennemis."
+msgstr "Fleets there are invisible to their enemies."
+
+#: Sim/Data/Galaxy.cs
+msgid "Relais hyperspatial"
+msgstr "Hyperspace relay"
+
+#: Sim/Data/Galaxy.cs
+msgid "Les flottes de son propriétaire en repartent 50 % plus vite, jusqu'à la planète suivante."
+msgstr "Its owner's fleets leave it 50% faster, up to the next planet."
+
+#: Sim/Data/Galaxy.cs
+msgid "Ruines anciennes"
+msgstr "Ancient ruins"
+
+#: Sim/Data/Galaxy.cs
+msgid "La première faction à prendre la planète y trouve 1 500 crédits et un niveau de recherche."
+msgstr "The first faction to take the planet finds 1,500 credits and a research level there."
+
+#: Sim/Data/Galaxy.cs
+msgid "Pélion"
+msgstr "Pélion"
+
+#: Sim/Data/Heroes.cs
+msgid "Cuirassé de commandement aux canons renforcés. Appelle un bombardement orbital."
+msgstr "Command dreadnought with reinforced guns. Calls an orbital bombardment."
+
+#: Sim/Data/Heroes.cs
+msgid "Éclaireur d'élite. Marque une proie que toute la flotte achève."
+msgstr "Elite scout. Marks a prey the whole fleet finishes off."
+
+#: Sim/Data/Heroes.cs
+msgid "Ingénieure"
+msgstr "Engineer"
+
+#: Sim/Data/Heroes.cs
+msgid "Répare en continu et déploie des tourelles en pleine bataille."
+msgstr "Repairs all the time and deploys turrets in the middle of a battle."
+
+#: Sim/Data/Heroes.cs
+msgid "Selis Vaun"
+msgstr "Selis Vaun"
+
+#: Sim/Data/Heroes.cs
+msgid "Cuirassé aux boucliers presque impénétrables. Couvre sa flotte d'un dôme."
+msgstr "Dreadnought with near-impenetrable shields. Covers its fleet with a dome."
+
+#: Sim/Data/Heroes.cs
+msgid "Ilo Fenn"
+msgstr "Ilo Fenn"
+
+#: Sim/Data/Heroes.cs
+msgid "Pilote de chasse plus rapide que tout. Disparaît pour frapper par surprise."
+msgstr "Fighter pilot faster than anything. Vanishes to strike by surprise."
+
+#: Sim/Data/Heroes.cs
+msgid "Tavi Qor"
+msgstr "Tavi Qor"
+
+#: Sim/Data/Heroes.cs
+msgid "Spécialiste des boucliers : son impulsion paralyse les vaisseaux ennemis."
+msgstr "Shield specialist: their pulse paralyzes enemy ships."
+
+#: Sim/Data/Heroes.cs
+msgid "Ysh'ra"
+msgstr "Ysh'ra"
+
+#: Sim/Data/Heroes.cs
+msgid "Mère-nef"
+msgstr "Mothership"
+
+#: Sim/Data/Heroes.cs
+msgid "Cuirassé vivant, à la coque immense, qui enfante des essaims."
+msgstr "Living dreadnought with a vast hull, which breeds swarms."
+
+#: Sim/Data/Heroes.cs
+msgid "Rôdeur"
+msgstr "Prowler"
+
+#: Sim/Data/Heroes.cs
+msgid "Chasseur organique et tenace. Ses spores rongent les coques."
+msgstr "Tenacious organic fighter. Its spores eat at hulls."
+
+#: Sim/Data/Heroes.cs
+msgid "Fait repousser les coques de toute une flotte."
+msgstr "Regrows the hulls of a whole fleet."
+
+#: Sim/Data/Research.cs
+msgid "+10 % de dégâts par niveau"
+msgstr "+10% damage per level"
+
+#: Sim/Data/Research.cs
+msgid "+15 % de bouclier et de recharge par niveau"
+msgstr "+15% shields and recharge per level"
+
+#: Sim/Data/Research.cs
+msgid "+10 % de coque par niveau"
+msgstr "+10% hull per level"
+
+#: Sim/Data/Research.cs
+msgid "+10 % de vitesse par niveau"
+msgstr "+10% speed per level"
+
+#: Sim/Data/Research.cs
+msgid "+20 % de revenu des mines par niveau"
+msgstr "+20% mine income per level"
+
+#: Sim/Data/Research.cs
+msgid "+2 appareils par hangar et lancements 15 % plus rapides, par niveau"
+msgstr "+2 craft per hangar and launches 15% faster, per level"
+
+#: Sim/Data/Research.cs
+msgid "Vaisseaux construits 7 % plus vite par niveau"
+msgstr "Ships built 7% faster per level"
+
+#: Sim/Data/Research.cs
+msgid "Réparation"
+msgstr "Repair"
+
+#: Sim/Data/Research.cs
+msgid "+25 % de réparation par niveau : soutiens, docks, flottes au repos"
+msgstr "+25% repair per level: supports, docks, fleets at rest"
+
+#: Sim/Data/Research.cs
+msgid "Défenses"
+msgstr "Defenses"
+
+#: Sim/Data/Research.cs
+msgid "+10 % de dégâts des stations et plateformes par niveau"
+msgstr "+10% damage from stations and platforms per level"
+
+#: Sim/Data/Research.cs
+msgid "Énergie"
+msgstr "Energy"
+
+#: Sim/Data/Research.cs
+msgid "Capacités rechargées 6 % plus vite par niveau"
+msgstr "Abilities recharge 6% faster per level"
+
+#: Sim/Data/Structures.cs
+msgid "Tourelle lourde"
+msgstr "Heavy turret"
+
+#: Sim/Data/Structures.cs
+msgid "Générateur de bouclier"
+msgstr "Shield generator"
+
+#: Sim/Data/Structures.cs
+msgid "Chantier naval"
+msgstr "Shipyard"
+
+#: Sim/Data/Structures.cs
+msgid "Réacteur"
+msgstr "Engine"
+
+#: Sim/Data/Structures.cs
+msgid "Station spatiale"
+msgstr "Space station"
+
+#: Sim/Data/Structures.cs
+msgid "Plateforme de défense"
+msgstr "Defense platform"
+
+#: Sim/Data/Structures.cs
+msgid "Mine d'astéroïdes"
+msgstr "Asteroid mine"
+
+#: Sim/Data/Structures.cs
+msgid "Dock de réparation"
+msgstr "Repair dock"
+
+#: Sim/Data/Structures.cs
+msgid "Lance stellaire"
+msgstr "Star lance"
+
+#: Sim/Data/Units.cs
+msgid "Un seul {0} à la fois"
+msgstr "Only one {0} at a time"
+
+#: Sim/Data/Units.cs
+msgid "{0} : {1} au plus à la fois"
+msgstr "{0}: {1} at most at a time"
+
+#: Sim/Data/Units.cs
+msgid "Kla'ed"
+msgstr "Kla'ed"
+
+#: Sim/Data/Units.cs
+msgid "Armes +15 %, boucliers −10 %"
+msgstr "Weapons +15%, shields −10%"
+
+#: Sim/Data/Units.cs
+msgid "Boucliers +40 %, coques −5 %"
+msgstr "Shields +40%, hulls −5%"
+
+#: Sim/Data/Units.cs
+msgid "Biomécanique"
+msgstr "Biomechanical"
+
+#: Sim/Data/Units.cs
+msgid "Les coques se régénèrent (1 % par seconde), vaisseaux 10 % moins chers"
+msgstr "Hulls regenerate (1% a second), ships 10% cheaper"
+
+#: Sim/Data/Units.cs
+msgid "Neutres, ils gardent leur site et frappent quiconque s'en approche. Coques et boucliers +20 %, vaisseaux 20 % plus lents"
+msgstr "Neutral, they guard their site and strike whoever comes near. Hulls and shields +20%, ships 20% slower"
+
+#: Sim/Data/Units.cs
+msgid "Éclaireur"
+msgstr "Scout"
+
+#: Sim/Data/Units.cs
+msgid "Frégate"
+msgstr "Frigate"
+
+#: Sim/Data/Units.cs
+msgid "Cuirassé"
+msgstr "Dreadnought"
+
+#: Sim/Data/Units.cs
+msgid "Léviathan"
+msgstr "Leviathan"
+
+#: Sim/Galaxy.cs
+msgid "Bataille de {0}"
+msgstr "Battle of {0}"
+
+#: Sim/Galaxy.cs
+msgid "Flotte indisponible"
+msgstr "Fleet unavailable"
+
+#: Sim/Galaxy.cs
+msgid "Trêve en cours"
+msgstr "Truce in effect"
+
+#: Sim/Galaxy.cs
+msgid "Aucune route"
+msgstr "No route"
+
+#: Sim/Galaxy.cs
+msgid "Vaisseaux insuffisants"
+msgstr "Not enough ships"
+
+#: Sim/Galaxy.cs
+msgid "Héros absent"
+msgstr "Hero away"
+
+#: Sim/Galaxy.cs
+msgid "Aucun vaisseau choisi"
+msgstr "No ships chosen"
+
+#: Sim/Galaxy.cs
+msgid "Planète non contrôlée"
+msgstr "Planet not controlled"
+
+#: Sim/Galaxy.cs
+msgid "Renforcer les plateformes"
+msgstr "Reinforce the platforms"
+
+#: Sim/Galaxy.cs
+msgid "Améliorer la station"
+msgstr "Upgrade the station"
+
+#: Sim/Galaxy.cs
+msgid "Plateformes niveau {0}"
+msgstr "Platforms level {0}"
+
+#: Sim/Galaxy.cs
+msgid "File d'attente pleine"
+msgstr "Queue full"
+
+#: Sim/Galaxy.cs
+msgid "Niveau maximum"
+msgstr "Top level"
+
+#: Sim/Galaxy.cs
+msgid "Déjà construit"
+msgstr "Already built"
+
+#: Sim/Galaxy.cs
+msgid "Déjà en cours"
+msgstr "Already in progress"
+
+#: Sim/Galaxy.cs
+msgid "Plateforme requise"
+msgstr "Platform required"
+
+#: Sim/Galaxy.cs
+msgid "Station requise"
+msgstr "Station required"
+
+#: Sim/Galaxy.cs
+msgid "Une seule Lance stellaire"
+msgstr "Only one Star lance"
+
+#: Sim/Galaxy.cs
+msgid "Héros d'une autre faction"
+msgstr "Hero of another faction"
+
+#: Sim/Galaxy.cs
+msgid "Déjà en service"
+msgstr "Already in service"
+
+#: Sim/Galaxy.cs
+msgid "Disponible dans {0} s"
+msgstr "Available in {0} s"
+
+#: Sim/Galaxy.cs
+msgid "Lancé par les hangars"
+msgstr "Launched by the hangars"
+
+#: Sim/Galaxy.cs
+msgid "Faction inconnue"
+msgstr "Unknown faction"
+
+#: Sim/Galaxy.cs
+msgid "Laboratoire requis"
+msgstr "Lab required"
+
+#: Sim/GalaxyAi.cs
+msgid "Elle se croit la plus forte"
+msgstr "It thinks it is the stronger"
+
+#: Sim/GalaxyDiplomacy.cs
+msgid "Aucune trêve possible"
+msgstr "No truce possible"
+
+#: Sim/GalaxyDiplomacy.cs
+msgid "Faction éliminée"
+msgstr "Faction eliminated"
+
+#: Sim/GalaxyDiplomacy.cs
+msgid "Trêve déjà en cours"
+msgstr "Truce already in effect"
+
+#: Sim/GalaxyDiplomacy.cs
+msgid "Offre déjà faite"
+msgstr "Offer already made"
+
+#: Sim/GalaxyDiplomacy.cs
+msgid "Aucune offre"
+msgstr "No offer"
+
+#: Sim/GalaxyDiplomacy.cs
+msgid "Aucune trêve"
+msgstr "No truce"
+
+#: Sim/GalaxyGen.cs
+msgid "Bérénice"
+msgstr "Bérénice"
+
+#: Sim/GalaxyGen.cs
+msgid "Corvée"
+msgstr "Corvée"
+
+#: Sim/GalaxyGen.cs
+msgid "Gélise"
+msgstr "Gélise"
+
+#: Sim/GalaxyGen.cs
+msgid "Lunaé"
+msgstr "Lunaé"
+
+#: Sim/GalaxyGen.cs
+msgid "Nérée"
+msgstr "Nérée"
+
+#: Sim/GalaxyGen.cs
+msgid "Rhéa"
+msgstr "Rhéa"
+
+#: Sim/GalaxyLance.cs
+msgid "Aucune Lance stellaire ici"
+msgstr "No Star lance here"
+
+#: Sim/GalaxyLance.cs
+msgid "En charge : {0} s"
+msgstr "Charging: {0} s"
+
+#: Sim/GalaxyLance.cs
+msgid "Choisis une planète ennemie"
+msgstr "Pick an enemy planet"
+
+#: Sim/GalaxyLance.cs
+msgid "Hors de portée ({0} voies au plus)"
+msgstr "Out of range ({0} lanes at most)"
+
+#: Sim/Lobby.cs
+msgid "Il faut une place « Toi »."
+msgstr "One seat must be \"You\"."
+
+#: Sim/Lobby.cs
+msgid "Une seule place peut être « Toi »."
+msgstr "Only one seat can be \"You\"."
+
+#: Sim/Lobby.cs
+msgid "Il faut au moins une place occupée."
+msgstr "At least one seat must be taken."
+
+#: Sim/Lobby.cs
+msgid "Il faut au moins deux places occupées."
+msgstr "At least two seats must be taken."
+
+#: Sim/Lobby.cs
+msgid "L'assaut demande au moins un défenseur (équipe 1)."
+msgstr "The assault needs at least one defender (team 1)."
+
+#: Sim/Lobby.cs
+msgid "L'assaut demande au moins un attaquant (équipe 2)."
+msgstr "The assault needs at least one attacker (team 2)."
+
+#: Sim/Lobby.cs
+msgid "Tout le monde est dans la même équipe : il faut au moins deux camps ennemis."
+msgstr "Everyone is on the same team: there must be at least two opposing sides."
+
+#: Sim/Lobby.cs
+msgid "En attente de {0} : il rejoint sa place, ou l'hôte la donne à un bot."
+msgstr "Waiting for {0}: they join their seat, or the host gives it to a bot."
+
+#: Sim/Lobby.cs
+msgid "Un joueur n'est pas prêt."
+msgstr "A player is not ready."
+
+#: Sim/Net/LobbyRoom.cs
+msgid "Déjà dans la partie."
+msgstr "Already in the game."
+
+#: Sim/Net/LobbyRoom.cs
+msgid "La campagne reprise n'attend plus personne."
+msgstr "The resumed campaign is no longer waiting for anyone."
+
+#: Sim/Net/LobbyRoom.cs
+msgid "Cette partie reprend une campagne sauvegardée : elle attend {0}. Rejoins-la sous ce nom."
+msgstr "This game resumes a saved campaign: it waits for {0}. Join it under that name."
+
+#: Sim/Net/LobbyRoom.cs
+msgid "La partie est complète."
+msgstr "The game is full."
+
+#: Sim/Net/LobbyRoom.cs
+msgid "L'hôte ne prend pas de spectateurs."
+msgstr "The host does not take spectators."
+
+#: Sim/Net/LobbyRoom.cs
+msgid "Il y a déjà assez de spectateurs."
+msgstr "There are already enough spectators."
+
+#: Sim/Net/LobbyRoom.cs
+msgid "Ta place n'est plus libre."
+msgstr "Your seat is no longer free."
+
+#: Sim/Net/LobbyRoom.cs
+msgid "Un joueur de ce nom est déjà dans la partie."
+msgstr "A player with this name is already in the game."
+
+#: Sim/Net/Protocol.cs
+msgid "Version différente : la partie est en {0}, ton jeu en {1}."
+msgstr "Different version: the game is on {0}, yours on {1}."
+
+#: Sim/Net/Protocol.cs
+msgid "Version du jeu incompatible avec l'hôte (formats {0}.{1}.{2}, attendus {3}.{4}.{5})."
+msgstr "Game version incompatible with the host (formats {0}.{1}.{2}, expected {3}.{4}.{5})."
+
+#: Sim/Net/RelayHub.cs
+msgid "Le serveur en ligne est saturé : réessaie dans un moment."
+msgstr "The online server is overloaded: try again in a moment."
+
+#: Sim/Net/RelayHub.cs
+msgid "Message illisible pour le serveur en ligne : versions incompatibles ?"
+msgstr "Message unreadable for the online server: incompatible versions?"
+
+#: Sim/Net/RelayHub.cs
+msgid "Joueur {0} renvoyé par l'hôte de la partie {1}"
+msgstr "Player {0} sent away by the host of game {1}"
+
+#: Sim/Net/RelayHub.cs
+msgid "Message inattendu pour le serveur en ligne."
+msgstr "Unexpected message for the online server."
+
+#: Sim/Net/RelayHub.cs
+msgid "Liste inactive."
+msgstr "List inactive."
+
+#: Sim/Net/RelayHub.cs
+msgid "Serveur en ligne d'une autre version (relais {0}, ton jeu {1}) : il faut mettre à jour le jeu ou le serveur."
+msgstr "Online server of another version (relay {0}, your game {1}): the game or the server needs updating."
+
+#: Sim/Net/RelayHub.cs
+msgid "Le serveur en ligne est complet ({0} parties) : réessaie plus tard."
+msgstr "The online server is full ({0} games): try again later."
+
+#: Sim/Net/RelayHub.cs
+msgid "Serveur dédié {0} « {1} » inscrit à {2} ({3}, version {4})"
+msgstr "Dedicated server {0} \"{1}\" registered at {2} ({3}, version {4})"
+
+#: Sim/Net/RelayHub.cs
+msgid "Partie {0} « {1} » ouverte par {2} ({3}, {4}/{5}, version {6})"
+msgstr "Game {0} \"{1}\" opened by {2} ({3}, {4}/{5}, version {6})"
+
+#: Sim/Net/RelayHub.cs
+msgid "Cette partie n'est plus listée."
+msgstr "This game is no longer listed."
+
+#: Sim/Net/RelayHub.cs
+msgid "Ce serveur dédié se rejoint directement, à son adresse."
+msgstr "This dedicated server is joined directly, at its address."
+
+#: Sim/Net/RelayHub.cs
+msgid "Version du jeu incompatible avec l'hôte (réseau {0}, attendu {1})."
+msgstr "Game version incompatible with the host (network {0}, expected {1})."
+
+#: Sim/Net/RelayHub.cs
+msgid "La partie est complète sur le serveur en ligne."
+msgstr "The game is full on the online server."
+
+#: Sim/Net/RelayHub.cs
+msgid "{0} refusé : {1}"
+msgstr "{0} refused: {1}"
+
+#: Sim/Net/RelayHub.cs
+msgid "Joueur {0} ({1}) entre dans la partie {2} « {3} »"
+msgstr "Player {0} ({1}) joins game {2} \"{3}\""
+
+#: Sim/Net/RelayHub.cs
+msgid "Partie {0} « {1} » : débit trop élevé"
+msgstr "Game {0} \"{1}\": rate too high"
+
+#: Sim/Net/RelayHub.cs
+msgid "Débit trop élevé pour le serveur en ligne : la partie est fermée."
+msgstr "Rate too high for the online server: the game is closed."
+
+#: Sim/Net/RelayHub.cs
+msgid "Joueur {0} a quitté la partie {1}"
+msgstr "Player {0} left game {1}"
+
+#: Sim/Net/RelayHub.cs
+msgid "{0} {1} « {2} » fermé{3} : {4}"
+msgstr "{0} {1} \"{2}\" closed{3:}: {4}"
+
+#: Sim/SaveSlots.cs
+msgid "{0}, {1} planète{2}, {3}"
+msgstr "{0}, {1} planet{2:s}, {3}"
+
+#: Sim/SaveSlots.cs
+msgid "Sauvegarde automatique : {0}"
+msgstr "Autosave: {0}"
+
+#: Sim/Scenario.cs
+msgid "De 1 à 6 joueurs"
+msgstr "1 to 6 players"
+
+#: Sim/Scenario.cs
+msgid "De 2 à 6 joueurs"
+msgstr "2 to 6 players"
+
+#: Sim/Scenario.cs
+msgid "Deux places jouent le même camp"
+msgstr "Two seats play the same side"
+
+#: Sim/Scenario.cs
+msgid "Les Errants ne sont pas jouables"
+msgstr "The Errants are not playable"
+
+#: Sim/Scenario.cs
+msgid "Le camp 3 revient aux Errants"
+msgstr "Side 3 belongs to the Errants"
+
+#: Sim/Scenario.cs
+msgid "Le score à atteindre doit être d'au moins 1"
+msgstr "The score to reach must be at least 1"
+
+#: Sim/Scenario.cs
+msgid "L'assaut doit durer au moins 1 min"
+msgstr "The assault must last at least 1 min"
+
+#: Sim/Scenario.cs
+msgid "En assaut, chaque joueur défend (équipe 1) ou attaque (équipe 2)"
+msgstr "In an assault, each player defends (team 1) or attacks (team 2)"
+
+#: Sim/Scenario.cs
+msgid "L'assaut demande au moins un défenseur (équipe 1)"
+msgstr "The assault needs at least one defender (team 1)"
+
+#: Sim/Scenario.cs
+msgid "L'assaut demande au moins un attaquant (équipe 2)"
+msgstr "The assault needs at least one attacker (team 2)"
+
+#: Sim/Scenario.cs
+msgid "Il faut au moins deux camps adverses"
+msgstr "There must be at least two opposing sides"
+
+#: Sim/Structures.cs
+msgid "Aucune station"
+msgstr "No station"
+
+#: Sim/Structures.cs
+msgid "Chantier naval détruit"
+msgstr "Shipyard destroyed"
+
+#: Sim/Structures.cs
+msgid "Amélioration déjà en cours"
+msgstr "Upgrade already in progress"
+
+#: Sim/Structures.cs
+msgid "Rien à améliorer"
+msgstr "Nothing to upgrade"
+
+#: Sim/Structures.cs
+msgid "En construction"
+msgstr "Under construction"
+
+#: Sim/Structures.cs
+msgid "Combat trop proche"
+msgstr "Fighting too close"
+
+#: Sim/Structures.cs
+msgid "Placer sur un champ d'astéroïdes"
+msgstr "Place on an asteroid field"
+
+#: Sim/Structures.cs
+msgid "Champ déjà exploité"
+msgstr "Field already mined"
+
+#: Sim/Structures.cs
+msgid "Hors de la carte"
+msgstr "Off the map"
+
+#: Sim/Structures.cs
+msgid "Pas sur un champ d'astéroïdes"
+msgstr "Not on an asteroid field"
+
+#: Sim/Structures.cs
+msgid "Trop loin de la station, des avant-postes et des mines"
+msgstr "Too far from the station, the outposts and the mines"
+
+#: Sim/Structures.cs
+msgid "Trop loin de la station et des avant-postes"
+msgstr "Too far from the station and the outposts"
+
+#: Sim/Structures.cs
+msgid "Plateformes au maximum ici ({0})"
+msgstr "Platforms at the maximum here ({0})"
+
+#: Sim/Structures.cs
+msgid "Emplacement occupé"
+msgstr "Occupied spot"
+
+#: Game/scripts/Ui/Options.cs
+msgid "Français"
+msgstr "Français"
+
+#: Game/scripts/Ui/Options.cs
+msgid "Langue du jeu"
+msgstr "Game language"
+
+#: Game/scripts/Battle/BattleScreen.cs
+msgid "Perte"
+msgstr "Loss"
+
+#: Game/scripts/Core/Bindings.cs
+msgid "Pause"
+msgstr "Pause"
+
+#: Game/scripts/Core/Bindings.cs
+msgid "Journal"
+msgstr "Log"
+
+#: Game/scripts/Core/Bindings.cs
+msgid "Diplomatie"
+msgstr "Diplomacy"
+
+#: Game/scripts/Core/Bindings.cs
+msgid "Espace"
+msgstr "Space"
+
+#: Game/scripts/Core/Bindings.cs
+msgid "Tab"
+msgstr "Tab"
+
+#: Game/scripts/Core/Bindings.cs
+msgid "Fin"
+msgstr "End"
+
+#: Game/scripts/Core/Bindings.cs
+msgid "Suppr"
+msgstr "Del"
+
+#: Game/scripts/Core/Bindings.cs
+msgid "Inser"
+msgstr "Ins"
+
+#: Game/scripts/Core/Bindings.cs
+msgid "Haut"
+msgstr "Up"
+
+#: Game/scripts/Core/Bindings.cs
+msgid "Bas"
+msgstr "Down"
+
+#: Game/scripts/Core/Bindings.cs
+msgid "Gauche"
+msgstr "Left"
+
+#: Game/scripts/Core/Bindings.cs
+msgid "Droite"
+msgstr "Right"
+
+#: Game/scripts/Core/Music.cs
+msgid "Musique"
+msgstr "Music"
+
+#: Game/scripts/Core/ReplayStore.cs
+msgid "Survie"
+msgstr "Survival"
+
+#: Game/scripts/Core/ReplayStore.cs
+msgid "Assaut"
+msgstr "Assault"
+
+#: Game/scripts/Core/ReplayStore.cs
+msgid "Escarmouche"
+msgstr "Skirmish"
+
+#: Game/scripts/Core/Settings.cs
+msgid "Joueur"
+msgstr "Player"
+
+#: Game/scripts/Core/Sfx.cs
+msgid "Sfx"
+msgstr "Sfx"
+
+#: Game/scripts/Galaxy/GalaxyHud.Diplomacy.cs
+msgid "Relation"
+msgstr "Relation"
+
+#: Game/scripts/Galaxy/GalaxyHud.Diplomacy.cs
+msgid "Propose"
+msgstr "Offers"
+
+#: Game/scripts/Galaxy/GalaxyHud.Diplomacy.cs
+msgid "Accepter"
+msgstr "Accept"
+
+#: Game/scripts/Galaxy/GalaxyHud.Diplomacy.cs
+msgid "Refuser"
+msgstr "Decline"
+
+#: Game/scripts/Galaxy/GalaxyHud.Diplomacy.cs
+msgid "Annuler"
+msgstr "Cancel"
+
+#: Game/scripts/Galaxy/GalaxyHud.Diplomacy.cs
+msgid "Rompre"
+msgstr "Break"
+
+#: Game/scripts/Galaxy/GalaxyHud.Empire.cs
+msgid "Flottes"
+msgstr "Fleets"
+
+#: Game/scripts/Galaxy/GalaxyHud.Empire.cs
+msgid "Empire"
+msgstr "Empire"
+
+#: Game/scripts/Galaxy/GalaxyHud.Empire.cs
+msgid "Vaisseaux"
+msgstr "Ships"
+
+#: Game/scripts/Galaxy/GalaxyHud.Empire.cs
+msgid "Route"
+msgstr "Route"
+
+#: Game/scripts/Galaxy/GalaxyHud.Empire.cs
+msgid "Rallier"
+msgstr "Rally"
+
+#: Game/scripts/Galaxy/GalaxyHud.Lance.cs
+msgid "Tirer"
+msgstr "Fire"
+
+#: Game/scripts/Galaxy/GalaxyHud.cs
+msgid "Recherche"
+msgstr "Research"
+
+#: Game/scripts/Galaxy/GalaxyHud.cs
+msgid "Neutre"
+msgstr "Neutral"
+
+#: Game/scripts/Galaxy/GalaxyHud.cs
+msgid "Aide"
+msgstr "Help"
+
+#: Game/scripts/Galaxy/GalaxyHud.cs
+msgid "Menu"
+msgstr "Menu"
+
+#: Game/scripts/Galaxy/GalaxyHud.cs
+msgid "Sauvegarder"
+msgstr "Save"
+
+#: Game/scripts/Galaxy/GalaxyHud.cs
+msgid "Options"
+msgstr "Options"
+
+#: Game/scripts/Galaxy/GalaxyHud.cs
+msgid "Quitter"
+msgstr "Quit"
+
+#: Game/scripts/Galaxy/GalaxyHud.cs
+msgid "Regarder"
+msgstr "Watch"
+
+#: Game/scripts/Galaxy/GalaxyHud.cs
+msgid "Victoire"
+msgstr "Victory"
+
+#: Game/scripts/Galaxy/GalaxyHud.cs
+msgid "Fermer"
+msgstr "Close"
+
+#: Game/scripts/Net/Probe.cs
+msgid "Sonde"
+msgstr "Probe"
+
+#: Game/scripts/Net/RelayServer.cs
+msgid "Relais"
+msgstr "Relay"
+
+#: Game/scripts/Ui/ChatBox.cs
+msgid "Discussion"
+msgstr "Chat"
+
+#: Game/scripts/Ui/Controls.cs
+msgid "Stop"
+msgstr "Stop"
+
+#: Game/scripts/Ui/Controls.cs
+msgid "Zoom"
+msgstr "Zoom"
+
+#: Game/scripts/Ui/Controls.cs
+msgid "Molette"
+msgstr "Wheel"
+
+#: Game/scripts/Ui/Controls.cs
+msgid "Clic"
+msgstr "Click"
+
+#: Game/scripts/Ui/Hud.Dialogs.cs
+msgid "Reprendre"
+msgstr "Resume"
+
+#: Game/scripts/Ui/Hud.Dialogs.cs
+msgid "Commandes"
+msgstr "Controls"
+
+#: Game/scripts/Ui/Hud.Dialogs.cs
+msgid "Recommencer"
+msgstr "Restart"
+
+#: Game/scripts/Ui/Hud.Dialogs.cs
+msgid "Retraite"
+msgstr "Retreat"
+
+#: Game/scripts/Ui/Hud.Dialogs.cs
+msgid "Faction"
+msgstr "Faction"
+
+#: Game/scripts/Ui/Hud.Dialogs.cs
+msgid "Construits"
+msgstr "Built"
+
+#: Game/scripts/Ui/Hud.Dialogs.cs
+msgid "Perdus"
+msgstr "Lost"
+
+#: Game/scripts/Ui/Hud.Modes.cs
+msgid "Balises"
+msgstr "Beacons"
+
+#: Game/scripts/Ui/Hud.Selection.cs
+msgid "Automatique"
+msgstr "Automatic"
+
+#: Game/scripts/Ui/Hud.cs
+msgid "Structures"
+msgstr "Structures"
+
+#: Game/scripts/Ui/Hud.cs
+msgid "Amiral"
+msgstr "Admiral"
+
+#: Game/scripts/Ui/Hud.cs
+msgid "As"
+msgstr "Ace"
+
+#: Game/scripts/Ui/Hud.cs
+msgid "Voir"
+msgstr "View"
+
+#: Game/scripts/Ui/Hud.cs
+msgid "Inactif"
+msgstr "Idle"
+
+#: Game/scripts/Ui/Hud.cs
+msgid "Attaque"
+msgstr "Attack"
+
+#: Game/scripts/Ui/Hud.cs
+msgid "Inactifs"
+msgstr "Idle"
+
+#: Game/scripts/Ui/Hud.cs
+msgid "Alerte"
+msgstr "Alert"
+
+#: Game/scripts/Ui/HudKit.cs
+msgid "Menlo"
+msgstr "Menlo"
+
+#: Game/scripts/Ui/HudKit.cs
+msgid "Consolas"
+msgstr "Consolas"
+
+#: Game/scripts/Ui/Intro.cs
+msgid "Augaton"
+msgstr "Augaton"
+
+#: Game/scripts/Ui/Intro.cs
+msgid "Graphismes"
+msgstr "Art"
+
+#: Game/scripts/Ui/Intro.cs
+msgid "Foozle"
+msgstr "Foozle"
+
+#: Game/scripts/Ui/KeysEditor.cs
+msgid "Partout"
+msgstr "Everywhere"
+
+#: Game/scripts/Ui/Menu.Lobby.cs
+msgid "Rouge"
+msgstr "Red"
+
+#: Game/scripts/Ui/Menu.Lobby.cs
+msgid "Bleu"
+msgstr "Blue"
+
+#: Game/scripts/Ui/Menu.Lobby.cs
+msgid "Vert"
+msgstr "Green"
+
+#: Game/scripts/Ui/Menu.Lobby.cs
+msgid "Violet"
+msgstr "Purple"
+
+#: Game/scripts/Ui/Menu.Lobby.cs
+msgid "Cyan"
+msgstr "Cyan"
+
+#: Game/scripts/Ui/Menu.Lobby.cs
+msgid "Rose"
+msgstr "Pink"
+
+#: Game/scripts/Ui/Menu.Lobby.cs
+msgid "Citron"
+msgstr "Lime"
+
+#: Game/scripts/Ui/Menu.Lobby.cs
+msgid "Argent"
+msgstr "Silver"
+
+#: Game/scripts/Ui/Menu.Lobby.cs
+msgid "Lavande"
+msgstr "Lavender"
+
+#: Game/scripts/Ui/Menu.Lobby.cs
+msgid "Campagne"
+msgstr "Campaign"
+
+#: Game/scripts/Ui/Menu.Lobby.cs
+msgid "Bataille"
+msgstr "Battle"
+
+#: Game/scripts/Ui/Menu.Lobby.cs
+msgid "Retour"
+msgstr "Back"
+
+#: Game/scripts/Ui/Menu.Lobby.cs
+msgid "Galaxie"
+msgstr "Galaxy"
+
+#: Game/scripts/Ui/Menu.Lobby.cs
+msgid "Place"
+msgstr "Seat"
+
+#: Game/scripts/Ui/Menu.Lobby.cs
+msgid "Race"
+msgstr "Race"
+
+#: Game/scripts/Ui/Menu.Lobby.cs
+msgid "Couleur"
+msgstr "Color"
+
+#: Game/scripts/Ui/Menu.Lobby.cs
+msgid "Ensemble"
+msgstr "Together"
+
+#: Game/scripts/Ui/Menu.Lobby.cs
+msgid "Aucune"
+msgstr "None"
+
+#: Game/scripts/Ui/Menu.Lobby.cs
+msgid "Toi"
+msgstr "You"
+
+#: Game/scripts/Ui/Menu.Lobby.cs
+msgid "Ouvert"
+msgstr "Open"
+
+#: Game/scripts/Ui/Menu.Lobby.cs
+msgid "Type"
+msgstr "Type"
+
+#: Game/scripts/Ui/Menu.Lobby.cs
+msgid "Classique"
+msgstr "Classic"
+
+#: Game/scripts/Ui/Menu.Lobby.cs
+msgid "Carte"
+msgstr "Map"
+
+#: Game/scripts/Ui/Menu.Lobby.cs
+msgid "Graine"
+msgstr "Seed"
+
+#: Game/scripts/Ui/Menu.Lobby.cs
+msgid "Objectif"
+msgstr "Goal"
+
+#: Game/scripts/Ui/Menu.Network.cs
+msgid "Multijoueur"
+msgstr "Multiplayer"
+
+#: Game/scripts/Ui/Menu.Network.cs
+msgid "Actualiser"
+msgstr "Refresh"
+
+#: Game/scripts/Ui/Menu.Network.cs
+msgid "Parties"
+msgstr "Games"
+
+#: Game/scripts/Ui/Menu.Network.cs
+msgid "Rejoindre"
+msgstr "Join"
+
+#: Game/scripts/Ui/Menu.Network.cs
+msgid "Partie"
+msgstr "Game"
+
+#: Game/scripts/Ui/Menu.Network.cs
+msgid "Mode"
+msgstr "Mode"
+
+#: Game/scripts/Ui/Menu.Network.cs
+msgid "Joueurs"
+msgstr "Players"
+
+#: Game/scripts/Ui/Menu.Network.cs
+msgid "Ping"
+msgstr "Ping"
+
+#: Game/scripts/Ui/Menu.Replays.cs
+msgid "Rediffusions"
+msgstr "Replays"
+
+#: Game/scripts/Ui/Menu.Replays.cs
+msgid "Confirmer"
+msgstr "Confirm"
+
+#: Game/scripts/Ui/Menu.Replays.cs
+msgid "Supprimer"
+msgstr "Delete"
+
+#: Game/scripts/Ui/Menu.cs
+msgid "Didacticiel"
+msgstr "Tutorial"
+
+#: Game/scripts/Ui/Menu.cs
+msgid "Sauvegarde"
+msgstr "Save"
+
+#: Game/scripts/Ui/Options.cs
+msgid "Vue"
+msgstr "View"
+
+#: Game/scripts/Ui/Options.cs
+msgid "Combat"
+msgstr "Combat"
+
+#: Game/scripts/Ui/Options.cs
+msgid "Son"
+msgstr "Sound"
+
+#: Game/scripts/Ui/Options.cs
+msgid "English"
+msgstr "English"
+
+#: Game/scripts/Ui/Options.cs
+msgid "Langue"
+msgstr "Language"
+
+#: Game/scripts/Ui/Options.cs
+msgid "Affichage"
+msgstr "Display"
+
+#: Game/scripts/Ui/ReplayBar.cs
+msgid "Lecture"
+msgstr "Play"
+
+#: Game/scripts/Ui/Tutorial.cs
+msgid "Produire"
+msgstr "Produce"
+
+#: Game/scripts/Ui/Tutorial.cs
+msgid "Attaquer"
+msgstr "Attack"
+
+#: Game/scripts/Ui/Tutorial.cs
+msgid "Passer"
+msgstr "Skip"
+
+#: Game/scripts/Ui/Tutorial.cs
+msgid "Bravo"
+msgstr "Well done"
+
+#: Sim/Data/Abilities.cs
+msgid "Postcombustion"
+msgstr "Afterburner"
+
+#: Sim/Data/Abilities.cs
+msgid "Salve"
+msgstr "Salvo"
+
+#: Sim/Data/Abilities.cs
+msgid "Provocation"
+msgstr "Taunt"
+
+#: Sim/Data/Abilities.cs
+msgid "Catapultes"
+msgstr "Catapults"
+
+#: Sim/Data/Abilities.cs
+msgid "Camouflage"
+msgstr "Cloak"
+
+#: Sim/Data/Abilities.cs
+msgid "Essaim"
+msgstr "Swarm"
+
+#: Sim/Data/Abilities.cs
+msgid "Greffe"
+msgstr "Graft"
+
+#: Sim/Data/Galaxy.cs
+msgid "Forteresse"
+msgstr "Fortress"
+
+#: Sim/Data/Galaxy.cs
+msgid "Vesper"
+msgstr "Vesper"
+
+#: Sim/Data/Galaxy.cs
+msgid "Orin"
+msgstr "Orin"
+
+#: Sim/Data/Galaxy.cs
+msgid "Maru"
+msgstr "Maru"
+
+#: Sim/Data/Galaxy.cs
+msgid "Kaldra"
+msgstr "Kaldra"
+
+#: Sim/Data/Galaxy.cs
+msgid "Sorel"
+msgstr "Sorel"
+
+#: Sim/Data/Galaxy.cs
+msgid "Thessa"
+msgstr "Thessa"
+
+#: Sim/Data/Galaxy.cs
+msgid "Nadir"
+msgstr "Nadir"
+
+#: Sim/Data/Galaxy.cs
+msgid "Ostra"
+msgstr "Ostra"
+
+#: Sim/Data/Galaxy.cs
+msgid "Yvra"
+msgstr "Yvra"
+
+#: Sim/Data/Galaxy.cs
+msgid "Tarsis"
+msgstr "Tarsis"
+
+#: Sim/Data/Galaxy.cs
+msgid "Brume"
+msgstr "Brume"
+
+#: Sim/Data/Galaxy.cs
+msgid "Ixion"
+msgstr "Ixion"
+
+#: Sim/Data/Galaxy.cs
+msgid "Calyx"
+msgstr "Calyx"
+
+#: Sim/Data/Heroes.cs
+msgid "Vorrak"
+msgstr "Vorrak"
+
+#: Sim/Data/Heroes.cs
+msgid "Kesh"
+msgstr "Kesh"
+
+#: Sim/Data/Heroes.cs
+msgid "Ondra"
+msgstr "Ondra"
+
+#: Sim/Data/Heroes.cs
+msgid "Amirale"
+msgstr "Admiral"
+
+#: Sim/Data/Heroes.cs
+msgid "Kael"
+msgstr "Kael"
+
+#: Sim/Data/Heroes.cs
+msgid "Om"
+msgstr "Om"
+
+#: Sim/Data/Heroes.cs
+msgid "Greffeur"
+msgstr "Grafter"
+
+#: Sim/Data/Research.cs
+msgid "Armement"
+msgstr "Weapons"
+
+#: Sim/Data/Research.cs
+msgid "Boucliers"
+msgstr "Shields"
+
+#: Sim/Data/Research.cs
+msgid "Blindage"
+msgstr "Armor"
+
+#: Sim/Data/Research.cs
+msgid "Propulsion"
+msgstr "Propulsion"
+
+#: Sim/Data/Research.cs
+msgid "Extraction"
+msgstr "Mining"
+
+#: Sim/Data/Research.cs
+msgid "Hangars"
+msgstr "Hangars"
+
+#: Sim/Data/Research.cs
+msgid "Logistique"
+msgstr "Logistics"
+
+#: Sim/Data/Structures.cs
+msgid "Tourelle"
+msgstr "Turret"
+
+#: Sim/Data/Structures.cs
+msgid "Hangar"
+msgstr "Hangar"
+
+#: Sim/Data/Structures.cs
+msgid "Laboratoire"
+msgstr "Lab"
+
+#: Sim/Data/Units.cs
+msgid "Nairan"
+msgstr "Nairan"
+
+#: Sim/Data/Units.cs
+msgid "Technologie"
+msgstr "Technology"
+
+#: Sim/Data/Units.cs
+msgid "Nautolan"
+msgstr "Nautolan"
+
+#: Sim/Data/Units.cs
+msgid "Errants"
+msgstr "Errants"
+
+#: Sim/Data/Units.cs
+msgid "Gardiens"
+msgstr "Guardians"
+
+#: Sim/Data/Units.cs
+msgid "Chasseur"
+msgstr "Fighter"
+
+#: Sim/Data/Units.cs
+msgid "Bombardier"
+msgstr "Bomber"
+
+#: Sim/Data/Units.cs
+msgid "Soutien"
+msgstr "Support"
+
+#: Sim/Data/Units.cs
+msgid "Torpilleur"
+msgstr "Torpedo boat"
+
+#: Sim/Data/Units.cs
+msgid "Croiseur"
+msgstr "Battlecruiser"
+
+#: Sim/Data/Units.cs
+msgid "Rempart"
+msgstr "Bulwark"
+
+#: Sim/Data/Units.cs
+msgid "Transporteur"
+msgstr "Carrier"
+
+#: Sim/Data/Units.cs
+msgid "Titan"
+msgstr "Titan"
+
+#: Sim/Data/Units.cs
+msgid "Colosse"
+msgstr "Colossus"
+
+#: Sim/GalaxyGen.cs
+msgid "Aldane"
+msgstr "Aldane"
+
+#: Sim/GalaxyGen.cs
+msgid "Dravon"
+msgstr "Dravon"
+
+#: Sim/GalaxyGen.cs
+msgid "Elyne"
+msgstr "Elyne"
+
+#: Sim/GalaxyGen.cs
+msgid "Fargo"
+msgstr "Fargo"
+
+#: Sim/GalaxyGen.cs
+msgid "Hesper"
+msgstr "Hesper"
+
+#: Sim/GalaxyGen.cs
+msgid "Isaure"
+msgstr "Isaure"
+
+#: Sim/GalaxyGen.cs
+msgid "Joran"
+msgstr "Joran"
+
+#: Sim/GalaxyGen.cs
+msgid "Kestel"
+msgstr "Kestel"
+
+#: Sim/GalaxyGen.cs
+msgid "Mirth"
+msgstr "Mirth"
+
+#: Sim/GalaxyGen.cs
+msgid "Opale"
+msgstr "Opale"
+
+#: Sim/GalaxyGen.cs
+msgid "Pyros"
+msgstr "Pyros"
+
+#: Sim/GalaxyGen.cs
+msgid "Quarre"
+msgstr "Quarre"
+
+#: Sim/GalaxyGen.cs
+msgid "Solenne"
+msgstr "Solenne"
+
+#: Sim/GalaxyGen.cs
+msgid "Tyval"
+msgstr "Tyval"
+
+#: Sim/GalaxyGen.cs
+msgid "Ulme"
+msgstr "Ulme"
+
+#: Sim/Scenario.cs
+msgid "Petite"
+msgstr "Small"
+
+#: Sim/Scenario.cs
+msgid "Moyenne"
+msgstr "Medium"
+
+#: Sim/Scenario.cs
+msgid "Grande"
+msgstr "Large"
+
+#: Sim/Worlds.cs
+msgid "Facile"
+msgstr "Easy"
+
+#: Sim/Worlds.cs
+msgid "Normale"
+msgstr "Normal"
+
+#: Sim/Worlds.cs
+msgid "Difficile"
+msgstr "Hard"
+
+#: Game/scripts/Battle/BattleScreen.cs
+msgid "Perte : {0}"
+msgstr "Loss: {0}"
+
+#: Game/scripts/Battle/BattleScreen.cs
+msgid ", {0} niveau {1}"
+msgstr ", {0} level {1}"
+
+#: Game/scripts/Battle/BattleScreen.cs
+msgid "{0} reconstruit"
+msgstr "{0} rebuilt"
+
+#: Game/scripts/Battle/BattleScreen.cs
+msgid "Attaque : {0}"
+msgstr "Attack: {0}"
+
+#: Game/scripts/Core/ReplayStore.cs
+msgid "{0} min {1} s"
+msgstr "{0} min {1} s"
+
+#: Game/scripts/Core/ReplayStore.cs
+msgid "{0} h {1} min"
+msgstr "{0} h {1} min"
+
+#: Game/scripts/Galaxy/GalaxyHud.Diplomacy.cs
+msgid "{0} min"
+msgstr "{0} min"
+
+#: Game/scripts/Galaxy/GalaxyHud.Empire.cs
+msgid "{0} vaisseau{1}"
+msgstr "{0} ship{1:s}"
+
+#: Game/scripts/Galaxy/GalaxyHud.Empire.cs
+msgid "Inactive{0} : {1}"
+msgstr "Idle{0:}: {1}"
+
+#: Game/scripts/Galaxy/GalaxyHud.Empire.cs
+msgid "Vaisseaux : {0}"
+msgstr "Ships: {0}"
+
+#: Game/scripts/Galaxy/GalaxyHud.Empire.cs
+msgid "Ralliement : {0}"
+msgstr "Rally point: {0}"
+
+#: Game/scripts/Galaxy/GalaxyHud.cs
+msgid "{0}, neutres"
+msgstr "{0}, neutral"
+
+#: Game/scripts/Galaxy/GalaxyHud.cs
+msgid "Pause ({0})"
+msgstr "Pause ({0})"
+
+#: Game/scripts/Galaxy/GalaxyHud.cs
+msgid "Vitesse ×{0}"
+msgstr "Speed ×{0}"
+
+#: Game/scripts/Galaxy/GalaxyHud.cs
+msgid "Recherche : {0} {1}{2}"
+msgstr "Research: {0} {1}{2}"
+
+#: Game/scripts/Galaxy/GalaxyHud.cs
+msgid "Mines {0} / {1}"
+msgstr "Mines {0} / {1}"
+
+#: Game/scripts/Galaxy/GalaxyHud.cs
+msgid "{0}, plateformes {1} / {2}"
+msgstr "{0}, platforms {1} / {2}"
+
+#: Game/scripts/Galaxy/GalaxyHud.cs
+msgid "Aussi : {0}"
+msgstr "Also: {0}"
+
+#: Game/scripts/Galaxy/GalaxyHud.cs
+msgid "Flotte {0}"
+msgstr "Fleet {0}"
+
+#: Game/scripts/Galaxy/GalaxyHud.cs
+msgid ", boucle {0}/{1}"
+msgstr ", loop {0}/{1}"
+
+#: Game/scripts/Galaxy/GalaxyHud.cs
+msgid "{0} plateforme{1}"
+msgstr "{0} platform{1:s}"
+
+#: Game/scripts/Galaxy/GalaxyHud.cs
+msgid "Revenu +{0}/s"
+msgstr "Income +{0}/s"
+
+#: Game/scripts/Galaxy/GalaxyHud.cs
+msgid "{0} perdue"
+msgstr "{0} lost"
+
+#: Game/scripts/Galaxy/GalaxyHud.cs
+msgid "{0} contre {1}"
+msgstr "{0} versus {1}"
+
+#: Game/scripts/Ui/Controls.cs
+msgid "{0}, Maj + {1}"
+msgstr "{0}, Shift + {1}"
+
+#: Game/scripts/Ui/Hud.Modes.cs
+msgid "Vague {0} / {1}"
+msgstr "Wave {0} / {1}"
+
+#: Game/scripts/Ui/Hud.Modes.cs
+msgid "Errants : {0}"
+msgstr "Errants: {0}"
+
+#: Game/scripts/Ui/Hud.Modes.cs
+msgid "coque {0}"
+msgstr "hull {0}"
+
+#: Game/scripts/Ui/Hud.Selection.cs
+msgid "Coque {0} / {1}"
+msgstr "Hull {0} / {1}"
+
+#: Game/scripts/Ui/Hud.Selection.cs
+msgid "Bouclier {0} / {1}"
+msgstr "Shield {0} / {1}"
+
+#: Game/scripts/Ui/Hud.Selection.cs
+msgid "Niveau {0} / {1}"
+msgstr "Level {0} / {1}"
+
+#: Game/scripts/Ui/Hud.Selection.cs
+msgid "tourelles {0} / {1}"
+msgstr "turrets {0} / {1}"
+
+#: Game/scripts/Ui/Hud.Selection.cs
+msgid "recharge {0} s"
+msgstr "recharging {0} s"
+
+#: Game/scripts/Ui/Hud.cs
+msgid "Pause · {0}"
+msgstr "Pause · {0}"
+
+#: Game/scripts/Ui/Hud.cs
+msgid ", bouclier {0} / {1}"
+msgstr ", shield {0} / {1}"
+
+#: Game/scripts/Ui/Hud.cs
+msgid "Attaque-mouvement"
+msgstr "Attack-move"
+
+#: Game/scripts/Ui/Hud.cs
+msgid "{0} niveau {1}"
+msgstr "{0} level {1}"
+
+#: Game/scripts/Ui/Hud.cs
+msgid "Annuler {0}"
+msgstr "Cancel {0}"
+
+#: Game/scripts/Ui/Loading.cs
+msgid "Astuce : {0}"
+msgstr "Tip: {0}"
+
+#: Game/scripts/Ui/Menu.Lobby.cs
+msgid "Spectateurs : {0}"
+msgstr "Spectators: {0}"
+
+#: Game/scripts/Ui/Menu.Lobby.cs
+msgid "Bot · {0}"
+msgstr "Bot · {0}"
+
+#: Game/scripts/Ui/Menu.Lobby.cs
+msgid "Place {0}"
+msgstr "Seat {0}"
+
+#: Game/scripts/Ui/Menu.Lobby.cs
+msgid "{0} points"
+msgstr "{0} points"
+
+#: Game/scripts/Ui/Menu.Lobby.cs
+msgid "galaxie {0}"
+msgstr "{0} galaxy"
+
+#: Game/scripts/Ui/Menu.Lobby.cs
+msgid "carte {0}"
+msgstr "{0} map"
+
+#: Game/scripts/Ui/Menu.Lobby.cs
+msgid "objectif {0}"
+msgstr "goal {0}"
+
+#: Game/scripts/Ui/Menu.Network.cs
+msgid "version {0}"
+msgstr "version {0}"
+
+#: Game/scripts/Ui/Menu.Replays.cs
+msgid ", version {0}"
+msgstr ", version {0}"
+
+#: Game/scripts/Ui/Menu.Replays.cs
+msgid "Revoir : {0}, {1}"
+msgstr "Watch again: {0}, {1}"
+
+#: Game/scripts/Ui/Menu.cs
+msgid "Version {0}"
+msgstr "Version {0}"
+
+#: Game/scripts/Ui/Menu.cs
+msgid "Charger : {0}"
+msgstr "Load: {0}"
+
+#: Game/scripts/Ui/Names.cs
+msgid "{0} hangars"
+msgstr "{0} hangars"
+
+#: Game/scripts/Ui/ReplayBar.cs
+msgid "Vue {0}"
+msgstr "{0} view"
+
+#: Game/scripts/Ui/ReplayBar.cs
+msgid "Rediffusion, {0} / {1}{2}"
+msgstr "Replay, {0} / {1}{2}"
+
+#: Sim/Data/Structures.cs
+msgid "Avant-poste"
+msgstr "Outpost"
+
+#: Sim/Galaxy.cs
+msgid "Maximum {0}"
+msgstr "Maximum {0}"
+
+#: Game/scripts/Battle/Selection.cs
+msgid "clique sur un ennemi"
+msgstr "click on an enemy"
+
+#: Game/scripts/Battle/Selection.cs
+msgid "clique où viser"
+msgstr "click where to aim"
+
+#: Game/scripts/Galaxy/GalaxyHud.cs
+msgid " sur {0} planète{1}"
+msgstr " on {0} planet{1:s}"
+
+#: Game/scripts/Galaxy/GalaxyHud.cs
+msgid ", {0} en file"
+msgstr ", {0} queued"
+
+#: Game/scripts/Galaxy/GalaxyHud.cs
+msgid ", +{0}/s de la station"
+msgstr ", +{0}/s from the station"
+
+#: Game/scripts/Galaxy/GalaxyHud.cs
+msgid ", en réparation"
+msgstr ", under repair"
+
+#: Game/scripts/Galaxy/GalaxyHud.cs
+msgid "Tu attaques"
+msgstr "You attack"
+
+#: Game/scripts/Galaxy/GalaxyHud.cs
+msgid "Tu es attaqué par"
+msgstr "You are attacked by"
+
+#: Game/scripts/Ui/Hud.Dialogs.cs
+msgid "La bataille est gagnée."
+msgstr "The battle is won."
+
+#: Game/scripts/Ui/Hud.Dialogs.cs
+msgid "La bataille est perdue."
+msgstr "The battle is lost."
+
+#: Game/scripts/Ui/Hud.Modes.cs
+msgid "Premiers Errants"
+msgstr "First Errants"
+
+#: Game/scripts/Ui/Hud.Modes.cs
+msgid "Vague {0}"
+msgstr "Wave {0}"
+
+#: Game/scripts/Ui/Hud.cs
+msgid "arrêtée"
+msgstr "stopped"
+
+#: Game/scripts/Ui/Hud.cs
+msgid "lancée"
+msgstr "started"
+
+#: Game/scripts/Ui/Menu.Lobby.cs
+msgid ", avec {0}"
+msgstr ", with {0}"
+
+#: Game/scripts/Ui/Menu.Lobby.cs
+msgid "hôte"
+msgstr "host"
+
+#: Game/scripts/Ui/Menu.Lobby.cs
+msgid "prêt"
+msgstr "ready"
+
+#: Game/scripts/Ui/Menu.Lobby.cs
+msgid "en attente"
+msgstr "waiting"
+
+#: Game/scripts/Ui/Menu.Lobby.cs
+msgid "défenseur"
+msgstr "defender"
+
+#: Game/scripts/Ui/Menu.Network.cs
+msgid " : tu regardes, sans place"
+msgstr ": you are watching, without a seat"
+
+#: Game/scripts/Ui/Menu.Network.cs
+msgid " : tu as la main sur le salon"
+msgstr ": you run the lobby"
+
+#: Game/scripts/Ui/Menu.Network.cs
+msgid ", réglée par l'hôte"
+msgstr ", set by the host"
+
+#: Game/scripts/Ui/Menu.Network.cs
+msgid " ou "
+msgstr " or"
+
+#: Game/scripts/Ui/Menu.Network.cs
+msgid ", comme l'adresse du serveur en ligne"
+msgstr ", like the online server's address"
+
+#: Game/scripts/Ui/ReplayBar.cs
+msgid ", en avance rapide…"
+msgstr ", fast-forwarding…"
+
+#: Game/scripts/Ui/ReplayBar.cs
+msgid ", en pause"
+msgstr ", paused"
+
+#: Game/scripts/Ui/Tutorial.cs
+msgid "Déplacer la vue"
+msgstr "Move the view"
+
+#: Game/scripts/Ui/Tutorial.cs
+msgid "Déplacer, ou attaquer"
+msgstr "Move, or attack"
+
+#: Game/scripts/Ui/Tutorial.cs
+msgid "Capacité"
+msgstr "Ability"
+
+#: Game/scripts/Ui/Tutorial.cs
+msgid "Rappeler un groupe"
+msgstr "Recall a group"

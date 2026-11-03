@@ -40,6 +40,9 @@ jobs:
           dotnet-version: ${{ env.DOTNET_VERSION }}
       - name: Tests
         run: dotnet test godot/Sim.Tests -c Release
+      # Every text the code shows has its English in godot/Game/lang/en.po.
+      - name: Traduction
+        run: python3 godot/tools/lang.py --check
 
   export:
     name: Exports Linux et Windows
@@ -119,6 +122,14 @@ jobs:
             timeout 300 ./SandboxShip.x86_64 --headless --log-file "$RUNNER_TEMP/smoke-$start.log" -- --start=$start --shot="$RUNNER_TEMP/smoke.png" --frames=300
             grep -q "^Capture" "$RUNNER_TEMP/smoke-$start.log" || { cat "$RUNNER_TEMP/smoke-$start.log"; echo "::error::l'export Linux n'a pas tenu jusqu'au bout ($start)"; exit 1; }
           done
+
+      # The main screens played in English: the texts made at run time with no English yet are
+      # listed as warnings; the release goes on.
+      - name: Traduction en jeu
+        continue-on-error: true
+        run: |
+          godot/tools/lang-check.sh godot/build/linux/SandboxShip.x86_64 "$RUNNER_TEMP/lang-missing.txt" \
+            || { sed 's/^/::warning::sans anglais : /' "$RUNNER_TEMP/lang-missing.txt" | head -50; exit 1; }
 
       # Each archive holds one folder, the executable and its data next to it; the Linux one
       # also serves a dedicated or online server (the Pelican egg takes it as it is).

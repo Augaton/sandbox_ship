@@ -154,6 +154,26 @@ gamescope --backend headless -W 1280 -H 800 -w 1280 -h 800 -- godot --path . --d
 gamescope --backend headless -W 1280 -H 800 -w 1280 -h 800 -- godot --path . --disable-vsync --max-fps 60 -- --join=online --master=127.0.0.1:27129 --name=Bob --order=30 --snap=/tmp/bob --frames=6600 --shot=bob.png
 ```
 
+## Traduction
+
+Le code écrit en français ; l'anglais est dans `Game/lang/en.po`, avec pour clé le texte
+français, et `{0}`, `{1}`… pour les valeurs d'un texte composé (`$"Coque {a} / {b}"` devient
+« Coque {0} / {1} »). Le jeu traduit ce qu'il affiche au moment où il l'affiche
+(`Game/scripts/Core/Lang.cs`) : les contrôles de Godot le font d'eux-mêmes, le texte dessiné à la
+main passe par `Lang.T`. Côté anglais, `{1:s}` écrit « s » si la valeur 1 n'est pas vide (un
+pluriel français construit par le code), `{1:one|many}` choisit l'une des deux formes. La
+simulation garde son français : ses textes sont traduits à l'affichage, comme le reste.
+
+```bash
+python3 godot/tools/lang.py --check   # textes du code sans anglais (sortie 1 s'il en manque)
+python3 godot/tools/lang.py --add     # les ajoute à en.po, à traduire
+python3 godot/tools/lang.py --prune   # retire les entrées vides que le code n'affiche plus
+godot/tools/lang-check.sh "godot --path godot/Game" manquants.txt captures/   # textes vus en jeu sans anglais
+```
+
+`--lang=fr|en` choisit la langue d'un lancement, `--lang-report=FICHIER` y écrit chaque texte
+affiché sans anglais.
+
 ## Exporter
 
 Les modèles d'export 4.7.2 .NET sont dans `~/.local/share/godot/export_templates`.

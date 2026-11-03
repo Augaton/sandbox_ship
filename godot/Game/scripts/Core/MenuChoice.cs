@@ -38,6 +38,7 @@ public sealed record MenuChoice
 /// (three large fleets in a fight, one step a frame, frame times logged before a --shot run quits), --skip=SECONDS (battle or galaxy played
 /// ahead, the player's side on the AI too), --zoom=Z, --shot=FILE.png and --frames=N (capture, then quit),
 /// --intro (the opening, which a capture or a start into a screen skips), --music-dump=DIR (the music as WAV files, then quit),
+/// --lang=fr|en (the language, whatever the options say) and --lang-report=FILE (each text shown without English, written there once),
 /// --music-record=FILE.wav (the game's mixed sound saved as it quits; with --audio-driver Dummy before --, nothing is heard),
 /// --start=tutorial (the guided first battle), --start=replay with --replay=FILE (that replay played), --menu=replays and
 /// --replays=DIR (the list of replays, kept in DIR rather than user://replays),
@@ -91,6 +92,8 @@ public static class Dev
     public static bool Intro;
     /// <summary>--no-hud: the battle without its interface, for captures of what is on the field.</summary>
     public static bool NoHud;
+    /// <summary>--lang=fr|en: the language of this run. --lang-report=FILE: the texts shown with no English, for the catalog (Lang).</summary>
+    public static string? Lang, LangReport;
     public static double Speed, Truce, Leave;
     public static double[] Attack = [], Raid = [], Build = [];
     public static string[] Choose = [];
@@ -136,6 +139,8 @@ public static class Dev
                 case "--host": Host = true; break;
                 case "--intro": Intro = true; break;
                 case "--no-hud": NoHud = true; break;
+                case "--lang": Lang = value; break;
+                case "--lang-report": LangReport = value; break;
                 case "--music-dump": MusicDump = value; break;
                 case "--music-record": MusicRecord = value; break;
                 case "--server": Server = true; break;

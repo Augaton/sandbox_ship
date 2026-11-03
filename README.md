@@ -2,6 +2,8 @@
   <img src="docs/images/banner.png" alt="Sandbox Ship" width="100%">
 </p>
 
+<p align="center"><a href="README.en.md">English</a> · Français</p>
+
 **Sandbox Ship** est un jeu de stratégie spatiale en temps réel, en pixel art. On bâtit une
 station, on la défend, on lance des flottes et on conquiert une galaxie planète après planète,
 seul contre l'IA ou jusqu'à six joueurs en réseau, par équipes.
@@ -23,7 +25,7 @@ seul contre l'IA ou jusqu'à six joueurs en réseau, par équipes.
   balises à tenir), Assaut (une forteresse à prendre à temps), Régicide (chacun son vaisseau
   amiral).
 - **Bac à sable** : IA coupée, crédits en abondance, on pose ce qu'on veut où on veut.
-- **Trois races** jouables, chacune avec son trait et trois héros : les Kla'ed (armes +10 %),
+- **Trois races** jouables, chacune avec son trait et trois héros : les Kla'ed (armes +15 %),
   les Nairan (boucliers +40 %), les Nautolan (coques qui se régénèrent). Les Errants, neutres,
   gardent les sites de raid.
 - **Treize classes de vaisseaux**, de l'éclaireur au Colosse. Les gros ont des pièces
@@ -36,6 +38,7 @@ seul contre l'IA ou jusqu'à six joueurs en réseau, par équipes.
 - **En réseau**, jusqu'à six joueurs, campagne comprise : en réseau local (les parties
   s'affichent d'elles-mêmes), par le serveur en ligne (rien à ouvrir chez soi) ou sur un
   serveur dédié.
+- **En français ou en anglais**, au choix dans les options.
 
 ## Jouer
 

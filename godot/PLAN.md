@@ -304,6 +304,38 @@ tests de `FixtureTests` et `CrossTests` les listent.
     le menu (0,7 ms par image pour la bataille du fond) ; la campagne (0,3 à 0,4 ms par pas). La taille de la première génération
     du ramasse-miettes ne se règle que par variable d'environnement : `System.GC.Gen0Size` et `GCgen0size` dans la configuration
     du projet restent sans effet. Les pointes d'image isolées suivent surtout la charge de la machine.
+- Équilibrage (2026-11-03, après les nouvelles armes et l'IA des vaisseaux), mesuré en parties entre IA de difficulté normale,
+  chaque paire de races dans les deux sens, une heure au plus par partie. Les pourcentages sont les victoires de chaque race.
+
+  | Mesure | Kla'ed | Nairan | Nautolan | Nuls |
+  |---|---|---|---|---|
+  | Escarmouche, avant les nouvelles armes (36 parties) | 42 % | 33 % | 67 % | 2 |
+  | Escarmouche, avant cet équilibrage (36) | 33 % | 42 % | 29 % | 11 |
+  | Escarmouche, après (108) | 51 % | 50 % | 47 % | 1 |
+  | Zones, avant (108) | 25 % | 67 % | 58 % | 0 |
+  | Zones, après (108) | 40 % | 54 % | 56 % | 0 |
+  | Régicide, avant (36) | 29 % | 54 % | 50 % | 4 |
+  | Régicide, après (108) | 49 % | 46 % | 56 % | 0 |
+  | Assaut, avant (36) | 58 % | 46 % | 46 % | 0 (défense 26, attaque 10) |
+  | Assaut, après (108) | 58 % | 42 % | 50 % | 0 (défense 63, attaque 45) |
+
+  - Les nuls : tir groupé, repli pour se réparer et distance rendaient une flotte de défense, sous les canons de sa station,
+    trop forte pour les petites vagues que l'IA envoyait l'une après l'autre ; deux IA échangeaient alors des vaisseaux une
+    heure sans jamais entamer une station. Ni l'antimissile, ni la distance, ni l'esquive, ni le repli, ni les nouvelles armes,
+    retirés un à un, n'y changeaient assez. Désormais, passé 30 minutes, l'IA va au tout ou rien (`Ai.AllInTime`) : son armée
+    entière dès qu'elle vaut 60 % de la vague attendue, défense comprise, sans rappel à la maison, et ses renforts par
+    groupes d'au moins 30 % ; avant, un avantage sur l'ennemi vu n'envoie plus moins de la moitié de cette vague
+    (`EdgeShare`, 1 500 crédits dans la version web), sauf pour les assaillants d'un assaut, pressés par l'horloge. Sans ce
+    seuil, les Nairan et leurs coques solides gagnaient 68 % des escarmouches (108 parties), les Kla'ed 36 %.
+  - L'avantage Nautolan (67 % avant les nouvelles armes) venait de ces dénouements, pas de leur trait : il n'a pas bougé.
+  - Les Kla'ed passent à armes +15 % et boucliers −10 % (+10 % et −15 % dans la version web) : ils gagnaient un quart des
+    parties de zones et un tiers des régicides, là où il faut tenir. Boucliers seuls à −10 % : 26 % en zones, 36 % en régicide.
+  - Les essaims de missiles du Titan passent à 9 dégâts et 4 s de recharge (7 et 5) : à coût égal, des Titans ne faisaient pas
+    mieux contre les chasseurs qu'avec les lasers qu'ils remplacent, et bien moins contre le reste. Les autres armes, comparées
+    aux anciennes en duels de flottes à coût égal, ne bougent pas : la frégate à rayon continu tient désormais tête aux
+    bombardiers (−0,48 → +0,06 sur une échelle de −1 à +1) sans rien écraser ; croiseur, cuirassé et Léviathan restent à moins de
+    0,1 de leurs anciens scores.
+  - Reste à juger en vraie partie : le tout ou rien à 30 minutes face à un joueur, et l'assaut, où la défense garde l'avantage.
 
 ## Ce qui change de technique
 
