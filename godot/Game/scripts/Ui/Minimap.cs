@@ -79,7 +79,9 @@ public partial class Minimap : Control
             if (e.Kind == EntityKind.Hardpoint) continue;
             if (!Vision.IsVisible(w, player, e) && !(e.Kind == EntityKind.Structure && Vision.WasSeen(w, player, e))) continue;
             var s = e.Kind == EntityKind.Ship ? (e.Size == SizeClass.Small ? 1.5 : 2.5) : e.Type == "station" ? 7 : 4;
-            squares.Rect(new Rect2((float)(e.X * sx - s / 2), (float)(e.Y * sy - s / 2), (float)s, (float)s), Palette.Of(w, e.Side));
+            // With adapted colors, stations and buildings wear their side's shape; ships, a pixel or two, stay dots.
+            if (Palette.Marked && e.Kind == EntityKind.Structure) Render.Draw.Mark(this, e.Side, e.X * sx, e.Y * sy, s * 0.7 + 0.5, Palette.Of(w, e.Side), 1);
+            else squares.Rect(new Rect2((float)(e.X * sx - s / 2), (float)(e.Y * sy - s / 2), (float)s, (float)s), Palette.Of(w, e.Side));
         }
         squares.Flush(this);
         var v = scene.ViewRect();

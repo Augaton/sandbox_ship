@@ -112,7 +112,7 @@ public partial class GalaxyHud : CanvasLayer
 
     /// <summary>A side's emblem, its race's in its color, at twice its 16 pixels as the web HUD draws it.</summary>
     public static Texture2D EmblemTexture(Galaxy g, Side side) =>
-        Logos.Emblem(Galaxies.RaceOf(g, side), 2, g.Factions.TryGetValue(side, out var f) ? f.Color : null);
+        Logos.Emblem(Galaxies.RaceOf(g, side), 2, Palette.Rgb(g, side));
 
     // Building blocks.
 

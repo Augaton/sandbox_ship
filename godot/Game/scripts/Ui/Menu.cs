@@ -204,7 +204,7 @@ public partial class Menu : Node
         for (var i = 0; i < sides.Count; i++)
         {
             if (i > 0 && i == sides.Count - 1) caption.AddChild(Shadowed("contre"));
-            caption.AddChild(Picture(Logos.Emblem(sides[i].Race, 1, sides[i].Color), new Vector2(16, 16)));
+            caption.AddChild(Picture(Logos.Emblem(sides[i].Race, 1, Palette.SideRgb(sides[i].Id, sides[i].Color)), new Vector2(16, 16)));
             caption.AddChild(Shadowed(Factions.Defs[sides[i].Race].Name + (i < sides.Count - 2 ? "," : "")));
         }
     }

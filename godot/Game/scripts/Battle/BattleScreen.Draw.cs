@@ -923,7 +923,14 @@ public partial class BattleScreen
                 if (t is not null) Draw.Line(g, e.X, e.Y, t.X, t.Y, c with { A = 0.5f }, 1 / z);
             }
             var damaged = e.Hull < e.MaxHull || e.Shield < e.MaxShield;
-            if (sel || damaged || e.Build < 1 || Settings.Current.AlwaysBars) Bars(g, e, z);
+            if (!sel && !damaged && e.Build >= 1 && !Settings.Current.AlwaysBars) continue;
+            Bars(g, e, z);
+            // With adapted colors, whose it is shows by a shape too, left of the bars; a part shows its ship's.
+            if (Palette.Marked && e.Kind != EntityKind.Hardpoint)
+            {
+                var w = Math.Max(28 / z, e.Radius * 1.6);
+                Draw.Mark(g, e.Side, e.X - w / 2 - 6 / z, e.Y - e.Radius - 6 / z, 4 / z, Palette.Of(World, e.Side), z);
+            }
         }
         // Ring under the cursor: green for your units, red for a target, grey for an ally's.
         var ctl = Controls;

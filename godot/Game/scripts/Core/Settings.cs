@@ -4,6 +4,9 @@ using Godot;
 
 namespace SandboxShip.Core;
 
+/// <summary>The sides' colors on screen: the ones chosen, or one per side that color-blind eyes tell apart.</summary>
+public enum SideColors { Standard, Adapted }
+
 public sealed class Settings
 {
     /// <summary>Pan the battle view when the pointer touches a screen edge.</summary>
@@ -37,6 +40,8 @@ public sealed class Settings
     public bool ReduceMotion { get; set; }
     /// <summary>"fr" or "en"; empty, the system's language when it is English, French otherwise (Lang).</summary>
     public string Language { get; set; } = "";
+    /// <summary>The sides' colors: as chosen in the lobby, or a palette told apart with any color blindness (Palette).</summary>
+    public SideColors Colors { get; set; } = SideColors.Standard;
     /// <summary>The keys the player chose, by command; the others keep their default (Bindings).</summary>
     public Dictionary<string, Bindings.Combo> Keys { get; set; } = [];
 
@@ -82,6 +87,7 @@ public sealed class Settings
         Volume = double.IsFinite(Volume) ? Math.Clamp(Volume, 0, 1) : d.Volume;
         MusicVolume = double.IsFinite(MusicVolume) ? Math.Clamp(MusicVolume, 0, 1) : d.MusicVolume;
         if (!Enum.IsDefined(Display)) Display = d.Display;
+        if (!Enum.IsDefined(Colors)) Colors = d.Colors;
         WindowWidth = Math.Clamp(WindowWidth, 640, 7680);
         WindowHeight = Math.Clamp(WindowHeight, 360, 4320);
         UiScale = double.IsFinite(UiScale) ? Math.Clamp(UiScale, SandboxShip.Core.Display.Scales[0], SandboxShip.Core.Display.Scales[^1]) : d.UiScale;
@@ -90,8 +96,8 @@ public sealed class Settings
 
     public void Save()
     {
-        // A capture run (--shot) leaves the player's settings as they were.
-        if (Dev.Shot is not null) return;
+        // A capture run (--shot), or one with colors forced (--colors), leaves the player's settings as they were.
+        if (Dev.Shot is not null || Dev.Colors is not null) return;
         using var f = Godot.FileAccess.Open(Path, Godot.FileAccess.ModeFlags.Write);
         // Without a writable user folder, the settings last for this session only.
         f?.StoreString(JsonSerializer.Serialize(this));

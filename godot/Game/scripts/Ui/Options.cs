@@ -50,6 +50,14 @@ public static class Options
                 part.AddChild(Volume(s, focus));
                 part.AddChild(Volume(s, focus, "Volume de la musique", x => x.MusicVolume, (x, v) => x.MusicVolume = v));
             }
+            // Colors told apart with any color blindness, and each side's shape beside its bars (Palette).
+            if (group == "Accessibilité")
+            {
+                var colors = Choice("Couleurs des camps", ["Standard", "Adaptées aux daltoniens"], (int)s.Colors, focus, i => s.Colors = (SideColors)i);
+                colors.GetChild<OptionButton>(1).TooltipText =
+                    "Des couleurs que chaque daltonisme courant distingue, une par camp, et sa forme à côté de ses barres, sur la minicarte et au salon.";
+                part.AddChild(colors);
+            }
             box.AddChild(part);
         }
         // Only on the menu: in battle, a name could not change any more.

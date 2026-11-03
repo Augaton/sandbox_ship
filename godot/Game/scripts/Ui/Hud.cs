@@ -171,7 +171,7 @@ public partial class Hud : CanvasLayer
     /// <summary>A side's emblem, 24 pixels, crisp: its race's, in its color.</summary>
     TextureRect Emblem(Side side) => Ignore(new TextureRect
     {
-        Texture = Logos.Emblem(Worlds.RaceOf(World, side), 2, World.Factions.TryGetValue(side, out var f) ? f.Color : null),
+        Texture = Logos.Emblem(Worlds.RaceOf(World, side), 2, Palette.Rgb(World, side)),
         ExpandMode = TextureRect.ExpandModeEnum.IgnoreSize,
         StretchMode = TextureRect.StretchModeEnum.KeepAspectCentered,
         CustomMinimumSize = new Vector2(24, 24),
