@@ -99,7 +99,9 @@ public static class Factions
 
     public static readonly IReadOnlyDictionary<Faction, FactionDef> Defs = new Dictionary<Faction, FactionDef>
     {
-        [Faction.Klaed] = new("Kla'ed", 0xe0563b, new("Assaut", "Armes +10 %, boucliers −15 %", Damage: 1.1, Shield: 0.85)),
+        // +15 % and −10 % (+10 % and −15 % in the web version): the Kla'ed won a quarter of the
+        // zone control games and a third of the regicides, where holding on decides.
+        [Faction.Klaed] = new("Kla'ed", 0xe0563b, new("Assaut", "Armes +15 %, boucliers −10 %", Damage: 1.15, Shield: 0.9)),
         [Faction.Nairan] = new("Nairan", 0x4fa3e0, new("Technologie", "Boucliers +40 %, coques −5 %", Shield: 1.4, Hull: 0.95)),
         [Faction.Nautolan] = new("Nautolan", 0x7bd36a, new(
             "Biomécanique", "Les coques se régénèrent (1 % par seconde), vaisseaux 10 % moins chers",
@@ -136,7 +138,9 @@ public static class Weapons
     public static readonly WeaponDef Burst = new(WeaponKind.Bullet, 380, 10, 3.4, 850, Burst: 6, BurstGap: 0.1,
         Mult: new SizeMult(Small: 0.5, Medium: 1.2));
     /// <summary>Swarm missiles: a salvo of small homing missiles, deadly to small craft, then a long reload.</summary>
-    public static readonly WeaponDef Swarm = new(WeaponKind.Missile, 420, 7, 5, 420, Homing: true, Burst: 6, BurstGap: 0.08,
+    // 9 damage and 4 s (7 and 5 at first): at equal cost a titan did no better against small
+    // craft with its swarms than with the lasers they replaced, and far worse against the rest.
+    public static readonly WeaponDef Swarm = new(WeaponKind.Missile, 420, 9, 4, 420, Homing: true, Burst: 6, BurstGap: 0.08,
         Mult: new SizeMult(Small: 2, Medium: 0.8, Large: 0.4, Structure: 0.3));
     /// <summary>Ion bolts: twice their damage to shields, a scratch on the hull; they open the way for the rest.</summary>
     public static readonly WeaponDef Ion = new(WeaponKind.Ion, 440, 20, 1.6, 800, ShieldMult: 2, HullMult: 0.2);

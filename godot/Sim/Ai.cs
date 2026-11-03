@@ -14,6 +14,27 @@ public static class Ai
     const double MaxWave = 12000;
     /// <summary>Seconds after which the AI attacks with what it has.</summary>
     const double PressureTime = 1200;
+    /// <summary>
+    /// Past this many seconds the AI goes all in (not in the web version): once its army is worth
+    /// a wave, every warship goes, home fleet included, and none is called back home. Its ships'
+    /// own good sense (focus fire, falling back to mend, keeping their distance) made a home fleet
+    /// under its station's guns too much for the small waves it sent one after the other: two AIs
+    /// then traded ships for an hour without a station ever scratched. A whole army against a
+    /// whole army decides, and what is left of the winner finds a station with no fleet.
+    /// </summary>
+    const double AllInTime = 1800;
+    /// <summary>Shares of the wave the AI waits for: for the whole army to go, and for reinforcements to join a wave already out.</summary>
+    const double AllInShare = 0.6, ReinforceShare = 0.3;
+    /// <summary>
+    /// Before that, an edge over what was seen sends a wave of at least this share of the wave the
+    /// AI waits for, not a handful of ships (1500 credits in the web version): handfuls fed the
+    /// tougher hulls of the Nairan (108 games: Nairan 68 %, Kla'ed 36 %; 47 % and 56 % with it).
+    /// The attackers of an assault keep the handfuls: they have the clock against them.
+    /// </summary>
+    const double EdgeShare = 0.5;
+
+    static double EdgeWave(World world, FactionState f) =>
+        world.Mode.Kind == BattleMode.Assault && f.Team == Assault.Attackers ? 1500 : Math.Max(1500, f.AI!.WaveValue * EdgeShare);
     /// <summary>Refused for want of a ship on the spot: the AI sends one.</summary>
     const string Unheld = "Un vaisseau doit tenir la position";
     const string NoCredits = "Crédits insuffisants";
@@ -364,6 +385,16 @@ public static class Ai
         var intel = UpdateIntel(world, f);
         var army = ships.Sum(ShipValue);
         var outmatched = intel.Army > 0 && army < intel.Army * 0.7;
+        if (world.Time >= AllInTime && enemy is not null)
+        {
+            // The whole army once nothing is out; while a wave is out, reinforcements by the
+            // group, not one by one as they come out of the shipyard.
+            var home = ships.Where(e => e.Order?.Type != OrderType.AttackMove && !Modes.Kept(world, e)).ToList();
+            var out_ = home.Count < ships.Count;
+            var needed = f.AI!.WaveValue * (out_ ? ReinforceShare : AllInShare);
+            if (home.Count > 0 && home.Sum(ShipValue) >= needed) Movement.IssueMove(world, home.Select(e => e.Id), enemy.X, enemy.Y, true);
+            return outmatched;
+        }
         if (threatened)
         {
             // Ships already out on a wave keep going; only the home fleet defends.
@@ -373,7 +404,7 @@ public static class Ai
         var value = idle.Sum(ShipValue);
         // As the game drags on, the AI settles for smaller waves and a thinner edge: no endless standoff.
         var pressure = Math.Min(1, world.Time / PressureTime);
-        var stronger = intel.Army > 0 && army > intel.Army * (1.4 - 0.3 * pressure) && value >= 1500;
+        var stronger = intel.Army > 0 && army > intel.Army * (1.4 - 0.3 * pressure) && value >= EdgeWave(world, f);
         if (enemy is not null && !outmatched && (value >= f.AI!.WaveValue * (1 - 0.4 * pressure) || stronger))
         {
             Movement.IssueMove(world, idle.Select(e => e.Id), enemy.X, enemy.Y, true);
