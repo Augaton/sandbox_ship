@@ -57,7 +57,14 @@ public partial class Main : Node
         // start straight into a screen, a network test) goes without, unless it asks for it.
         var intro = Dev.Intro || OS.GetCmdlineUserArgs().Length == 0 ? new Ui.Intro() : null;
         if (intro is not null) AddChild(intro);
-        // The simulation's code compiled out of sight meanwhile, so that no first decision stalls a frame.
+        Sfx.Attach(this);
+        Music.Attach(this);
+        // The menu's theme already under the opening.
+        if (intro is not null) Music.Play(MusicTheme.Menu);
+        await Assets.Load();
+        // The simulation's code compiled out of sight, so that no first decision stalls a frame: once
+        // the sprites are forged, as it would take cores from the forge, and well before a first real
+        // battle (the opening or the menu come first).
         _ = Task.Run(() =>
         {
             try
@@ -69,11 +76,6 @@ public partial class Main : Node
                 GD.PushWarning($"Préchauffage interrompu : {e.Message}");
             }
         });
-        Sfx.Attach(this);
-        Music.Attach(this);
-        // The menu's theme already under the opening.
-        if (intro is not null) Music.Play(MusicTheme.Menu);
-        await Assets.Load();
         if (intro is not null) await intro.Done;
         if (Dev.Dump is string dir) Ui.Logos.LogoImage(Ui.Loading.LogoScale).SavePng($"{dir}/boot.png");
         switch (Dev.Start)
