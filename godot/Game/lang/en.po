@@ -5033,3 +5033,35 @@ msgstr "Through the online server; the host offers a direct link"
 #: Game/scripts/Ui/Menu.Network.cs
 msgid ", liaison directe proposée"
 msgstr ", direct link offered"
+
+#: Game/scripts/Net/RelayTransport.cs
+msgid "L'hôte ne répond pas."
+msgstr "The host is not answering."
+
+#: Sim/Net/Secure.cs
+msgid "Chiffrement indisponible sur cette machine : le jeu en réseau a besoin d'OpenSSL (libssl 3 ou 1.1)."
+msgstr "Encryption is not available on this machine: network play needs OpenSSL (libssl 3 or 1.1)."
+
+#: Sim/Net/Secure.cs
+msgid "Échange illisible avec l'hôte : versions incompatibles ?"
+msgstr "Unreadable exchange with the host: incompatible versions?"
+
+#: Sim/Net/Secure.cs
+msgid "L'hôte joue une autre version du jeu : il faut la même des deux côtés."
+msgstr "The host plays another version of the game: both sides need the same one."
+
+#: Sim/Net/Secure.cs
+msgid "Cette partie ne demande pas de mot de passe : vide le champ du mot de passe, puis rejoins-la."
+msgstr "This game asks for no password: clear the password field, then join it."
+
+#: Sim/Net/Secure.cs
+msgid "L'hôte a refusé la connexion : versions incompatibles ?"
+msgstr "The host refused the connection: incompatible versions?"
+
+#: Sim/Net/Secure.cs
+msgid "L'hôte n'a pas prouvé qu'il connaît le mot de passe : la connexion est peut-être détournée."
+msgstr "The host did not prove it knows the password: the connection may be intercepted."
+
+#: Sim/Net/Secure.cs
+msgid "Échange illisible."
+msgstr "Unreadable exchange."

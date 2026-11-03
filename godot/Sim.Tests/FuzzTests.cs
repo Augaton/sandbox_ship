@@ -156,6 +156,29 @@ public class FuzzTests
         Survives("Protocol.DecodeLanGame", [Protocol.Encode(Game)], bytes => Protocol.DecodeLanGame(bytes));
     }
 
+    [Fact]
+    public void Sealed_channels_their_handshakes_and_their_packets()
+    {
+        // No exception at all: what does not read is refused, or left out.
+        static bool None(Exception _) => false;
+        var open = GameLock.For(null);
+        var host = SecureChannel.Host(open, out var offer);
+        Survives("SecureChannel, offre", [offer], bytes => SecureChannel.Player(null).Take(bytes), None);
+        var player = SecureChannel.Player(null);
+        var answer = player.Take(offer).Reply!;
+        Survives("SecureChannel, réponse", [answer], bytes => SecureChannel.Host(open, out _).Take(bytes), None);
+        var accept = host.Take(answer).Reply!;
+        Survives("SecureChannel, accord", [accept, [0xE4, 1]], bytes =>
+        {
+            var other = SecureChannel.Player(null);
+            other.Take(offer);
+            other.Take(bytes);
+        }, None);
+        player.Take(accept);
+        var large = Protocol.Encode(new Message.State([.. Enumerable.Range(0, 4000).Select(i => (byte)(i % 13))]));
+        Survives("SecureChannel, paquets", [host.Seal(Protocol.Encode(new Message.Notice("Bonjour")), true), host.Seal(large, false)], bytes => player.Open(bytes), None);
+    }
+
     internal static World Battle(int seed)
     {
         var w = Scenario.CreateSkirmish(new SkirmishOptions

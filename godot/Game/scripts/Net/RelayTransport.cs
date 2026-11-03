@@ -2,8 +2,10 @@
 // played directly (Transport): nobody opens a port, each machine only connects out to the server.
 // The host opens its game there; the server numbers its players as ENet would (2 and up), so
 // each is a peer of its own for the session. A player knows its host as Transport.HostPeer.
-// Every message keeps the reliability Transport gives it, on both legs. When the server turns a
-// player away or loses it, the player hears it as its host's Bye, with the reason.
+// Every message keeps the reliability Transport gives it, on both legs, and goes sealed as over
+// Transport (Sim/Net/Secure.cs): the server carries bytes it cannot read, a host's players count
+// for its session once their channel is sealed. When the server turns a player away or loses
+// it, the player hears it as its host's Bye, with the reason.
 //
 // When both accepted the direct link (the host offering it in its lobby, the player on the
 // multiplayer screen), the server introduces them to each other (Meet): the host sends a few
@@ -35,6 +37,8 @@ public sealed class RelayTransport : ITransport
     /// <summary>Player: it accepts the direct link (a host offers it in its game as listed).</summary>
     readonly bool direct;
     string? lost;
+    /// <summary>Each peer's sealed channel, whichever way its packets go.</summary>
+    readonly SecureLinks links;
 
     /// <summary>Straight connections up, by peer as the session knows it (a player's number; for a player, its host).</summary>
     readonly Dictionary<int, ENetPacketPeer> straight = [];
@@ -46,8 +50,10 @@ public sealed class RelayTransport : ITransport
     ENetConnection? dialer;
     ENetPacketPeer? dialed;
 
-    RelayTransport(RelayLink link, bool hosting, LanGame listed, bool direct = false) =>
-        (this.link, this.hosting, this.listed, this.direct) = (link, hosting, listed, direct);
+    RelayTransport(RelayLink link, SecureLinks links, LanGame listed, bool direct = false) =>
+        (this.link, this.links, hosting, this.listed, this.direct) = (link, links, links.Hosts, listed, direct);
+
+    static double Now => Time.GetTicksMsec() / 1000.0;
 
     public Dictionary<int, long> Sent { get; } = [];
     /// <summary>Host: its game's number on the server, once listed; 0 until then.</summary>
@@ -59,21 +65,23 @@ public sealed class RelayTransport : ITransport
     /// <summary>Whether a peer is reached straight, not through the server.</summary>
     public bool Straight(int peer) => straight.ContainsKey(peer);
 
-    /// <summary>Opens a host's game on the server at `master`; null with the reason when it cannot start.</summary>
-    public static RelayTransport? Host(string master, LanGame game, out string? error)
+    /// <summary>Opens a host's game on the server at `master`, locked by `password` (null: open); null with the reason when it cannot start.</summary>
+    public static RelayTransport? Host(string master, LanGame game, string? password, out string? error)
     {
+        if ((error = SecureChannel.Missing) is not null) return null;
         var link = RelayLink.Open(master, new RelayFrame.Open(Relay.Wire, game, false, ""), out error, Lobby.MaxSeats + 2);
-        return link is null ? null : new RelayTransport(link, true, game);
+        return link is null ? null : new RelayTransport(link, SecureLinks.Hosting(GameLock.For(password)), game);
     }
 
     /// <summary>
-    /// Joins game `room` through the server at `master`, accepting the direct link if `direct`;
-    /// null with the reason when it cannot start.
+    /// Joins game `room` through the server at `master`, accepting the direct link if `direct`,
+    /// with the game's password (null: none); null with the reason when it cannot start.
     /// </summary>
-    public static RelayTransport? Join(string master, int room, bool direct, out string? error)
+    public static RelayTransport? Join(string master, int room, bool direct, string? password, out string? error)
     {
+        if ((error = SecureChannel.Missing) is not null) return null;
         var link = RelayLink.Open(master, new RelayFrame.Join(Relay.Wire, room, Protocol.Version, Ui.Menu.Version, direct), out error);
-        return link is null ? null : new RelayTransport(link, false, null!, direct);
+        return link is null ? null : new RelayTransport(link, SecureLinks.Joining(password), null!, direct);
     }
 
     public MultiplayerPeer.ConnectionStatus Status => link.Down ? MultiplayerPeer.ConnectionStatus.Disconnected
@@ -96,29 +104,36 @@ public sealed class RelayTransport : ITransport
             switch (f)
             {
                 case RelayFrame.Opened o: Room = o.Room; break;
-                case RelayFrame.Came c: came(c.Player); break;
+                case RelayFrame.Came c:
+                    if (links.Connected(c.Player, Now) is { } offer) Put(c.Player, offer, true);
+                    break;
                 case RelayFrame.Went w:
                     Forget(w.Player);
-                    went(w.Player);
+                    if (links.Gone(w.Player)) went(w.Player);
                     break;
-                case RelayFrame.FromPlayer p: Deliver(p.Player, p.Payload, received, broken); break;
+                case RelayFrame.FromPlayer p: Deliver(p.Player, p.Payload, came, received, broken); break;
                 case RelayFrame.Joined:
                     joined = true;
-                    came(Transport.HostPeer);
+                    links.Connected(Transport.HostPeer, Now);
                     break;
-                case RelayFrame.FromHost h: Deliver(Transport.HostPeer, h.Payload, received, broken); break;
+                case RelayFrame.FromHost h: Deliver(Transport.HostPeer, h.Payload, came, received, broken); break;
                 case RelayFrame.Closed c when !hosting: Farewell(c.Reason, received); break;
                 case RelayFrame.Meet m: Meet(m); break;
             }
         }, Reached, (peer, payload) =>
         {
-            if (Whose(peer) is int from) Deliver(from, payload, received, broken);
+            if (Whose(peer) is int from) Deliver(from, payload, came, received, broken);
         }, peer =>
         {
             if (Whose(peer) is int from) Forget(from);
         });
         OpenWays();
-        PollDialed(received, broken);
+        PollDialed(came, received, broken);
+        foreach (var p in links.Overdue(Now))
+        {
+            if (hosting) Drop(p);
+            else Farewell("L'hôte ne répond pas.", received);
+        }
         if (closed || !link.Down) return;
         var why = link.Problem ?? (Room > 0 || joined ? "Connexion au serveur en ligne perdue." : $"Serveur en ligne injoignable{RelayLink.Shown(link.Address)}.");
         if (hosting) lost ??= why;
@@ -192,7 +207,7 @@ public sealed class RelayTransport : ITransport
     }
 
     /// <summary>Player: its own connection to the host, polled as the link is.</summary>
-    void PollDialed(Action<int, Message> received, Action<int, Exception> broken)
+    void PollDialed(Action<int> came, Action<int, Message> received, Action<int, Exception> broken)
     {
         while (dialer is not null && dialed is not null)
         {
@@ -206,7 +221,7 @@ public sealed class RelayTransport : ITransport
                     GD.Print("[réseau] Liaison directe avec l'hôte");
                     break;
                 case ENetConnection.EventType.Receive:
-                    Deliver(Transport.HostPeer, dialed.GetPacket(), received, broken);
+                    Deliver(Transport.HostPeer, dialed.GetPacket(), came, received, broken);
                     break;
                 default:
                     Forget(Transport.HostPeer);
@@ -238,12 +253,26 @@ public sealed class RelayTransport : ITransport
         GD.Print($"[réseau] Liaison directe avec {(hosting ? $"le joueur {peer}" : "l'hôte")} perdue : relayée de nouveau");
     }
 
-    static void Deliver(int from, byte[] payload, Action<int, Message> received, Action<int, Exception> broken)
+    /// <summary>
+    /// A packet from a peer, whichever way it came: its handshake goes on (a host's players
+    /// come once sealed, a player hears a refusal as its host's Bye), or its message is opened.
+    /// </summary>
+    void Deliver(int from, byte[] payload, Action<int> came, Action<int, Message> received, Action<int, Exception> broken)
     {
+        var a = links.Received(from, payload, Now);
+        if (a.Reply is { } reply) Put(from, reply, true);
+        if (a.Refused is { } why)
+        {
+            if (hosting) GD.Print($"[réseau] Joueur {from} refusé : {why}");
+            else Farewell(why, received);
+            return;
+        }
+        if (a.Came) came(from);
+        if (a.Message is not { } bytes) return;
         Message m;
         try
         {
-            m = Protocol.Decode(payload);
+            m = Protocol.Decode(bytes);
         }
         catch (Exception e) when (e is InvalidDataException or EndOfStreamException or ArgumentException)
         {
@@ -261,18 +290,25 @@ public sealed class RelayTransport : ITransport
         received(Transport.HostPeer, new Message.Bye(why));
     }
 
-    /// <summary>A message: straight when that connection is up, else through the server; as reliable either way as Transport sends it.</summary>
+    /// <summary>A message, sealed, as reliable as Transport sends it; nothing while its channel is not.</summary>
     public void Send(int to, Message m)
     {
         var bytes = Protocol.Encode(m);
         var reliable = Transport.Reliable(m);
         var key = hosting ? to : Transport.HostPeer;
+        if (links.Seal(key, bytes, reliable) is not { } sealedBytes) return;
+        Put(key, sealedBytes, reliable);
+        Sent[to] = Sent.GetValueOrDefault(to) + bytes.Length;
+    }
+
+    /// <summary>Bytes as they are to a peer: straight when that connection is up, else through the server; as reliable either way.</summary>
+    void Put(int key, byte[] bytes, bool reliable)
+    {
         if (straight.TryGetValue(key, out var p) && p.GetState() == ENetPacketPeer.PeerState.Connected)
         {
             p.Send(reliable ? 0 : 1, bytes, reliable ? Relay.Reliable : Relay.UnreliableFragment);
         }
-        else link.Send(hosting ? new RelayFrame.ToPlayer(to, bytes) : new RelayFrame.ToHost(bytes), reliable);
-        Sent[to] = Sent.GetValueOrDefault(to) + bytes.Length;
+        else link.Send(hosting ? new RelayFrame.ToPlayer(key, bytes) : new RelayFrame.ToHost(bytes), reliable);
     }
 
     public double PopWireBytes() => link.PopSentBytes();

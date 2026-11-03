@@ -80,12 +80,13 @@ public sealed partial class Session : Node
     readonly ChatGate gate = new();
     /// <summary>How fast each player's lobby requests are taken: each one taken goes to every member, a flood would go to all.</summary>
     readonly ChatGate asks = new(ChatGate.AskBurst, ChatGate.AskEvery);
-    /// <summary>Host: the challenge given to each peer that has not said Hello yet (Passwords.cs).</summary>
-    readonly Dictionary<int, byte[]> challenges = [];
     /// <summary>Host: peers sent off, and when their connection is cut: a moment after their Bye, so that they read it first.</summary>
     readonly Dictionary<int, double> sentOff = [];
     const double ByeGrace = 0.5;
-    /// <summary>The game's password, only in memory: the host's lock, or the one a player joins with; null without one.</summary>
+    /// <summary>
+    /// The game's password, only in memory: the host's lock (its key in each channel, Secure.cs),
+    /// or the one a player joins with; null without one.
+    /// </summary>
     string? password;
     /// <summary>Host: players who left the game under way, by name, and the seat kept for them until it ends.</summary>
     readonly Dictionary<string, int> away = [];
@@ -156,7 +157,7 @@ public sealed partial class Session : Node
 
     string? Listen()
     {
-        net = Transport.Listen(Port, Lobby.MaxSeats + 2, out var error)!;
+        net = Transport.Listen(Port, Lobby.MaxSeats + 2, password, out var error)!;
         if (error is not null) return error;
         caller = new BeaconCaller();
         Begin();
@@ -169,7 +170,7 @@ public sealed partial class Session : Node
     {
         // --direct: a dev run's game offers the direct link from the start.
         if (Dev.Direct) Room!.Lobby.Direct = true;
-        relay = RelayTransport.Host(MasterAddress, Announce(Room!), out var error);
+        relay = RelayTransport.Host(MasterAddress, Announce(Room!), password, out var error);
         if (relay is null) return error;
         net = relay;
         Status = $"Inscription au serveur en ligne{RelayLink.Shown(MasterAddress)}…";
@@ -188,7 +189,7 @@ public sealed partial class Session : Node
         var s = new Session { As = Role.Client, name = PlayerName, Me = -1, target = $"« {game} » par le serveur en ligne", password = Passwords.Clean(password), watching = watch };
         (Rejoin, RejoinName) = (() => JoinOnline(room, game, password, watch, direct), $"« {game} »");
         s.Status = $"Connexion à {s.target}…";
-        s.relay = RelayTransport.Join(MasterAddress, room, direct, out var error);
+        s.relay = RelayTransport.Join(MasterAddress, room, direct, s.password, out var error);
         if (s.relay is null) return error;
         s.net = s.relay;
         s.Begin();
@@ -204,7 +205,7 @@ public sealed partial class Session : Node
         var s = new Session { As = Role.Client, Port = port, name = PlayerName, Me = -1, target = $"{address}:{port}", password = Passwords.Clean(password), watching = watch };
         (Rejoin, RejoinName) = (() => Join(address, port, password, watch), $"{address}:{port}");
         s.Status = $"Connexion à {s.target}…";
-        s.net = Transport.Join(address, port, out var error)!;
+        s.net = Transport.Join(address, port, s.password, out var error)!;
         if (error is not null) return error;
         s.Begin();
         return null;
@@ -288,18 +289,16 @@ public sealed partial class Session : Node
         foreach (var member in Room.Members) if (member.Peer != Lobby.Host) net.Send(member.Peer, m);
     }
 
-    /// <summary>A peer connects: the host gives it a challenge, which the player answers with its Hello (FromHost).</summary>
+    /// <summary>
+    /// A peer connected, its channel sealed (with the game's password, if it has one): the host
+    /// waits for its Hello, which a player says at once.
+    /// </summary>
     void Came(int peer)
     {
-        if (Hosting)
-        {
-            strangers[peer] = clock;
-            var challenge = Passwords.Challenge();
-            challenges[peer] = challenge;
-            net.Send(peer, new Message.Challenge(challenge));
-        }
+        if (Hosting) strangers[peer] = clock;
         else if (peer == Transport.HostPeer)
         {
+            net.Send(Transport.HostPeer, Protocol.Hello(Ui.Menu.Version, name, watching));
             Status = "Connecté, en attente de l'hôte…";
             Changes++;
         }
@@ -313,7 +312,6 @@ public sealed partial class Session : Node
             return;
         }
         strangers.Remove(peer);
-        challenges.Remove(peer);
         sentOff.Remove(peer);
         gate.Forget(peer);
         asks.Forget(peer);
@@ -348,8 +346,7 @@ public sealed partial class Session : Node
         if (m is Message.Hello hello)
         {
             if (!strangers.Remove(from)) return;
-            challenges.Remove(from, out var challenge);
-            var why = Protocol.Mismatch(hello, Ui.Menu.Version) ?? Unlocked(hello, challenge) ?? Admit(from, hello);
+            var why = Protocol.Mismatch(hello, Ui.Menu.Version) ?? Admit(from, hello);
             if (why is not null)
             {
                 Refuse(from, why);
@@ -467,21 +464,10 @@ public sealed partial class Session : Node
         if (As == Role.Server) Log($"{who} : {line}");
     }
 
-    /// <summary>Host: why a player's key does not open the game, or null when it does (or the game has no password).</summary>
-    string? Unlocked(Message.Hello hello, byte[]? challenge)
-    {
-        if (password is null || challenge is not null && Passwords.Opens(password, challenge, hello.Key)) return null;
-        return hello.Key.Length == 0 ? "Cette partie est protégée : saisis son mot de passe sur l'écran Multijoueur, puis rejoins-la."
-            : "Mot de passe incorrect.";
-    }
-
     void FromHost(Message m)
     {
         switch (m)
         {
-            case Message.Challenge c:
-                net.Send(Transport.HostPeer, Protocol.Hello(Ui.Menu.Version, name, Passwords.Key(password, c.Nonce), watching));
-                break;
             case Message.Welcome w:
                 (Me, Game, Status) = (w.Peer, w.Game, "");
                 break;
@@ -535,7 +521,6 @@ public sealed partial class Session : Node
     void Refuse(int peer, string why)
     {
         strangers.Remove(peer);
-        challenges.Remove(peer);
         net.Send(peer, new Message.Bye(why));
         // Cut a moment later: a connection cut at once loses what was still on its way, the reason with it.
         sentOff[peer] = clock + ByeGrace;
