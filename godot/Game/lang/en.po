@@ -115,10 +115,6 @@ msgid "Vague {0} : les Errants arrivent{1}"
 msgstr "Wave {0}: the Errants are coming{1}"
 
 #: Game/scripts/Battle/BattleScreen.Modes.cs
-msgid "Dernière vague repoussée"
-msgstr "Last wave repelled"
-
-#: Game/scripts/Battle/BattleScreen.Modes.cs
 msgid "Vague {0} repoussée"
 msgstr "Wave {0} repelled"
 
@@ -1623,16 +1619,8 @@ msgid "Détruire les points d'attache d'une station la désarme : chantier naval
 msgstr "Destroying a station's hardpoints disarms it: shipyard, hangar, shield generator, turrets. The fog of war hides what your units do not see, for the AI too. Heroes and the Titan are unique; a destroyed hero is rebuilt after a delay."
 
 #: Game/scripts/Ui/Hud.Modes.cs
-msgid "{0} vagues à repousser"
-msgstr "{0} waves to repel"
-
-#: Game/scripts/Ui/Hud.Modes.cs
 msgid "{0} dans {1}{2}"
 msgstr "{0} in {1}{2}"
-
-#: Game/scripts/Ui/Hud.Modes.cs
-msgid "Dernière vague : abattez-les tous"
-msgstr "Last wave: bring them all down"
 
 #: Game/scripts/Ui/Hud.Modes.cs
 msgid "premier à {0} points"
@@ -1661,10 +1649,6 @@ msgstr "flagships"
 #: Game/scripts/Ui/Hud.Modes.cs
 msgid "Les {0}"
 msgstr "The {0}"
-
-#: Game/scripts/Ui/Hud.Modes.cs
-msgid "Les {0} vagues sont repoussées, en {1}."
-msgstr "The {0} waves are repelled, in {1}."
 
 #: Game/scripts/Ui/Hud.Modes.cs
 msgid "Les Errants ont détruit les stations à la vague {0} : {1} repoussée{2}, tenu {3}."
@@ -4643,10 +4627,6 @@ msgid "{0}, Maj + {1}"
 msgstr "{0}, Shift + {1}"
 
 #: Game/scripts/Ui/Hud.Modes.cs
-msgid "Vague {0} / {1}"
-msgstr "Wave {0} / {1}"
-
-#: Game/scripts/Ui/Hud.Modes.cs
 msgid "Errants : {0}"
 msgstr "Errants: {0}"
 
@@ -4885,3 +4865,131 @@ msgstr "Ability"
 #: Game/scripts/Ui/Tutorial.cs
 msgid "Rappeler un groupe"
 msgstr "Recall a group"
+
+#: Game/scripts/Battle/BattleScreen.Modes.cs
+msgid "Errants d'élite, niveau {0} : plus solides, et leurs armes frappent plus fort"
+msgstr "Elite Errants, level {0}: tougher, and their weapons hit harder"
+
+#: Game/scripts/Ui/Hud.Dialogs.cs
+msgid "Fin de la survie"
+msgstr "Survival over"
+
+#: Game/scripts/Ui/Hud.Survival.cs
+msgid "armada lourde"
+msgstr "heavy armada"
+
+#: Game/scripts/Ui/Hud.Survival.cs
+msgid "score d'équipe {0}"
+msgstr "team score {0}"
+
+#: Game/scripts/Ui/Hud.Survival.cs
+msgid "{0} dans {1}"
+msgstr "{0} in {1}"
+
+#: Game/scripts/Ui/Hud.Survival.cs
+msgid "Vague à thème : {0}"
+msgstr "Themed wave: {0}"
+
+#: Game/scripts/Ui/Hud.Survival.cs
+msgid "Boss : {0}"
+msgstr "Bosses: {0}"
+
+#: Game/scripts/Ui/Hud.Survival.cs
+msgid "Errants d'élite, niveau {0}"
+msgstr "Elite Errants, level {0}"
+
+#: Game/scripts/Ui/Hud.Survival.cs
+msgid "Ton score : {0}"
+msgstr "Your score: {0}"
+
+#: Game/scripts/Ui/Hud.Survival.cs
+msgid "Vague {0} : un essaim d'Errants arrive"
+msgstr "Wave {0}: a swarm of Errants is coming"
+
+#: Game/scripts/Ui/Hud.Survival.cs
+msgid "Vague {0} : une armada lourde arrive"
+msgstr "Wave {0}: a heavy armada is coming"
+
+#: Game/scripts/Ui/Hud.Survival.cs
+msgid "Vague {0} : des porte-avions arrivent"
+msgstr "Wave {0}: carriers are coming"
+
+#: Game/scripts/Ui/Hud.Survival.cs
+msgid "Vague {0} : les Errants arrivent, boss : {1}"
+msgstr "Wave {0}: the Errants are coming, bosses: {1}"
+
+#: Game/scripts/Ui/Hud.Survival.cs
+msgid "Vague {0} : les Errants arrivent"
+msgstr "Wave {0}: the Errants are coming"
+
+#: Game/scripts/Ui/Hud.Survival.cs
+msgid "Vague {0} repoussée : +{1} crédits, +{2} points"
+msgstr "Wave {0} repelled: +{1} credits, +{2} points"
+
+#: Game/scripts/Ui/Hud.Survival.cs
+msgid "Score d'équipe : {0}"
+msgstr "Team score: {0}"
+
+#: Game/scripts/Ui/Hud.Survival.cs
+msgid "Nouveau record"
+msgstr "New record"
+
+#: Game/scripts/Ui/Hud.Survival.cs
+msgid "{0}e meilleur score"
+msgstr "Best score no. {0}"
+
+#: Game/scripts/Ui/Hud.Survival.cs
+msgid "Vague {0} atteinte, tenu {1}."
+msgstr "Reached wave {0}, held for {1}."
+
+#: Game/scripts/Ui/Hud.Survival.cs
+msgid "Score"
+msgstr "Score"
+
+#: Game/scripts/Ui/Hud.Survival.cs
+msgid "Errants abattus"
+msgstr "Errants downed"
+
+#: Game/scripts/Ui/Hud.Survival.cs
+msgid "Boss"
+msgstr "Bosses"
+
+#: Game/scripts/Ui/Hud.Survival.cs
+msgid "Pertes"
+msgstr "Losses"
+
+#: Game/scripts/Ui/Hud.Survival.cs
+msgid "Meilleurs scores à {0} joueurs"
+msgstr "Best scores with {0} players"
+
+#: Game/scripts/Ui/Hud.Survival.cs
+msgid "Meilleurs scores en solo"
+msgstr "Best solo scores"
+
+#: Game/scripts/Ui/Hud.Survival.cs
+msgid "Vague"
+msgstr "Wave"
+
+#: Game/scripts/Ui/Hud.Survival.cs
+msgid "Tenu"
+msgstr "Held"
+
+#: Game/scripts/Ui/Hud.Survival.cs
+msgid "Date"
+msgstr "Date"
+
+#: Game/scripts/Ui/Menu.Survival.cs
+msgid "Aucune partie encore : le premier score s'inscrira ici."
+msgstr "No game yet: the first score will show here."
+
+#: Game/scripts/Ui/Menu.Survival.cs
+msgid "{0}. {1} points : vague {2}, tenu {3} ({4}, le {5})"
+msgstr "{0}. {1} points: wave {2}, held for {3} ({4}, {5})"
+
+#. Hud.Survival.cs, ThemeName
+msgid "essaim"
+msgstr "swarm"
+
+#. Hud.Survival.cs, ThemeName
+msgid "porte-avions"
+msgstr "carriers"

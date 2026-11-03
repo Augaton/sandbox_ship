@@ -136,7 +136,30 @@ public partial class Hud
     {
         var box = Column(16);
         box.AddChild(Para($"Durée : {Names.Duration(World.Time)}", Palette.Muted));
-        var grid = Ignore(new GridContainer { Columns = 6 });
+        // The neutral guardians of a raid are not a player.
+        var rows = World.Factions.Values.Where(f => f.Race != Faction.Errant).Select(f =>
+        {
+            var s = f.Stats;
+            var color = f.Id == Player ? Palette.Accent : Palette.Text;
+            return (Who(f.Id, color), color, new[] { s.Built, s.Lost, s.Kills, Js.Round(s.Damage), Js.Round(s.Earned) }.Select(v => N(v)));
+        });
+        box.AddChild(Table(["Faction", "Construits", "Perdus", "Détruits", "Dégâts", "Crédits gagnés"], rows));
+        return box;
+    }
+
+    /// <summary>A side as a table names it: its emblem, then its race in `color`.</summary>
+    Control Who(Side side, Color color)
+    {
+        var who = Row(8);
+        who.AddChild(Emblem(side));
+        who.AddChild(Text(Factions.Defs[Worlds.RaceOf(World, side)].Name, color, 14));
+        return who;
+    }
+
+    /// <summary>A table of the end screens: a heading row, then a line per row, its first cell as given and its numbers to the right, in its color.</summary>
+    static GridContainer Table(string[] heads, IEnumerable<(Control First, Color Color, IEnumerable<string> Values)> rows)
+    {
+        var grid = Ignore(new GridContainer { Columns = heads.Length });
         grid.AddThemeConstantOverride("h_separation", 0);
         grid.AddThemeConstantOverride("v_separation", 0);
         var line = new StyleBoxFlat { BgColor = Colors.Transparent, BorderColor = Palette.Line, BorderWidthBottom = 1 };
@@ -149,29 +172,26 @@ public partial class Hud
             c.AddChild(content);
             grid.AddChild(c);
         }
-        Label Number(string text, Color color)
+        static Label Number(string text, Color color)
         {
             var l = Text(text, color, 14);
             l.HorizontalAlignment = HorizontalAlignment.Right;
             return l;
         }
-        string[] heads = ["Faction", "Construits", "Perdus", "Détruits", "Dégâts", "Crédits gagnés"];
-        foreach (var h in heads) Cell(h == "Faction" ? Text(h, Palette.Muted, 14) : Number(h, Palette.Muted));
-        foreach (var f in World.Factions.Values)
+        for (var i = 0; i < heads.Length; i++) Cell(i == 0 ? Text(heads[i], Palette.Muted, 14) : Number(heads[i], Palette.Muted));
+        foreach (var (first, color, values) in rows)
         {
-            // The neutral guardians of a raid are not a player.
-            if (f.Race == Faction.Errant) continue;
-            var s = f.Stats;
-            var color = f.Id == Player ? Palette.Accent : Palette.Text;
-            var who = Row(8);
-            who.AddChild(Emblem(f.Id));
-            who.AddChild(Text(Factions.Defs[f.Race].Name, color, 14));
-            Cell(who);
-            foreach (var v in new[] { s.Built, s.Lost, s.Kills, Js.Round(s.Damage), Js.Round(s.Earned) }) Cell(Number(N(v), color));
+            Cell(first);
+            foreach (var v in values) Cell(Number(v, color));
         }
-        box.AddChild(grid);
-        return box;
+        return grid;
     }
+
+    /// <summary>The end screen's title: a survival game comes to its end, there is no winning it.</summary>
+    string EndTitle(bool won) => World.Mode.Kind == BattleMode.Survival ? "Fin de la survie" : won ? "Victoire" : "Défaite";
+
+    /// <summary>The end screen's table: a survival game's scoreboard, else each faction's record.</summary>
+    Control EndTable() => World.Mode.Kind == BattleMode.Survival ? SurvivalEnd() : StatsTable();
 
     public void ShowEnd(bool won)
     {
@@ -185,8 +205,7 @@ public partial class Hud
         var reroll = Button("Nouvelle carte", () => scene.Restart(true));
         var menu = Button("Menu", scene.ToMenu);
         var close = Button("Continuer à regarder", CloseModal);
-        OpenModal(Dialog(won ? "Victoire" : "Défaite",
-            Para(EndText(won), max: 672), StatsTable(), Actions(again, reroll, menu, close)));
+        OpenModal(Dialog(EndTitle(won), Para(EndText(won), max: 672), EndTable(), Actions(again, reroll, menu, close)));
     }
 
     /// <summary>End of a campaign battle: the only way on is back to the galaxy map. `watched`: who won, for one who only watched it.</summary>
