@@ -6,7 +6,7 @@
 // EndOfStreamException.
 //
 //   player -> host  Hello, Ask, Launch (leader), Order, Pause, Back (leader), Plan, Watch, Ack, Say, Spectate
-//   host -> player  Welcome, Bye, Room, Start, State, Refused, Pause, Notice, Back, News, Chart, Map, Tidings, Engage, Over, Said
+//   host -> player  Welcome, Bye, Room, Start, State, Refused, Pause, Notice, Back, News, Chart, Map, Tidings, Engage, Over, Said, Record
 //
 // A player joins: once their channel is sealed (with the password, if the game has one), it says
 // Hello with its versions, its name and whether it comes only to watch. The host answers Welcome and sends the Room
@@ -91,6 +91,8 @@ public abstract record Message
     public sealed record Spectate(int Side) : Message;
     /// <summary>A line of chat, relayed to everyone: who wrote it (empty: the game itself, to that player alone) and what.</summary>
     public sealed record Said(string Who, string Text) : Message;
+    /// <summary>The battle over time (BattleHistory.Write), once it is decided, for the end screen: sent once, before the events that end it.</summary>
+    public sealed record Record(byte[] History) : Message;
 }
 
 /// <summary>
@@ -109,8 +111,9 @@ public static class Protocol
     /// 3: acknowledged battle snapshots (Ack), the campaign's chart apart (Chart). 4: the chat (Say,
     /// Said), the challenge of a password (Challenge, Hello's key) and players who only watch (Hello's Watches).
     /// 5: every message sealed (Secure.cs), the password in the keys: no more Challenge nor Hello's key.
+    /// 6: the battle over time at its end (Record).
     /// </summary>
-    public const int Version = 5;
+    public const int Version = 6;
     /// <summary>Where a host listens for players, unless told otherwise.</summary>
     public const int DefaultPort = 24680;
     /// <summary>Where hosts call out to the local network, and the join screen listens.</summary>
@@ -123,7 +126,7 @@ public static class Protocol
     const int MaxText = 200, MaxLobby = 64 * 1024, MaxMembers = 64;
     const uint BeaconMagic = 0x43425353;
 
-    enum Tag : byte { Hello = 1, Welcome, Bye, Room, Ask, Launch, Start, Order, State, Refused, Pause, Notice, Back, News, Plan, Map, Tidings, Engage, Watch, Over, Ack, Chart, Say, Said, Spectate = 26 }
+    enum Tag : byte { Hello = 1, Welcome, Bye, Room, Ask, Launch, Start, Order, State, Refused, Pause, Notice, Back, News, Plan, Map, Tidings, Engage, Watch, Over, Ack, Chart, Say, Said, Spectate = 26, Record }
 
     public static byte[] Encode(Message m)
     {
@@ -195,6 +198,7 @@ public static class Protocol
             case Message.Say s: w.Write((byte)Tag.Say); w.Write(s.Text); break;
             case Message.Spectate s: w.Write((byte)Tag.Spectate); w.Write7BitEncodedInt(s.Side + 1); break;
             case Message.Said s: w.Write((byte)Tag.Said); w.Write(s.Who); w.Write(s.Text); break;
+            case Message.Record h: w.Write((byte)Tag.Record); w.Write(h.History); break;
             default: throw new ArgumentException($"Message sans format : {m.GetType().Name}");
         }
     }
@@ -227,6 +231,7 @@ public static class Protocol
         Tag.Say => new Message.Say(Text(r, Chat.MaxBytes)),
         Tag.Spectate => new Message.Spectate(r.ReadVarint() - 1),
         Tag.Said => new Message.Said(Text(r), Text(r, Chat.MaxBytes)),
+        Tag.Record => new Message.Record(Rest(r)),
         var tag => throw new InvalidDataException($"Message inconnu : {tag}"),
     };
 

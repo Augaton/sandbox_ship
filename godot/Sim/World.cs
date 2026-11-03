@@ -209,6 +209,9 @@ public sealed class Entity : IPoint
     public double? Expires;
     /// <summary>Side that hit it last: the kill is theirs.</summary>
     public Side? LastHitBy;
+    /// <summary>What it destroyed and what that was worth, as BattleHistory.Credit counts it, for the end screen (not in the web version).</summary>
+    public int Kills;
+    public double KilledValue;
     /// <summary>World time of the last hit it took.</summary>
     public double HitAt = double.NegativeInfinity;
     /// <summary>Station parts lost and waiting to be rebuilt.</summary>
@@ -450,6 +453,8 @@ public sealed class World
     public SkirmishOptions? Origin;
     /// <summary>The commands applied to the world, while they are kept for a replay (Replays.cs).</summary>
     public ReplayLog? Log;
+    /// <summary>The battle over time, for its end screen (BattleHistory.cs); a player's copy is the host's, sent at the end. Null: none kept.</summary>
+    public BattleHistory? History = new();
 }
 
 /// <summary>The web version's names of ship classes, structures and parts.</summary>

@@ -137,13 +137,18 @@ public partial class Hud
         var box = Column(16);
         box.AddChild(Para($"Durée : {Names.Duration(World.Time)}", Palette.Muted));
         // The neutral guardians of a raid are not a player.
+        // What a side spent comes from the battle's history, its last sample.
+        var history = World.History is { Times.Count: > 0 } h ? h : null;
         var rows = World.Factions.Values.Where(f => f.Race != Faction.Errant).Select(f =>
         {
             var s = f.Stats;
             var color = f.Id == Player ? Palette.Accent : Palette.Text;
-            return (Who(f.Id, color), color, new[] { s.Built, s.Lost, s.Kills, Js.Round(s.Damage), Js.Round(s.Earned) }.Select(v => N(v)));
+            var values = new[] { s.Built, s.Lost, s.Kills, Js.Round(s.Damage), Js.Round(s.Earned) }.Select(v => N(v));
+            if (history is not null) values = values.Append(history.Sides.TryGetValue(f.Id, out var points) ? N(Js.Round(points[^1].Spent)) : "-");
+            return (Who(f.Id, color), color, values);
         });
-        box.AddChild(Table(["Faction", "Construits", "Perdus", "Détruits", "Dégâts", "Crédits gagnés"], rows));
+        string[] heads = ["Faction", "Construits", "Perdus", "Détruits", "Dégâts", "Crédits gagnés"];
+        box.AddChild(Table(history is not null ? [.. heads, "Dépensés"] : heads, rows));
         return box;
     }
 
@@ -190,11 +195,13 @@ public partial class Hud
     /// <summary>The end screen's title: a survival game comes to its end, there is no winning it.</summary>
     string EndTitle(bool won) => World.Mode.Kind == BattleMode.Survival ? "Fin de la survie" : won ? "Victoire" : "Défaite";
 
-    /// <summary>The end screen's table: a survival game's scoreboard, else each faction's record.</summary>
-    Control EndTable() => World.Mode.Kind == BattleMode.Survival ? SurvivalEnd() : StatsTable();
+    /// <summary>The end screen's table: a survival game's scoreboard, else each faction's record; the battle over time under it.</summary>
+    Control EndTable() => WithCharts(World.Mode.Kind == BattleMode.Survival ? SurvivalEnd() : StatsTable());
 
     public void ShowEnd(bool won)
     {
+        // A battle played here takes its last sample now; a player's comes from the host (Message.Record).
+        if (scene.Opts.Net is null) World.History?.Close(World);
         PlayerProfile.BattleEnded(scene, won);
         Music.Sting(won);
         if (scene.Opts.Net is not null)
@@ -213,10 +220,11 @@ public partial class Hud
     public void ShowBattleEnd(bool won, Action onBack, string? watched = null)
     {
         if (watched is null) PlayerProfile.BattleEnded(scene, won);
+        if (scene.Opts.Net is null) World.History?.Close(World);
         var back = Primary(Button("Retour à la carte", onBack));
         OpenModal(Dialog(watched is not null ? "Bataille terminée" : won ? "Victoire" : "Défaite",
             Para($"{watched ?? (won ? "La bataille est gagnée." : "La bataille est perdue.")} Les survivants regagnent la carte galactique.", max: 672),
-            StatsTable(), Actions(back)));
+            WithCharts(StatsTable()), Actions(back)));
     }
 
     /// <summary>Asks before an action that loses progress; `back` runs if the player changes their mind.</summary>

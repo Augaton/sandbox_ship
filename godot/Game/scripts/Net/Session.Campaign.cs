@@ -313,6 +313,17 @@ public sealed partial class Session
                 Send(new Message.Ack(part.Completed));
                 ShowFront();
                 return true;
+            // The battle over time, for the end screen: one that cannot be read only leaves the curves out.
+            case Message.Record rec when front is not null:
+                try
+                {
+                    front.World.History = BattleHistory.Read(Reader(rec.History));
+                }
+                catch (Exception e) when (e is InvalidDataException or EndOfStreamException)
+                {
+                    Log($"Historique de la bataille illisible : {e.Message}");
+                }
+                return true;
             case Message.News n when front is not null:
                 Read(() => Snapshot.ReadEvents(Reader(n.Events), front.World));
                 return true;

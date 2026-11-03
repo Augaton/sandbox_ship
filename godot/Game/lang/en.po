@@ -5465,3 +5465,35 @@ msgstr "The host did not prove it knows the password: the connection may be inte
 #: Sim/Net/Secure.cs
 msgid "Échange illisible."
 msgstr "Unreadable exchange."
+
+#: Game/scripts/Ui/Hud.Charts.cs
+msgid "Armée en vol"
+msgstr "Fleet in flight"
+
+#: Game/scripts/Ui/Hud.Charts.cs
+msgid "Tes meilleurs vaisseaux"
+msgstr "Your best ships"
+
+#: Game/scripts/Ui/Hud.Charts.cs
+msgid "{0} destructions pour {1} crédits"
+msgstr "{0} kills worth {1} credits"
+
+#: Game/scripts/Ui/Hud.Charts.cs
+msgid "en service"
+msgstr "still flying"
+
+#: Game/scripts/Ui/Hud.Charts.cs
+msgid "détruit"
+msgstr "destroyed"
+
+#: Game/scripts/Ui/Hud.Dialogs.cs
+msgid "Dépensés"
+msgstr "Spent"
+
+#: Sim/BattleHistory.cs
+msgid "Échantillons"
+msgstr "Samples"
+
+#: Sim/BattleHistory.cs
+msgid "Camps"
+msgstr "Sides"

@@ -342,7 +342,12 @@ public static class Worlds
             if (e.Kind != EntityKind.Hardpoint && !e.Launched)
             {
                 if (e.Kind == EntityKind.Ship && world.Factions.TryGetValue(e.Side, out var own)) own.Stats.Lost++;
-                if (e.LastHitBy is Side by && by != e.Side && world.Factions.TryGetValue(by, out var killer)) killer.Stats.Kills++;
+                if (e.LastHitBy is Side by && by != e.Side && world.Factions.TryGetValue(by, out var killer))
+                {
+                    killer.Stats.Kills++;
+                    world.History?.Credit(world, e, by);
+                }
+                if (e.Kind == EntityKind.Ship) world.History?.Lost(e);
                 Modes.Downed(world, e);
             }
             // A ship shot down pays its killer, hangar craft included.
