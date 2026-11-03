@@ -1,11 +1,13 @@
 # Tests, exports and releases of the native game (godot/).
 # Every push and pull request: the simulation's tests, then the Linux and Windows exports,
-# kept as the run's artifacts. Then both archives are published:
+# kept as the run's artifacts, with an AppImage for Linux and an installer for Windows. Then
+# all of them are published:
 # - a push on main or dev replaces that branch's pre-release (main-build, dev-build), whose
-#   archives keep the same names, so the same download addresses, from one commit to the next;
+#   files keep the same names, so the same download addresses, from one commit to the next;
 # - a tag vX.Y.Z makes the version's release, once the version in the game matches the tag,
 #   and goes to itch.io if the repository names the game there (see the itch job).
-# Before anything is published, both exports are started without a window, each on its system.
+# Before anything is published, both exports are started without a window, each on its system,
+# and so are the AppImage and the game as the installer installs it.
 # The online server on its own (godot/Relay) is built, started and published beside them.
 # Pull requests publish nothing. Actions are pinned to their commits, downloads to their hashes.
 name: Build
@@ -142,6 +144,7 @@ jobs:
             refs/tags/v*|refs/heads/main|refs/heads/dev) v="$GITHUB_REF_NAME" ;;
             *) v="build-${GITHUB_SHA::7}" ;;
           esac
+          echo "BUILD_NAME=$v" >> "$GITHUB_ENV"
           mkdir -p ../../dist
           mv linux "SandboxShip-$v-linux-x86_64"
           tar -czf "../../dist/SandboxShip-$v-linux-x86_64.tar.gz" "SandboxShip-$v-linux-x86_64"
@@ -153,6 +156,36 @@ jobs:
         with:
           name: sandbox-ship
           path: dist/*
+          if-no-files-found: error
+
+      # The Linux export as an AppImage too (godot/packaging/appimage.sh), by appimagetool and the
+      # AppImage runtime at a version and a hash of their own, never whatever "continuous" is that day.
+      - name: AppImage
+        working-directory: godot/build
+        run: |
+          curl -fsSL --retry 3 -o "$RUNNER_TEMP/appimagetool" https://github.com/AppImage/appimagetool/releases/download/1.9.1/appimagetool-x86_64.AppImage
+          curl -fsSL --retry 3 -o "$RUNNER_TEMP/runtime" https://github.com/AppImage/type2-runtime/releases/download/20251108/runtime-x86_64
+          sha256sum -c - <<EOF
+          ed4ce84f0d9caff66f50bcca6ff6f35aae54ce8135408b3fa33abfc3cb384eb0  $RUNNER_TEMP/appimagetool
+          2fca8b443c92510f1483a883f60061ad09b46b978b2631c807cd873a47ec260d  $RUNNER_TEMP/runtime
+          EOF
+          chmod +x "$RUNNER_TEMP/appimagetool"
+          mkdir -p ../../dist-appimage
+          ../packaging/appimage.sh "SandboxShip-$BUILD_NAME-linux-x86_64" "../../dist-appimage/SandboxShip-$BUILD_NAME-linux-x86_64.AppImage" \
+            "$RUNNER_TEMP/appimagetool" "$RUNNER_TEMP/runtime"
+
+      # The AppImage starts a battle as the export did. It unpacks itself to run: FUSE, which
+      # mounts it on a player's machine, is not certain on the runner.
+      - name: Démarrage de l'AppImage
+        run: |
+          APPIMAGE_EXTRACT_AND_RUN=1 timeout 300 "dist-appimage/SandboxShip-$BUILD_NAME-linux-x86_64.AppImage" \
+            --headless --log-file "$RUNNER_TEMP/smoke-appimage.log" -- --start=battle --shot="$RUNNER_TEMP/smoke.png" --frames=300
+          grep -q "^Capture" "$RUNNER_TEMP/smoke-appimage.log" || { cat "$RUNNER_TEMP/smoke-appimage.log"; echo "::error::l'AppImage n'a pas tenu jusqu'au bout"; exit 1; }
+
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: sandbox-ship-appimage
+          path: dist-appimage/*
           if-no-files-found: error
 
   # The online server on its own (godot/Relay): its ENet built from its pinned source, then the
@@ -196,13 +229,17 @@ jobs:
           path: dist/*
           if-no-files-found: error
 
-  # The Windows export, started on Windows itself, as the Linux one above.
+  # The Windows export, started on Windows itself, as the Linux one above; then its installer,
+  # made, installed and started there too.
   smoke-windows:
-    name: Démarrage de l'export Windows
+    name: Export Windows, démarrage et installeur
     needs: export
     runs-on: windows-latest
-    timeout-minutes: 15
+    timeout-minutes: 20
     steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          sparse-checkout: godot/packaging
       - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
         with:
           name: sandbox-ship
@@ -224,6 +261,79 @@ jobs:
             }
           }
 
+      # Inno Setup makes the installer (godot/packaging/SandboxShip.iss): it installs for the player
+      # alone, with no administrator rights, and is a Windows program, made and tried on the same
+      # machine. Its own setup at a version and a hash of its own, installed in the runner's temp.
+      - name: Installeur
+        shell: pwsh
+        run: |
+          $setup = Join-Path $env:RUNNER_TEMP "innosetup-6.7.3.exe"
+          Invoke-WebRequest https://github.com/jrsoftware/issrc/releases/download/is-6_7_3/innosetup-6.7.3.exe -OutFile $setup
+          if ((Get-FileHash $setup -Algorithm SHA256).Hash -ne "9C73C3BAE7ED48D44112A0F48E66742C00090BDB5BEF71D9D3C056C66E97B732") {
+            Write-Error "Inno Setup n'a pas l'empreinte attendue"
+            exit 1
+          }
+          $inno = Join-Path $env:RUNNER_TEMP "inno"
+          Start-Process $setup -Wait -ArgumentList "/VERYSILENT", "/SUPPRESSMSGBOXES", "/NORESTART", "/SP-", "/DIR=`"$inno`""
+          # The archive unpacked again: the folder started above holds the capture it took.
+          $zip = Get-ChildItem dist -Filter "*-windows-x86_64.zip" | Select-Object -First 1
+          $v = $zip.Name -replace '^SandboxShip-(.+)-windows-x86_64\.zip$', '$1'
+          Expand-Archive $zip.FullName -DestinationPath installer-source
+          $source = (Get-ChildItem installer-source -Directory | Select-Object -First 1).FullName
+          $out = (New-Item -ItemType Directory -Force dist-installer).FullName
+          & (Join-Path $inno "ISCC.exe") /Q "/DVersion=$v" "/DSource=$source" "/O$out" godot\packaging\SandboxShip.iss
+          if ($LASTEXITCODE -ne 0) { exit 1 }
+          Get-ChildItem dist-installer
+
+      # The installer installs in silence; the game it installed starts a battle as the export did,
+      # then the uninstaller takes it away and keeps the player's files.
+      - name: Installation, démarrage et désinstallation
+        shell: pwsh
+        run: |
+          $setup = Get-ChildItem dist-installer -Filter "*-setup.exe" | Select-Object -First 1
+          $installLog = Join-Path $env:RUNNER_TEMP "install.log"
+          $p = Start-Process $setup.FullName -Wait -PassThru -ArgumentList "/VERYSILENT", "/SUPPRESSMSGBOXES", "/NORESTART", "/LOG=`"$installLog`""
+          $app = Join-Path $env:LOCALAPPDATA "Programs\Sandbox Ship"
+          $exe = Join-Path $app "SandboxShip.exe"
+          $shortcut = Join-Path $env:APPDATA "Microsoft\Windows\Start Menu\Programs\Sandbox Ship.lnk"
+          if ($p.ExitCode -ne 0 -or -not (Test-Path $exe) -or -not (Test-Path $shortcut)) {
+            Get-Content $installLog
+            Write-Error "l'installation n'est pas complète (code $($p.ExitCode))"
+            exit 1
+          }
+          $log = Join-Path $env:RUNNER_TEMP "smoke-installed.log"
+          $shot = Join-Path $env:RUNNER_TEMP "smoke-installed.png"
+          $g = Start-Process -FilePath $exe -WorkingDirectory $app -Wait -PassThru `
+            -ArgumentList "--headless", "--log-file", "`"$log`"", "--", "--start=battle", "--shot=`"$shot`"", "--frames=300"
+          if (-not (Select-String -Path $log -Pattern "^Capture" -Quiet)) {
+            Get-Content $log
+            Write-Error "le jeu installé n'a pas tenu jusqu'au bout (code $($g.ExitCode))"
+            exit 1
+          }
+          # A file of the player's: the uninstall must leave it where it is.
+          $saves = Join-Path $env:APPDATA "Godot\app_userdata\Sandbox Ship"
+          New-Item -ItemType Directory -Force $saves | Out-Null
+          $kept = Join-Path $saves "uninstall-keeps-this.txt"
+          Set-Content $kept "x"
+          Start-Process (Join-Path $app "unins000.exe") -Wait -ArgumentList "/VERYSILENT", "/SUPPRESSMSGBOXES", "/NORESTART"
+          # The uninstaller goes on from a copy of itself: it is done once the game's folder is gone.
+          for ($i = 0; $i -lt 60 -and (Test-Path $app); $i++) { Start-Sleep -Seconds 1 }
+          if ((Test-Path $app) -or (Test-Path $shortcut)) {
+            if (Test-Path $app) { Get-ChildItem $app -Recurse | Select-Object -First 20 }
+            Write-Error "la désinstallation n'est pas complète"
+            exit 1
+          }
+          if (-not (Test-Path $kept)) {
+            Write-Error "la désinstallation a effacé les fichiers du joueur"
+            exit 1
+          }
+
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: sandbox-ship-installer
+          path: dist-installer/*
+          if-no-files-found: error
+
   release:
     name: Publication
     if: github.event_name != 'pull_request' && (startsWith(github.ref, 'refs/tags/v') || github.ref == 'refs/heads/main' || github.ref == 'refs/heads/dev')
@@ -232,7 +342,7 @@ jobs:
     permissions:
       contents: write
     steps:
-      # The game's archives and the online server's, side by side.
+      # The game's archives, its AppImage and installer, and the online server's archive, side by side.
       - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
         with:
           pattern: sandbox-ship*

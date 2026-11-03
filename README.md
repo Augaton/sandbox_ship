@@ -42,14 +42,28 @@ seul contre l'IA ou jusqu'à six joueurs en réseau, par équipes.
 
 ## Jouer
 
-Les archives de chaque version sont sur la page [Releases](../../releases). Les pré-releases
+Les fichiers de chaque version sont sur la page [Releases](../../releases). Les pré-releases
 `main-build` et `dev-build` portent le dernier état de chaque branche, refait à chaque push.
-L'exécutable et son dossier `data_Game_*` restent côte à côte.
 
-- **Linux** : extraire l'archive, puis lancer `./SandboxShip.x86_64`.
-- **Windows** : extraire le zip, puis lancer `SandboxShip.exe`. L'exécutable n'est pas signé :
-  si Windows affiche « Windows a protégé votre ordinateur », choisir « Informations
-  complémentaires », puis « Exécuter quand même ».
+- **Linux, AppImage** : télécharger `SandboxShip-<version>-linux-x86_64.AppImage`, le rendre
+  exécutable (`chmod +x SandboxShip-*.AppImage`, ou Propriétés, « Exécutable »), puis le lancer.
+  Il faut FUSE (paquet `fuse3` ou `fuse`), présent sur la plupart des distributions ; sans lui,
+  lancer l'AppImage avec `--appimage-extract-and-run`. Les sauvegardes restent dans
+  `~/.local/share/godot/app_userdata/Sandbox Ship`, hors de l'AppImage : une version plus
+  récente les retrouve.
+- **Windows, installeur** : lancer `SandboxShip-<version>-windows-x86_64-setup.exe`. Il installe
+  le jeu pour l'utilisateur seul, sans droits d'administrateur, dans
+  `%LOCALAPPDATA%\Programs\Sandbox Ship`, avec un raccourci au menu Démarrer ; une version plus
+  récente s'installe par-dessus. Pour désinstaller : Paramètres, Applications, Sandbox Ship. Les
+  sauvegardes, les réglages et le profil (`%APPDATA%\Godot\app_userdata\Sandbox Ship`) restent,
+  sauf si l'on choisit de les effacer. Sans fenêtre : `SandboxShip-…-setup.exe /VERYSILENT`, et
+  `unins000.exe /VERYSILENT` dans le dossier du jeu, qui garde alors les sauvegardes.
+- **Archives** : extraire l'archive Linux, puis lancer `./SandboxShip.x86_64` ; ou le zip
+  Windows, puis lancer `SandboxShip.exe`. L'exécutable et son dossier `data_Game_*` restent côte
+  à côte.
+
+Ni l'installeur ni l'exécutable Windows ne sont signés : si Windows affiche « Windows a protégé
+votre ordinateur », choisir « Informations complémentaires », puis « Exécuter quand même ».
 
 Les commandes principales en bataille ; toutes sont dans le jeu, menu « Commandes » :
 
@@ -79,6 +93,10 @@ godot --headless --export-release "Linux" ../build/linux/SandboxShip.x86_64
 godot --headless --export-release "Windows" ../build/windows/SandboxShip.exe
 ```
 
+L'AppImage se fait à partir de l'export Linux par `godot/packaging/appimage.sh`, l'installeur
+Windows par Inno Setup avec `godot/packaging/SandboxShip.iss` ; les versions des outils et leur
+usage sont dans la CI.
+
 Les options de lancement, le jeu en réseau et les serveurs sont décrits dans
 [godot/README.md](godot/README.md) ; l'avancement et les règles propres à cette version, dans
 [godot/PLAN.md](godot/PLAN.md).
@@ -87,10 +105,10 @@ Les options de lancement, le jeu en réseau et les serveurs sont décrits dans
 
 La CI GitHub ([.github/workflows/build.yml](.github/workflows/build.yml)) lance les tests, puis
 les exports Linux et Windows, à chaque push sur `main` ou `dev` et à chaque pull request, et
-garde les archives dans le run. Elle les publie ensuite :
+garde dans le run les archives, l'AppImage et l'installeur Windows. Elle les publie ensuite :
 
 - un push sur `main` ou `dev` refait la pré-release de la branche (`main-build`, `dev-build`).
-  Ses archives gardent le même nom d'un commit à l'autre, donc la même adresse de
+  Ses fichiers gardent le même nom d'un commit à l'autre, donc la même adresse de
   téléchargement, par exemple `releases/download/dev-build/SandboxShip-dev-linux-x86_64.tar.gz` ;
 - un tag `vX.Y.Z` publie la release de la version, après avoir vérifié que le jeu porte bien ce
   numéro ;
@@ -98,7 +116,11 @@ garde les archives dans le run. Elle les publie ensuite :
 
 Avant toute publication, les deux exports sont lancés sans fenêtre, chacun sur son système
 (Linux, puis Windows sur une machine Windows de GitHub) : une bataille et la campagne doivent
-tourner quelques centaines d'images et s'arrêter d'elles-mêmes.
+tourner quelques centaines d'images et s'arrêter d'elles-mêmes. L'AppImage lance de même une
+bataille. Sur la machine Windows, l'installeur s'installe en silence, le jeu installé lance une
+bataille, puis le désinstalleur l'enlève en gardant les fichiers du joueur. Les paquets sont
+faits par appimagetool et son runtime, et par Inno Setup, chacun téléchargé à une version et
+une empreinte figées ([godot/packaging/](godot/packaging/)).
 
 Une version part aussi sur itch.io si le dépôt nomme la page du jeu dans la variable
 `ITCH_GAME` (par exemple `augaton/sandbox-ship`, dans Settings, Secrets and variables, Actions,

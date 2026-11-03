@@ -41,13 +41,27 @@ The screenshots show the game in French; it plays in English too (Options, Langu
 
 ## Playing
 
-Every version's archives are on the [Releases](../../releases) page. The `main-build` and
-`dev-build` pre-releases carry the latest state of each branch, rebuilt on every push. Keep the
-executable and its `data_Game_*` folder side by side.
+Every version's files are on the [Releases](../../releases) page. The `main-build` and
+`dev-build` pre-releases carry the latest state of each branch, rebuilt on every push.
 
-- **Linux**: extract the archive, then run `./SandboxShip.x86_64`.
-- **Windows**: extract the zip, then run `SandboxShip.exe`. The executable is not signed: if
-  Windows shows "Windows protected your PC", choose "More info", then "Run anyway".
+- **Linux, AppImage**: download `SandboxShip-<version>-linux-x86_64.AppImage`, make it
+  executable (`chmod +x SandboxShip-*.AppImage`, or Properties, "Executable"), then run it. It
+  needs FUSE (the `fuse3` or `fuse` package), there on most distributions; without it, run the
+  AppImage with `--appimage-extract-and-run`. The saves stay in
+  `~/.local/share/godot/app_userdata/Sandbox Ship`, outside the AppImage: a newer version finds
+  them.
+- **Windows, installer**: run `SandboxShip-<version>-windows-x86_64-setup.exe`. It installs the
+  game for the current user only, without administrator rights, in
+  `%LOCALAPPDATA%\Programs\Sandbox Ship`, with a Start menu shortcut; a newer version installs
+  over it. To uninstall: Settings, Apps, Sandbox Ship. The saves, settings and profile
+  (`%APPDATA%\Godot\app_userdata\Sandbox Ship`) stay, unless you choose to delete them. Without
+  a window: `SandboxShip-…-setup.exe /VERYSILENT`, and `unins000.exe /VERYSILENT` in the game's
+  folder, which then keeps the saves.
+- **Archives**: extract the Linux archive, then run `./SandboxShip.x86_64`; or the Windows zip,
+  then run `SandboxShip.exe`. Keep the executable and its `data_Game_*` folder side by side.
+
+Neither the installer nor the Windows executable is signed: if Windows shows "Windows protected
+your PC", choose "More info", then "Run anyway".
 
 The main battle controls; all of them are in the game, "Controls" menu:
 
@@ -79,6 +93,10 @@ godot --headless --export-release "Linux" ../build/linux/SandboxShip.x86_64
 godot --headless --export-release "Windows" ../build/windows/SandboxShip.exe
 ```
 
+The AppImage is made from the Linux export by `godot/packaging/appimage.sh`, the Windows
+installer by Inno Setup with `godot/packaging/SandboxShip.iss`; the tools' versions and how they
+are used are in the CI.
+
 The code and its documentation are in French. Launch options, network play and servers are
 described in [godot/README.md](godot/README.md); progress and the rules of this version, in
 [godot/PLAN.md](godot/PLAN.md).
@@ -99,16 +117,20 @@ godot/tools/lang-check.sh "godot --path godot/Game" missing.txt   # texts shown 
 
 The GitHub CI ([.github/workflows/build.yml](.github/workflows/build.yml)) runs the tests, then
 the Linux and Windows exports, on every push to `main` or `dev` and on every pull request, and
-keeps the archives in the run. It then publishes them:
+keeps the archives, the AppImage and the Windows installer in the run. It then publishes them:
 
 - a push to `main` or `dev` rebuilds that branch's pre-release (`main-build`, `dev-build`), whose
-  archives keep the same names, so the same download addresses;
+  files keep the same names, so the same download addresses;
 - a `vX.Y.Z` tag publishes the version's release, once the game carries that number;
 - a pull request publishes nothing.
 
 Before anything is published, both exports are started without a window, each on its own
-system: a battle and the campaign must run a few hundred frames and stop by themselves. A
-version also goes to itch.io when the repository names the game in the `ITCH_GAME` variable and
+system: a battle and the campaign must run a few hundred frames and stop by themselves. The
+AppImage starts a battle the same way. On the Windows machine, the installer installs silently,
+the installed game starts a battle, then the uninstaller removes it and keeps the player's
+files. The packages are made by appimagetool and its runtime, and by Inno Setup, each
+downloaded at a pinned version and hash ([godot/packaging/](godot/packaging/)). A version also
+goes to itch.io when the repository names the game in the `ITCH_GAME` variable and
 butler's key is in the `BUTLER_API_KEY` secret.
 
 ## The repository

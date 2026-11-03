@@ -1,0 +1,11 @@
+[Desktop Entry]
+Type=Application
+Name=Sandbox Ship
+GenericName=Stratégie spatiale
+GenericName[en]=Space strategy
+Comment=Stratégie spatiale en temps réel, seul contre l'IA ou en réseau
+Comment[en]=Real-time space strategy, alone against the AI or over the network
+Exec=SandboxShip.x86_64
+Icon=sandbox-ship
+Terminal=false
+Categories=Game;StrategyGame;
