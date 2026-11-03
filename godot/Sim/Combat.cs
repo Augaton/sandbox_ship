@@ -535,9 +535,11 @@ public static class Combat
     {
         foreach (var e in world.Entities)
         {
+            // Slower in a nebula (Terrain.cs).
+            var share = Terrains.RepairShare(world, e);
             // Biomechanical hulls mend themselves, but a ship already lost stays lost.
             var regen = Factions.Trait(e.Race).HullRegen;
-            if (regen > 0 && e.Kind == EntityKind.Ship && e.Hull > 0) e.Hull = Math.Min(e.MaxHull, e.Hull + e.MaxHull * regen * dt);
+            if (regen > 0 && e.Kind == EntityKind.Ship && e.Hull > 0) e.Hull = Math.Min(e.MaxHull, e.Hull + e.MaxHull * regen * share * dt);
             if (e.MaxShield <= 0 || !Operational(e) || e.Effects.Stunned > 0) continue;
             if (e.ShieldDown > 0)
             {
@@ -550,7 +552,7 @@ public static class Combat
                 continue;
             }
             var boost = IsActive(world, e, AbilityId.Overcharge) ? 4 : 1;
-            e.Shield = Math.Min(e.MaxShield, e.Shield + e.ShieldRegen * boost * Terrains.ShieldShare(world, e) * dt);
+            e.Shield = Math.Min(e.MaxShield, e.Shield + e.ShieldRegen * boost * share * dt);
         }
     }
 

@@ -112,8 +112,11 @@ public sealed class Lobby
     /// <summary>The sandbox shows everything; the campaign's battles keep their own fog.</summary>
     [JsonIgnore]
     public bool HasFog => Mode is not (LobbyMode.Campaign or LobbyMode.Sandbox);
-    /// <summary>Every battle has terrain to choose; the campaign's take their planet's (a nebula's cloud, Terrains.PlanetNebula).</summary>
-    public bool HasTerrain => Mode != LobbyMode.Campaign;
+    /// <summary>
+    /// Every battle has terrain to choose but an assault, which has none (Terrains.Generate); the
+    /// campaign's take their planet's (a nebula's cloud, Terrains.PlanetNebula).
+    /// </summary>
+    public bool HasTerrain => Mode is not (LobbyMode.Campaign or LobbyMode.Assault);
     [JsonIgnore]
     public bool ClassicAllowed => Playing.Count() == 2;
 

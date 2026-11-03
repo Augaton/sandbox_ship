@@ -48,8 +48,12 @@ public sealed record MineBlast(double X, double Y) : SimEvent;
 
 public static class Terrains
 {
-    /// <summary>A ship in a nebula is seen only this close, whatever looks at it; its shields there come back at this share.</summary>
-    public const double NebulaSight = 320, NebulaShields = 0.35;
+    /// <summary>
+    /// A ship in a nebula is seen only this close, whatever looks at it; its shields and its hull,
+    /// if it mends itself, come back there at this share of their pace: every race's own way of
+    /// lasting is hampered alike.
+    /// </summary>
+    public const double NebulaSight = 320, NebulaRepair = 0.5;
     /// <summary>Seconds between two blasts of a minefield on each ship inside it; a blast's damage, plus a share of the hull.</summary>
     public const double MineEvery = 1.0, MineDamage = 70, MineHullShare = 0.04;
     /// <summary>
@@ -92,9 +96,9 @@ public static class Terrains
     public static double SightCap(World world, Entity e) =>
         world.Terrain.Count > 0 && e.Kind == EntityKind.Ship && InNebula(world, e.X, e.Y) ? NebulaSight : double.PositiveInfinity;
 
-    /// <summary>At what share a ship's shields come back: less in a nebula.</summary>
-    public static double ShieldShare(World world, Entity e) =>
-        world.Terrain.Count > 0 && e.Kind == EntityKind.Ship && InNebula(world, e.X, e.Y) ? NebulaShields : 1;
+    /// <summary>At what share a ship's shields and hull come back: less in a nebula.</summary>
+    public static double RepairShare(World world, Entity e) =>
+        world.Terrain.Count > 0 && e.Kind == EntityKind.Ship && InNebula(world, e.X, e.Y) ? NebulaRepair : 1;
 
     /// <summary>At what share of its speed a ship goes: less the nearer it is to a well's center.</summary>
     public static double SpeedShare(World world, Entity e)
@@ -419,7 +423,10 @@ public static class Terrains
     /// </summary>
     public static void Generate(World world, TerrainDensity density, IReadOnlyList<Point> spots, int seed)
     {
-        if (density == TerrainDensity.None || spots.Count == 0) return;
+        // An assault is a race against the clock: whatever slows the attackers down, a detour, a
+        // well, a cloud the defenders wait in, hands the defence the game (measured: from 15
+        // defences won out of 24 to 21). It has none.
+        if (density == TerrainDensity.None || spots.Count == 0 || world.Mode.Kind == BattleMode.Assault) return;
         var state = unchecked(seed * 7919 + 0x2F6E2B);
         double Draw() => Rng.Mulberry32(ref state);
         var c = new Point(world.Width / 2, world.Height / 2);
@@ -585,11 +592,9 @@ public static class Terrains
         {
             foreach (var f in world.Fields) if (p.Holds(f.X, f.Y, f.Radius + 120)) return false;
         }
-        // A beacon may be fought over in a cloud, not on rocks or mines.
-        if (hard)
-        {
-            foreach (var b in world.Mode.Beacons) if (p.Holds(b.X, b.Y, ZoneControl.Radius + 60)) return false;
-        }
+        // Beacons are fought over in the open: a cloud there would hand them to whoever lasts
+        // without shields (measured: the Nairan won 4 zone games out of 24, against 12).
+        foreach (var b in world.Mode.Beacons) if (p.Holds(b.X, b.Y, ZoneControl.Radius + 40)) return false;
         foreach (var q in world.Terrain) if (Apart(p, q) && Overlap(p, q, 120)) return false;
         return true;
     }

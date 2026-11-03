@@ -63,14 +63,15 @@ public partial class BattleScreen
             switch (p.Kind)
             {
                 case TerrainKind.Nebula:
-                    // Overlapping drifts, denser toward the middle, violet shading to teal.
-                    var n = (int)Math.Clamp(p.Radius / 14, 14, 48);
+                    // Overlapping drifts, denser toward the middle, violet shading to teal; few and
+                    // broad, each a screenful of blending for the graphics card.
+                    var n = (int)Math.Clamp(p.Radius / 28, 10, 22);
                     for (var i = 0; i < n; i++)
                     {
                         var a = rnd() * Math.Tau;
-                        var d = Math.Sqrt(rnd()) * p.Radius * 0.7;
-                        var r = p.Radius * (0.3 + rnd() * 0.32);
-                        var tint = NebulaTint.Lerp(NebulaEdge, (float)rnd()) with { A = (float)(0.07 + rnd() * 0.07) };
+                        var d = Math.Sqrt(rnd()) * p.Radius * 0.65;
+                        var r = p.Radius * (0.34 + rnd() * 0.3);
+                        var tint = NebulaTint.Lerp(NebulaEdge, (float)rnd()) with { A = (float)(0.1 + rnd() * 0.08) };
                         Draw.Sprite(g, cloud, p.X + Math.Cos(a) * d, p.Y + Math.Sin(a) * d, rnd() * Math.Tau, r * 2 / size, tint);
                     }
                     break;

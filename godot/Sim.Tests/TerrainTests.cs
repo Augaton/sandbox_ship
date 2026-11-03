@@ -70,17 +70,25 @@ public class TerrainTests(ITestOutputHelper output)
     }
 
     [Fact]
-    public void Shields_come_back_slower_in_a_nebula()
+    public void Shields_and_hulls_that_mend_come_back_slower_in_a_nebula()
     {
         var w = NewWorld();
+        AddFaction(w, Faction.Nautolan, 0);
         var cls = Ships.All.First(c => Ships.Defs[c].Shield > 0 && Ships.Defs[c].ShieldRegen > 0 && !Ships.Defs[c].FromHangar);
         var inside = SpawnShip(w, Klaed, cls, 1000, 1000);
         var outside = SpawnShip(w, Klaed, cls, 3000, 3000);
+        // Nautolan hulls mend themselves (their race's trait): as slowly there.
+        var mending = SpawnShip(w, Faction.Nautolan, cls, 1000, 1100);
+        var mended = SpawnShip(w, Faction.Nautolan, cls, 3000, 3300);
         Piece(w, TerrainKind.Nebula, 1000, 1000, 300);
         inside.Shield = outside.Shield = 0;
+        var hull = mended.MaxHull / 2;
+        mending.Hull = mended.Hull = hull;
         Combat.UpdateShields(w, 1);
         Assert.True(outside.Shield > 0);
-        Expect.Close(outside.Shield * Terrains.NebulaShields, inside.Shield, 6);
+        Expect.Close(outside.Shield * Terrains.NebulaRepair, inside.Shield, 6);
+        Expect.Greater(mended.Hull, hull);
+        Expect.Close((mended.Hull - hull) * Terrains.NebulaRepair, mending.Hull - hull, 6);
     }
 
     [Fact]
@@ -310,7 +318,7 @@ public class TerrainTests(ITestOutputHelper output)
     [Fact]
     public void The_same_seed_and_settings_give_the_same_terrain_and_none_leaves_the_map_as_it_was()
     {
-        foreach (var mode in new[] { LobbyMode.Skirmish, LobbyMode.Survival, LobbyMode.Zones, LobbyMode.Assault, LobbyMode.Regicide })
+        foreach (var mode in new[] { LobbyMode.Skirmish, LobbyMode.Survival, LobbyMode.Zones, LobbyMode.Regicide })
         {
             var none = Scenario.CreateSkirmish(Options(mode, 3, MapSize.Medium, TerrainDensity.None, 21));
             var dense = Scenario.CreateSkirmish(Options(mode, 3, MapSize.Medium, TerrainDensity.Dense, 21));
@@ -328,7 +336,7 @@ public class TerrainTests(ITestOutputHelper output)
     [Fact]
     public void Every_mode_and_size_gets_terrain_and_a_dense_map_more()
     {
-        foreach (var mode in new[] { LobbyMode.Skirmish, LobbyMode.Survival, LobbyMode.Zones, LobbyMode.Assault, LobbyMode.Regicide, LobbyMode.Sandbox })
+        foreach (var mode in new[] { LobbyMode.Skirmish, LobbyMode.Survival, LobbyMode.Zones, LobbyMode.Regicide, LobbyMode.Sandbox })
         {
             foreach (var size in Scenario.MapSizes.Keys)
             {
@@ -342,6 +350,21 @@ public class TerrainTests(ITestOutputHelper output)
                     Assert.True(dense.Count > light.Count, $"{mode} {size} {seed} : {dense.Count} pièces denses, {light.Count} légères");
                 }
             }
+        }
+    }
+
+    [Fact]
+    public void An_assault_has_no_terrain_and_no_beacon_lies_under_any()
+    {
+        var o = Options(LobbyMode.Assault, 2, MapSize.Medium, TerrainDensity.Dense, 3);
+        Assert.Equal(TerrainDensity.None, o.Terrain);
+        Assert.False(Lobby.Create(LobbyMode.Assault, 3).HasTerrain);
+        o.Terrain = TerrainDensity.Dense;
+        Assert.Empty(Scenario.CreateSkirmish(o).Terrain);
+        for (var seed = 1; seed <= 4; seed++)
+        {
+            var w = Scenario.CreateSkirmish(Options(LobbyMode.Zones, 2, MapSize.Medium, TerrainDensity.Dense, seed));
+            Assert.All(w.Mode.Beacons, b => Assert.DoesNotContain(w.Terrain, p => p.Holds(b.X, b.Y, ZoneControl.Radius)));
         }
     }
 

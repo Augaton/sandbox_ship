@@ -5027,10 +5027,6 @@ msgid "Un vaisseau dedans n'est vu qu'à {0} de distance"
 msgstr "A ship inside is only seen from {0} away"
 
 #: Game/scripts/Ui/Hud.Terrain.cs
-msgid "Ses boucliers s'y rechargent à {0}"
-msgstr "Its shields recharge there at {0}"
-
-#: Game/scripts/Ui/Hud.Terrain.cs
 msgid "Infranchissable : les vaisseaux la contournent"
 msgstr "Impassable: ships go around it"
 
@@ -5093,3 +5089,7 @@ msgstr "dense terrain"
 #: Sim/Structures.cs
 msgid "Terrain impraticable"
 msgstr "Impassable terrain"
+
+#: Game/scripts/Ui/Hud.Terrain.cs
+msgid "Boucliers et coques s'y régénèrent à {0} de leur rythme"
+msgstr "Shields and hulls regenerate there at {0} of their pace"

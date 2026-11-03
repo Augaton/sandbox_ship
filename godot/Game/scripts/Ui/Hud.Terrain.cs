@@ -25,7 +25,7 @@ public partial class Hud
             TerrainKind.Nebula =>
             [
                 $"Un vaisseau dedans n'est vu qu'à {N(Terrains.NebulaSight)} de distance",
-                $"Ses boucliers s'y rechargent à {Percent(Terrains.NebulaShields)}",
+                $"Boucliers et coques s'y régénèrent à {Percent(Terrains.NebulaRepair)} de leur rythme",
             ],
             TerrainKind.Belt => ["Infranchissable : les vaisseaux la contournent", "Arrête les tirs, sauf les rayons lourds et les faisceaux"],
             TerrainKind.Minefield =>
