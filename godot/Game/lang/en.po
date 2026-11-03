@@ -4939,10 +4939,6 @@ msgid "{0}e meilleur score"
 msgstr "Best score no. {0}"
 
 #: Game/scripts/Ui/Hud.Survival.cs
-msgid "Vague {0} atteinte, tenu {1}."
-msgstr "Reached wave {0}, held for {1}."
-
-#: Game/scripts/Ui/Hud.Survival.cs
 msgid "Score"
 msgstr "Score"
 

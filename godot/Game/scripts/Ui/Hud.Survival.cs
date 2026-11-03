@@ -79,7 +79,6 @@ public partial class Hud
         box.AddChild(Text($"Score d'équipe : {N(team)}", Palette.Accent, 22, bold: true));
         if (rank == 0) box.AddChild(Text("Nouveau record", Palette.Ok, 16, bold: true));
         else if (rank > 0) box.AddChild(Text($"{rank + 1}e meilleur score", Palette.Text, 15));
-        box.AddChild(Para($"Vague {m.Wave} atteinte, tenu {Names.Duration(held)}.", Palette.Muted));
         var rows = seats.OrderByDescending(s => m.Tallies.GetValueOrDefault(s.Id)?.Score ?? 0).Select(s =>
         {
             var t = m.Tallies.GetValueOrDefault(s.Id) ?? new SurvivalTally();
