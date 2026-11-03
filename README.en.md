@@ -25,7 +25,7 @@ The screenshots show the game in French; it plays in English too (Options, Langu
 - **Skirmish**, and its variants: Survival (waves of Errants), Zone control (beacons to hold),
   Assault (a fortress to take in time), Regicide (each side has its flagship).
 - **Sandbox**: AI off, plenty of credits, place what you want where you want.
-- **Three playable races**, each with its trait and three heroes: the Kla'ed (weapons +10%), the
+- **Three playable races**, each with its trait and three heroes: the Kla'ed (weapons +15%), the
   Nairan (shields +40%), the Nautolan (regenerating hulls). The Errants, neutral, guard the raid
   sites.
 - **Thirteen ship classes**, from the scout to the Colossus. The big ones have destructible

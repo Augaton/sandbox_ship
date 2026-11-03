@@ -25,7 +25,7 @@ seul contre l'IA ou jusqu'à six joueurs en réseau, par équipes.
   balises à tenir), Assaut (une forteresse à prendre à temps), Régicide (chacun son vaisseau
   amiral).
 - **Bac à sable** : IA coupée, crédits en abondance, on pose ce qu'on veut où on veut.
-- **Trois races** jouables, chacune avec son trait et trois héros : les Kla'ed (armes +10 %),
+- **Trois races** jouables, chacune avec son trait et trois héros : les Kla'ed (armes +15 %),
   les Nairan (boucliers +40 %), les Nautolan (coques qui se régénèrent). Les Errants, neutres,
   gardent les sites de raid.
 - **Treize classes de vaisseaux**, de l'éclaireur au Colosse. Les gros ont des pièces

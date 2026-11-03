@@ -3303,8 +3303,8 @@ msgid "Kla'ed"
 msgstr "Kla'ed"
 
 #: Sim/Data/Units.cs
-msgid "Armes +10 %, boucliers −15 %"
-msgstr "Weapons +10%, shields −15%"
+msgid "Armes +15 %, boucliers −10 %"
+msgstr "Weapons +15%, shields −10%"
 
 #: Sim/Data/Units.cs
 msgid "Boucliers +40 %, coques −5 %"
