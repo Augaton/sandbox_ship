@@ -22,9 +22,15 @@ public partial class Hud
         return box;
     }
 
-    /// <summary>The sides drawn, the player's first: the players, and the Errants only when they are the game (a survival).</summary>
-    IEnumerable<Side> Charted(BattleHistory h) => h.Sides.Keys.Where(s =>
-        World.Mode.Kind == BattleMode.Survival || !World.Factions.TryGetValue(s, out var f) || f.Race != Faction.Errant).OrderBy(s => s != Player);
+    /// <summary>
+    /// Whether a side has its line in the end's table and curves: the players, and the Errants only
+    /// when they are the game (a survival) or the foe (a campaign raid), not as a raid's neutral guardians.
+    /// </summary>
+    bool Ranked(Side s) => World.Mode.Kind == BattleMode.Survival || scene.Opts.Campaign is { } c && (s == c.Attacker || s == c.Defender)
+        || !World.Factions.TryGetValue(s, out var f) || f.Race != Faction.Errant;
+
+    /// <summary>The sides drawn, the player's first.</summary>
+    IEnumerable<Side> Charted(BattleHistory h) => h.Sides.Keys.Where(Ranked).OrderBy(s => s != Player);
 
     /// <summary>Army and earnings over time, side by side, and which line is whose; none for a battle too short to draw.</summary>
     Control? Charts()

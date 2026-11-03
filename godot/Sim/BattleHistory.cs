@@ -28,9 +28,9 @@ public sealed class BattleHistory
     public const int MaxSamples = 120;
     /// <summary>The best ships kept for each side.</summary>
     public const int MaxAces = 5;
-    /// <summary>Seconds between two samples, at first.</summary>
-    public const double FirstEvery = 5;
-    /// <summary>How far a destroyed ship's killer is looked for, when none of the killing side was aiming at it.</summary>
+    /// <summary>Seconds between two samples, at first: a short battle drawn finely, a long one at a pace that halves as it goes.</summary>
+    public const double FirstEvery = 2;
+    /// <summary>How far a destroyed ship's killer is looked for: past the longest guns (600), well short of the whole battle.</summary>
     const double CreditReach = 900;
 
     public double Every = FirstEvery;
@@ -44,6 +44,8 @@ public sealed class BattleHistory
     public readonly Dictionary<Side, List<Ace>> Aces = [];
     /// <summary>What each side had when the record began: what it spent is what it had and earned, less what it has left.</summary>
     readonly Dictionary<Side, double> start = [];
+    /// <summary>Each side's army at the sample being taken, kept from one to the next.</summary>
+    readonly Dictionary<Side, double> army = [];
 
     /// <summary>Once a step, last: a sample when one is due, and the last one as soon as there is a winner.</summary>
     public void Step(World world)
@@ -72,7 +74,7 @@ public sealed class BattleHistory
     {
         if (Times.Count > 0 && Times[^1] == world.Time) return;
         Times.Add(world.Time);
-        var army = new Dictionary<Side, double>();
+        army.Clear();
         foreach (var e in world.Entities)
         {
             if (e.Kind == EntityKind.Ship && e.Hull > 0) army[e.Side] = army.GetValueOrDefault(e.Side) + ValueOf(e);
@@ -117,30 +119,32 @@ public sealed class BattleHistory
 
     /// <summary>
     /// A ship or structure of the other side down: its killer is the ship of side `by` nearest to
-    /// it among those aiming at it (a turret counting as its ship), else the nearest one close by;
-    /// it is credited with it, and its side's best ships are kept up.
+    /// it among those aiming at it (a turret counting as its ship), else the nearest one; within
+    /// reach, it is credited with it, and its side's best ships are kept up.
     /// </summary>
     public void Credit(World world, Entity victim, Side by)
     {
         Entity? best = null;
         var bestAiming = false;
         var bestD = double.PositiveInfinity;
-        foreach (var t in world.Grid.Near(victim.X, victim.Y, CreditReach * 1.5))
+        foreach (var t in world.Grid.Near(victim.X, victim.Y, CreditReach))
         {
-            if (t.Side != by || t.Hull <= 0) continue;
-            var ship = t.Kind == EntityKind.Ship ? t : t.Kind == EntityKind.Hardpoint ? world.Entities.Get(t.ParentId) : null;
-            if (ship is not { Kind: EntityKind.Ship } || ship.Hull <= 0) continue;
-            var aiming = t.TargetId == victim.Id || ship.Order is { Type: OrderType.Attack } o && o.TargetId == victim.Id;
-            var d = Worlds.Dist(ship, victim);
-            if (!aiming && d > CreditReach) continue;
-            if (best is not null && (bestAiming && !aiming || bestAiming == aiming && (d > bestD || d == bestD && ship.Id >= best.Id))) continue;
+            if (t.Side != by || t.Hull <= 0 || t.Kind is not (EntityKind.Ship or EntityKind.Hardpoint)) continue;
+            var d = Worlds.Dist(t, victim);
+            if (d > CreditReach) continue;
+            // A ship aims by its guns or its order; a turret by its own guns, at its ship's place.
+            var aiming = t.TargetId == victim.Id || t.Order is { Type: OrderType.Attack } o && o.TargetId == victim.Id;
+            if (best is not null && (bestAiming && !aiming || bestAiming == aiming && d >= bestD)) continue;
+            var ship = t.Kind == EntityKind.Ship ? t : world.Entities.Get(t.ParentId);
+            if (ship is not { Kind: EntityKind.Ship, Hull: > 0 }) continue;
             (best, bestAiming, bestD) = (ship, aiming, d);
         }
         if (best is null) return;
         best.Kills++;
         best.KilledValue += ValueOf(victim);
         if (!Aces.TryGetValue(by, out var aces)) Aces[by] = aces = [];
-        var ace = aces.Find(a => a.Id == best.Id);
+        Ace? ace = null;
+        foreach (var a in aces) if (a.Id == best.Id) ace = a;
         if (ace is null) aces.Add(ace = new Ace { Id = best.Id, Cls = best.Cls, Hero = best.Hero });
         (ace.Kills, ace.Value) = (best.Kills, best.KilledValue);
         aces.Sort((a, b) => a.Kills != b.Kills ? b.Kills.CompareTo(a.Kills) : a.Value != b.Value ? b.Value.CompareTo(a.Value) : a.Id.CompareTo(b.Id));

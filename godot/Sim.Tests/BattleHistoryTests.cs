@@ -98,6 +98,13 @@ public class BattleHistoryTests
         Assert.Equal(Replays.Digest(bare), Replays.Digest(recorded));
         Assert.True(recorded.History!.Times.Count > 10);
         Assert.Null(bare.History);
+        // Three fleets at grips: many killers looked for, the same battle.
+        var (fought, alone) = (Stress.Create(), Stress.Create());
+        alone.History = null;
+        Steps.Run(fought, 10);
+        Steps.Run(alone, 10);
+        Assert.Equal(Replays.Digest(alone), Replays.Digest(fought));
+        Assert.NotEmpty(fought.History!.Aces);
     }
 
     [Fact]

@@ -159,10 +159,9 @@ public partial class Hud
     {
         var box = Column(16);
         box.AddChild(Para($"Durée : {Names.Duration(World.Time)}", Palette.Muted));
-        // The neutral guardians of a raid are not a player.
         // What a side spent comes from the battle's history, its last sample.
         var history = World.History is { Times.Count: > 0 } h ? h : null;
-        var rows = World.Factions.Values.Where(f => f.Race != Faction.Errant).Select(f =>
+        var rows = World.Factions.Values.Where(f => Ranked(f.Id)).Select(f =>
         {
             var s = f.Stats;
             var color = f.Id == Player ? Palette.Accent : Palette.Text;
