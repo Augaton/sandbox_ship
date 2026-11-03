@@ -57,7 +57,7 @@ public readonly record struct Side(int Id)
 /// difficulty (null for a human, or a side that only does what it is told), and its color, null
 /// for the side's default.
 /// </summary>
-public sealed record Slot(Side Side, Faction Race, int Team = 0, Difficulty? AI = null, uint? Color = null);
+public sealed record Slot(Side Side, Faction Race, int Team = 0, Difficulty? AI = null, uint? Color = null, Personality Personality = Personality.Balanced);
 
 public sealed class WeaponState(WeaponDef def)
 {
@@ -283,17 +283,21 @@ public sealed class Intel
     public double Army;
 }
 
-public sealed class AIState(Difficulty difficulty)
+public sealed class AIState(Difficulty difficulty, Personality personality = Personality.Balanced)
 {
     public double Timer;
     public AIGoal? Goal;
-    /// <summary>Army value (sum of ship costs) needed before the next attack wave (3000 in the web version).</summary>
-    public double WaveValue = 4500;
+    /// <summary>Army value (sum of ship costs) needed before the next attack wave (3000 in the web version), × its personality's.</summary>
+    public double WaveValue = 4500 * Personalities.Defs[personality].Wave;
     /// <summary>Credits set aside for the next station level, out of reach of other purchases (not in the web version).</summary>
     public double Saved;
     /// <summary>Whether the savings are out of reach now; not while it is outmatched.</summary>
     public bool Guarded;
     public Difficulty Difficulty = difficulty;
+    /// <summary>How it plays (not in the web version): see Personalities.</summary>
+    public Personality Personality = personality;
+    /// <summary>When it last saw its home threatened, for a defensive AI's counter-attack (-1: never).</summary>
+    public double LastThreat = -1;
     public Intel Intel = new();
 }
 

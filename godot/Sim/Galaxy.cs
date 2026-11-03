@@ -134,6 +134,8 @@ public sealed partial class GalaxyAIState
     /// <summary>The ship class the AI saves up for.</summary>
     public ShipClass? Want;
     public Difficulty Difficulty;
+    /// <summary>How it plays (not in the web version): see Personalities.</summary>
+    public Personality Personality;
 }
 
 /// <summary>A side in the campaign: its race, team, color, treasury and research.</summary>
@@ -244,7 +246,7 @@ public static partial class Galaxies
             g.Factions[side] = new GalaxyFaction
             {
                 Id = side, Race = race, Team = race == Faction.Errant ? 0 : slots[i].Team, Color = slots[i].Color ?? Worlds.DefaultColor(side, race),
-                Credits = GalaxyRules.StartCredits, AI = slots[i].AI is Difficulty d ? new GalaxyAIState { Difficulty = d } : null,
+                Credits = GalaxyRules.StartCredits, AI = slots[i].AI is Difficulty d ? new GalaxyAIState { Difficulty = d, Personality = slots[i].Personality } : null,
             };
             var p = g.Planets[capital];
             p.Owner = side;

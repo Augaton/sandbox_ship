@@ -46,8 +46,11 @@ public sealed class Replay
 
 public static class Replays
 {
-    /// <summary>Layout of the file below: a replay of another layout is not read. Bumped with any change, as Commands.WireVersion with the commands'.</summary>
-    public const int FormatVersion = 1;
+    /// <summary>
+    /// Layout of the file below: a replay of another layout is not read. Bumped with any change, as
+    /// Commands.WireVersion with the commands'. 2: each seat's personality.
+    /// </summary>
+    public const int FormatVersion = 2;
     /// <summary>"SSRP", the file's first four bytes.</summary>
     const uint Magic = 0x50525353;
 
@@ -183,6 +186,7 @@ public static class Replays
             w.Write(s.AI is Difficulty ai ? (byte)ai : byte.MaxValue);
             w.Write(s.Color is not null);
             w.Write(s.Color ?? 0);
+            w.Write((byte)s.Personality);
         }
         w.Write((byte)o.Player);
         w.Write(o.Enemies.Count);
@@ -210,7 +214,8 @@ public static class Replays
             var ai = r.ReadByte();
             var hasColor = r.ReadBoolean();
             var color = r.ReadUInt32();
-            o.Slots.Add(new Slot(side, race, team, ai == byte.MaxValue ? null : Named<Difficulty>(ai), hasColor ? color : null));
+            var personality = Named<Personality>(r.ReadByte());
+            o.Slots.Add(new Slot(side, race, team, ai == byte.MaxValue ? null : Named<Difficulty>(ai), hasColor ? color : null, personality));
         }
         o.Player = Named<Faction>(r.ReadByte());
         var enemies = r.ReadInt32();

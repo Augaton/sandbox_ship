@@ -5465,3 +5465,67 @@ msgstr "The host did not prove it knows the password: the connection may be inte
 #: Sim/Net/Secure.cs
 msgid "Échange illisible."
 msgstr "Unreadable exchange."
+
+#: Game/scripts/Ui/Menu.Lobby.cs
+msgid "Personnalité"
+msgstr "Personality"
+
+#: Game/scripts/Ui/Menu.Lobby.cs
+msgid "Personnalité de la place {0}"
+msgstr "Personality of seat {0}"
+
+#: Game/scripts/Ui/Menu.Lobby.cs
+msgid "Au hasard"
+msgstr "Random"
+
+#: Game/scripts/Ui/Menu.Lobby.cs
+msgid "Agressive, défensive, économe ou technologique, tirée au lancement de la partie."
+msgstr "Aggressive, defensive, thrifty or technological, drawn when the game starts."
+
+#: Game/scripts/Ui/Menu.Lobby.cs
+msgid "Campagne reprise : chaque bot garde sa personnalité."
+msgstr "Resumed campaign: each bot keeps its personality."
+
+#: Game/scripts/Ui/Menu.Lobby.cs
+msgid "Tirée au lancement de la partie."
+msgstr "Drawn when the game starts."
+
+#: Sim/Data/Personalities.cs
+msgid "Équilibrée"
+msgstr "Balanced"
+
+#: Sim/Data/Personalities.cs
+msgid "Un peu de tout, selon ce qu'elle voit de l'ennemi."
+msgstr "A bit of everything, according to what it sees of the enemy."
+
+#: Sim/Data/Personalities.cs
+msgid "Agressive"
+msgstr "Aggressive"
+
+#: Sim/Data/Personalities.cs
+msgid "Attaque tôt et souvent avec des vaisseaux légers, se défend peu, cherche peu la paix."
+msgstr "Attacks early and often with light ships, defends little, seldom seeks peace."
+
+#: Sim/Data/Personalities.cs
+msgid "Défensive"
+msgstr "Defensive"
+
+#: Sim/Data/Personalities.cs
+msgid "Se retranche derrière ses plateformes, puis contre-attaque une fois l'assaut repoussé."
+msgstr "Digs in behind its platforms, then strikes back once the assault is beaten off."
+
+#: Sim/Data/Personalities.cs
+msgid "Économe"
+msgstr "Thrifty"
+
+#: Sim/Data/Personalities.cs
+msgid "S'étend et mine d'abord, puis frappe avec une grosse armée."
+msgstr "Expands and mines first, then strikes with a large army."
+
+#: Sim/Data/Personalities.cs
+msgid "Technologique"
+msgstr "Technological"
+
+#: Sim/Data/Personalities.cs
+msgid "Recherche sans relâche et mise sur les gros vaisseaux."
+msgstr "Researches relentlessly and bets on big ships."

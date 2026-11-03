@@ -109,8 +109,9 @@ public static class Protocol
     /// 3: acknowledged battle snapshots (Ack), the campaign's chart apart (Chart). 4: the chat (Say,
     /// Said), the challenge of a password (Challenge, Hello's key) and players who only watch (Hello's Watches).
     /// 5: every message sealed (Secure.cs), the password in the keys: no more Challenge nor Hello's key.
+    /// 6: a bot's personality (Ask's SetPersonality).
     /// </summary>
-    public const int Version = 5;
+    public const int Version = 6;
     /// <summary>Where a host listens for players, unless told otherwise.</summary>
     public const int DefaultPort = 24680;
     /// <summary>Where hosts call out to the local network, and the join screen listens.</summary>
@@ -292,6 +293,7 @@ public static class Protocol
             case LobbyRequest.SetReady s: w.Write((byte)5); w.Write(s.Ready); break;
             case LobbyRequest.AddBot: w.Write((byte)6); break;
             case LobbyRequest.Remove x: w.Write((byte)7); w.Write7BitEncodedInt(x.Seat); break;
+            case LobbyRequest.SetPersonality p: w.Write((byte)9); w.Write7BitEncodedInt(p.Seat); w.Write(p.Personality is { } known ? (byte)known : byte.MaxValue); break;
             case LobbyRequest.Settings { Values: var v }:
                 w.Write((byte)8);
                 w.Write((byte)v.Map);
@@ -319,6 +321,7 @@ public static class Protocol
         7 => new LobbyRequest.Remove(r.ReadVarint()),
         8 => new LobbyRequest.Settings(new LobbySettings(r.ReadEnum<MapKind>(), r.ReadEnum<MapSize>(), r.ReadVarint(), r.ReadBoolean(),
             r.ReadBoolean(), r.ReadVarint(), r.ReadVarint(), r.ReadBoolean(), r.ReadBoolean())),
+        9 => new LobbyRequest.SetPersonality(r.ReadVarint(), r.ReadEnumOrNone<Personality>()),
         var tag => throw new InvalidDataException($"Demande inconnue : {tag}"),
     };
 

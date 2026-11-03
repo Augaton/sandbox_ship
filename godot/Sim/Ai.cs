@@ -9,20 +9,17 @@ namespace SandboxShip.Sim;
 public static class Ai
 {
     const int MaxMines = 4;
-    const int MaxOutposts = 2;
     /// <summary>Biggest wave the AI waits for, in ship value (9000 in the web version: games are longer here).</summary>
     const double MaxWave = 12000;
     /// <summary>Seconds after which the AI attacks with what it has.</summary>
     const double PressureTime = 1200;
-    /// <summary>
-    /// Past this many seconds the AI goes all in (not in the web version): once its army is worth
-    /// a wave, every warship goes, home fleet included, and none is called back home. Its ships'
-    /// own good sense (focus fire, falling back to mend, keeping their distance) made a home fleet
-    /// under its station's guns too much for the small waves it sent one after the other: two AIs
-    /// then traded ships for an hour without a station ever scratched. A whole army against a
-    /// whole army decides, and what is left of the winner finds a station with no fleet.
-    /// </summary>
-    const double AllInTime = 1800;
+    // Past its personality's AllInTime (1800 s for Balanced) the AI goes all in (not in the web
+    // version): once its army is worth a wave, every warship goes, home fleet included, and none
+    // is called back home. Its ships' own good sense (focus fire, falling back to mend, keeping
+    // their distance) made a home fleet under its station's guns too much for the small waves it
+    // sent one after the other: two AIs then traded ships for an hour without a station ever
+    // scratched. A whole army against a whole army decides, and what is left of the winner finds
+    // a station with no fleet.
     /// <summary>Shares of the wave the AI waits for: for the whole army to go, and for reinforcements to join a wave already out.</summary>
     const double AllInShare = 0.6, ReinforceShare = 0.3;
     /// <summary>
@@ -136,6 +133,9 @@ public static class Ai
             weights[ShipClass.Bomber] += 3;
         }
         if (intel.Structures >= 3) weights[ShipClass.Bomber] += 3;
+        // Its personality leans to small or big hulls (× 1 for Balanced).
+        var def = Personalities.Defs[f.AI.Personality];
+        foreach (var c in Ships.All) if (weights.TryGetValue(c, out var w)) weights[c] = w * def.Lean(Ships.Defs[c].Size);
         // A limited capital ship only with a fleet around it and a quarter of it paid: saving up
         // for it from nothing would leave the AI without ships for minutes.
         var fleet = Warships(world, f).Count;
@@ -188,28 +188,32 @@ public static class Ai
 
     static AIGoal? ChooseGoal(World world, FactionState f, Entity station, bool defensive)
     {
+        var def = Personalities.Defs[f.AI!.Personality];
         var mines = Count(world, f, "mine");
         if (mines < Math.Min(MaxMines, station.Level + 1) && MineableField(world, f)) return new AIGoal(GoalKind.Mine);
         // A first squadron early: it escorts the miners and scouts the map.
         var fleet = Warships(world, f).Count;
         if (fleet == 0 && HasHardpoint(world, station.Id, HardpointRole.Shipyard)) return new AIGoal(GoalKind.Ship, Cls: ShipClass.Scout);
+        // The technological AI keeps its lab busy before anything else.
+        if (f.AI.Personality == Personality.Technological && f.Researching is null && Structures.HasLab(world, f.Id) && PickTech(f, station) is TechId first)
+            return new AIGoal(GoalKind.Research, Tech: first);
         // Outmatched: dig in before anything else.
         var room = Structures.PlatformRoom(world, f.Id) > 0;
-        if (defensive && room && Count(world, f, "platform") < station.Level * 2) return new AIGoal(GoalKind.Platform);
+        if (defensive && room && Count(world, f, "platform") < station.Level * Math.Max(2, def.Platforms)) return new AIGoal(GoalKind.Platform);
         // Upgrades are dear: savings put aside build up to one while the rest keeps the fleet
         // growing (not in the web version, where they were cheap).
         if (CanSave(world, f, station) && f.Credits >= Station.Levels[station.Level].UpgradeCost) return new AIGoal(GoalKind.Upgrade);
-        if (room && Count(world, f, "platform") < station.Level && Rand(world) < 0.25) return new AIGoal(GoalKind.Platform);
+        if (room && Count(world, f, "platform") < station.Level * def.Platforms && Rand(world) < def.PlatformOdds) return new AIGoal(GoalKind.Platform);
         // Mid game, expand: an outpost by a free field beyond reach, once the mines nearby are taken.
-        if (station.Level >= 2 && mines >= 3 && Count(world, f, "outpost") < MaxOutposts && fleet >= 2 && Rand(world) < 0.15 && FarFields(world, f, station).Count > 0)
+        if (station.Level >= 2 && mines >= 3 && Count(world, f, "outpost") < def.Outposts && fleet >= 2 && Rand(world) < def.OutpostOdds && FarFields(world, f, station).Count > 0)
             return new AIGoal(GoalKind.Outpost);
         if (fleet >= 3 && Count(world, f, "repairDock") == 0 && Rand(world) < 0.1) return new AIGoal(GoalKind.Structure, BuildableType.RepairDock);
-        if (Count(world, f, "lab") == 0 && Rand(world) < 0.15) return new AIGoal(GoalKind.Structure, BuildableType.Lab);
+        if (Count(world, f, "lab") == 0 && Rand(world) < def.LabOdds) return new AIGoal(GoalKind.Structure, BuildableType.Lab);
         if (station.Level >= 3 && Count(world, f, "ionCannon") == 0 && Rand(world) < 0.15) return new AIGoal(GoalKind.Structure, BuildableType.IonCannon);
         // The endgame weapon, once most of its price is there: the rest is saved up while waiting.
-        if (station.Level >= 4 && Count(world, f, "starLance") == 0 && fleet >= 8 && f.Credits >= Buildables.Defs[BuildableType.StarLance].Cost * 0.8
-            && Rand(world) < 0.25) return new AIGoal(GoalKind.Structure, BuildableType.StarLance);
-        var tech = f.Researching is null && Structures.HasLab(world, f.Id) && Rand(world) < 0.2 ? PickTech(f, station) : null;
+        if (station.Level >= 4 && Count(world, f, "starLance") == 0 && fleet >= def.LanceFleet && f.Credits >= Buildables.Defs[BuildableType.StarLance].Cost * 0.8
+            && Rand(world) < def.LanceOdds) return new AIGoal(GoalKind.Structure, BuildableType.StarLance);
+        var tech = f.Researching is null && Structures.HasLab(world, f.Id) && Rand(world) < def.ResearchOdds ? PickTech(f, station) : null;
         if (tech is TechId t) return new AIGoal(GoalKind.Research, Tech: t);
         // Now and then, a hero: whichever is available, saving up for it if needed.
         var hero = Heroes.Of(f.Race).FirstOrDefault(h =>
@@ -259,7 +263,9 @@ public static class Ai
     /// <summary>Least researched tech the station allows, combat techs first.</summary>
     static TechId? PickTech(FactionState f, Entity station)
     {
-        var open = TechOrder.Where(t => f.Research[t] < Techs.Defs[t].MaxLevel && station.Level >= Techs.StationFor(f.Research[t] + 1)).OrderBy(t => f.Research[t]);
+        // The defensive AI's defenses come first.
+        var order = f.AI!.Personality == Personality.Defensive ? TechOrder.OrderBy(t => t != TechId.Fortification) : TechOrder.AsEnumerable();
+        var open = order.Where(t => f.Research[t] < Techs.Defs[t].MaxLevel && station.Level >= Techs.StationFor(f.Research[t] + 1)).OrderBy(t => f.Research[t]);
         foreach (var t in open) return t;
         return null;
     }
@@ -282,8 +288,6 @@ public static class Ai
     }
 
     /// <summary>Share of its income the AI sets aside for the next station level.</summary>
-    const double SaveShare = 0.5;
-
     /// <summary>Whether the next station level is the one to save for: mines up, none queued yet.</summary>
     static bool CanSave(World world, FactionState f, Entity station) =>
         station.Level < Station.Levels.Count && Count(world, f, "mine") >= Math.Min(MaxMines, station.Level + 1)
@@ -306,7 +310,7 @@ public static class Ai
         }
         if (defensive || !CanSave(world, f, station)) return;
         var price = Station.Levels[station.Level].UpgradeCost;
-        ai.Saved = Math.Min(Math.Min(price, f.Credits), ai.Saved + Structures.IncomeRate(world, f.Id) * SaveShare * interval);
+        ai.Saved = Math.Min(Math.Min(price, f.Credits), ai.Saved + Structures.IncomeRate(world, f.Id) * Personalities.Defs[ai.Personality].SaveShare * interval);
     }
 
     /// <summary>Tries to buy the goal. Returns true when the goal is done or can no longer be reached.</summary>
@@ -385,13 +389,14 @@ public static class Ai
         var intel = UpdateIntel(world, f);
         var army = ships.Sum(ShipValue);
         var outmatched = intel.Army > 0 && army < intel.Army * 0.7;
-        if (world.Time >= AllInTime && enemy is not null)
+        var def = Personalities.Defs[f.AI!.Personality];
+        if (world.Time >= def.AllInTime && enemy is not null)
         {
             // The whole army once nothing is out; while a wave is out, reinforcements by the
             // group, not one by one as they come out of the shipyard.
             var home = ships.Where(e => e.Order?.Type != OrderType.AttackMove && !Modes.Kept(world, e)).ToList();
             var out_ = home.Count < ships.Count;
-            var needed = f.AI!.WaveValue * (out_ ? ReinforceShare : AllInShare);
+            var needed = f.AI.WaveValue * (out_ ? ReinforceShare : AllInShare);
             if (home.Count > 0 && home.Sum(ShipValue) >= needed) Movement.IssueMove(world, home.Select(e => e.Id), enemy.X, enemy.Y, true);
             return outmatched;
         }
@@ -399,16 +404,26 @@ public static class Ai
         {
             // Ships already out on a wave keep going; only the home fleet defends.
             Movement.IssueMove(world, idle.Select(e => e.Id), station.X, station.Y, true);
+            f.AI.LastThreat = world.Time;
+            return outmatched;
+        }
+        // An assault just beaten off: a defensive AI strikes back while the attacker is thin,
+        // if what it holds outweighs what it saw of the enemy.
+        if (enemy is not null && def.Counter > 0 && f.AI.LastThreat >= 0 && world.Time - f.AI.LastThreat < def.Counter
+            && idle.Count > 0 && army > intel.Army * 1.1 && idle.Sum(ShipValue) >= EdgeWave(world, f))
+        {
+            Movement.IssueMove(world, idle.Select(e => e.Id), enemy.X, enemy.Y, true);
+            f.AI.LastThreat = -1;
             return outmatched;
         }
         var value = idle.Sum(ShipValue);
         // As the game drags on, the AI settles for smaller waves and a thinner edge: no endless standoff.
         var pressure = Math.Min(1, world.Time / PressureTime);
         var stronger = intel.Army > 0 && army > intel.Army * (1.4 - 0.3 * pressure) && value >= EdgeWave(world, f);
-        if (enemy is not null && !outmatched && (value >= f.AI!.WaveValue * (1 - 0.4 * pressure) || stronger))
+        if (enemy is not null && !outmatched && (value >= f.AI.WaveValue * (1 - 0.4 * pressure) || stronger))
         {
             Movement.IssueMove(world, idle.Select(e => e.Id), enemy.X, enemy.Y, true);
-            f.AI!.WaveValue = Math.Min(f.AI.WaveValue * 1.2, MaxWave);
+            f.AI.WaveValue = Math.Min(f.AI.WaveValue * def.WaveGrowth, MaxWave);
         }
         return outmatched;
     }

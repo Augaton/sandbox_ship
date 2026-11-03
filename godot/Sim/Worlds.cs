@@ -18,7 +18,7 @@ public static class Worlds
     /// <summary>Deterministic random number in [0, 1) (mulberry32).</summary>
     public static double Rand(World world) => Rng.Mulberry32(ref world.Seed);
 
-    public static AIState NewAI(Difficulty difficulty = Difficulty.Normal) => new(difficulty);
+    public static AIState NewAI(Difficulty difficulty = Difficulty.Normal, Personality personality = Personality.Balanced) => new(difficulty, personality);
 
     /// <summary>A race joins on its own side (see Side), alone in no team, in its own color.</summary>
     public static FactionState AddFaction(World world, Faction race, double credits, bool ai = false, Difficulty difficulty = Difficulty.Normal) =>
@@ -29,14 +29,14 @@ public static class Worlds
     /// Errants join no team: they are everyone's foes.
     /// </summary>
     public static FactionState AddSide(World world, Side side, Faction race, double credits, int team = 0, uint? color = null,
-        bool ai = false, Difficulty difficulty = Difficulty.Normal)
+        bool ai = false, Difficulty difficulty = Difficulty.Normal, Personality personality = Personality.Balanced)
     {
         var f = new FactionState
         {
             Id = side, Race = race, Team = race == Faction.Errant ? 0 : team, Color = color ?? DefaultColor(side, race),
             Credits = credits, AutoAbilities = ai,
             RallyX = world.Width / 2, RallyY = world.Height / 2,
-            AI = ai ? NewAI(difficulty) : null,
+            AI = ai ? NewAI(difficulty, personality) : null,
         };
         world.Factions[side] = f;
         return f;

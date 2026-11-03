@@ -221,13 +221,13 @@ public partial class Menu
         footer.AddChild(go);
     }
 
-    /// <summary>The seats, one row each under the column names: number, who, race, team, color, and the button that takes it away.</summary>
+    /// <summary>The seats, one row each under the column names: number, who, a bot's personality, race, team, color, and the button that takes it away.</summary>
     Control SeatGrid(Lobby l)
     {
-        var grid = new GridContainer { Columns = 6, SizeFlagsHorizontal = Control.SizeFlags.ExpandFill };
+        var grid = new GridContainer { Columns = 7, SizeFlagsHorizontal = Control.SizeFlags.ExpandFill };
         grid.AddThemeConstantOverride("h_separation", 8);
         grid.AddThemeConstantOverride("v_separation", 6);
-        foreach (var head in new[] { "", "Place", "Race", "Équipe", "Couleur", "" }) grid.AddChild(UiTheme.Text(head, Palette.Muted, 13));
+        foreach (var head in new[] { "", "Place", "Personnalité", "Race", "Équipe", "Couleur", "" }) grid.AddChild(UiTheme.Text(head, Palette.Muted, 13));
         for (var i = 0; i < l.Seats.Count; i++) SeatRow(grid, l, l.Seats[i], i + 1);
         return grid;
     }
@@ -255,6 +255,7 @@ public partial class Menu
         else grid.AddChild(number);
 
         grid.AddChild(KindDrop(l, seat, key, n));
+        grid.AddChild(PersonalityDrop(l, seat, key, n));
 
         var races = Factions.All;
         var race = Drop($"{key}:race", $"Race de la place {n}", races.Select(f => Factions.Defs[f].Name), races.ToList().IndexOf(seat.Race),
@@ -353,6 +354,32 @@ public partial class Menu
         if (net is null) drop.SetItemTooltip(far, "Pour jouer à plusieurs : « Multijoueur », au menu principal.");
         drop.Disabled = !Leads && !claim;
         if (claim) drop.TooltipText = "Choisis « Toi » pour prendre cette place.";
+        return drop;
+    }
+
+    /// <summary>
+    /// How a bot plays: drawn at random by default (from the seed, when the game starts), or one
+    /// of the personalities, each item telling what it does. A resumed campaign's bots keep theirs.
+    /// </summary>
+    OptionButton PersonalityDrop(Lobby l, Seat seat, string key, int n)
+    {
+        var bot = seat.Kind == SeatKind.Bot;
+        if (!bot)
+        {
+            var none = Drop($"{key}:personality", $"Personnalité de la place {n}", ["—"], 0, _ => { });
+            none.Disabled = true;
+            return none;
+        }
+        var all = Personalities.All;
+        var labels = all.Select(p => Personalities.Defs[p].Name).Prepend("Au hasard");
+        var at = seat.Personality is { } chosen ? all.ToList().IndexOf(chosen) + 1 : 0;
+        var drop = Drop($"{key}:personality", $"Personnalité de la place {n}", labels, at,
+            i => Edit(new LobbyRequest.SetPersonality(seat.Id, i == 0 ? null : all[i - 1])));
+        drop.SetItemTooltip(0, "Agressive, défensive, économe ou technologique, tirée au lancement de la partie.");
+        for (var i = 0; i < all.Count; i++) drop.SetItemTooltip(i + 1, Personalities.Defs[all[i]].Description);
+        drop.Disabled = !Leads || l.Resumed;
+        drop.TooltipText = l.Resumed ? "Campagne reprise : chaque bot garde sa personnalité."
+            : at == 0 ? "Tirée au lancement de la partie." : Personalities.Defs[all[at - 1]].Description;
         return drop;
     }
 

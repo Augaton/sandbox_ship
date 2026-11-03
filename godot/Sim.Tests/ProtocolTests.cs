@@ -35,6 +35,8 @@ public class ProtocolTests
         yield return new Message.Ask(new LobbyRequest.SetReady(true));
         yield return new Message.Ask(new LobbyRequest.AddBot());
         yield return new Message.Ask(new LobbyRequest.Remove(3));
+        yield return new Message.Ask(new LobbyRequest.SetPersonality(2, Personality.Technological));
+        yield return new Message.Ask(new LobbyRequest.SetPersonality(2, null));
         yield return new Message.Ask(new LobbyRequest.Settings(new LobbySettings(MapKind.Random, MapSize.Large, 99, false, true, 50, 20, false, true)));
         yield return new Message.Launch();
         yield return new Message.Start(SomeLobby());

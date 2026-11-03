@@ -181,7 +181,7 @@ public static class Scenario
         var size = MapSizes[o.Size];
         var world = CreateWorld(size.W, size.H, o.Seed);
         world.Fog = o.Fog;
-        foreach (var s in slots) AddSide(world, s.Side, s.Race, o.Credits, s.Team, s.Color, s.AI is not null, s.AI ?? Difficulty.Normal);
+        foreach (var s in slots) AddSide(world, s.Side, s.Race, o.Credits, s.Team, s.Color, s.AI is not null, s.AI ?? Difficulty.Normal, s.Personality);
         if (o.Map == MapKind.Classic && slots.Count == 2)
         {
             SpawnStation(world, slots[0].Side, 700 * (size.W / 6000), size.H / 2, Modes.StartLevel(o, slots[0]));

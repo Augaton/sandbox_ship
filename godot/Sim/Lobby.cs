@@ -26,6 +26,8 @@ public sealed class Seat
     public int Team { get; set; }
     /// <summary>A bot's AI.</summary>
     public Difficulty Difficulty { get; set; } = Difficulty.Normal;
+    /// <summary>How a bot plays (Personalities); null: drawn at the start, from the seed and the seat (Slots).</summary>
+    public Personality? Personality { get; set; }
     /// <summary>One of Lobby.Colors, no other seat's.</summary>
     public uint Color { get; set; }
     /// <summary>A human seat's player is ready to start: the network's, a local game does not ask.</summary>
@@ -221,11 +223,15 @@ public sealed class Lobby
     /// <summary>
     /// The game's seats, in order, from the seats that play: the i-th on side SideOf(i). The order
     /// gives the places: around the skirmish map in turn; in the galaxy, the first two get the
-    /// capitals farthest apart. Bots play at their own difficulty; in the sandbox, once its panel
-    /// turns the AI on.
+    /// capitals farthest apart. Bots play at their own difficulty and personality, a random one
+    /// drawn from the seed and the seat; in the sandbox, once its panel turns the AI on.
     /// </summary>
     public List<Slot> Slots() =>
-        [.. Playing.Select((s, i) => new Slot(SideOf(i), s.Race, s.Team, s.Kind == SeatKind.Bot ? s.Difficulty : null, s.Color))];
+        [.. Playing.Select((s, i) => new Slot(SideOf(i), s.Race, s.Team, s.Kind == SeatKind.Bot ? s.Difficulty : null, s.Color, PersonalityOf(s)))];
+
+    /// <summary>The personality a bot seat plays: its own, or the one drawn for it. Balanced for a human's.</summary>
+    public Personality PersonalityOf(Seat s) =>
+        s.Kind != SeatKind.Bot ? Personality.Balanced : s.Personality ?? Personalities.Draw(Seed, s.Id);
 
     /// <summary>The side a peer plays, by default the host's: null when that peer has no seat.</summary>
     public Side? SideOfPeer(int peer = Host)
@@ -294,7 +300,8 @@ public sealed class Lobby
             lobby.Seats.Add(new Seat
             {
                 Id = lobby.NextId++, Kind = human, Race = f.Race, Team = f.Team, Color = Colors.Contains(f.Color) ? f.Color : Colors[lobby.Seats.Count],
-                Difficulty = f.AI?.Difficulty ?? Difficulty.Normal, Reserved = human == SeatKind.Open ? saved.Humans[f.Id] : null,
+                Difficulty = f.AI?.Difficulty ?? Difficulty.Normal, Personality = f.AI?.Personality,
+                Reserved = human == SeatKind.Open ? saved.Humans[f.Id] : null,
             });
         }
         return lobby;
@@ -318,7 +325,10 @@ public sealed class Lobby
                 g.Humans[side] = nameOf(s.Peer);
                 f.AI = null;
             }
-            else f.AI = new GalaxyAIState { Difficulty = s.Difficulty, Grudges = f.AI?.Grudges ?? [], OfferWait = f.AI?.OfferWait ?? 0 };
+            else f.AI = new GalaxyAIState
+            {
+                Difficulty = s.Difficulty, Personality = PersonalityOf(s), Grudges = f.AI?.Grudges ?? [], OfferWait = f.AI?.OfferWait ?? 0,
+            };
         }
     }
 
@@ -332,6 +342,7 @@ public sealed class Lobby
         && ZoneTargets.Contains(ZoneTarget) && AssaultLengths.Contains(AssaultMinutes)
         && Seats is { Count: >= 1 and <= MaxSeats }
         && Seats.TrueForAll(s => s is not null && Enum.IsDefined(s.Kind) && Enum.IsDefined(s.Difficulty) && Factions.All.Contains(s.Race)
+            && (s.Personality is not { } p || Enum.IsDefined(p))
             && s.Team is >= 0 and <= Teams && Colors.Contains(s.Color) && s.Id >= 0 && s.Id < NextId)
         && Seats.Select(s => s.Id).Distinct().Count() == Seats.Count
         && Seats.Select(s => s.Color).Distinct().Count() == Seats.Count;

@@ -105,6 +105,9 @@ public static class GalaxyAi
             weights[ShipClass.Torpedo] += 4;
             weights[ShipClass.Bomber] += 3;
         }
+        // Its personality leans to small or big hulls (× 1 for Balanced).
+        var def = Personalities.Defs[g.Factions[side].AI!.Personality];
+        foreach (var c in Ships.All) if (weights.TryGetValue(c, out var w)) weights[c] = w * def.Lean(Ships.Defs[c].Size);
         // Classes at their limit are left out: wanting one would block every other purchase.
         var options = Ships.All.Where(c => weights.ContainsKey(c) && planet.Station >= Ships.Defs[c].MinStationLevel
             && (Ships.Defs[c].Limit is not int limit || ClassCount(g, side, c) < limit)).ToList();
@@ -126,9 +129,15 @@ public static class GalaxyAi
         return null;
     }
 
-    /// <summary>Candidate purchases, most wanted first.</summary>
+    /// <summary>
+    /// Candidate purchases, most wanted first. Its personality has a say: the aggressive AI builds
+    /// few defenses and ships first, the defensive one arms every station, the thrifty one raises
+    /// more stations and its economy first, the technological one a lab from its first planet and
+    /// research before the rest.
+    /// </summary>
     static List<Wish> Wishes(Galaxy g, Side side, Dictionary<int, int> hops)
     {
+        var personality = g.Factions[side].AI!.Personality;
         var own = g.Planets.Where(p => p.Owner == side).ToList();
         var byFront = own.OrderBy(p => HopsOf(hops, p.Id)).ToList();
         static Wish At(Planet p, GalaxyBuild build) => new(p.Id, build);
@@ -139,17 +148,22 @@ public static class GalaxyAi
         if (capital is not null && capital.Station < Station.Levels.Count) infra.Add(At(capital, GalaxyBuild.Of(GalaxyBuildKind.Station)));
         var stations = own.Count(p => p.Station > 0);
         var staging = byFront.Find(p => p.Station == 0 && p.Income >= 3);
-        if (staging is not null && stations < 1 + own.Count / 3.0) infra.Add(At(staging, GalaxyBuild.Of(GalaxyBuildKind.Station)));
+        if (staging is not null && stations < 1 + own.Count / (personality == Personality.Economic ? 2.0 : 3.0)) infra.Add(At(staging, GalaxyBuild.Of(GalaxyBuildKind.Station)));
         // Research: a lab in the rear once the empire grows, then one tech after another.
         var rear = byFront.LastOrDefault();
-        if (rear is not null && own.Count >= 3 && !own.Exists(p => p.Lab > 0)) infra.Add(At(rear, GalaxyBuild.Of(GalaxyBuildKind.Lab)));
-        if (own.Exists(p => p.Lab > 0) && g.Factions[side].Researching is null && PickTech(g, side) is TechId tech) infra.Add(new Wish(-1, null, tech));
+        var studious = personality == Personality.Technological;
+        if (rear is not null && own.Count >= (studious ? 1 : 3) && !own.Exists(p => p.Lab > 0)) infra.Add(At(rear, GalaxyBuild.Of(GalaxyBuildKind.Lab)));
+        if (own.Exists(p => p.Lab > 0) && g.Factions[side].Researching is null && PickTech(g, side) is TechId tech)
+        {
+            if (studious) infra.Insert(0, new Wish(-1, null, tech));
+            else infra.Add(new Wish(-1, null, tech));
+        }
         foreach (var p in byFront)
         {
-            if (p.Station == 0 || HopsOf(hops, p.Id) > 1) continue;
-            infra.Add(At(p, GalaxyBuild.Of(GalaxyBuildKind.Platform)));
+            if (p.Station == 0 || HopsOf(hops, p.Id) > 1 && personality != Personality.Defensive) continue;
+            if (personality != Personality.Aggressive) infra.Add(At(p, GalaxyBuild.Of(GalaxyBuildKind.Platform)));
             infra.Add(At(p, GalaxyBuild.Of(GalaxyBuildKind.RepairDock)));
-            infra.Add(At(p, GalaxyBuild.Of(GalaxyBuildKind.IonCannon)));
+            if (personality != Personality.Aggressive) infra.Add(At(p, GalaxyBuild.Of(GalaxyBuildKind.IonCannon)));
         }
 
         var ships = new List<Wish>();
@@ -180,8 +194,18 @@ public static class GalaxyAi
             }
         }
         if (danger.Count > 0) return [.. danger, .. out_, .. ships, .. infra];
-        // Otherwise alternate between growing the fleet and the infrastructure.
-        return Math.Floor(g.Time / 20) % 2 == 0 ? [.. out_, .. ships, .. infra] : [.. out_, .. infra, .. ships];
+        // Otherwise alternate between growing the fleet and the infrastructure, by turns of 20 s:
+        // one in two, two in three for the aggressive AI, one in three for the defensive one,
+        // and none in the thrifty one's first ten minutes.
+        var turn = Math.Floor(g.Time / 20);
+        var shipsFirst = personality switch
+        {
+            Personality.Aggressive => turn % 3 != 2,
+            Personality.Defensive => turn % 3 == 0,
+            Personality.Economic => g.Time >= 600 && turn % 2 == 0,
+            _ => turn % 2 == 0,
+        };
+        return shipsFirst ? [.. out_, .. ships, .. infra] : [.. out_, .. infra, .. ships];
     }
 
     /// <summary>Buys the first wish it can; stops to save up when the wish is only too expensive.</summary>
@@ -211,8 +235,8 @@ public static class GalaxyAi
     /// <summary>What a planet brings to its owner.</summary>
     static double Worth(Planet p) => p.Income + p.Mines * GalaxyRules.MineIncome + p.Station * 5;
 
-    /// <summary>The edge an attack on a rival waits for: 40 %, down to 10 % after six idle minutes.</summary>
-    static double Edge(GalaxyAIState ai) => Math.Max(1.1, 1.4 - ai.Idle / 1200);
+    /// <summary>The edge an attack on a rival waits for: 40 %, down to 10 % after six idle minutes, × its personality's.</summary>
+    static double Edge(GalaxyAIState ai) => Math.Max(1.1, 1.4 - ai.Idle / 1200) * Personalities.Defs[ai.Personality].Edge;
 
     /// <summary>Planets within two lanes of a planet, itself included.</summary>
     static HashSet<int> Around(Galaxy g, int planetId)

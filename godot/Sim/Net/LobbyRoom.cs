@@ -13,6 +13,8 @@ public abstract record LobbyRequest
     /// <summary>Who takes a seat. Human: the one asking sits there, leaving its old seat open; a bot plays at `Difficulty`.</summary>
     public sealed record SetKind(int Seat, SeatKind Kind, Difficulty Difficulty = Difficulty.Normal) : LobbyRequest;
     public sealed record SetRace(int Seat, Faction Race) : LobbyRequest;
+    /// <summary>How a bot plays; null: drawn at the start.</summary>
+    public sealed record SetPersonality(int Seat, Personality? Personality) : LobbyRequest;
     public sealed record SetTeam(int Seat, int Team) : LobbyRequest;
     public sealed record SetColor(int Seat, uint Color) : LobbyRequest;
     /// <summary>The one asking is ready to start, or no longer.</summary>
@@ -66,6 +68,12 @@ public static class LobbyRules
                 if (seat == own && peer != Lobby.Host) return false;
                 l.SetKind(seat, k.Kind);
                 if (k.Kind == SeatKind.Bot) seat.Difficulty = k.Difficulty;
+                return true;
+            }
+            case LobbyRequest.SetPersonality p:
+            {
+                if (!leads || At(p.Seat) is not { Kind: SeatKind.Bot } seat || p.Personality is { } known && !Enum.IsDefined(known)) return false;
+                seat.Personality = p.Personality;
                 return true;
             }
             case LobbyRequest.SetRace r:
