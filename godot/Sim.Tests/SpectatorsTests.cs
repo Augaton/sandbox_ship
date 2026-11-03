@@ -43,6 +43,23 @@ public class SpectatorsTests
     }
 
     [Fact]
+    public void A_spectator_never_takes_a_seat_and_never_keeps_one_from_a_player()
+    {
+        var room = Room();
+        Assert.Null(room.Watch(Sam, "Sam"));
+        var open = room.Lobby.Seats.Where(s => s.Kind == SeatKind.Open).ToList();
+        // Sitting down, on every open seat in turn, and anything else a seat holder may ask: all refused.
+        foreach (var seat in open) Assert.False(room.Apply(Sam, new LobbyRequest.SetKind(seat.Id, SeatKind.Human, Difficulty.Normal)));
+        Assert.False(room.Apply(Sam, new LobbyRequest.SetReady(true)));
+        Assert.False(room.Apply(Sam, new LobbyRequest.SetRace(open[0].Id, Faction.Nautolan)));
+        Assert.DoesNotContain(room.Lobby.Seats, s => s.Kind == SeatKind.Human);
+        // Every seat stays for the players: as many join as there are seats.
+        for (var i = 0; i < open.Count; i++) Assert.Null(room.Join(3000 + i, $"Joueur {i}"));
+        Assert.Equal(open.Count, room.Lobby.Seats.Count(s => s.Kind == SeatKind.Human && s.Peer != Sam));
+        Assert.True(room.Watches(Sam));
+    }
+
+    [Fact]
     public void A_player_back_takes_the_seat_kept_for_them_and_nobody_else_does()
     {
         var room = Room();

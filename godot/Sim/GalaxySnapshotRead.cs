@@ -89,13 +89,14 @@ public static partial class GalaxySnapshot
         return n is >= 0 and <= 1 << 16 ? n : throw new InvalidDataException($"Liste de {n} éléments");
     }
 
-    static Side SideOf(BinaryReader r)
-    {
-        var id = r.ReadVarint();
-        return id >= 0 ? new Side(id) : throw new InvalidDataException($"Camp {id}");
-    }
+    static Side SideOf(BinaryReader r) => r.ReadSide();
 
-    static Side? OptionalSide(BinaryReader r) => r.ReadVarint() is var id and > 0 ? new Side(id - 1) : null;
+    /// <summary>A side as n + 1, 0 for none.</summary>
+    static Side? OptionalSide(BinaryReader r)
+    {
+        var id = r.ReadVarint() - 1;
+        return id is < -1 or > Lobby.MaxSeats ? throw new InvalidDataException($"Camp inconnu : {id}") : id >= 0 ? new Side(id) : null;
+    }
 
     static int PlanetOf(BinaryReader r, Galaxy g) =>
         r.ReadVarint() is var id && (uint)id < (uint)g.Planets.Count ? id : throw new InvalidDataException($"Planète inconnue : {id}");
@@ -105,11 +106,7 @@ public static partial class GalaxySnapshot
         r.ReadVarint() - 1 is var id && id >= -1 && id < g.Planets.Count ? id : throw new InvalidDataException($"Planète inconnue : {id}");
 
     /// <summary>An enum value the host's build knows: the view looks them up, an unknown one would throw there.</summary>
-    static T Valid<T>(byte value) where T : struct, Enum
-    {
-        var v = (T)Enum.ToObject(typeof(T), value);
-        return Enum.IsDefined(v) ? v : throw new InvalidDataException($"{typeof(T).Name} inconnu : {value}");
-    }
+    static T Valid<T>(byte value) where T : struct, Enum => Wire.Known<T>(value);
 
     static TechId? OptionalTech(BinaryReader r) => r.ReadByte() is var t && t != byte.MaxValue ? Valid<TechId>(t) : null;
 

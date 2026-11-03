@@ -50,7 +50,13 @@ public static class Worlds
         race == Faction.Errant || side.Id < 4 ? Factions.Defs[race].Color : Factions.PlayerColors[(side.Id - 4) % Factions.PlayerColors.Count];
 
     /// <summary>A side's race: the one it joined with; a side that never joined is its own race's.</summary>
-    public static Faction RaceOf(World world, Side side) => world.Factions.TryGetValue(side, out var f) ? f.Race : (Faction)side.Id;
+    public static Faction RaceOf(World world, Side side) => world.Factions.TryGetValue(side, out var f) ? f.Race : OwnRace(side);
+
+    /// <summary>
+    /// The race a side stands for by its number, 0 to 3; any other one that never joined (only a
+    /// broken snapshot could name it) passes for the Errants rather than for a race that is none.
+    /// </summary>
+    public static Faction OwnRace(Side side) => side.Id is >= 0 and <= (int)Faction.Errant ? (Faction)side.Id : Faction.Errant;
 
     /// <summary>A side's team: 0 (alone) for a side that never joined.</summary>
     public static int TeamOf(World world, Side side) => world.Factions.TryGetValue(side, out var f) ? f.Team : 0;

@@ -19,7 +19,7 @@ public class FuzzTests
     /// Variations of a valid input: cut short, bytes flipped, bytes put in, numbers made malformed
     /// (five bytes that never end a 7-bit number) or huge, and plain noise.
     /// </summary>
-    static IEnumerable<byte[]> Mutations(byte[] seed, int salt)
+    internal static IEnumerable<byte[]> Mutations(byte[] seed, int salt)
     {
         var rng = new Random(seed.Length * 7919 + salt);
         for (var i = 0; i < Cases; i++)
@@ -156,7 +156,7 @@ public class FuzzTests
         Survives("Protocol.DecodeLanGame", [Protocol.Encode(Game)], bytes => Protocol.DecodeLanGame(bytes));
     }
 
-    static World Battle(int seed)
+    internal static World Battle(int seed)
     {
         var w = Scenario.CreateSkirmish(new SkirmishOptions
         {
@@ -187,7 +187,7 @@ public class FuzzTests
         Survives("Snapshot.ReadPart", parts.Take(4), bytes => Snapshot.ReadPart(new BinaryReader(new MemoryStream(bytes)), new World(), new SnapshotFrames()));
     }
 
-    static Galaxy Campaign(int seed)
+    internal static Galaxy Campaign(int seed)
     {
         var g = Galaxies.CreateGalaxy(Faction.Klaed, [Faction.Nairan, Faction.Nautolan], true, seed, GalaxyGen.GenerateLayout(seed, 3, MapSize.Small));
         g.Player = Faction.Errant;

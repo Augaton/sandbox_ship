@@ -26,7 +26,7 @@ public static partial class Snapshot
         if (r.ReadUInt32() != Magic) throw new InvalidDataException("Pas un instantané de bataille");
         var version = r.ReadUInt16();
         if (version != Version) throw new InvalidDataException($"Instantané en version {version}, version {Version} attendue");
-        var viewer = new Side(r.ReadVarint());
+        var viewer = r.ReadSide();
         var seq = r.ReadVarint();
         var from = r.ReadVarint();
         var baseline = frames?.Find(from);
@@ -63,7 +63,7 @@ public static partial class Snapshot
         var flags = r.ReadByte();
         replica.Fog = (flags & 1) != 0;
         replica.SandboxTools = (flags & 2) != 0;
-        replica.Winner = (flags & 4) != 0 ? new Side(r.ReadVarint()) : null;
+        replica.Winner = (flags & 4) != 0 ? r.ReadSide() : null;
         replica.LastDamage = r.ReadDouble();
         ReadMode(r, replica.Mode);
         ReadSides(r, replica, viewer);
@@ -74,12 +74,12 @@ public static partial class Snapshot
     static void ReadTail(BinaryReader r, World replica)
     {
         var beams = new List<BeamLine>();
-        for (var n = Count(r); n > 0; n--) beams.Add(new BeamLine(r.ReadVarint(), r.ReadVarint(), new Side(r.ReadVarint())));
+        for (var n = Count(r); n > 0; n--) beams.Add(new BeamLine(r.ReadVarint(), r.ReadVarint(), r.ReadSide()));
         replica.Beams = beams;
         var zones = new List<Zone>();
         for (var n = Count(r); n > 0; n--)
         {
-            zones.Add(new Zone((ZoneKind)r.ReadByte(), new Side(r.ReadVarint()), r.ReadSingle(), r.ReadSingle(), r.ReadSingle()));
+            zones.Add(new Zone(r.ReadEnum<ZoneKind>(), r.ReadSide(), r.ReadSingle(), r.ReadSingle(), r.ReadSingle()));
         }
         replica.Zones = zones;
         var strikes = new List<Strike>();
@@ -110,8 +110,8 @@ public static partial class Snapshot
         var bytes = r.ReadBytes(length);
         if (bytes.Length != length) throw new EndOfStreamException();
         using var m = new BinaryReader(new MemoryStream(bytes));
-        mode.Kind = (BattleMode)m.ReadByte();
-        Side? SideOrNone() => m.ReadVarint() is var id && id > 0 ? new Side(id - 1) : null;
+        mode.Kind = m.ReadEnum<BattleMode>();
+        Side? SideOrNone() => m.ReadVarint() is var id && id > 0 ? id - 1 <= Lobby.MaxSeats ? new Side(id - 1) : throw new InvalidDataException($"Camp inconnu : {id - 1}") : null;
         switch (mode.Kind)
         {
             case BattleMode.Standard: break;
@@ -123,7 +123,7 @@ public static partial class Snapshot
                 mode.Tallies.Clear();
                 for (var t = Count(m); t > 0; t--)
                 {
-                    mode.Tallies[new Side(m.ReadVarint())] = new SurvivalTally
+                    mode.Tallies[m.ReadSide()] = new SurvivalTally
                     {
                         Score = m.ReadVarint(), Downed = m.ReadVarint(), Bosses = m.ReadVarint(),
                     };
@@ -143,14 +143,14 @@ public static partial class Snapshot
                     b.Contested = m.ReadBoolean();
                 }
                 mode.Scores.Clear();
-                for (var i = Count(m); i > 0; i--) mode.Scores[new Side(m.ReadVarint())] = m.ReadDouble();
+                for (var i = Count(m); i > 0; i--) mode.Scores[m.ReadSide()] = m.ReadDouble();
                 break;
             case BattleMode.Assault:
                 mode.Deadline = m.ReadDouble();
                 break;
             case BattleMode.Regicide:
                 mode.Flagships.Clear();
-                for (var i = Count(m); i > 0; i--) mode.Flagships[new Side(m.ReadVarint())] = m.ReadVarint();
+                for (var i = Count(m); i > 0; i--) mode.Flagships[m.ReadSide()] = m.ReadVarint();
                 break;
             default: throw new InvalidDataException($"Mode de bataille inconnu : {mode.Kind}");
         }
@@ -162,10 +162,10 @@ public static partial class Snapshot
         var listed = new HashSet<Side>();
         for (var n = Count(r); n > 0; n--)
         {
-            var side = new Side(r.ReadVarint());
+            var side = r.ReadSide();
             listed.Add(side);
             if (!replica.Factions.TryGetValue(side, out var f)) replica.Factions[side] = f = new FactionState { Id = side };
-            f.Race = (Faction)r.ReadByte();
+            f.Race = r.ReadEnum<Faction>();
             f.Team = r.ReadVarint();
             f.Color = r.ReadUInt32();
             var flags = r.ReadByte();
@@ -200,7 +200,7 @@ public static partial class Snapshot
         f.ResearchQueue = [];
         for (var n = Count(r); n > 0; n--) f.ResearchQueue.Add(ReadJob(r));
         f.Repeat = [];
-        for (var n = Count(r); n > 0; n--) f.Repeat.Add((ShipClass)r.ReadByte());
+        for (var n = Count(r); n > 0; n--) f.Repeat.Add(r.ReadEnum<ShipClass>());
         f.HeroCooldowns.Clear();
         for (var n = Count(r); n > 0; n--) f.HeroCooldowns[ReadHero(r)] = r.ReadSingle();
     }
@@ -212,7 +212,7 @@ public static partial class Snapshot
         {
             queue.Add(new QueueItem
             {
-                Kind = (QueueKind)r.ReadByte(), Cls = (ShipClass)r.ReadByte(), TargetId = r.ReadVarint(), Hero = ReadHero(r),
+                Kind = r.ReadEnum<QueueKind>(), Cls = r.ReadEnum<ShipClass>(), TargetId = r.ReadVarint(), Hero = ReadHero(r),
                 Remaining = r.ReadSingle(), Total = r.ReadSingle(), Cost = r.ReadSingle(),
             });
         }
@@ -221,12 +221,17 @@ public static partial class Snapshot
 
     static ResearchJob ReadJob(BinaryReader r)
     {
-        var tech = (TechId)r.ReadByte();
+        var tech = r.ReadEnum<TechId>();
         var remaining = r.ReadSingle();
         return new ResearchJob { Tech = tech, Remaining = remaining, Total = r.ReadSingle(), Cost = r.ReadSingle() };
     }
 
-    static HeroId ReadHero(BinaryReader r) => new((Faction)r.ReadByte(), (HeroRole)r.ReadByte());
+    /// <summary>A hero: one of the game's, or none (the default value, on an order that is no hero).</summary>
+    static HeroId ReadHero(BinaryReader r)
+    {
+        var h = new HeroId(r.ReadEnum<Faction>(), r.ReadEnum<HeroRole>());
+        return h == default || Heroes.Defs.ContainsKey(h) ? h : throw new InvalidDataException($"Héros inconnu : {h}");
+    }
 
     /// <summary>Fields stay where they are for the whole battle: they are kept, and only their mines change.</summary>
     static void ReadFields(BinaryReader r, World replica)
@@ -331,6 +336,8 @@ public static partial class Snapshot
         var s = From(Who);
         var p = s.BaseStream.Position;
         var head = ReadWho(s, e);
+        // A side beyond the races' own is one of the seats the snapshot listed: the screen asks for it.
+        if (e.Side.Id > (int)Faction.Errant && !replica.Factions.ContainsKey(e.Side)) throw new InvalidDataException($"Camp {e.Side} non listé");
         Copy(s, p, frame);
         var remembered = (head & Remembered) != 0;
         if ((head & Follows) != 0) None(Motion);
@@ -374,11 +381,12 @@ public static partial class Snapshot
     static int ReadWho(BinaryReader r, Entity e)
     {
         var head = r.ReadByte();
-        e.Kind = (EntityKind)(head & 3);
-        e.Size = (SizeClass)(head >> 2 & 3);
+        e.Kind = Wire.Known<EntityKind>(head & 3);
+        e.Size = Wire.Known<SizeClass>(head >> 2 & 3);
         e.Type = ReadType(r);
-        e.Side = new Side(r.ReadVarint());
-        e.Race = (Faction)r.ReadByte();
+        if (!Fits(e.Kind, e.Type)) throw new InvalidDataException($"{e.Kind} de type {e.Type}");
+        e.Side = r.ReadSide();
+        e.Race = r.ReadEnum<Faction>();
         e.Radius = (double)r.ReadHalf();
         e.Level = r.ReadVarint();
         e.ParentId = (head & HasParent) != 0 ? r.ReadVarint() : null;
@@ -472,7 +480,7 @@ public static partial class Snapshot
         else e.Pilot = null;
         if ((has & Has.Order) != 0)
         {
-            var (type, x, y, target) = ((OrderType)r.ReadByte(), r.ReadSingle(), r.ReadSingle(), r.ReadVarint());
+            var (type, x, y, target) = (r.ReadEnum<OrderType>(), r.ReadSingle(), r.ReadSingle(), r.ReadVarint());
             // The same order as before keeps its object: no garbage for every own ship at every snapshot.
             if (e.Order is not { } o || o.Type != type || o.X != x || o.Y != y || o.TargetId != target) e.Order = new Order(type, x, y, target);
         }
@@ -487,7 +495,7 @@ public static partial class Snapshot
         var list = same ? e.Abilities : new List<AbilityState>(n);
         for (var i = 0; i < n; i++)
         {
-            var id = (AbilityId)r.ReadByte();
+            var id = r.ReadEnum<AbilityId>();
             AbilityState a;
             if (same && list[i].Id == id) a = list[i];
             else
@@ -525,7 +533,7 @@ public static partial class Snapshot
                 continue;
             }
             if (id == change) b++;
-            shots.Add(new(change, r.ReadVarint(), r.ReadByte(), r.ReadSingle(), r.ReadSingle(), r.ReadSingle(), r.ReadSingle()));
+            shots.Add(new(change, r.ReadSide().Id, (byte)r.ReadEnum<WeaponKind>(), r.ReadSingle(), r.ReadSingle(), r.ReadSingle(), r.ReadSingle()));
             change = --changes > 0 ? NextId(r, change) : int.MaxValue;
         }
         if (gone != removed.Count || shots.Count != count) throw new InvalidDataException("Tirs mal formés");
@@ -554,7 +562,7 @@ public static partial class Snapshot
 
     static Strike ReadStrike(BinaryReader r) => new()
     {
-        Kind = (StrikeKind)r.ReadByte(), Side = new Side(r.ReadVarint()),
+        Kind = r.ReadEnum<StrikeKind>(), Side = r.ReadSide(),
         X = r.ReadSingle(), Y = r.ReadSingle(), X2 = r.ReadSingle(), Y2 = r.ReadSingle(),
         Radius = r.ReadSingle(), Damage = r.ReadSingle(), Delay = r.ReadSingle(), Total = r.ReadSingle(),
     };
@@ -562,31 +570,41 @@ public static partial class Snapshot
     static string ReadType(BinaryReader r)
     {
         var code = r.ReadByte();
-        return code == NamedType ? r.ReadText() : code < Types.Length ? Types[code] : throw new InvalidDataException($"Type inconnu : {code}");
+        // A type by name is still one of the game's: the table holds them all, the name only spells one out.
+        var type = code == NamedType ? r.ReadText(64) : code < Types.Length ? Types[code] : null;
+        return type is not null && TypeCodes.ContainsKey(type) ? type : throw new InvalidDataException($"Type inconnu : {code}");
     }
+
+    /// <summary>Whether an entity of this kind may be of this type: a ship class, a part, a station or a structure that is built.</summary>
+    static bool Fits(EntityKind kind, string type) => kind switch
+    {
+        EntityKind.Ship => Ids.IsShip(type),
+        EntityKind.Hardpoint => Ids.IsRole(type),
+        _ => type == "station" || Ids.IsBuildable(type, out _),
+    };
 
     static SimEvent ReadEvent(BinaryReader r) => (Tag)r.ReadByte() switch
     {
-        Tag.Destroyed => new Destroyed(r.ReadVarint(), (EntityKind)r.ReadByte(), ReadType(r), new Side(r.ReadVarint()),
+        Tag.Destroyed => new Destroyed(r.ReadVarint(), r.ReadEnum<EntityKind>(), ReadType(r), r.ReadSide(),
             r.ReadSingle(), r.ReadSingle(), r.ReadSingle()),
-        Tag.Hit => new Hit(r.ReadSingle(), r.ReadSingle(), (WeaponKind)r.ReadByte(), r.ReadVarint(), new Side(r.ReadVarint()), Optional(r)),
+        Tag.Hit => new Hit(r.ReadSingle(), r.ReadSingle(), r.ReadEnum<WeaponKind>(), r.ReadVarint(), r.ReadSide(), Optional(r)),
         Tag.Built => new Built(r.ReadVarint()),
-        Tag.LanceOnline => new LanceOnline(r.ReadVarint(), new Side(r.ReadVarint())),
+        Tag.LanceOnline => new LanceOnline(r.ReadVarint(), r.ReadSide()),
         Tag.Delivered => new Delivered(r.ReadVarint()),
-        Tag.Researched => new Researched(new Side(r.ReadVarint()), (TechId)r.ReadByte()),
-        Tag.AbilityUsed => new AbilityUsed((AbilityId)r.ReadByte(), new Side(r.ReadVarint()), r.ReadVarint(),
+        Tag.Researched => new Researched(r.ReadSide(), r.ReadEnum<TechId>()),
+        Tag.AbilityUsed => new AbilityUsed(r.ReadEnum<AbilityId>(), r.ReadSide(), r.ReadVarint(),
             r.ReadSingle(), r.ReadSingle(), r.ReadSingle(), r.ReadSingle()),
         Tag.StrikeLanded => new StrikeLanded(ReadStrike(r)),
-        Tag.Rebuilt => new Rebuilt(r.ReadVarint(), new Side(r.ReadVarint()), (HardpointRole)r.ReadByte()),
-        Tag.Victory => new Victory(new Side(r.ReadVarint()), r.ReadVarint()),
-        Tag.RaidWon => new RaidWon(new Side(r.ReadVarint()), r.ReadDouble(), r.ReadByte() is var t && t != byte.MaxValue ? (TechId)t : null),
-        Tag.WaveIncoming => new WaveIncoming(r.ReadVarint(), r.ReadSingle(), r.ReadSingle(), r.ReadByte() is var boss && boss != byte.MaxValue ? (ShipClass)boss : null),
+        Tag.Rebuilt => new Rebuilt(r.ReadVarint(), r.ReadSide(), r.ReadEnum<HardpointRole>()),
+        Tag.Victory => new Victory(r.ReadSide(), r.ReadVarint()),
+        Tag.RaidWon => new RaidWon(r.ReadSide(), r.ReadDouble(), r.ReadEnumOrNone<TechId>()),
+        Tag.WaveIncoming => new WaveIncoming(r.ReadVarint(), r.ReadSingle(), r.ReadSingle(), r.ReadEnumOrNone<ShipClass>()),
         Tag.WaveCleared => new WaveCleared(r.ReadVarint(), r.ReadVarint()),
-        Tag.BeaconTaken => new BeaconTaken(r.ReadVarint(), new Side(r.ReadVarint())),
-        Tag.BeaconLost => new BeaconLost(r.ReadVarint(), new Side(r.ReadVarint())),
-        Tag.FlagshipLost => new FlagshipLost(new Side(r.ReadVarint()), r.ReadSingle(), r.ReadSingle()),
+        Tag.BeaconTaken => new BeaconTaken(r.ReadVarint(), r.ReadSide()),
+        Tag.BeaconLost => new BeaconLost(r.ReadVarint(), r.ReadSide()),
+        Tag.FlagshipLost => new FlagshipLost(r.ReadSide(), r.ReadSingle(), r.ReadSingle()),
         Tag.ClockWarning => new ClockWarning(r.ReadSingle()),
-        Tag.Intercepted => new Intercepted(r.ReadSingle(), r.ReadSingle(), new Side(r.ReadVarint())),
+        Tag.Intercepted => new Intercepted(r.ReadSingle(), r.ReadSingle(), r.ReadSide()),
         var tag => throw new InvalidDataException($"Événement inconnu : {tag}"),
     };
 }

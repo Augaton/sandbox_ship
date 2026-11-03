@@ -468,6 +468,7 @@ public static class Ids
     public static ShipClass Ship(string type) => ships[type];
     public static bool IsShip(string type) => ships.ContainsKey(type);
     public static HardpointRole Role(string type) => roles[type];
+    public static bool IsRole(string type) => roles.ContainsKey(type);
     public static bool IsBuildable(string type, out BuildableType b) => buildables.TryGetValue(type, out b);
 
     static class Names<T> where T : struct, Enum

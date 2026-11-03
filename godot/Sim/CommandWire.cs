@@ -53,26 +53,26 @@ public static partial class Commands
         1 => new Command.Move(ReadIds(r), r.ReadDouble(), r.ReadDouble(), r.ReadBoolean()),
         2 => new Command.Attack(ReadIds(r), r.ReadVarint()),
         3 => new Command.Stop(ReadIds(r)),
-        4 => new Command.UseAbility(r.ReadVarint(), (AbilityId)r.ReadByte(), AimOf(r)),
-        5 => new Command.EnqueueShip((ShipClass)r.ReadByte(), r.ReadVarint()),
+        4 => new Command.UseAbility(r.ReadVarint(), r.ReadEnum<AbilityId>(), AimOf(r)),
+        5 => new Command.EnqueueShip(r.ReadEnum<ShipClass>(), r.ReadVarint()),
         6 => new Command.EnqueueHero(HeroOf(r)),
         7 => new Command.UpgradeStation(),
         8 => new Command.UpgradeStructure(r.ReadVarint()),
-        9 => new Command.StartResearch((TechId)r.ReadByte()),
-        10 => new Command.PlaceStructure((BuildableType)r.ReadByte(), r.ReadDouble(), r.ReadDouble()),
-        11 => new Command.CancelQueued(r.ReadVarint(), (QueueSide)r.ReadByte()),
+        9 => new Command.StartResearch(r.ReadEnum<TechId>()),
+        10 => new Command.PlaceStructure(r.ReadEnum<BuildableType>(), r.ReadDouble(), r.ReadDouble()),
+        11 => new Command.CancelQueued(r.ReadVarint(), r.ReadEnum<QueueSide>()),
         12 => new Command.CancelConstruction(r.ReadVarint()),
         13 => new Command.CancelResearch(r.ReadVarint()),
         14 => new Command.SetRally(r.ReadDouble(), r.ReadDouble()),
-        15 => new Command.SetLoop((ShipClass)r.ReadByte(), r.ReadBoolean()),
+        15 => new Command.SetLoop(r.ReadEnum<ShipClass>(), r.ReadBoolean()),
         16 => new Command.SetAutoAbilities(r.ReadBoolean()),
         17 => new Command.StartPilot(r.ReadVarint()),
         18 => new Command.StopPilot(r.ReadVarint()),
         19 => new Command.PilotInput(r.ReadVarint(), r.ReadDouble(), r.ReadDouble(), r.ReadDouble(), r.ReadDouble(), r.ReadBoolean()),
-        20 => new Command.Spawn((Faction)r.ReadByte(), r.ReadText(), r.ReadDouble(), r.ReadDouble(), r.ReadDouble()),
+        20 => new Command.Spawn(r.ReadEnum<Faction>(), r.ReadText(), r.ReadDouble(), r.ReadDouble(), r.ReadDouble()),
         21 => new Command.GrantCredits(r.ReadDouble()),
         22 => new Command.SetFog(r.ReadBoolean()),
-        23 => new Command.SetAI(new Side(r.ReadVarint()), r.ReadByte() is var d && d != byte.MaxValue ? (Difficulty)d : null),
+        23 => new Command.SetAI(new Side(r.ReadVarint()), r.ReadEnumOrNone<Difficulty>()),
         24 => new Command.Destroy(ReadIds(r)),
         var tag => throw new InvalidDataException($"Commande inconnue : {tag}"),
     };
@@ -124,17 +124,17 @@ public static partial class Commands
         1 => new GalaxyCommand.SendFleet(r.ReadVarint(), r.ReadVarint(), r.ReadBoolean() ? CountsOf(r) : null, r.ReadBoolean() ? HeroesOf(r) : null),
         2 => new GalaxyCommand.RedirectFleet(r.ReadVarint(), r.ReadVarint()),
         3 => new GalaxyCommand.StopFleet(r.ReadVarint()),
-        4 => new GalaxyCommand.EnqueueBuild(r.ReadVarint(), new GalaxyBuild((GalaxyBuildKind)r.ReadByte(), (ShipClass)r.ReadByte(), HeroOf(r))),
-        5 => new GalaxyCommand.CancelBuild(r.ReadVarint(), r.ReadVarint(), (QueueSide)r.ReadByte()),
-        6 => new GalaxyCommand.SetLoop(r.ReadVarint(), (ShipClass)r.ReadByte(), r.ReadBoolean()),
+        4 => new GalaxyCommand.EnqueueBuild(r.ReadVarint(), new GalaxyBuild(r.ReadEnum<GalaxyBuildKind>(), r.ReadEnum<ShipClass>(), HeroOf(r))),
+        5 => new GalaxyCommand.CancelBuild(r.ReadVarint(), r.ReadVarint(), r.ReadEnum<QueueSide>()),
+        6 => new GalaxyCommand.SetLoop(r.ReadVarint(), r.ReadEnum<ShipClass>(), r.ReadBoolean()),
         7 => new GalaxyCommand.SetRally(r.ReadVarint(), r.ReadVarint() is var t && t >= 0 ? t : null),
-        8 => new GalaxyCommand.StartTech((TechId)r.ReadByte()),
+        8 => new GalaxyCommand.StartTech(r.ReadEnum<TechId>()),
         9 => new GalaxyCommand.CancelTech(r.ReadVarint()),
         10 => new GalaxyCommand.FireLance(r.ReadVarint(), r.ReadVarint()),
         11 => new GalaxyCommand.OfferTruce(new Side(r.ReadVarint())),
         12 => new GalaxyCommand.AnswerTruce(new Side(r.ReadVarint()), r.ReadBoolean()),
         13 => new GalaxyCommand.BreakTruce(new Side(r.ReadVarint())),
-        14 => new GalaxyCommand.ChooseBattle(r.ReadVarint(), (BattleStatus)r.ReadByte()),
+        14 => new GalaxyCommand.ChooseBattle(r.ReadVarint(), r.ReadEnum<BattleStatus>()),
         15 => new GalaxyCommand.DelegateBattle(r.ReadVarint()),
         16 => new GalaxyCommand.Retreat(r.ReadVarint()),
         var tag => throw new InvalidDataException($"Commande galactique inconnue : {tag}"),
@@ -179,12 +179,12 @@ public static partial class Commands
         w.Write((byte)h.Role);
     }
 
-    static HeroId HeroOf(BinaryReader r) => new((Faction)r.ReadByte(), (HeroRole)r.ReadByte());
+    static HeroId HeroOf(BinaryReader r) => new(r.ReadEnum<Faction>(), r.ReadEnum<HeroRole>());
 
     static ShipCounts CountsOf(BinaryReader r)
     {
         var counts = new ShipCounts();
-        for (var n = Length(r); n > 0; n--) counts[(ShipClass)r.ReadByte()] = r.ReadVarint();
+        for (var n = Length(r); n > 0; n--) counts[r.ReadEnum<ShipClass>()] = r.ReadVarint();
         return counts;
     }
 

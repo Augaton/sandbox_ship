@@ -324,14 +324,14 @@ public static class Protocol
 
     static LobbyRequest ReadRequest(BinaryReader r) => r.ReadByte() switch
     {
-        1 => new LobbyRequest.SetKind(r.ReadVarint(), (SeatKind)r.ReadByte(), (Difficulty)r.ReadByte()),
-        2 => new LobbyRequest.SetRace(r.ReadVarint(), (Faction)r.ReadByte()),
+        1 => new LobbyRequest.SetKind(r.ReadVarint(), r.ReadEnum<SeatKind>(), r.ReadEnum<Difficulty>()),
+        2 => new LobbyRequest.SetRace(r.ReadVarint(), r.ReadEnum<Faction>()),
         3 => new LobbyRequest.SetTeam(r.ReadVarint(), r.ReadVarint()),
         4 => new LobbyRequest.SetColor(r.ReadVarint(), r.ReadUInt32()),
         5 => new LobbyRequest.SetReady(r.ReadBoolean()),
         6 => new LobbyRequest.AddBot(),
         7 => new LobbyRequest.Remove(r.ReadVarint()),
-        8 => new LobbyRequest.Settings(new LobbySettings((MapKind)r.ReadByte(), (MapSize)r.ReadByte(), r.ReadVarint(), r.ReadBoolean(),
+        8 => new LobbyRequest.Settings(new LobbySettings(r.ReadEnum<MapKind>(), r.ReadEnum<MapSize>(), r.ReadVarint(), r.ReadBoolean(),
             r.ReadBoolean(), r.ReadVarint(), r.ReadVarint(), r.ReadBoolean())),
         var tag => throw new InvalidDataException($"Demande inconnue : {tag}"),
     };

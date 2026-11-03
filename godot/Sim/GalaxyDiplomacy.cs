@@ -55,7 +55,7 @@ public static partial class Galaxies
     public static bool AtPeace(Galaxy g, Side a, Side b) => g.Truces.Count > 0 && a != b && TruceOf(g, a, b) is not null;
 
     /// <summary>A side's race: its galaxy faction's; a side with none (the Errants) is its own race's (see Side).</summary>
-    public static Faction RaceOf(Galaxy g, Side side) => g.Factions.TryGetValue(side, out var f) ? f.Race : (Faction)side.Id;
+    public static Faction RaceOf(Galaxy g, Side side) => g.Factions.TryGetValue(side, out var f) ? f.Race : Worlds.OwnRace(side);
 
     /// <summary>A side's team: 0 (alone) for a side with no galaxy faction, the Errants.</summary>
     public static int TeamOf(Galaxy g, Side side) => g.Factions.TryGetValue(side, out var f) ? f.Team : 0;
