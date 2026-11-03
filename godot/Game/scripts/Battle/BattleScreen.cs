@@ -121,6 +121,7 @@ public partial class BattleScreen : Node
         AddChild(Controls);
         Hud = new Hud(this, sandbox, o.Campaign?.Title);
         AddChild(Hud);
+        if (Dev.NoHud) Hud.Visible = false;
         if (o.Net is not null) NetReady();
         if (o.Demo)
         {
@@ -187,13 +188,30 @@ public partial class BattleScreen : Node
             }
             y += 380;
         }
-        for (var level = 1; level <= 3; level++)
+        // Each race's stations, levels 1 to 4 with their parts, then each of its buildings at each of its levels.
+        foreach (var f in Factions.All.Append(Faction.Errant))
         {
-            var p = Worlds.SpawnStructure(World, Faction.Klaed, BuildableType.Platform, 500 + level * 160, y);
-            for (var t = 1; t < level; t++) Structures.ApplyTier(World, p);
+            var x = 300.0;
+            for (var level = 1; level <= Station.Levels.Count; level++)
+            {
+                x += 190;
+                Worlds.SpawnStation(World, f, x, y, level);
+                x += 190;
+            }
+            foreach (var type in Buildables.All)
+            {
+                var def = Buildables.Defs[type];
+                for (var level = 1; level <= 1 + (def.Tiers?.Count ?? 0); level++)
+                {
+                    x += def.Radius + 45;
+                    var b = Worlds.SpawnStructure(World, f, type, x, y);
+                    for (var t = 1; t < level; t++) Structures.ApplyTier(World, b);
+                    if (type == BuildableType.StarLance) b.Abilities[0].Cooldown *= 0.4;
+                    x += def.Radius + 45;
+                }
+            }
+            y += 420;
         }
-        Worlds.SpawnStructure(World, Faction.Klaed, BuildableType.Lab, 1250, y);
-        Worlds.SpawnStructure(World, Faction.Klaed, BuildableType.StarLance, 1500, y).Abilities[0].Cooldown *= 0.4;
         World.Fog = false;
         Paused = true;
         CenterOn(1700, 1150);

@@ -1,9 +1,8 @@
 // Sprites and looks. assets/looks.json is written by the web version (`npm run fixtures`):
 // which pack sprite each ship, structure, part and shot wears. At start, this class loads
-// those sprites, composes the titans (render/capitals.ts) and, the same way, the classes the
-// web version lacks (bulwark, carrier, leviathan), turns the red trim of the parts
-// to each faction's color (render/recolor.ts) and makes the effect textures
-// (render/placeholders.ts).
+// those sprites, draws the classes the packs lack (ShipForge) and, for every race, its stations,
+// their parts and its buildings (ShipForge.Structures, in place of the web version's Space
+// Breaker parts recolored), and makes the effect textures (render/placeholders.ts).
 using System.Text.Json;
 using Godot;
 using SandboxShip.Sim;
@@ -14,7 +13,14 @@ namespace SandboxShip.Render;
 /// <summary>A sprite of a look: its key, its visible size against the entity's diameter, and its offset in radii.</summary>
 public sealed record Layer(string Key, double Size, double X = 0, double Y = 0);
 
-public sealed record Look(IReadOnlyList<Layer> Layers, string? Engine, string? Destruction, bool Tint);
+/// <summary>
+/// How an entity is drawn: its layers, its engine flames and destruction (ships), whether it
+/// takes its side's color. Drawn structures add a part that turns over them (`Gun`: aimed where
+/// they shoot, or `Spin`ning, a mine's drill), and lamps that live in battle (`Lamps`, their
+/// places and `LampSize` in radii of the entity).
+/// </summary>
+public sealed record Look(IReadOnlyList<Layer> Layers, string? Engine, string? Destruction, bool Tint,
+    Layer? Gun = null, bool Spin = false, IReadOnlyList<ShipForge.Lamp>? Lamps = null, double LampSize = 0);
 
 public static class Assets
 {
@@ -33,11 +39,12 @@ public static class Assets
     static readonly Dictionary<(Faction, ShipClass), Look> ships = [];
     static readonly Dictionary<string, Look> structures = [];
     static readonly Dictionary<string, Look> hardpoints = [];
-    /// <summary>Platforms by level, 1 to 3, and the lab: looks of this version only.</summary>
-    static readonly Dictionary<int, Look> platformTiers = [];
-    static Look? lab;
     /// <summary>Each faction's star lance, drawn by ShipForge.</summary>
     static readonly Dictionary<Faction, Look> lances = [];
+    /// <summary>Drawn by ShipForge for every race: stations by level, parts by role and gun, buildings by type and level.</summary>
+    static readonly Dictionary<(Faction, int), Look> stations = [];
+    static readonly Dictionary<(Faction, HardpointRole, ShipForge.Gun), Look> parts = [];
+    static readonly Dictionary<(Faction, BuildableType, int), Look> buildings = [];
     static readonly Dictionary<(Faction, WeaponKind), (string Key, bool Tint)> projectiles = [];
 
     public static IReadOnlyList<string> Asteroids { get; private set; } = [];
@@ -63,10 +70,15 @@ public static class Assets
         // The neutral Errants too, every class of theirs: they have no pack.
         var jobs = Enum.GetValues<Faction>().SelectMany(f => ShipForge.Classes(f).Select(c => (F: f, C: c))).ToArray();
         var forged = new ShipForge.Sprites?[jobs.Length];
+        // Stations, parts and buildings too, in the same batch.
+        var works = StructureWorks();
+        var built = new ShipForge.Built?[works.Count];
+        var total = jobs.Length + works.Count;
         var done = 0;
-        var forging = Task.Run(() => Parallel.For(0, jobs.Length, i =>
+        var forging = Task.Run(() => Parallel.For(0, total, i =>
         {
-            forged[i] = ShipForge.Forge(jobs[i].C, jobs[i].F);
+            if (i < jobs.Length) forged[i] = ShipForge.Forge(jobs[i].C, jobs[i].F);
+            else built[i - jobs.Length] = works[i - jobs.Length].Make();
             Interlocked.Increment(ref done);
         }));
         var root = JsonDocument.Parse(Godot.FileAccess.GetFileAsString("res://assets/looks.json")).RootElement;
@@ -82,7 +94,7 @@ public static class Assets
             strips[s.Name] = new Strip(tex, s.Value.GetProperty("frameW").GetInt32(), s.Value.GetProperty("frameH").GetInt32(), s.Value.GetProperty("frames").GetInt32());
             pixels[s.Name] = img;
             if (i % 16 != 15) continue;
-            Progress = 0.3 * i / sprites.Count + 0.6 * done / jobs.Length;
+            Progress = 0.3 * i / sprites.Count + 0.6 * done / total;
             await NextFrame();
         }
         foreach (var f in root.GetProperty("ships").EnumerateObject())
@@ -91,7 +103,6 @@ public static class Assets
         }
         foreach (var s in root.GetProperty("structures").EnumerateObject()) structures[s.Name] = ReadLook(s.Value);
         foreach (var h in root.GetProperty("hardpoints").EnumerateObject()) hardpoints[h.Name] = ReadLook(h.Value);
-        ExtraLooks(root.GetProperty("extra"));
         foreach (var f in root.GetProperty("projectiles").EnumerateObject())
         {
             foreach (var k in f.Value.EnumerateObject())
@@ -104,11 +115,10 @@ public static class Assets
         var b = root.GetProperty("backdrop");
         BackdropTiles = b.GetProperty("tiles").EnumerateArray().Select(t => (t.GetProperty("key").GetString()!, t.GetProperty("factor").GetDouble())).ToList();
         BackdropDecor = b.GetProperty("decor").ValueKind == JsonValueKind.String ? b.GetProperty("decor").GetString() : null;
-        foreach (var part in root.GetProperty("parts").EnumerateArray()) RecolorPart(part.GetString()!);
         MakeEffects();
         while (!forging.IsCompleted)
         {
-            Progress = 0.3 + 0.6 * done / jobs.Length;
+            Progress = 0.3 + 0.6 * done / total;
             await NextFrame();
         }
         await forging;
@@ -121,7 +131,14 @@ public static class Assets
             Add(key, img, img.GetWidth(), img.GetHeight(), 1);
             lances[f] = new Look([new Layer(key, 1.15)], null, null, false);
         }
+        for (var i = 0; i < works.Count; i++)
+        {
+            if (built[i] is not { } made) continue;
+            Add(works[i].Key, made.Image, made.Image.GetWidth(), made.Image.GetHeight(), 1);
+            if (Core.Dev.Dump is string into) made.Image.SavePng($"{into}/{works[i].Key}.png");
+        }
         foreach (var key in strips.Keys) OpaqueSize(key);
+        StructureLooks(works, built);
         foreach (var img in pixels.Values) img.Dispose();
         pixels.Clear();
         Progress = 1;
@@ -129,41 +146,112 @@ public static class Assets
 
     static T Parse<T>(string s) where T : struct, Enum => Enum.Parse<T>(s, true);
 
+    /// <summary>A drawing to make while the game loads: its key, how to make it, and what its look is built from.</summary>
+    sealed record Work(string Key, Func<ShipForge.Built?> Make, Faction F, string Kind, int Level = 0, HardpointRole Role = default, ShipForge.Gun Gun = default, BuildableType Type = default);
+
+    static List<Work> StructureWorks()
+    {
+        var works = new List<Work>();
+        foreach (var f in Enum.GetValues<Faction>())
+        {
+            var race = f.ToString().ToLowerInvariant();
+            for (var level = 1; level <= Station.Levels.Count; level++)
+            {
+                var l = level;
+                works.Add(new($"gen-{race}-station-{l}", () => ShipForge.Station(f, l), f, "station", l));
+            }
+            foreach (var role in Enum.GetValues<HardpointRole>())
+            {
+                var armed = role is HardpointRole.Turret or HardpointRole.HeavyTurret;
+                foreach (var gun in armed ? Enum.GetValues<ShipForge.Gun>() : [default(ShipForge.Gun)])
+                {
+                    var (r, g) = (role, gun);
+                    works.Add(new($"gen-{race}-{r.ToString().ToLowerInvariant()}{(armed ? "-" + g.ToString().ToLowerInvariant() : "")}", () => ShipForge.Part(f, r, g), f, "part", Role: r, Gun: g));
+                }
+            }
+            foreach (var type in Buildables.All)
+            {
+                if (type == BuildableType.StarLance) continue;
+                for (var level = 1; level <= 1 + (Buildables.Defs[type].Tiers?.Count ?? 0); level++)
+                {
+                    var (t, l) = (type, level);
+                    var key = $"gen-{race}-{Ids.Of(t).ToLowerInvariant()}-{l}";
+                    works.Add(new(key, () => ShipForge.Building(f, t, l), f, "building", l, Type: t));
+                    works.Add(new($"{key}-gun", () => ShipForge.BuildingGun(f, t, l), f, "gun", l, Type: t));
+                }
+            }
+        }
+        return works;
+    }
+
+    /// <summary>
+    /// The looks of what was drawn, each layer sized so that a drawn pixel stands for
+    /// ShipForge.StructurePixel world units at the radius it was designed for; its lamps in radii.
+    /// </summary>
+    static void StructureLooks(List<Work> works, ShipForge.Built?[] built)
+    {
+        Layer Sized(string key, double radius) => new(key, OpaqueSize(key) * ShipForge.StructurePixel / (2 * radius));
+        List<ShipForge.Lamp> InRadii(ShipForge.Built b, double radius) =>
+            [.. b.Lamps.Select(l => l with { X = (float)(l.X * ShipForge.StructurePixel / radius), Y = (float)(l.Y * ShipForge.StructurePixel / radius) })];
+        for (var i = 0; i < works.Count; i++)
+        {
+            var w = works[i];
+            if (built[i] is not { } b || w.Kind == "gun") continue;
+            var radius = w.Kind switch
+            {
+                "station" => Station.Radius,
+                "part" => Hardpoints.Defs[w.Role].Radius,
+                _ => Buildables.Defs[w.Type].Radius,
+            };
+            var size = ShipForge.StructurePixel / radius;
+            switch (w.Kind)
+            {
+                case "station":
+                    stations[(w.F, w.Level)] = new Look([Sized(w.Key, radius)], null, null, false, Lamps: InRadii(b, radius), LampSize: size);
+                    break;
+                case "part":
+                    parts[(w.F, w.Role, w.Gun)] = new Look([Sized(w.Key, radius)], null, null, false, Lamps: InRadii(b, radius), LampSize: size);
+                    break;
+                default:
+                    var gun = strips.ContainsKey($"{w.Key}-gun") ? Sized($"{w.Key}-gun", radius) : null;
+                    // A mine stays on its rock: the pack's asteroid under the rig.
+                    List<Layer> layers = w.Type == BuildableType.Mine && structures.TryGetValue("mine", out var mine) ? [mine.Layers[0], Sized(w.Key, radius)] : [Sized(w.Key, radius)];
+                    buildings[(w.F, w.Type, w.Level)] = new Look(layers, null, null, false, gun, w.Type == BuildableType.Mine, InRadii(b, radius), size);
+                    break;
+            }
+        }
+    }
+
+    /// <summary>
+    /// The first weapon of a part's slot, from its parent's data: a player's replica of a battle
+    /// over the network knows its parts' places but not their weapons.
+    /// </summary>
+    static WeaponDef? SlotWeapon(World world, Entity e, HardpointRole role)
+    {
+        var parent = world.Entities.Get(e.ParentId);
+        IEnumerable<HardpointSlot> slots = parent?.Kind == EntityKind.Ship ? Ships.Defs[parent.Cls].Hardpoints ?? []
+            : parent?.Type == "station" ? Station.Levels.SelectMany(l => l.Hardpoints) : [];
+        var slot = slots.FirstOrDefault(s => s.Role == role && Math.Abs(s.X - e.Ox) < 0.5 && Math.Abs(s.Y - e.Oy) < 0.5);
+        return (slot?.Weapons ?? Hardpoints.Defs[role].Weapons).FirstOrDefault();
+    }
+
     static Look ReadLook(JsonElement j) => new(
         j.GetProperty("layers").EnumerateArray().Select(l => new Layer(l.GetProperty("key").GetString()!, l.GetProperty("size").GetDouble())).ToList(),
         j.GetProperty("engine").ValueKind == JsonValueKind.String ? j.GetProperty("engine").GetString() : null,
         j.GetProperty("destruction").ValueKind == JsonValueKind.String ? j.GetProperty("destruction").GetString() : null,
         j.GetProperty("tint").GetBoolean());
 
-    public static Look LookFor(Entity e) => e.Kind switch
+    public static Look LookFor(World world, Entity e) => e.Kind switch
     {
         EntityKind.Ship => ships[(e.Race, e.Cls)],
+        EntityKind.Hardpoint when Enum.TryParse<HardpointRole>(e.Type, true, out var role)
+            && parts.TryGetValue((e.Race, role, ShipForge.GunOf(SlotWeapon(world, e, role), role)), out var part) => part,
         EntityKind.Hardpoint => hardpoints[e.Type],
-        _ when e.Type == "platform" && platformTiers.TryGetValue(e.Level, out var tier) => tier,
-        _ when e.Type == "lab" && lab is not null => lab,
+        _ when e.Type == "station" && stations.TryGetValue((e.Race, Math.Clamp(e.Level, 1, Station.Levels.Count)), out var station) => station,
+        _ when Ids.IsBuildable(e.Type, out var type) && buildings.TryGetValue((e.Race, type, Math.Max(1, e.Level)), out var building) => building,
         _ when e.Type == "starLance" && lances.TryGetValue(e.Race, out var lance) => lance,
         _ => structures[e.Type],
     };
-
-    /// <summary>
-    /// Platforms that look their level, from a lone gun tower to a gun deck with three heavy
-    /// turrets, and the lab: a station hull with a dish.
-    /// </summary>
-    static void ExtraLooks(JsonElement extra)
-    {
-        string? Key(string name) => extra.TryGetProperty(name, out var k) && k.ValueKind == JsonValueKind.String && strips.ContainsKey(k.GetString()!) ? k.GetString() : null;
-        Look? Of(params (string Part, double Size, double X, double Y)[] layers)
-        {
-            var keys = layers.Select(l => Key(l.Part)).ToList();
-            if (keys.Any(k => k is null)) return null;
-            return new Look(layers.Select((l, i) => new Layer(keys[i]!, l.Size, l.X, l.Y)).ToList(), null, null, false);
-        }
-        if (Of(("tower", 1, 0, 0), ("laserSmall1", 0.45, 0, 0)) is { } t1) platformTiers[1] = t1;
-        if (Of(("tower", 1.15, 0, 0), ("laserMedium2", 0.6, 0, 0)) is { } t2) platformTiers[2] = t2;
-        if (Of(("baseMedium", 1.8, 0, 0), ("tower", 0.95, 0, 0), ("laserMedium3", 0.6, 0, -0.78),
-                ("cannonMedium3", 0.55, -0.75, 0.6), ("missileMedium3", 0.55, 0.75, 0.6)) is { } t3) platformTiers[3] = t3;
-        lab = Of(("labBody", 1.3, 0, 0), ("plasmaMedium1", 0.55, 0, -0.1), ("plasmaSmall2", 0.3, 0, 0.45));
-    }
 
     /// <summary>
     /// A shot's sprite. This version's kinds borrow the packs': a missile flies as a small
@@ -236,65 +324,11 @@ public static class Assets
         return size;
     }
 
-    /// <summary>Texture of a part in a faction's colors, when one was made; the part itself otherwise.</summary>
-    public static string FactionKey(string key, Faction f) => strips.ContainsKey($"{key}~{f}") ? $"{key}~{f}" : key;
 
     static void Add(string key, Image img, int frameW, int frameH, int frames)
     {
         strips[key] = new Strip(ImageTexture.CreateFromImage(img), frameW, frameH, frames);
         pixels[key] = img;
-    }
-
-    // Faction colors on the parts.
-
-    /// <summary>Hues this close to red (in degrees) count as trim.</summary>
-    const double Trim = 35;
-
-    static (double H, double S, double L) Hsl(double r, double g, double b)
-    {
-        r /= 255;
-        g /= 255;
-        b /= 255;
-        var max = Math.Max(r, Math.Max(g, b));
-        var min = Math.Min(r, Math.Min(g, b));
-        var l = (max + min) / 2;
-        if (max == min) return (0, 0, l);
-        var d = max - min;
-        var s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
-        var h = max == r ? (g - b) / d + (g < b ? 6 : 0) : max == g ? (b - r) / d + 2 : (r - g) / d + 4;
-        return (h * 60, s, l);
-    }
-
-    static (byte R, byte G, byte B) Rgb(double h, double s, double l)
-    {
-        var c = (1 - Math.Abs(2 * l - 1)) * s;
-        var x = c * (1 - Math.Abs(h / 60 % 2 - 1));
-        var m = l - c / 2;
-        var (r, g, b) = h < 60 ? (c, x, 0.0) : h < 120 ? (x, c, 0.0) : h < 180 ? (0.0, c, x) : h < 240 ? (0.0, x, c) : h < 300 ? (x, 0.0, c) : (c, 0.0, x);
-        static byte B8(double v) => (byte)Math.Clamp(Js.Round(v * 255), 0, 255);
-        return (B8(r + m), B8(g + m), B8(b + m));
-    }
-
-    static double HueOf(uint color) => Hsl((color >> 16) & 255, (color >> 8) & 255, color & 255).H;
-
-    /// <summary>Makes the faction copies of a part; red factions keep the original.</summary>
-    static void RecolorPart(string key)
-    {
-        if (!strips.TryGetValue(key, out var s) || !pixels.TryGetValue(key, out var img)) return;
-        foreach (var f in Enum.GetValues<Faction>())
-        {
-            var toHue = HueOf(Factions.Defs[f].Color);
-            if (Math.Min(toHue, 360 - toHue) <= Trim) continue;
-            var data = img.GetData();
-            for (var i = 0; i < data.Length; i += 4)
-            {
-                if (data[i + 3] == 0) continue;
-                var (h, sat, l) = Hsl(data[i], data[i + 1], data[i + 2]);
-                if (sat < 0.35 || Math.Min(h, 360 - h) > Trim) continue;
-                (data[i], data[i + 1], data[i + 2]) = Rgb(toHue, sat, l);
-            }
-            Add($"{key}~{f}", Image.CreateFromData(img.GetWidth(), img.GetHeight(), false, Image.Format.Rgba8, data), s.FrameW, s.FrameH, s.Frames);
-        }
     }
 
     /// <summary>

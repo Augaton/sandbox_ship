@@ -24,6 +24,10 @@ public partial class BattleScreen
         public int Level;
         /// <summary>A part of a ship (not of a station): hidden from afar, turning with its ship.</summary>
         public bool ShipPart;
+        /// <summary>What turns over a building: its gun, aimed where it shoots, or a mine's drill, spinning.</summary>
+        public Node2D? Gun;
+        public bool Spin;
+        public float GunRotation;
         // What the nodes were last given: a write that changes nothing still costs a call into
         // the engine and a transform update, for every entity every frame. Node defaults first.
         public Vector2 Position;
@@ -85,7 +89,7 @@ public partial class BattleScreen
     /// <summary>One batch for the shapes of every layer, filled and sent by each in turn.</summary>
     readonly ShapeBatch shapes = new();
     readonly Stack<AnimatedSprite2D> shotPool = [];
-    DrawCanvas overlay = null!, lod = null!, fx = null!, trails = null!, transientsFx = null!, transientsTop = null!;
+    DrawCanvas overlay = null!, lod = null!, fx = null!, trails = null!, transientsFx = null!, transientsTop = null!, lamps = null!, partLamps = null!;
     Puffs debris = null!, smoke = null!;
     readonly List<Transient> fxList = [], topList = [];
     int callouts;
@@ -142,6 +146,9 @@ public partial class BattleScreen
         viewsRoot = new Node2D();
         worldRoot.AddChild(viewsRoot);
         trails = Layer(Depth.Ship - 1, "trails", DrawTrails);
+        // Over the structures and under their parts; over the parts and under the ships.
+        lamps = Layer(Depth.Structure + 1, "lamps", g => DrawLamps(g, false));
+        partLamps = Layer(Depth.Hardpoint + 0.5, "lamps", g => DrawLamps(g, true));
         lod = Layer(Depth.Shot, "lod", DrawLod);
         fx = Layer(Depth.Fx, "effects", DrawEffects);
         transientsFx = Layer(Depth.Fx, "transients", g =>
@@ -195,6 +202,8 @@ public partial class BattleScreen
 
     void RedrawLayers()
     {
+        lamps.QueueRedraw();
+        partLamps.QueueRedraw();
         lod.QueueRedraw();
         fx.QueueRedraw();
         trails.QueueRedraw();
@@ -266,7 +275,7 @@ public partial class BattleScreen
 
     View CreateView(Entity e)
     {
-        var look = Assets.LookFor(e);
+        var look = Assets.LookFor(World, e);
         Color? tint = look.Tint ? Palette.Of(e.Race) : null;
         var scale = LayerScale(e, look.Layers[0].Key, look.Layers[0].Size);
         // Ship parts sit on top of their ship.
@@ -276,18 +285,51 @@ public partial class BattleScreen
         var root = new Node2D { ZIndex = Depth.Z(depth) };
         var engine = look.Engine is string ek ? Sprite(ek, scale, null) : null;
         if (engine is not null) root.AddChild(engine);
-        // Structures and parts come from one pack, in each race's colors.
         foreach (var l in look.Layers)
         {
-            var key = e.Kind == EntityKind.Ship ? l.Key : Assets.FactionKey(l.Key, e.Race);
+            var key = l.Key;
             var s = (Node2D)Sprite(key, LayerScale(e, key, l.Size), tint);
             s.Position = new Vector2((float)(l.X * e.Radius), (float)(l.Y * e.Radius));
             root.AddChild(s);
         }
+        var gun = look.Gun is { } g ? (Node2D)Sprite(g.Key, LayerScale(e, g.Key, g.Size), tint) : null;
+        if (gun is not null) root.AddChild(gun);
         viewsRoot.AddChild(root);
-        var view = new View { Root = root, Engine = engine, Look = look, Scale = scale, Level = e.Level, ShipPart = e.Kind == EntityKind.Hardpoint && parent?.Kind == EntityKind.Ship };
+        var view = new View
+        {
+            Root = root, Engine = engine, Look = look, Scale = scale, Level = e.Level, ShipPart = e.Kind == EntityKind.Hardpoint && parent?.Kind == EntityKind.Ship,
+            Gun = gun, Spin = look.Spin,
+        };
         views[e.Id] = view;
         return view;
+    }
+
+    /// <summary>A gun's slow sweep with nothing to aim at, in radians either side of where it faces; each its own.</summary>
+    double Sweep(Entity e) => 0.5 * Math.Sin(Now / 1000 * 0.35 + e.Id * 1.7);
+
+    /// <summary>
+    /// The lamps of the structures in view, or of their parts: each a lit pixel in a faint halo,
+    /// blinking or breathing on its own beat. Not from afar, nor on what is not seen now.
+    /// </summary>
+    void DrawLamps(CanvasItem g, bool onParts)
+    {
+        if (Zoom < LodSimple) return;
+        var now = Now / 1000;
+        foreach (var e in World.Entities)
+        {
+            if (e.Kind == EntityKind.Ship || (e.Kind == EntityKind.Hardpoint) != onParts || e.Build < 1) continue;
+            if (!views.TryGetValue(e.Id, out var v) || !v.Shown || v.ShipPart || v.Look.Lamps is not { Count: > 0 } lamps || !CanSee(e)) continue;
+            var (r, size) = (e.Radius * v.Grow, v.Look.LampSize * e.Radius * v.Grow);
+            var (c, s) = (Math.Cos(v.Rotation), Math.Sin(v.Rotation));
+            foreach (var l in lamps)
+            {
+                var k = l.Blink ? ((now * 0.7 + l.Phase) % 1 < 0.5 ? 1 : 0.1) : 0.55 + 0.45 * Math.Sin((now * 0.8 + l.Phase) * Math.Tau);
+                var (x, y) = (l.X * r, l.Y * r);
+                var (wx, wy) = (e.X + x * c - y * s, e.Y + x * s + y * c);
+                Draw.Rect(g, wx - size * 1.5, wy - size * 1.5, size * 3, size * 3, l.Color with { A = (float)(0.16 * k) });
+                Draw.Rect(g, wx - size / 2, wy - size / 2, size, size, l.Color with { A = (float)(0.95 * k) });
+            }
+        }
     }
 
     static void Show(View v, bool shown)
@@ -330,10 +372,23 @@ public partial class BattleScreen
             if (e.Kind == EntityKind.Ship) rotation = (float)(e.Angle + Facing);
             else if (e.Kind == EntityKind.Hardpoint)
             {
-                // Turrets track their target; ship parts otherwise turn with their ship.
+                // Turrets track their target; ship parts otherwise turn with their ship, and a
+                // station's turrets sweep slowly round the way they face.
                 var t = e.Weapons.Count > 0 ? World.Entities.Get(e.TargetId) : null;
                 if (t is not null) rotation = (float)(Math.Atan2(t.Y - e.Y, t.X - e.X) + Facing);
                 else if (v.ShipPart) rotation = (float)(e.Angle + Facing);
+                else if (e.Weapons.Count > 0) rotation = (float)(Math.Atan2(e.Oy, e.Ox) + Facing + Sweep(e));
+            }
+            if (v.Gun is not null)
+            {
+                // A building's gun aims where it shoots, else sweeps; a mine's drill keeps turning.
+                var t = v.Spin ? null : World.Entities.Get(e.TargetId);
+                var aim = v.Spin ? Now / 1000 * 2.2 + e.Id : t is not null ? Math.Atan2(t.Y - e.Y, t.X - e.X) + Facing : e.Id + Sweep(e) * 2.5;
+                if ((float)aim != v.GunRotation)
+                {
+                    v.GunRotation = (float)aim;
+                    v.Gun.Rotation = (float)aim;
+                }
             }
             if (rotation != v.Rotation)
             {
@@ -426,6 +481,8 @@ public partial class BattleScreen
             if (p.Id <= lastShot) continue;
             newest = Math.Max(newest, p.Id);
             Play(ShotSound[p.Kind], p.X, p.Y, p.Kind == WeaponKind.Missile ? 0.35 : 0.7);
+            // The muzzle flashes where the shot is first seen, at the end of its gun.
+            Spark(p.X, p.Y);
         }
         lastShot = newest;
         // A beam is heard as it takes hold, not every frame it holds.

@@ -10,7 +10,7 @@ using SandboxShip.Sim.Data;
 
 namespace SandboxShip.Render;
 
-public static class ShipForge
+public static partial class ShipForge
 {
     /// <summary>What a pixel is made of. Trim is a hull's second color; the last four glow.</summary>
     enum M : byte { None, Hull, Trim, Plate, Accent, Light, Glass, Engine, Core }

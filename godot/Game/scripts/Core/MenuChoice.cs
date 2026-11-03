@@ -89,6 +89,8 @@ public static class Dev
     public static bool Campaign, Resume, Watch;
     /// <summary>--intro: the opening plays even for a capture or a start straight into a screen.</summary>
     public static bool Intro;
+    /// <summary>--no-hud: the battle without its interface, for captures of what is on the field.</summary>
+    public static bool NoHud;
     public static double Speed, Truce, Leave;
     public static double[] Attack = [], Raid = [], Build = [];
     public static string[] Choose = [];
@@ -133,6 +135,7 @@ public static class Dev
                 case "--mode": Mode = Enum.Parse<BattleMode>(value, true); break;
                 case "--host": Host = true; break;
                 case "--intro": Intro = true; break;
+                case "--no-hud": NoHud = true; break;
                 case "--music-dump": MusicDump = value; break;
                 case "--music-record": MusicRecord = value; break;
                 case "--server": Server = true; break;
