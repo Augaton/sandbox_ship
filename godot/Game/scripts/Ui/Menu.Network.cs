@@ -72,6 +72,7 @@ public partial class Menu
     {
         var l = Lobby.Create(m, NewSeed());
         l.SetKind(l.Seats[1], SeatKind.Open);
+        if (Dev.Terrain is { } terrain) l.Terrain = terrain;
         hostError = Session.Host(l, Dev.Port, online, hostPassword);
         seenChanges = Session.Changes;
         if (hostError is not null)

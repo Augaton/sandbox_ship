@@ -94,7 +94,7 @@ public static class Vision
                 if (t.Kind == EntityKind.Hardpoint || Worlds.Allies(world, t.Side, side)) continue;
                 var cx = (int)Math.Floor(t.X / EyeCell);
                 var cy = (int)Math.Floor(t.Y / EyeCell);
-                if (Sees(eyes, t, cx, cy, ref last)) visible.Add(t.Id);
+                if (Sees(eyes, t, cx, cy, Terrains.SightCap(world, t), ref last)) visible.Add(t.Id);
             }
             // Parts are seen along with what they are attached to.
             foreach (var t in all)
@@ -113,7 +113,8 @@ public static class Vision
     /// <summary>An entity that sees, how far, and the cell it is binned in.</summary>
     readonly record struct Eye(Entity E, double Sight, int Cx, int Cy)
     {
-        public bool Sees(Entity t) => Worlds.Hypot(E.X - t.X, E.Y - t.Y) <= Sight + t.Radius;
+        /// <summary>`cap`: the most anything sees `t` from (a nebula's, Terrain.cs).</summary>
+        public bool Sees(Entity t, double cap) => Worlds.Hypot(E.X - t.X, E.Y - t.Y) <= Math.Min(Sight, cap) + t.Radius;
     }
 
     /// <summary>
@@ -121,26 +122,26 @@ public static class Vision
     /// answer is the same, so the likeliest are asked first: the one that saw the target before
     /// (targets come fleet by fleet), then those of the target's own cell.
     /// </summary>
-    static bool Sees(Dictionary<int, List<Eye>> eyes, Entity t, int cx, int cy, ref Eye? last)
+    static bool Sees(Dictionary<int, List<Eye>> eyes, Entity t, int cx, int cy, double cap, ref Eye? last)
     {
-        if (last is { } l && Math.Abs(l.Cx - cx) <= 1 && Math.Abs(l.Cy - cy) <= 1 && l.Sees(t)) return true;
-        if (Scan(eyes, t, cx, cy, ref last)) return true;
+        if (last is { } l && Math.Abs(l.Cx - cx) <= 1 && Math.Abs(l.Cy - cy) <= 1 && l.Sees(t, cap)) return true;
+        if (Scan(eyes, t, cx, cy, cap, ref last)) return true;
         for (var dx = -1; dx <= 1; dx++)
         {
             for (var dy = -1; dy <= 1; dy++)
             {
-                if ((dx != 0 || dy != 0) && Scan(eyes, t, cx + dx, cy + dy, ref last)) return true;
+                if ((dx != 0 || dy != 0) && Scan(eyes, t, cx + dx, cy + dy, cap, ref last)) return true;
             }
         }
         return false;
     }
 
-    static bool Scan(Dictionary<int, List<Eye>> eyes, Entity t, int cx, int cy, ref Eye? last)
+    static bool Scan(Dictionary<int, List<Eye>> eyes, Entity t, int cx, int cy, double cap, ref Eye? last)
     {
         if (!eyes.TryGetValue(EyeKey(cx, cy), out var list)) return false;
         foreach (var e in list)
         {
-            if (!e.Sees(t)) continue;
+            if (!e.Sees(t, cap)) continue;
             last = e;
             return true;
         }

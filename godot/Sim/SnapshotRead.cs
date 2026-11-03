@@ -68,6 +68,7 @@ public static partial class Snapshot
         ReadMode(r, replica.Mode);
         ReadSides(r, replica, viewer);
         ReadFields(r, replica);
+        ReadTerrain(r, replica);
     }
 
     /// <summary>After the shots (see WriteTail): the beams, the zones, the strikes, the events.</summary>
@@ -249,6 +250,49 @@ public static partial class Snapshot
         }
         for (var i = 0; i < fields.Count; i++) replica.Fields[i].MineId = fields[i].MineId;
     }
+
+    /// <summary>
+    /// The terrain (see WriteTerrain): its pieces when they come, then the mines left in each
+    /// minefield, which only apply to the pieces as the replica has them.
+    /// </summary>
+    static void ReadTerrain(BinaryReader r, World replica)
+    {
+        if (r.ReadBoolean())
+        {
+            var n = Count(r);
+            if (n > MaxTerrain) throw new InvalidDataException($"Terrain de {n} pièces");
+            var pieces = new List<TerrainPatch>(n);
+            for (var i = 0; i < n; i++)
+            {
+                var id = r.ReadVarint();
+                var kind = r.ReadByte();
+                if (!Enum.IsDefined((TerrainKind)kind)) throw new InvalidDataException($"Terrain inconnu : {kind}");
+                var (x, y, x2, y2, radius) = (Finite(r), Finite(r), Finite(r), Finite(r), Finite(r));
+                var mines = Count(r);
+                if (mines > MaxMines || radius < 0) throw new InvalidDataException("Pièce de terrain illisible");
+                pieces.Add(new TerrainPatch(id, (TerrainKind)kind, x, y, radius) { X2 = x2, Y2 = y2, Mines = mines, MaxMines = mines });
+            }
+            replica.Terrain.Clear();
+            replica.Terrain.AddRange(pieces);
+        }
+        var fields = Count(r);
+        if (fields > MaxTerrain) throw new InvalidDataException($"Terrain de {fields} champs de mines");
+        var k = 0;
+        foreach (var p in replica.Terrain)
+        {
+            if (p.Kind != TerrainKind.Minefield) continue;
+            if (k >= fields) break;
+            p.Mines = Math.Min(Count(r), p.MaxMines);
+            k++;
+        }
+        // Counts for pieces this replica does not have: read past them.
+        for (; k < fields; k++) Count(r);
+    }
+
+    /// <summary>The most terrain pieces, and mines in a field, a snapshot may bring: far more than any map has.</summary>
+    const int MaxTerrain = 256, MaxMines = 1024;
+
+    static float Finite(BinaryReader r) => r.ReadSingle() is var v && float.IsFinite(v) ? v : throw new InvalidDataException("Nombre illisible");
 
     /// <summary>
     /// The entities (see WriteDelta): the baseline's, but those left out, merged in id order with
@@ -605,6 +649,7 @@ public static partial class Snapshot
         Tag.FlagshipLost => new FlagshipLost(r.ReadSide(), r.ReadSingle(), r.ReadSingle()),
         Tag.ClockWarning => new ClockWarning(r.ReadSingle()),
         Tag.Intercepted => new Intercepted(r.ReadSingle(), r.ReadSingle(), r.ReadSide()),
+        Tag.MineBlast => new MineBlast(r.ReadSingle(), r.ReadSingle()),
         var tag => throw new InvalidDataException($"Événement inconnu : {tag}"),
     };
 }

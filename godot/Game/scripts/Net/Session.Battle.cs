@@ -46,7 +46,7 @@ public sealed partial class Session
             return;
         }
         // --start=stress: the measuring battle (Sim/Stress.cs), its first seats playing Kla'ed and Nairan.
-        var world = Dev.Start == "stress" ? Stress.Create(lobby.Seed) : Scenario.CreateSkirmish(lobby.Skirmish());
+        var world = Dev.Start == "stress" ? Stress.Create(lobby.Seed, Dev.Terrain ?? TerrainDensity.None) : Scenario.CreateSkirmish(lobby.Skirmish());
         battle = new BattleHost(world, net.Send);
         away.Clear();
         foreach (var m in room.Members)

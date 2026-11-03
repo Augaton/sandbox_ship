@@ -67,7 +67,7 @@ public static partial class Snapshot
         using (var w = new BinaryWriter(ms))
         {
             PartHeader(w, world, viewer, frame, baseline, HeadPart, 0, count);
-            WriteWorld(world, viewer, w);
+            WriteWorld(world, viewer, w, baseline is null);
             WriteTail(world, viewer, shown, sight, w, events, vital);
             parts.Add(ms.ToArray());
         }

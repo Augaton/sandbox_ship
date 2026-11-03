@@ -66,6 +66,8 @@ public sealed class Lobby
     public int Seed { get; set; } = 1;
     /// <summary>A neutral colossus to raid, where the mode has one (HasRaid).</summary>
     public bool Raid { get; set; } = true;
+    /// <summary>The battle's terrain (Terrain.cs), in the battles that have it (HasTerrain).</summary>
+    public TerrainDensity Terrain { get; set; } = TerrainDensity.Light;
     /// <summary>Fog of war, in the battles that have it (HasFog).</summary>
     public bool Fog { get; set; } = true;
     /// <summary>Zones: the score that wins, one of ZoneTargets.</summary>
@@ -115,6 +117,11 @@ public sealed class Lobby
     /// <summary>The sandbox shows everything; the campaign's battles keep their own fog.</summary>
     [JsonIgnore]
     public bool HasFog => Mode is not (LobbyMode.Campaign or LobbyMode.Sandbox);
+    /// <summary>
+    /// Every battle has terrain to choose but an assault, which has none (Terrains.Generate); the
+    /// campaign's take their planet's (a nebula's cloud, Terrains.PlanetNebula).
+    /// </summary>
+    public bool HasTerrain => Mode is not (LobbyMode.Campaign or LobbyMode.Assault);
     [JsonIgnore]
     public bool ClassicAllowed => Playing.Count() == 2;
 
@@ -238,7 +245,7 @@ public sealed class Lobby
     public SkirmishOptions Skirmish() => new()
     {
         Mode = Rules, ZoneTarget = ZoneTarget, AssaultMinutes = AssaultMinutes, Slots = Slots(), Seed = Seed, Map = Map, Size = Size,
-        Fog = HasFog && Fog, Raid = HasRaid && Raid,
+        Fog = HasFog && Fog, Raid = HasRaid && Raid, Terrain = HasTerrain ? Terrain : TerrainDensity.None,
     };
 
     /// <summary>The campaign's galaxy, as GalaxyScreen makes it: the classic one for two, or one drawn from the seed with a capital per seat.</summary>

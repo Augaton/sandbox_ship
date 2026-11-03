@@ -48,6 +48,8 @@ public sealed class SkirmishOptions
     public Difficulty Difficulty = Difficulty.Normal;
     /// <summary>A neutral colossus guards the far side of the map (not in the web version).</summary>
     public bool Raid;
+    /// <summary>Nebulae, asteroid belts, minefields and gravity wells (Terrain.cs, not in the web version).</summary>
+    public TerrainDensity Terrain = TerrainDensity.None;
 }
 
 public static class Scenario
@@ -190,6 +192,7 @@ public static class Scenario
             GiveLabs(world);
             if (raid) Raids.Place(world);
             Modes.Setup(world, o);
+            Terrains.Classic(world, o.Terrain, [.. world.Factions.Keys.Select(s => StationOf(world, s)).OfType<Entity>().Select(e => new Point(e.X, e.Y))]);
             world.Origin = o;
             return world;
         }
@@ -201,6 +204,8 @@ public static class Scenario
         GiveLabs(world);
         if (raid) Raids.Place(world);
         Modes.Setup(world, o);
+        // Last, on its own draws: the map without terrain stays the web version's.
+        Terrains.Generate(world, o.Terrain, spots, o.Seed);
         world.Origin = o;
         return world;
     }

@@ -417,6 +417,8 @@ public sealed class World
     /// <summary>Sides in the order they joined.</summary>
     public readonly Dictionary<Side, FactionState> Factions = [];
     public readonly List<AsteroidField> Fields = [];
+    /// <summary>The battle's terrain (Terrain.cs), not in the web version: nebulae, belts, minefields, wells.</summary>
+    public readonly List<TerrainPatch> Terrain = [];
     public readonly List<SimEvent> Events = [];
     public int NextId = 1;
     /// <summary>State of the mulberry32 generator.</summary>

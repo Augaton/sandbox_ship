@@ -219,6 +219,7 @@ public static class AbilitySystem
             if (d <= s.Radius + t.Radius) hit.Add(t);
         }
         foreach (var t in hit) Hurt(world, t, s.Damage, s.Side);
+        if (s.Kind != StrikeKind.Beam && world.Terrain.Count > 0) Terrains.Blast(world, s.X, s.Y, s.Radius);
         world.Events.Add(new StrikeLanded(s));
     }
 
