@@ -195,6 +195,7 @@ public partial class Hud
 
     public void ShowEnd(bool won)
     {
+        PlayerProfile.BattleEnded(scene, won);
         Music.Sting(won);
         if (scene.Opts.Net is not null)
         {
@@ -211,6 +212,7 @@ public partial class Hud
     /// <summary>End of a campaign battle: the only way on is back to the galaxy map. `watched`: who won, for one who only watched it.</summary>
     public void ShowBattleEnd(bool won, Action onBack, string? watched = null)
     {
+        if (watched is null) PlayerProfile.BattleEnded(scene, won);
         var back = Primary(Button("Retour à la carte", onBack));
         OpenModal(Dialog(watched is not null ? "Bataille terminée" : won ? "Victoire" : "Défaite",
             Para($"{watched ?? (won ? "La bataille est gagnée." : "La bataille est perdue.")} Les survivants regagnent la carte galactique.", max: 672),

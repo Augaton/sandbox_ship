@@ -168,6 +168,7 @@ public partial class BattleScreen : Node
     public override void _ExitTree()
     {
         StressProbe.Detach();
+        PlayerProfile.Flush();
         // The battle's replay, as it stands when the player leaves it.
         if (World?.Log is not null && Replays.Of(World, Opts.Player, Ui.Menu.Version, DateTimeOffset.UtcNow.ToUnixTimeMilliseconds()) is { } replay)
             ReplayStore.Save(replay);
@@ -269,6 +270,8 @@ public partial class BattleScreen : Node
         probe?.Hold();
         ClampCamera();
         t = StressProbe.Start();
+        // What counts for the player's profile, before the events go.
+        PlayerProfile.Watch(this);
         ConsumeEvents();
         StressProbe.Stop("events", t);
         t = StressProbe.Start();

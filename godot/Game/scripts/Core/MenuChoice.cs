@@ -42,6 +42,7 @@ public sealed record MenuChoice
 /// --music-record=FILE.wav (the game's mixed sound saved as it quits; with --audio-driver Dummy before --, nothing is heard),
 /// --start=tutorial (the guided first battle), --start=replay with --replay=FILE (that replay played), --menu=replays and
 /// --replays=DIR (the list of replays, kept in DIR rather than user://replays),
+/// --profile=FILE (the player's profile kept in FILE: achievements and statistics count then even in a capture, never in user://),
 /// --menu=home|new|controls|credits|options|lobby-MODE (the menu screen opened first; new: the
 /// modes; lobby-skirmish, lobby-campaign...: that mode's lobby, see LobbyMode; skirmish: lobby-skirmish),
 /// --seats=N and --teams=T,T... (that lobby's bots added up to N seats, then its teams in seat order),
@@ -103,6 +104,8 @@ public static class Dev
     public static string? Answer, Snap, SavePath;
     /// <summary>--replays=DIR: where replays are listed and kept, instead of user://replays; --replay=FILE: the replay --start=replay plays.</summary>
     public static string? Replays, Replay;
+    /// <summary>--profile=FILE: the profile (achievements, statistics) read and written there; a capture then counts too.</summary>
+    public static string? Profile;
     /// <summary>--music-dump=DIR: the music as WAV files there, then quit. --music-record=FILE.wav: the game's sound saved as it quits (music on in a capture).</summary>
     public static string? MusicDump, MusicRecord;
     /// <summary>--say=TEXT: a dev run writes this line in the chat once in the lobby.</summary>
@@ -172,6 +175,7 @@ public static class Dev
                 case "--answer": Answer = value; break;
                 case "--save": SavePath = value; break;
                 case "--replays": Replays = value; break;
+                case "--profile": Profile = value; break;
                 case "--replay": Replay = value; break;
                 case "--resume": Resume = true; break;
                 case "--watch": Watch = true; break;

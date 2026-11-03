@@ -17,7 +17,7 @@ shots="${3:-}"
 screens=(
   "--menu=home" "--menu=new" "--menu=skirmish --seats=4 --teams=1,1,2,2" "--menu=lobby-campaign"
   "--menu=lobby-survival" "--menu=lobby-zones" "--menu=lobby-assault" "--menu=lobby-regicide" "--menu=lobby-sandbox"
-  "--menu=multiplayer --master=127.0.0.1:1" "--menu=options" "--menu=controls" "--menu=credits" "--menu=replays" "--menu=load"
+  "--menu=multiplayer --master=127.0.0.1:1" "--menu=options" "--menu=controls" "--menu=credits" "--menu=replays" "--menu=load" "--menu=profile"
   "--start=battle --skip=200" "--start=battle --mode=survival --skip=120" "--start=battle --mode=zones --skip=120"
   "--start=battle --mode=assault --skip=120" "--start=battle --mode=regicide --skip=120" "--start=sandbox"
   "--start=tutorial" "--start=campaign --skip=120" "--start=campaign --size=large --skip=600" "--intro --menu=home"

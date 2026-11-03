@@ -5009,3 +5009,363 @@ msgstr "Player {0} of game {1}: rate too high"
 #: Sim/Net/RelayHub.cs
 msgid "Débit trop élevé pour le serveur en ligne."
 msgstr "Rate too high for the online server."
+
+#: Game/scripts/Ui/AchievementToast.cs
+msgid "Succès débloqué"
+msgstr "Achievement unlocked"
+
+#: Game/scripts/Ui/Menu.Profile.cs
+msgid "Batailles de campagne"
+msgstr "Campaign battles"
+
+#: Game/scripts/Ui/Menu.Profile.cs
+msgid "Profil"
+msgstr "Profile"
+
+#: Game/scripts/Ui/Menu.Profile.cs
+msgid "Tes parties sur cette machine. Échap : retour"
+msgstr "Your games on this machine. Esc: back"
+
+#: Game/scripts/Ui/Menu.Profile.cs
+msgid "Batailles jouées"
+msgstr "Battles played"
+
+#: Game/scripts/Ui/Menu.Profile.cs
+msgid "Victoires"
+msgstr "Wins"
+
+#: Game/scripts/Ui/Menu.Profile.cs
+msgid "Vaisseaux détruits"
+msgstr "Ships destroyed"
+
+#: Game/scripts/Ui/Menu.Profile.cs
+msgid "Vaisseaux perdus"
+msgstr "Ships lost"
+
+#: Game/scripts/Ui/Menu.Profile.cs
+msgid "Vaisseaux construits"
+msgstr "Ships built"
+
+#: Game/scripts/Ui/Menu.Profile.cs
+msgid "Temps de jeu"
+msgstr "Time played"
+
+#: Game/scripts/Ui/Menu.Profile.cs
+msgid "Meilleure vague en survie"
+msgstr "Best survival wave"
+
+#: Game/scripts/Ui/Menu.Profile.cs
+msgid "Campagnes gagnées"
+msgstr "Campaigns won"
+
+#: Game/scripts/Ui/Menu.Profile.cs
+msgid "{0} sur {1}"
+msgstr "{0} of {1}"
+
+#: Game/scripts/Ui/Menu.Profile.cs
+msgid "Parties en réseau"
+msgstr "Network games"
+
+#: Game/scripts/Ui/Menu.Profile.cs
+msgid "{0} victoires sur {1}"
+msgstr "{0} wins of {1}"
+
+#: Game/scripts/Ui/Menu.Profile.cs
+msgid "Statistiques"
+msgstr "Statistics"
+
+#: Game/scripts/Ui/Menu.Profile.cs
+msgid "Par mode"
+msgstr "By mode"
+
+#: Game/scripts/Ui/Menu.Profile.cs
+msgid "Par race"
+msgstr "By race"
+
+#: Game/scripts/Ui/Menu.Profile.cs
+msgid "Aucune partie encore : tes statistiques se rempliront au fil des batailles."
+msgstr "No game yet: your statistics will fill up as you fight."
+
+#: Game/scripts/Ui/Menu.Profile.cs
+msgid "Succès : {0} sur {1}"
+msgstr "Achievements: {0} of {1}"
+
+#: Game/scripts/Ui/Menu.Profile.cs
+msgid "Succès caché"
+msgstr "Hidden achievement"
+
+#: Game/scripts/Ui/Menu.Profile.cs
+msgid "Il se révèle une fois obtenu."
+msgstr "It shows itself once earned."
+
+#: Game/scripts/Ui/Menu.Profile.cs
+msgid "Obtenu le {0}"
+msgstr "Earned on {0}"
+
+#: Sim/Profile.cs
+msgid "Premier pas"
+msgstr "First steps"
+
+#: Sim/Profile.cs
+msgid "Finir le didacticiel."
+msgstr "Finish the tutorial."
+
+#: Sim/Profile.cs
+msgid "Première victoire"
+msgstr "First victory"
+
+#: Sim/Profile.cs
+msgid "Gagner une bataille."
+msgstr "Win a battle."
+
+#: Sim/Profile.cs
+msgid "Escarmoucheur"
+msgstr "Skirmisher"
+
+#: Sim/Profile.cs
+msgid "Gagner une escarmouche."
+msgstr "Win a skirmish."
+
+#: Sim/Profile.cs
+msgid "Maître des balises"
+msgstr "Beacon master"
+
+#: Sim/Profile.cs
+msgid "Gagner une partie de contrôle de zone."
+msgstr "Win a zone control game."
+
+#: Sim/Profile.cs
+msgid "Gagner un assaut, en défense ou en attaque."
+msgstr "Win an assault, defending or attacking."
+
+#: Sim/Profile.cs
+msgid "Gagner une partie de régicide."
+msgstr "Win a regicide game."
+
+#: Sim/Profile.cs
+msgid "Tenir la ligne"
+msgstr "Hold the line"
+
+#: Sim/Profile.cs
+msgid "Repousser 10 vagues en survie."
+msgstr "Beat 10 waves in survival."
+
+#: Sim/Profile.cs
+msgid "Rempart vivant"
+msgstr "Living rampart"
+
+#: Sim/Profile.cs
+msgid "Repousser 20 vagues en survie."
+msgstr "Beat 20 waves in survival."
+
+#: Sim/Profile.cs
+msgid "Dernier bastion"
+msgstr "Last bastion"
+
+#: Sim/Profile.cs
+msgid "Repousser 30 vagues en survie."
+msgstr "Beat 30 waves in survival."
+
+#: Sim/Profile.cs
+msgid "Légende de l'Errance"
+msgstr "Legend of the Errants"
+
+#: Sim/Profile.cs
+msgid "Repousser 50 vagues en survie."
+msgstr "Beat 50 waves in survival."
+
+#: Sim/Profile.cs
+msgid "Stratège complet"
+msgstr "Complete strategist"
+
+#: Sim/Profile.cs
+msgid "Gagner en escarmouche, en zones, en assaut et en régicide, et repousser 10 vagues en survie."
+msgstr "Win a skirmish, a zone control, an assault and a regicide game, and beat 10 waves in survival."
+
+#: Sim/Profile.cs
+msgid "Première conquête"
+msgstr "First conquest"
+
+#: Sim/Profile.cs
+msgid "Gagner une bataille de la campagne."
+msgstr "Win a campaign battle."
+
+#: Sim/Profile.cs
+msgid "Maître de la galaxie"
+msgstr "Master of the galaxy"
+
+#: Sim/Profile.cs
+msgid "Gagner une campagne galactique."
+msgstr "Win a galactic campaign."
+
+#: Sim/Profile.cs
+msgid "Fer de lance"
+msgstr "Spearhead"
+
+#: Sim/Profile.cs
+msgid "Gagner une bataille avec les Kla'ed."
+msgstr "Win a battle with the Kla'ed."
+
+#: Sim/Profile.cs
+msgid "Bouclier d'azur"
+msgstr "Azure shield"
+
+#: Sim/Profile.cs
+msgid "Gagner une bataille avec les Nairan."
+msgstr "Win a battle with the Nairan."
+
+#: Sim/Profile.cs
+msgid "Marée verte"
+msgstr "Green tide"
+
+#: Sim/Profile.cs
+msgid "Gagner une bataille avec les Nautolan."
+msgstr "Win a battle with the Nautolan."
+
+#: Sim/Profile.cs
+msgid "Trois bannières"
+msgstr "Three banners"
+
+#: Sim/Profile.cs
+msgid "Gagner une bataille avec chacune des trois races."
+msgstr "Win a battle with each of the three races."
+
+#: Sim/Profile.cs
+msgid "Détruire 100 vaisseaux ennemis."
+msgstr "Destroy 100 enemy ships."
+
+#: Sim/Profile.cs
+msgid "Fléau"
+msgstr "Scourge"
+
+#: Sim/Profile.cs
+msgid "Détruire 1 000 vaisseaux ennemis."
+msgstr "Destroy 1,000 enemy ships."
+
+#: Sim/Profile.cs
+msgid "Apocalypse"
+msgstr "Apocalypse"
+
+#: Sim/Profile.cs
+msgid "Détruire 10 000 vaisseaux ennemis."
+msgstr "Destroy 10,000 enemy ships."
+
+#: Sim/Profile.cs
+msgid "Sans une égratignure"
+msgstr "Without a scratch"
+
+#: Sim/Profile.cs
+msgid "Gagner une bataille d'au moins 3 minutes sans perdre un vaisseau."
+msgstr "Win a battle of 3 minutes or more without losing a ship."
+
+#: Sim/Profile.cs
+msgid "Blitz"
+msgstr "Blitz"
+
+#: Sim/Profile.cs
+msgid "Gagner une escarmouche en moins de 8 minutes."
+msgstr "Win a skirmish in under 8 minutes."
+
+#: Sim/Profile.cs
+msgid "Seul contre tous"
+msgstr "Against all odds"
+
+#: Sim/Profile.cs
+msgid "Gagner face à trois camps ennemis ou plus."
+msgstr "Win against three enemy sides or more."
+
+#: Sim/Profile.cs
+msgid "Contre les meilleurs"
+msgstr "Against the best"
+
+#: Sim/Profile.cs
+msgid "Gagner contre une IA difficile."
+msgstr "Win against a hard AI."
+
+#: Sim/Profile.cs
+msgid "Mettre un Titan en service."
+msgstr "Put a Titan into service."
+
+#: Sim/Profile.cs
+msgid "Mettre un Colosse en service."
+msgstr "Put a Colossus into service."
+
+#: Sim/Profile.cs
+msgid "Tirer la Lance stellaire."
+msgstr "Fire the Star Lance."
+
+#: Sim/Profile.cs
+msgid "En réseau"
+msgstr "Networked"
+
+#: Sim/Profile.cs
+msgid "Finir une partie à plusieurs, en réseau."
+msgstr "Finish a game with other players, over the network."
+
+#: Sim/Profile.cs
+msgid "Hôte"
+msgstr "Host"
+
+#: Sim/Profile.cs
+msgid "Héberger une partie avec au moins un autre joueur, jusqu'à sa fin."
+msgstr "Host a game with at least one other player, to its end."
+
+#: Sim/Profile.cs
+msgid "Habitué"
+msgstr "Regular"
+
+#: Sim/Profile.cs
+msgid "Jouer 10 batailles."
+msgstr "Play 10 battles."
+
+#: Sim/Profile.cs
+msgid "Vétéran"
+msgstr "Veteran"
+
+#: Sim/Profile.cs
+msgid "Jouer 100 batailles."
+msgstr "Play 100 battles."
+
+#: Sim/Profile.cs
+msgid "Vie de commandant"
+msgstr "A commander's life"
+
+#: Sim/Profile.cs
+msgid "Jouer 10 heures."
+msgstr "Play for 10 hours."
+
+#: Sim/Profile.cs
+msgid "Démiurge"
+msgstr "Demiurge"
+
+#: Sim/Profile.cs
+msgid "Jouer une partie de bac à sable."
+msgstr "Play a sandbox game."
+
+#: Sim/Profile.cs
+msgid "Cinéphile"
+msgstr "Film buff"
+
+#: Sim/Profile.cs
+msgid "Regarder une rediffusion jusqu'au bout."
+msgstr "Watch a replay to its end."
+
+#: Sim/Profile.cs
+msgid "Pertes acceptables"
+msgstr "Acceptable losses"
+
+#: Sim/Profile.cs
+msgid "Perdre 1 000 vaisseaux."
+msgstr "Lose 1,000 ships."
+
+#: Sim/Profile.cs
+msgid "Têtu"
+msgstr "Stubborn"
+
+#: Sim/Profile.cs
+msgid "Perdre 10 batailles."
+msgstr "Lose 10 battles."
+
+#: Game/scripts/Ui/Menu.Profile.cs
+msgid "{0} parties"
+msgstr "{0} games"

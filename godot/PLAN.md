@@ -350,6 +350,12 @@ tests de `FixtureTests` et `CrossTests` les listent.
     bombardiers (−0,48 → +0,06 sur une échelle de −1 à +1) sans rien écraser ; croiseur, cuirassé et Léviathan restent à moins de
     0,1 de leurs anciens scores.
   - Reste à juger en vraie partie : le tout ou rien à 30 minutes face à un joueur, et l'assaut, où la défense garde l'avantage.
+- Succès et statistiques (2026-11-03) : 36 succès, dont 4 cachés, et les statistiques du joueur, en logique pure dans
+  `Sim/Profile.cs` (`ProfileTests`), comptés côté jeu par `Core/PlayerProfile.cs` et gardés dans `user://profile.json`
+  (écrit par fichier temporaire, relu borné : un fichier cassé ou forgé donne un profil vide ou borné). Seul le joueur
+  local compte, à la fin de chaque bataille et de chaque campagne ; jamais une capture (`--shot`, `--snap`, sauf avec
+  `--profile=FICHIER`), une rediffusion, le didacticiel, un spectateur ni la bataille du menu. Le temps de jeu est le temps
+  réel passé en bataille ou dans la galaxie, quelle que soit la vitesse. Écran « Profil » au menu, notification au déblocage.
 - Sécurité (2026-11-03) : ce qu'un inconnu peut envoyer au serveur en ligne, à un hôte ou au jeu, et les fichiers du joueur.
   Chaque lecteur exposé passe un test de robustesse à graine fixe (`FuzzTests` : trames du relais, messages du jeu, ordres,
   instantanés de bataille entiers et en parties, galaxie, rediffusions, sauvegardes), et chaque correction a son test

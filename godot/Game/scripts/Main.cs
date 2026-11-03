@@ -103,6 +103,7 @@ public partial class Main : Node
     public void QuitGame()
     {
         Music.SaveRecording();
+        PlayerProfile.Flush();
         EnsureExit();
         GetTree().Quit();
     }
@@ -165,6 +166,7 @@ public partial class Main : Node
 
     public override void _Process(double delta)
     {
+        PlayerProfile.Tick(screen, delta);
         if (snaps.Count > 0) TakeSnaps();
         if (Dev.Shot is null || !started || ++frames < Dev.Frames) return;
         // Without a window (--headless) there is nothing to capture: just quit.

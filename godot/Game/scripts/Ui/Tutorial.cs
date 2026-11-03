@@ -148,6 +148,7 @@ public partial class Tutorial : CanvasLayer
         if (current >= steps.Count)
         {
             count.Text = "Didacticiel terminé";
+            PlayerProfile.Moment(Profiles.Moment.Tutorial);
             title.Text = "Bravo";
             text.Text = "Tu connais l'essentiel. Toutes les commandes sont dans le menu, « Commandes » ; la suite se joue en escarmouche ou en campagne.";
             pass.Visible = false;

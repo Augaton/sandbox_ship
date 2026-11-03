@@ -102,6 +102,7 @@ public partial class ReplayBar : CanvasLayer
         foreach (var (s, b) in speeds) HudKit.Outline(b, !scene.Paused && scene.Speed == s ? Palette.Accent : null);
         if (ended || !player.Over) return;
         ended = true;
+        if (player.Faithful == true) PlayerProfile.Moment(Sim.Profiles.Moment.Replay);
         note.Visible = true;
         note.Text = player.Faithful == true ? "Fin de la rediffusion."
             : "Cette rediffusion ne rejoue plus la bataille enregistrée : elle vient sans doute d'une autre version du jeu.";
