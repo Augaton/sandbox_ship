@@ -197,7 +197,7 @@ public static class Relay
     /// <summary>A number that cannot be negative: a version, a game, a player.</summary>
     static int Count(BinaryReader r)
     {
-        var n = r.Read7BitEncodedInt();
+        var n = r.ReadVarint();
         return n >= 0 ? n : throw new InvalidDataException($"Nombre négatif : {n}");
     }
 

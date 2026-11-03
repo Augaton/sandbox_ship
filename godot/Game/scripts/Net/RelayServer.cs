@@ -139,7 +139,17 @@ public sealed partial class RelayServer : Node
                 // The flags first: they are those of the packet about to be taken.
                 var flags = peer.GetPacketFlags();
                 var bytes = peer.GetPacket();
-                if (ids.TryGetValue(peer.GetInstanceId(), out var from)) hub.Received(from, bytes, channel, flags, now);
+                if (!ids.TryGetValue(peer.GetInstanceId(), out var from)) break;
+                try
+                {
+                    hub.Received(from, bytes, channel, flags, now);
+                }
+                catch (Exception x)
+                {
+                    // Whatever a packet does, the server stays: the connection that sent it goes.
+                    Log($"Erreur sur un message de la connexion {from} ({x.GetType().Name} : {x.Message}) : elle est fermée");
+                    DropPeer(from);
+                }
                 break;
         }
     }

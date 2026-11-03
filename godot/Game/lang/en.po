@@ -4885,3 +4885,23 @@ msgstr "Ability"
 #: Game/scripts/Ui/Tutorial.cs
 msgid "Rappeler un groupe"
 msgstr "Recall a group"
+
+#: Sim/Net/OrderPace.cs
+msgid "Trop d'ordres d'un coup : les derniers sont ignorés."
+msgstr "Too many orders at once: the latest are ignored."
+
+#: Sim/Net/RelayHub.cs
+msgid "Trop de connexions depuis ton adresse."
+msgstr "Too many connections from your address."
+
+#: Sim/Net/RelayHub.cs
+msgid "Trop de parties ouvertes depuis ton adresse."
+msgstr "Too many games open from your address."
+
+#: Sim/Net/RelayHub.cs
+msgid "Joueur {0} de la partie {1} : débit trop élevé"
+msgstr "Player {0} of game {1}: rate too high"
+
+#: Sim/Net/RelayHub.cs
+msgid "Débit trop élevé pour le serveur en ligne."
+msgstr "Rate too high for the online server."

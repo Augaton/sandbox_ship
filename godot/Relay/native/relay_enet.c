@@ -82,6 +82,14 @@ int rn_host_compress(ENetHost *host, rn_codec compress, rn_codec decompress)
     return 0;
 }
 
+/* The largest packet ENet puts together, and the most data it holds for one peer before the
+ * program takes it: beyond, ENet drops what comes, before allocating for it (32 MiB by default). */
+void rn_host_limits(ENetHost *host, size_t maximumPacket, size_t maximumWaiting)
+{
+    host->maximumPacketSize = maximumPacket;
+    host->maximumWaitingData = maximumWaiting;
+}
+
 void rn_host_destroy(ENetHost *host) { enet_host_destroy(host); }
 
 void rn_host_flush(ENetHost *host) { enet_host_flush(host); }

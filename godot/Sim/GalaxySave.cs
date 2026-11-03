@@ -1,6 +1,8 @@
 // Campaign save games, as JSON files. Battles are not saved: the fleets that were fighting
 // stay face to face on the map, and the battle starts again when the game is loaded. Port of
 // src/sim/galaxySave.ts; the file layout follows the web save, with its own version number.
+using System.Collections;
+using System.Reflection;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using SandboxShip.Sim.Data;
@@ -61,7 +63,8 @@ public static class GalaxySave
     {
         IncludeFields = true,
         PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
-        Converters = { new JsonStringEnumConverter(JsonNamingPolicy.CamelCase), new SideConverter(), new HeroIdConverter(), new ResearchLevelsConverter() },
+        // Enums by name only: a number would read as a race or a class that does not exist.
+        Converters = { new JsonStringEnumConverter(JsonNamingPolicy.CamelCase, allowIntegerValues: false), new SideConverter(), new HeroIdConverter(), new ResearchLevelsConverter() },
     };
 
     public static string Serialize(Galaxy g, long? savedAt = null, string? name = null)
@@ -87,12 +90,65 @@ public static class GalaxySave
     {
         try
         {
-            return JsonSerializer.Deserialize<SavedGalaxy>(text, Options);
+            return JsonSerializer.Deserialize<SavedGalaxy>(text, Options) is { } s && Complete(s) ? s : null;
         }
         catch (Exception e) when (e is JsonException or NotSupportedException or ArgumentException or FormatException)
         {
             return null;
         }
+    }
+
+    /// <summary>
+    /// Whether a save as read holds no null where the code expects none, and no enum value that
+    /// does not exist, at any depth: a damaged or forged file is refused as it is read, rather than
+    /// crashing the list of saves or the game later. The fields are walked as the serializer filled
+    /// them, each checked against what its declaration says (the simulation's nullable annotations).
+    /// </summary>
+    static bool Complete(SavedGalaxy root)
+    {
+        var context = new NullabilityInfoContext();
+        var seen = new HashSet<object>(ReferenceEqualityComparer.Instance);
+        var pending = new Stack<object>();
+        pending.Push(root);
+        while (pending.Count > 0)
+        {
+            var o = pending.Pop();
+            var type = o.GetType();
+            if (type.Namespace?.StartsWith("SandboxShip", StringComparison.Ordinal) != true || (!type.IsValueType && !seen.Add(o))) continue;
+            foreach (var f in type.GetFields(BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic))
+            {
+                if (!Fits(f.GetValue(o), context.Create(f), pending)) return false;
+            }
+        }
+        return true;
+    }
+
+    /// <summary>A value against its declaration: null only where it may be, an enum one of its values, a collection's items as their type says; ours are walked next.</summary>
+    static bool Fits(object? v, NullabilityInfo? declared, Stack<object> pending)
+    {
+        if (v is null) return declared is null || declared.ReadState != NullabilityState.NotNull;
+        if (v is string) return true;
+        if (v is Enum e) return e.GetType().IsDefined(typeof(FlagsAttribute), false) || Enum.IsDefined(e.GetType(), e);
+        if (v is IDictionary d)
+        {
+            var value = declared?.GenericTypeArguments is [_, var second] ? second : null;
+            foreach (DictionaryEntry entry in d)
+            {
+                if (!Fits(entry.Key, null, pending) || !Fits(entry.Value, value, pending)) return false;
+            }
+            return true;
+        }
+        if (v is IEnumerable items)
+        {
+            var item = declared?.ElementType ?? (declared?.GenericTypeArguments is [var only] ? only : null);
+            foreach (var i in items)
+            {
+                if (!Fits(i, item, pending)) return false;
+            }
+            return true;
+        }
+        pending.Push(v);
+        return true;
     }
 
     /// <summary>Null when the text is not a save of this version.</summary>

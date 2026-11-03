@@ -73,6 +73,8 @@ namespace SandboxShip.Online
                 Enet.Deinitialize();
                 return 1;
             }
+            // No packet beyond the largest frame the hub reads, nor a few of them waiting per peer.
+            Enet.HostLimits(host, Relay.MaxFrame, 4 * (nuint)Relay.MaxFrame);
             if (!Enet.CompressAsGodot(host))
             {
                 Console.Error.WriteLine("Compression indisponible.");
@@ -166,7 +168,17 @@ namespace SandboxShip.Online
                     var bytes = new ReadOnlySpan<byte>(e.Data, checked((int)e.Length)).ToArray();
                     var (flags, channel) = (e.Flags, e.Channel);
                     Enet.PacketDestroy(e.Packet);
-                    if (ids.TryGetValue(e.Peer, out var from)) hub.Received(from, bytes, channel, flags, now);
+                    if (!ids.TryGetValue(e.Peer, out var from)) break;
+                    try
+                    {
+                        hub.Received(from, bytes, channel, flags, now);
+                    }
+                    catch (Exception x)
+                    {
+                        // Whatever a packet does, the server stays: the connection that sent it goes.
+                        Log($"Erreur sur un message de la connexion {from} ({x.GetType().Name} : {x.Message}) : elle est fermée");
+                        DropPeer(from);
+                    }
                     break;
             }
         }

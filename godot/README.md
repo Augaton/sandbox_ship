@@ -103,9 +103,10 @@ godot --headless --path godot/Game -- --relay --port=27029
 
 Il n'ouvre que ce port (UDP). Sa ligne « à l'écoute sur le port » dit qu'il est prêt ; il écrit chaque partie ouverte
 ou fermée, chaque joueur qui entre ou part, et toutes les dix secondes sa charge : parties, joueurs, débit avant et
-après compression, paquets écartés, processeur. Limites : 32 parties, 8 joueurs par partie, 2 Mio/s par partie avant
-compression (au-delà, les instantanés sont écartés ; une partie qui dépasse de loin en messages fiables est fermée),
-512 connexions, 5 s pour se présenter, messages d'1 Mio au plus. Un joueur n'atteint que l'hôte de sa partie, un
+après compression, paquets écartés, processeur. Limites : 32 parties, 8 joueurs par partie, 2 Mio/s de l'hôte vers
+ses joueurs avant compression et 256 Kio/s de chaque joueur vers son hôte (au-delà, les instantanés sont écartés ; un
+hôte qui dépasse de loin en messages fiables perd sa partie, un joueur est renvoyé), 512 connexions dont 16 et
+4 parties par adresse, 4 000 messages par seconde et par connexion, 5 s pour se présenter, messages d'1 Mio au plus. Un joueur n'atteint que l'hôte de sa partie, un
 hôte que ses joueurs ; une autre version du jeu est refusée avec la raison. Ctrl+C l'arrête après avoir prévenu
 chacun. Sur Pelican, l'egg `hosting/pelican/egg-sandbox-ship.yaml` le lance avec le rôle `relay`.
 

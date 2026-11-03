@@ -207,9 +207,9 @@ public static class Protocol
 
     public static Message Read(BinaryReader r) => (Tag)r.ReadByte() switch
     {
-        Tag.Hello => new Message.Hello(r.Read7BitEncodedInt(), r.Read7BitEncodedInt(), r.Read7BitEncodedInt(), Text(r), Text(r), Text(r, MaxKey), r.ReadBoolean()),
+        Tag.Hello => new Message.Hello(r.ReadVarint(), r.ReadVarint(), r.ReadVarint(), Text(r), Text(r), Text(r, MaxKey), r.ReadBoolean()),
         Tag.Challenge => new Message.Challenge(Nonce(r)),
-        Tag.Welcome => new Message.Welcome(r.Read7BitEncodedInt(), Text(r)),
+        Tag.Welcome => new Message.Welcome(r.ReadVarint(), Text(r)),
         Tag.Bye => new Message.Bye(Text(r)),
         Tag.Room => new Message.Room(ReadLobby(r), ReadMembers(r)),
         Tag.Ask => new Message.Ask(ReadRequest(r)),
@@ -225,14 +225,14 @@ public static class Protocol
         Tag.Plan => new Message.Plan(Commands.ReadGalaxyCommand(r)),
         Tag.Map => new Message.Map(Rest(r)),
         Tag.Tidings => new Message.Tidings(Rest(r)),
-        Tag.Engage => new Message.Engage(r.Read7BitEncodedInt(), r.ReadBoolean()),
-        Tag.Watch => new Message.Watch(r.Read7BitEncodedInt(), r.ReadBoolean()),
-        Tag.Ack => new Message.Ack(r.Read7BitEncodedInt()),
+        Tag.Engage => new Message.Engage(r.ReadVarint(), r.ReadBoolean()),
+        Tag.Watch => new Message.Watch(r.ReadVarint(), r.ReadBoolean()),
+        Tag.Ack => new Message.Ack(r.ReadVarint()),
         Tag.Chart => new Message.Chart(Rest(r)),
-        Tag.Over => new Message.Over(r.Read7BitEncodedInt(), r.ReadByte() is var o && o != byte.MaxValue
+        Tag.Over => new Message.Over(r.ReadVarint(), r.ReadByte() is var o && o != byte.MaxValue
             ? Enum.IsDefined((BattleResult)o) ? (BattleResult)o : throw new InvalidDataException($"Issue inconnue : {o}") : null),
         Tag.Say => new Message.Say(Text(r, Chat.MaxBytes)),
-        Tag.Spectate => new Message.Spectate(r.Read7BitEncodedInt() - 1),
+        Tag.Spectate => new Message.Spectate(r.ReadVarint() - 1),
         Tag.Said => new Message.Said(Text(r), Text(r, Chat.MaxBytes)),
         var tag => throw new InvalidDataException($"Message inconnu : {tag}"),
     };
@@ -240,7 +240,7 @@ public static class Protocol
     /// <summary>A challenge's bytes: a few, never a huge count.</summary>
     static byte[] Nonce(BinaryReader r)
     {
-        var n = r.Read7BitEncodedInt();
+        var n = r.ReadVarint();
         if (n is < 1 or > 64) throw new InvalidDataException($"Défi de {n} octets");
         var bytes = r.ReadBytes(n);
         return bytes.Length == n ? bytes : throw new EndOfStreamException();
@@ -289,10 +289,10 @@ public static class Protocol
 
     static List<Member> ReadMembers(BinaryReader r)
     {
-        var n = r.Read7BitEncodedInt();
+        var n = r.ReadVarint();
         if (n is < 0 or > MaxMembers) throw new InvalidDataException($"{n} joueurs");
         var members = new List<Member>(n);
-        for (var i = 0; i < n; i++) members.Add(new Member(r.Read7BitEncodedInt(), Text(r), r.ReadBoolean()));
+        for (var i = 0; i < n; i++) members.Add(new Member(r.ReadVarint(), Text(r), r.ReadBoolean()));
         return members;
     }
 
@@ -324,22 +324,22 @@ public static class Protocol
 
     static LobbyRequest ReadRequest(BinaryReader r) => r.ReadByte() switch
     {
-        1 => new LobbyRequest.SetKind(r.Read7BitEncodedInt(), (SeatKind)r.ReadByte(), (Difficulty)r.ReadByte()),
-        2 => new LobbyRequest.SetRace(r.Read7BitEncodedInt(), (Faction)r.ReadByte()),
-        3 => new LobbyRequest.SetTeam(r.Read7BitEncodedInt(), r.Read7BitEncodedInt()),
-        4 => new LobbyRequest.SetColor(r.Read7BitEncodedInt(), r.ReadUInt32()),
+        1 => new LobbyRequest.SetKind(r.ReadVarint(), (SeatKind)r.ReadByte(), (Difficulty)r.ReadByte()),
+        2 => new LobbyRequest.SetRace(r.ReadVarint(), (Faction)r.ReadByte()),
+        3 => new LobbyRequest.SetTeam(r.ReadVarint(), r.ReadVarint()),
+        4 => new LobbyRequest.SetColor(r.ReadVarint(), r.ReadUInt32()),
         5 => new LobbyRequest.SetReady(r.ReadBoolean()),
         6 => new LobbyRequest.AddBot(),
-        7 => new LobbyRequest.Remove(r.Read7BitEncodedInt()),
-        8 => new LobbyRequest.Settings(new LobbySettings((MapKind)r.ReadByte(), (MapSize)r.ReadByte(), r.Read7BitEncodedInt(), r.ReadBoolean(),
-            r.ReadBoolean(), r.Read7BitEncodedInt(), r.Read7BitEncodedInt(), r.ReadBoolean())),
+        7 => new LobbyRequest.Remove(r.ReadVarint()),
+        8 => new LobbyRequest.Settings(new LobbySettings((MapKind)r.ReadByte(), (MapSize)r.ReadByte(), r.ReadVarint(), r.ReadBoolean(),
+            r.ReadBoolean(), r.ReadVarint(), r.ReadVarint(), r.ReadBoolean())),
         var tag => throw new InvalidDataException($"Demande inconnue : {tag}"),
     };
 
     /// <summary>A string of at most `max` UTF-8 bytes: a broken message must not ask for a huge one.</summary>
     internal static string Text(BinaryReader r, int max = MaxText)
     {
-        var n = r.Read7BitEncodedInt();
+        var n = r.ReadVarint();
         if (n < 0 || n > max) throw new InvalidDataException($"Texte de {n} octets");
         var bytes = r.ReadBytes(n);
         if (bytes.Length != n) throw new EndOfStreamException();
@@ -373,7 +373,7 @@ public static class Protocol
         {
             using var r = new BinaryReader(new MemoryStream(bytes));
             if (r.ReadUInt32() != BeaconMagic) return null;
-            var b = new LanGame(r.Read7BitEncodedInt(), Text(r), Text(r), (LobbyMode)r.ReadByte(), r.ReadByte(), r.ReadByte(), r.ReadUInt16(),
+            var b = new LanGame(r.ReadVarint(), Text(r), Text(r), (LobbyMode)r.ReadByte(), r.ReadByte(), r.ReadByte(), r.ReadUInt16(),
                 r.BaseStream.Position < bytes.Length && r.ReadBoolean(), r.BaseStream.Position < bytes.Length && r.ReadBoolean());
             return Enum.IsDefined(b.Mode) ? b : null;
         }

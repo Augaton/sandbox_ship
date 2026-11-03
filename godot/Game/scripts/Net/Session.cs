@@ -78,6 +78,8 @@ public sealed partial class Session : Node
     readonly Dictionary<int, double> strangers = [];
     /// <summary>Host: how fast each player writes in the chat.</summary>
     readonly ChatGate gate = new();
+    /// <summary>How fast each player's lobby requests are taken: each one taken goes to every member, a flood would go to all.</summary>
+    readonly ChatGate asks = new(ChatGate.AskBurst, ChatGate.AskEvery);
     /// <summary>Host: the challenge given to each peer that has not said Hello yet (Passwords.cs).</summary>
     readonly Dictionary<int, byte[]> challenges = [];
     /// <summary>Host: peers sent off, and when their connection is cut: a moment after their Bye, so that they read it first.</summary>
@@ -311,6 +313,7 @@ public sealed partial class Session : Node
         challenges.Remove(peer);
         sentOff.Remove(peer);
         gate.Forget(peer);
+        asks.Forget(peer);
         if (Room?.Members.Find(m => m.Peer == peer) is not { } member) return;
         // Gone from a game under way: its seat waits for it, under its name, until the game ends.
         if ((battle is not null || campaign is not null) && !member.Watches
@@ -362,6 +365,7 @@ public sealed partial class Session : Node
         switch (m)
         {
             case Message.Ask ask:
+                if (!asks.Allow(from, clock)) break;
                 if (room.Apply(from, ask.Request))
                 {
                     AfterChange();

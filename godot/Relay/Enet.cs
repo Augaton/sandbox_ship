@@ -33,6 +33,7 @@ static unsafe partial class Enet
     [LibraryImport(Lib, EntryPoint = "rn_host_compress")]
     private static partial int HostCompress(IntPtr host, delegate* unmanaged[Cdecl]<byte*, nuint, byte*, nuint, nuint> compress,
         delegate* unmanaged[Cdecl]<byte*, nuint, byte*, nuint, nuint> decompress);
+    [LibraryImport(Lib, EntryPoint = "rn_host_limits")] public static partial void HostLimits(IntPtr host, nuint maximumPacket, nuint maximumWaiting);
     [LibraryImport(Lib, EntryPoint = "rn_host_destroy")] public static partial void HostDestroy(IntPtr host);
     [LibraryImport(Lib, EntryPoint = "rn_host_flush")] public static partial void HostFlush(IntPtr host);
     [LibraryImport(Lib, EntryPoint = "rn_host_pop_totals")] public static partial void HostPopTotals(IntPtr host, out uint received, out uint sent);

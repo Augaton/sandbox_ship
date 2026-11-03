@@ -145,7 +145,7 @@ public static class Replays
         var format = r.ReadInt32();
         var wire = r.ReadInt32();
         if (format != FormatVersion || wire != Commands.WireVersion) throw new InvalidDataException("Rediffusion d'une autre version du jeu, illisible par celle-ci.");
-        var version = r.ReadString();
+        var version = r.ReadText();
         var savedAt = r.ReadInt64();
         var length = r.ReadInt64();
         var digest = r.ReadUInt32();
@@ -159,8 +159,8 @@ public static class Replays
         long step = 0;
         for (var i = 0; i < count && !headerOnly; i++)
         {
-            step += r.Read7BitEncodedInt64();
-            commands.Add(new(step, new Side(r.Read7BitEncodedInt()), Commands.ReadCommand(r)));
+            step += r.ReadVarint64();
+            commands.Add(new(step, new Side(r.ReadVarint()), Commands.ReadCommand(r)));
         }
         return new Replay
         {

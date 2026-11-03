@@ -57,12 +57,35 @@ public sealed class Settings
         try
         {
             var text = Godot.FileAccess.FileExists(Path) ? Godot.FileAccess.GetFileAsString(Path) : "";
-            return text.Length > 0 ? JsonSerializer.Deserialize<Settings>(text) ?? new() : new();
+            var s = text.Length > 0 ? JsonSerializer.Deserialize<Settings>(text) ?? new() : new();
+            s.Sane();
+            return s;
         }
-        catch (JsonException)
+        catch (Exception e) when (e is JsonException or NotSupportedException or ArgumentException)
         {
             return new();
         }
+    }
+
+    /// <summary>
+    /// What the file brought, brought back within what the game expects: a damaged or edited file
+    /// never leaves a null or an absurd number behind it (no name at all, a scale of nothing).
+    /// </summary>
+    void Sane()
+    {
+        var d = new Settings();
+        PlayerName ??= d.PlayerName;
+        JoinAddress ??= d.JoinAddress;
+        MasterAddress ??= d.MasterAddress;
+        Language ??= d.Language;
+        Keys ??= [];
+        Volume = double.IsFinite(Volume) ? Math.Clamp(Volume, 0, 1) : d.Volume;
+        MusicVolume = double.IsFinite(MusicVolume) ? Math.Clamp(MusicVolume, 0, 1) : d.MusicVolume;
+        if (!Enum.IsDefined(Display)) Display = d.Display;
+        WindowWidth = Math.Clamp(WindowWidth, 640, 7680);
+        WindowHeight = Math.Clamp(WindowHeight, 360, 4320);
+        UiScale = double.IsFinite(UiScale) ? Math.Clamp(UiScale, SandboxShip.Core.Display.Scales[0], SandboxShip.Core.Display.Scales[^1]) : d.UiScale;
+        MaxFps = MaxFps == 0 ? 0 : Math.Clamp(MaxFps, 10, 1000);
     }
 
     public void Save()

@@ -18,6 +18,8 @@ public sealed class GalaxyHost(Galaxy galaxy, Action<int, Message> send)
     {
         public readonly Side Side = side;
         public readonly DelayedSink<GalaxyCommand> Sink = sink;
+        /// <summary>How fast its orders are taken: a flood is left out.</summary>
+        public readonly OrderPace Pace = new();
         public readonly List<GalaxyEvent> Events = [];
         public long Bytes;
         /// <summary>Seconds until this player's next snapshot.</summary>
@@ -58,7 +60,7 @@ public sealed class GalaxyHost(Galaxy galaxy, Action<int, Message> send)
     /// <summary>A player's command, for the next step; from a peer not (or no longer) in the campaign, nothing.</summary>
     public void Receive(int peer, GalaxyCommand c)
     {
-        if (remotes.TryGetValue(peer, out var r)) r.Sink.Send(c);
+        if (remotes.TryGetValue(peer, out var r) && r.Pace.Take(false, r.Sink.Pending)) r.Sink.Send(c);
     }
 
     /// <summary>Applies the commands that came since the last call, each player's in order, and tells each player those refused.</summary>
@@ -82,6 +84,7 @@ public sealed class GalaxyHost(Galaxy galaxy, Action<int, Message> send)
     {
         foreach (var (peer, r) in remotes)
         {
+            if (r.Pace.Refill(dt)) send(peer, new Message.Refused(OrderPace.TooMany));
             r.Wait -= dt;
             if (r.Wait > 0.001) continue;
             SendSnapshot(peer, r);

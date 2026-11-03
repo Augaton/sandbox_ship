@@ -336,6 +336,33 @@ tests de `FixtureTests` et `CrossTests` les listent.
     bombardiers (−0,48 → +0,06 sur une échelle de −1 à +1) sans rien écraser ; croiseur, cuirassé et Léviathan restent à moins de
     0,1 de leurs anciens scores.
   - Reste à juger en vraie partie : le tout ou rien à 30 minutes face à un joueur, et l'assaut, où la défense garde l'avantage.
+- Sécurité (2026-11-03) : ce qu'un inconnu peut envoyer au serveur en ligne, à un hôte ou au jeu, et les fichiers du joueur.
+  Chaque lecteur exposé passe un test de robustesse à graine fixe (`FuzzTests` : trames du relais, messages du jeu, ordres,
+  instantanés de bataille entiers et en parties, galaxie, rediffusions, sauvegardes), et chaque correction a son test
+  (`SecurityTests`).
+  - Faille principale : un nombre à 7 bits qui ne finit jamais (cinq octets à 0xFF) levait `FormatException`, que nul
+    lecteur n'attendait. Une trame de sept octets arrêtait le serveur en ligne (exception sur son fil), un message cassé de
+    même l'hôte ou un joueur. Tous les lecteurs lisent désormais par `Wire.ReadVarint`, `ReadVarint64` et `ReadText`
+    (`Sim/Wire.cs`), qui refusent avec `InvalidDataException` ; les textes ont une longueur bornée, rien n'est alloué pour une
+    longueur forgée. Les deux serveurs en ligne consignent en plus toute erreur imprévue d'un message et ferment la seule
+    connexion qui l'a envoyé.
+  - Serveur en ligne : 16 connexions et 4 parties par adresse ; 4 000 trames par seconde et par connexion, au-delà écartées ;
+    le débit d'un joueur vers son hôte se compte à part (256 Kio/s) : un joueur qui inonde est renvoyé, et ne peut plus faire
+    fermer la partie de son hôte. Le serveur léger borne aussi ENet : aucun paquet au-delà d'1 Mio n'est assemblé (32 Mio par
+    défaut).
+  - Hôte : les ordres d'un joueur sont pris à 20 par seconde (40 d'un coup), la conduite à la main à part, 256 au plus en
+    attente ; au-delà, ils sont écartés et le joueur est prévenu une fois. Les demandes du salon, renvoyées à tous les
+    membres, sont prises à 10 par seconde (20 d'un coup). Les ordres eux-mêmes étaient déjà vérifiés (camp, unités, valeurs
+    finies, énumérations, listes bornées), les spectateurs déjà sans ordres.
+  - Fichiers : une sauvegarde (de campagne ou réseau) dont un champ attendu est nul, à n'importe quelle profondeur, ou dont
+    une énumération n'existe pas, est refusée dès sa lecture : elle faisait planter la liste des sauvegardes et le
+    chargement. Les énumérations ne se lisent plus que par leur nom. Les réglages lus sont remis dans leurs bornes (nom,
+    adresses, touches, volumes, échelle, taille de fenêtre, images par seconde). Les noms de sauvegarde restaient sûrs
+    (lettres, chiffres et tirets seulement), les rediffusions et les annonces du réseau local déjà refusées proprement.
+  - CI : actions épinglées par leur commit, butler par sa version et son empreinte, ENet par son empreinte.
+  - Ouvert : la liaison directe donne l'adresse de l'hôte à tout joueur qui rejoint une partie listée (l'hôte ne la cache
+    plus derrière le serveur en ligne) ; aucun chiffrement ni authentification des messages (ENet nu) ; un hôte malveillant
+    reste cru de ses joueurs sur ce qu'il leur montre, seules les lectures sont bornées.
 
 ## Ce qui change de technique
 
