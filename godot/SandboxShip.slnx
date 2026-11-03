@@ -2,4 +2,5 @@
   <Project Path="Sim/Sim.csproj" />
   <Project Path="Sim.Tests/Sim.Tests.csproj" />
   <Project Path="Game/Game.csproj" />
+  <Project Path="Relay/Relay.csproj" />
 </Solution>
