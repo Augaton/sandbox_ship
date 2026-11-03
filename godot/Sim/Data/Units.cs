@@ -146,6 +146,13 @@ public static class Weapons
     public static readonly WeaponDef Ion = new(WeaponKind.Ion, 440, 20, 1.6, 800, ShieldMult: 2, HullMult: 0.2);
 
     public static double MaxRange(IEnumerable<WeaponDef> weapons) => weapons.Aggregate(0.0, (m, w) => Math.Max(m, w.Range));
+
+    /// <summary>
+    /// Bullets faster than this come from a burst cannon (850), slower ones from flak and light guns
+    /// (700 at most): the view tells their sound apart by it, all a player over the network knows of
+    /// a shot. A test keeps the weapons on either side of it.
+    /// </summary>
+    public const double BurstRoundSpeed = 800;
 }
 
 public static class Ships

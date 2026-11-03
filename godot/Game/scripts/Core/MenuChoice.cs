@@ -40,7 +40,8 @@ public sealed record MenuChoice
 /// --intro (the opening, which a capture or a start into a screen skips), --music-dump=DIR (the music as WAV files, then quit),
 /// --lang=fr|en (the language, whatever the options say) and --lang-report=FILE (each text shown without English, written there once),
 /// --music-record=FILE.wav (the game's mixed sound saved as it quits; with --audio-driver Dummy before --, nothing is heard),
-/// --colors=standard|adapted (the sides' colors, whatever the options say),
+/// --sfx-dump=DIR (every sound effect as a WAV file, then quit), --colors=standard|adapted (the sides' colors, whatever the
+/// options say),
 /// --start=tutorial (the guided first battle), --start=replay with --replay=FILE (that replay played), --menu=replays and
 /// --replays=DIR (the list of replays, kept in DIR rather than user://replays),
 /// --menu=home|new|controls|credits|options|lobby-MODE (the menu screen opened first; new: the
@@ -106,6 +107,8 @@ public static class Dev
     public static string? Replays, Replay;
     /// <summary>--music-dump=DIR: the music as WAV files there, then quit. --music-record=FILE.wav: the game's sound saved as it quits (music on in a capture).</summary>
     public static string? MusicDump, MusicRecord;
+    /// <summary>--sfx-dump=DIR: the sound effects as WAV files there, then quit.</summary>
+    public static string? SfxDump;
     /// <summary>--colors=standard|adapted: the sides' colors for this run, the options left as they are.</summary>
     public static SideColors? Colors;
     /// <summary>--say=TEXT: a dev run writes this line in the chat once in the lobby.</summary>
@@ -149,6 +152,7 @@ public static class Dev
                 case "--lang": Lang = value; break;
                 case "--lang-report": LangReport = value; break;
                 case "--music-dump": MusicDump = value; break;
+                case "--sfx-dump": SfxDump = value; break;
                 case "--colors": Colors = Enum.Parse<SideColors>(value, true); break;
                 case "--music-record": MusicRecord = value; break;
                 case "--server": Server = true; break;

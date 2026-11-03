@@ -11,6 +11,9 @@ public enum Sound
     Bullet, Laser, Torpedo, Ray, Hit, Shield, Explosion, BigExplosion, Ability, Beam, Alert, Built, Click,
     // Not in the web version: a portal opening, and the horn that greets a titan or a leviathan.
     Warp, Horn,
+    // This version's weapons: a burst cannon's round, a swarm missile leaving, an ion bolt, a round
+    // of point defense meeting what it shot at.
+    Burst, Missile, Ion, Intercept,
 }
 
 /// <summary>Lets a sound through at most once per its gap.</summary>
@@ -34,6 +37,7 @@ public static class Sfx
         [Sound.Bullet] = 45, [Sound.Laser] = 60, [Sound.Torpedo] = 120, [Sound.Ray] = 150, [Sound.Hit] = 50, [Sound.Shield] = 70,
         [Sound.Explosion] = 90, [Sound.BigExplosion] = 250, [Sound.Ability] = 120, [Sound.Beam] = 300, [Sound.Alert] = 1500,
         [Sound.Built] = 400, [Sound.Click] = 30, [Sound.Warp] = 400, [Sound.Horn] = 2500,
+        [Sound.Burst] = 40, [Sound.Missile] = 70, [Sound.Ion] = 90, [Sound.Intercept] = 60,
     };
 
     const int Rate = 44100;
@@ -50,6 +54,15 @@ public static class Sfx
     static bool attached;
 
     /// <summary>
+    /// The held hum of continuous beams: one loop on two players of its own, one heard on the left
+    /// and one on the right, panned by their volumes so that it moves without a click.
+    /// </summary>
+    static readonly AudioStreamPlayer[] hum = new AudioStreamPlayer[2];
+    static double humLevel, humPan;
+    /// <summary>The hum's loop, in seconds: every partial makes whole cycles in it, so it joins up seamlessly.</summary>
+    const double HumLength = 1;
+
+    /// <summary>
     /// Creates the players under `host`, which stays for the whole session, and gives every
     /// button the click sound, as the web version does for any button clicked.
     /// </summary>
@@ -63,6 +76,12 @@ public static class Sfx
         {
             players[i] = new AudioStreamPlayer();
             node.AddChild(players[i]);
+        }
+        var loop = RenderHum();
+        for (var i = 0; i < hum.Length; i++)
+        {
+            hum[i] = new AudioStreamPlayer { Stream = HumStream(loop, right: i == 1) };
+            node.AddChild(hum[i]);
         }
         foreach (var s in Enum.GetValues<Sound>()) rendered[s] = Render(s);
         // Every stereo copy now, while loading: made on first play, each one stalled a frame of
@@ -101,6 +120,108 @@ public static class Sfx
         p.VolumeDb = Mathf.LinearToDb((float)level);
         p.Play();
         startedAt[voice] = Time.GetTicksMsec();
+    }
+
+    /// <summary>
+    /// The beams' hum, held as long as it is asked for every frame: `level` 0 to 1 (0 lets it fade
+    /// out), panned from -1 (left) to 1 (right). It eases to what is asked within a tenth of a
+    /// second or so, never jumping; quiet when muted.
+    /// </summary>
+    public static void Hum(double level, double pan, double delta)
+    {
+        if (!attached) return;
+        var settings = Settings.Current;
+        var target = settings.Muted ? 0 : Math.Clamp(level, 0, 1) * settings.Volume;
+        var ease = 1 - Math.Exp(-delta * 10);
+        humLevel += (target - humLevel) * ease;
+        humPan += (Math.Clamp(pan, -1, 1) - humPan) * ease;
+        if (target == 0 && humLevel < 0.002)
+        {
+            StopHum();
+            return;
+        }
+        var x = (humPan + 1) / 2;
+        for (var i = 0; i < hum.Length; i++)
+        {
+            var gain = humLevel * (i == 0 ? Math.Cos(x * Math.PI / 2) : Math.Sin(x * Math.PI / 2));
+            hum[i].VolumeDb = Mathf.LinearToDb((float)Math.Max(gain, 1e-5));
+        }
+        // Both started together, they stay in step.
+        if (!hum[0].Playing)
+        {
+            foreach (var p in hum) p.Play();
+        }
+    }
+
+    /// <summary>Silences the hum at once: the battle is gone or paused.</summary>
+    public static void StopHum()
+    {
+        if (!attached) return;
+        humLevel = 0;
+        foreach (var p in hum) p.Stop();
+    }
+
+    /// <summary>One side of the hum's loop: its samples in one channel, silence in the other.</summary>
+    static AudioStreamWav HumStream(float[] loop, bool right)
+    {
+        var data = new byte[loop.Length * 4];
+        for (var i = 0; i < loop.Length; i++) Write(data, i * 4 + (right ? 2 : 0), loop[i]);
+        return new AudioStreamWav
+        {
+            Format = AudioStreamWav.FormatEnum.Format16Bits, MixRate = Rate, Stereo = true, Data = data,
+            LoopMode = AudioStreamWav.LoopModeEnum.Forward, LoopBegin = 0, LoopEnd = loop.Length,
+        };
+    }
+
+    /// <summary>
+    /// The hum: two saws a fifth apart (110 and 165 Hz) and a soft 440 Hz, under a 6 Hz throb, low
+    /// passed. Rendered twice over and the second second kept: the filter has settled by then, and
+    /// every partial making whole cycles in a second, its end meets its start.
+    /// </summary>
+    static float[] RenderHum()
+    {
+        var n = (int)(HumLength * Rate);
+        var buffer = new float[2 * n];
+        var lowpass = new Biquad(Filter.Lowpass, 900);
+        for (var i = 0; i < buffer.Length; i++)
+        {
+            var t = (double)i / Rate;
+            var x = 0.6 * Oscillator(Wave.Sawtooth, 110 * t % 1, 110.0 / Rate) + 0.35 * Oscillator(Wave.Sawtooth, 165 * t % 1, 165.0 / Rate)
+                + 0.25 * Math.Sin(Math.Tau * 440 * t);
+            var throb = 0.8 + 0.2 * Math.Sin(Math.Tau * 6 * t);
+            buffer[i] = (float)(lowpass.Process(x) * throb * 0.09);
+        }
+        return buffer[n..];
+    }
+
+    /// <summary>--sfx-dump: every sound as a mono WAV file in `dir`, and the hum's loop twice over (its seam shows), to measure them.</summary>
+    public static void Dump(string dir)
+    {
+        System.IO.Directory.CreateDirectory(dir);
+        foreach (var s in Enum.GetValues<Sound>()) WriteWav(System.IO.Path.Combine(dir, $"{s}.wav"), Render(s));
+        var loop = RenderHum();
+        WriteWav(System.IO.Path.Combine(dir, "BeamHum.wav"), [.. loop, .. loop]);
+    }
+
+    /// <summary>A mono, 16-bit WAV file.</summary>
+    static void WriteWav(string path, float[] mono)
+    {
+        var data = new byte[mono.Length * 2];
+        for (var i = 0; i < mono.Length; i++) Write(data, i * 2, mono[i]);
+        using var f = new System.IO.BinaryWriter(System.IO.File.Create(path));
+        f.Write("RIFF"u8);
+        f.Write(36 + data.Length);
+        f.Write("WAVEfmt "u8);
+        f.Write(16);
+        f.Write((short)1);
+        f.Write((short)1);
+        f.Write(Rate);
+        f.Write(Rate * 2);
+        f.Write((short)2);
+        f.Write((short)16);
+        f.Write("data"u8);
+        f.Write(data.Length);
+        f.Write(data);
     }
 
     /// <summary>The sound at one pan step, as the web's equal-power stereo panner places a mono source.</summary>
@@ -170,6 +291,14 @@ public static class Sfx
             new Tone(0, Wave.Sine, 41, 37, 2.8, 0.24),
             new Burst(0, 0.7, 0.07, Filter.Lowpass, 420, 120),
         ],
+        // A short, dry clap with a thump under it: six of them in half a second make the burst.
+        Sound.Burst => [new Burst(0, 0.05, 0.16, Filter.Bandpass, 1500, 900), new Tone(0, Wave.Square, 180, 90, 0.05, 0.05, 1200)],
+        // A rising hiss, a thin whistle over it.
+        Sound.Missile => [new Burst(0, 0.32, 0.08, Filter.Highpass, 2500, 6000), new Tone(0, Wave.Sine, 900, 1900, 0.3, 0.03)],
+        // An electric crack: a falling buzz, crackle over it, a zap after.
+        Sound.Ion => [new Tone(0, Wave.Square, 2400, 300, 0.09, 0.04, 5000), new Burst(0, 0.07, 0.12, Filter.Bandpass, 4200, 1800), new Tone(0.02, Wave.Sawtooth, 1200, 150, 0.08, 0.03, 3000)],
+        // A small bright pop, where a torpedo or a missile is shot down.
+        Sound.Intercept => [new Burst(0, 0.035, 0.08, Filter.Bandpass, 3400, 2200), new Tone(0, Wave.Triangle, 1600, 2400, 0.04, 0.025)],
         _ => [new Tone(0, Wave.Sine, 1800, 1500, 0.03, 0.03)],
     };
 

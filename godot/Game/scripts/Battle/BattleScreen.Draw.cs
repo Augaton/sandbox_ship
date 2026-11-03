@@ -72,14 +72,15 @@ public partial class BattleScreen
     static readonly Dictionary<WeaponKind, Sound> ShotSound = new()
     {
         [WeaponKind.Bullet] = Sound.Bullet, [WeaponKind.Laser] = Sound.Laser, [WeaponKind.Torpedo] = Sound.Torpedo, [WeaponKind.Ray] = Sound.Ray,
-        // Not in the web version.
-        [WeaponKind.Missile] = Sound.Torpedo, [WeaponKind.Ion] = Sound.Laser, [WeaponKind.Beam] = Sound.Beam,
+        // Not in the web version; a beam is heard as a held hum (SyncShots), a burst cannon's rounds by their speed.
+        [WeaponKind.Missile] = Sound.Missile, [WeaponKind.Ion] = Sound.Ion, [WeaponKind.Beam] = Sound.Beam,
     };
 
-    static readonly Color IonTint = Palette.Hex(0x8fe8ff);
-    /// <summary>Beams holding last frame, as (from, to): a new one is heard.</summary>
-    readonly HashSet<(int, int)> beamsHeard = [], beamsNow = [];
+    /// <summary>A shot's sound: a burst cannon's bullet is told from flak's by its speed, all a shot carries over the network.</summary>
+    static Sound ShotSoundOf(Projectile p) =>
+        p.Kind == WeaponKind.Bullet && p.Vx * p.Vx + p.Vy * p.Vy > Weapons.BurstRoundSpeed * Weapons.BurstRoundSpeed ? Sound.Burst : ShotSound[p.Kind];
 
+    static readonly Color IonTint = Palette.Hex(0x8fe8ff);
     Node2D worldRoot = null!;
     Node2D viewsRoot = null!;
     readonly Dictionary<int, View> views = [];
@@ -473,6 +474,29 @@ public partial class BattleScreen
         }
     }
 
+    /// <summary>
+    /// Beams holding in view make one held hum, a little louder the more there are, panned toward
+    /// them, quieter from afar. With none in view, the battle paused, or the fight behind the menu,
+    /// it fades out: a beam is heard as long as it holds, never once a frame.
+    /// </summary>
+    void HumBeams()
+    {
+        var v = ViewRect();
+        var (count, sum) = (0, 0.0);
+        if (!Opts.Demo && !Paused)
+        {
+            foreach (var b in World.Beams)
+            {
+                if (World.Entities.Get(b.From) is not { } from || !CanSee(from) || !v.HasPoint(new Vector2((float)from.X, (float)from.Y))) continue;
+                count++;
+                sum += from.X;
+            }
+        }
+        var level = count == 0 ? 0 : Math.Min(1, 0.45 + 0.1 * count) * Math.Min(1, 0.45 + Zoom * 0.55);
+        var pan = count == 0 ? 0 : ((sum / count - v.Position.X) / v.Size.X * 2 - 1) * 0.8;
+        Sfx.Hum(level, pan, GetProcessDeltaTime());
+    }
+
     void SyncShots()
     {
         var newest = lastShot;
@@ -480,20 +504,12 @@ public partial class BattleScreen
         {
             if (p.Id <= lastShot) continue;
             newest = Math.Max(newest, p.Id);
-            Play(ShotSound[p.Kind], p.X, p.Y, p.Kind == WeaponKind.Missile ? 0.35 : 0.7);
+            Play(ShotSoundOf(p), p.X, p.Y, p.Kind == WeaponKind.Missile ? 0.35 : 0.7);
             // The muzzle flashes where the shot is first seen, at the end of its gun.
             Spark(p.X, p.Y);
         }
         lastShot = newest;
-        // A beam is heard as it takes hold, not every frame it holds.
-        beamsNow.Clear();
-        foreach (var b in World.Beams)
-        {
-            beamsNow.Add((b.From, b.To));
-            if (!beamsHeard.Contains((b.From, b.To)) && World.Entities.Get(b.From) is { } from) Play(ShotSound[WeaponKind.Beam], from.X, from.Y, 0.3);
-        }
-        beamsHeard.Clear();
-        beamsHeard.UnionWith(beamsNow);
+        HumBeams();
         var frame = ++shotFrame;
         if (Zoom >= LodSimple)
         {
