@@ -195,3 +195,121 @@ public class SecurityTests
         }
     }
 }
+
+/// <summary>The last pass before 1.0.0: what came since the first (stances, patrols, guards, queues, deals, personalities).</summary>
+public class FinalSecurityTests
+{
+    static World Battle()
+    {
+        var w = Scenario.CreateSkirmish(new SkirmishOptions { Player = Faction.Klaed, Enemies = [Faction.Nairan], Seed = 5, Size = MapSize.Small, Credits = 20000 });
+        w.Factions[Faction.Nairan].AI = null;
+        return w;
+    }
+
+    [Fact]
+    public void A_rally_point_off_the_map_is_brought_onto_it()
+    {
+        var w = Battle();
+        // Finite, but beyond any map: a float of the snapshot cannot even hold it.
+        Assert.True(Commands.Apply(w, Faction.Klaed, new Command.SetRally(1e300, -1e300)).Ok);
+        Assert.True(Commands.Apply(w, Faction.Klaed, new Command.EnqueueShip(ShipClass.Fighter, 1)).Ok);
+        Entity? built = null;
+        for (var i = 0; i < 60 * 60 && built is null; i++)
+        {
+            w.Events.Clear();
+            Steps.StepWorld(w);
+            if (w.Events.OfType<Delivered>().FirstOrDefault() is { } d) built = w.Entities.Get(d.Id);
+        }
+        Assert.NotNull(built);
+        // Ships come out spread around the rally point, 160 wide.
+        Assert.InRange(built.Order!.X, -80, w.Width + 80);
+        Assert.InRange(built.Order.Y, -80, w.Height + 80);
+        using var ms = new MemoryStream();
+        using (var bw = new BinaryWriter(ms, Encoding.UTF8, true)) Snapshot.Write(w, Faction.Klaed, bw);
+        var replica = new World();
+        Snapshot.Read(new BinaryReader(new MemoryStream(ms.ToArray())), replica);
+        Assert.True(double.IsFinite(replica.Factions[Faction.Klaed].RallyX) && double.IsFinite(replica.Factions[Faction.Klaed].RallyY));
+    }
+
+    [Fact]
+    public void Something_put_down_off_the_map_by_the_sandbox_or_a_replay_lands_on_it()
+    {
+        var w = Battle();
+        w.SandboxTools = true;
+        // A replay is a file from anyone: its sandbox orders are played as they are written.
+        foreach (var (x, y) in new[] { (1e30, 1e30), (-1e30, 5.0), (5.0, 1e300) })
+        {
+            foreach (var what in new[] { "fighter", "station", "admiral" }) Commands.Apply(w, Faction.Nautolan, new Command.Spawn(Faction.Nautolan, what, x, y, 0));
+        }
+        Assert.False(Commands.Apply(w, Faction.Klaed, new Command.PlaceStructure(BuildableType.Platform, 1e30, 1e30)).Ok);
+        Steps.Run(w, 2);
+        // A station's parts stand around it: at the edge, a little past it.
+        const double Edge = 500;
+        Assert.All(w.Entities, e => Assert.True(e.X >= -Edge && e.X <= w.Width + Edge && e.Y >= -Edge && e.Y <= w.Height + Edge, $"{e.Type} à ({e.X}, {e.Y})"));
+    }
+
+    /// <summary>A replay of these options, written as a file would hold it, with one order of an unknown side.</summary>
+    static byte[] Forged(SkirmishOptions o)
+    {
+        using var ms = new MemoryStream();
+        Replays.Write(ms, new Replay
+        {
+            Options = o, Player = Faction.Klaed, Version = "1.0.0", Length = 120,
+            Commands = [new LoggedCommand(10, new Side(Lobby.MaxSeats), new Command.EnqueueShip(ShipClass.Frigate, 1))], CommandCount = 1,
+        });
+        return ms.ToArray();
+    }
+
+    [Fact]
+    public void A_replay_forged_to_a_battle_that_cannot_be_is_refused_as_it_is_read()
+    {
+        SkirmishOptions Two(Action<SkirmishOptions>? change = null, BattleMode mode = BattleMode.Standard)
+        {
+            var o = new SkirmishOptions
+            {
+                Mode = mode, Seed = 3, Size = MapSize.Small,
+                Slots = [new Slot(Faction.Klaed, Faction.Klaed, mode == BattleMode.Assault ? 1 : 0), new Slot(Faction.Nairan, Faction.Nairan, mode == BattleMode.Assault ? 2 : 0, Difficulty.Normal)],
+            };
+            change?.Invoke(o);
+            return o;
+        }
+        var played = new ReplayPlayer(Replays.Read(new MemoryStream(Forged(Two()))));
+        while (!played.Over) played.Step();
+        SkirmishOptions[] forged =
+        [
+            Two(o => o.Slots = [new Slot(Faction.Klaed, Faction.Klaed), new Slot(Faction.Klaed, Faction.Nairan)]),
+            Two(o => o.Slots = [new Slot(Faction.Klaed, Faction.Klaed), new Slot(new Side(-1), Faction.Nairan)]),
+            Two(o => o.Slots = [new Slot(Faction.Klaed, Faction.Klaed), new Slot(new Side(1000), Faction.Nairan)]),
+            Two(o => o.Slots = [.. Enumerable.Range(0, 16).Select(i => new Slot(new Side(i), Faction.Nairan))]),
+            Two(o => o.Slots = [new Slot(Faction.Klaed, Faction.Klaed)]),
+            Two(o => o.Slots = [new Slot(Faction.Klaed, Faction.Klaed), new Slot(Faction.Nairan, Faction.Errant)]),
+            Two(o => o.Credits = double.NaN),
+            Two(o => o.Credits = double.PositiveInfinity),
+            Two(o => o.Credits = -5),
+            Two(o => o.ZoneTarget = 0, BattleMode.Zones),
+            Two(o => o.AssaultMinutes = -3, BattleMode.Assault),
+        ];
+        foreach (var o in forged)
+        {
+            Assert.Throws<InvalidDataException>(() => Replays.Read(new MemoryStream(Forged(o))));
+        }
+    }
+
+    static byte[] Release(string tag) => Encoding.UTF8.GetBytes(System.Text.Json.JsonSerializer.Serialize(new Dictionary<string, string> { ["tag_name"] = tag }));
+
+    [Fact]
+    public void The_release_page_opened_is_built_only_from_a_tag_of_plain_digits()
+    {
+        Assert.Equal("v1.2.3", Releases.Tag(Release("v1.2.3")));
+        Assert.True(Releases.IsNewer("v1.0.1", "1.0.0"));
+        Assert.False(Releases.IsNewer("v1.0.0", "1.0.0"));
+        // A line break after it, digits of another script, a path, a query: no answer.
+        foreach (var tag in new[] { "v9.9.9\n", "v٩.٩.٩", "v9.9.9/../../evil", "v9.9.9?x=1", "9.9.9 ", "" })
+        {
+            Assert.Null(Releases.Tag(Release(tag)));
+        }
+        Assert.Null(Releases.Tag(Encoding.UTF8.GetBytes("""{"tag_name": 9}""")));
+        Assert.Null(Releases.Tag(Encoding.UTF8.GetBytes("[1, 2]")));
+        Assert.Null(Releases.Tag([0xFF, 0x00, 0x7B]));
+    }
+}

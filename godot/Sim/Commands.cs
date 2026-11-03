@@ -203,8 +203,9 @@ public static partial class Commands
             {
                 if (!Finite(r.X, r.Y)) return Invalid;
                 if (!world.Factions.TryGetValue(issuer, out var f)) return NotYours;
-                f.RallyX = r.X;
-                f.RallyY = r.Y;
+                // On the map: new ships fly there as they are told, and a snapshot's float holds it.
+                f.RallyX = Math.Clamp(r.X, 0, world.Width);
+                f.RallyY = Math.Clamp(r.Y, 0, world.Height);
                 return Result.OK;
             }
             case Command.SetLoop l:
@@ -252,7 +253,8 @@ public static partial class Commands
                 return Result.Fail("Réservé au bac à sable");
             case Command.Spawn s:
                 if (!Defined(s.Race) || s.What is null || !Finite(s.X, s.Y) || !double.IsFinite(s.Angle)) return Invalid;
-                return Spawn(world, s.Race, s.What, s.X, s.Y, s.Angle);
+                // On the map: far off it, a replay forged so would bring the spatial grid down.
+                return Spawn(world, s.Race, s.What, Math.Clamp(s.X, 0, world.Width), Math.Clamp(s.Y, 0, world.Height), s.Angle);
             case Command.GrantCredits g:
             {
                 if (!double.IsFinite(g.Amount)) return Invalid;

@@ -161,13 +161,13 @@ public static class Replays
         var sandbox = r.ReadBoolean();
         var options = ReadOptions(r, format);
         var count = r.ReadInt32();
-        if (length < 0 || count < 0) throw new InvalidDataException("Rediffusion abîmée.");
+        if (length < 0 || count < 0 || !Seat(player.Id) || winner != -1 && !Seat(winner)) throw new InvalidDataException("Rediffusion abîmée.");
         var commands = new List<LoggedCommand>(headerOnly ? 0 : Math.Min(count, 1 << 16));
         long step = 0;
         for (var i = 0; i < count && !headerOnly; i++)
         {
             step += r.ReadVarint64();
-            commands.Add(new(step, new Side(r.ReadVarint()), Commands.ReadCommand(r)));
+            commands.Add(new(step, r.ReadSide(), Commands.ReadCommand(r)));
         }
         return new Replay
         {
@@ -235,8 +235,14 @@ public static class Replays
         o.Difficulty = Named<Difficulty>(r.ReadByte());
         o.Raid = r.ReadBoolean();
         if (format >= 2) o.Terrain = Named<TerrainDensity>(r.ReadByte());
+        // A battle that can be made, as a lobby makes them: a replay is a file from anyone, and
+        // CreateSkirmish throws on the rest (two seats on a side, a zone score of nothing...).
+        if (!double.IsFinite(o.Credits) || o.Credits < 0 || Scenario.SlotsOf(o).Exists(s => !Seat(s.Side.Id)) || !Scenario.Check(o).Ok)
+            throw new InvalidDataException("Rediffusion abîmée.");
         return o;
     }
+
+    static bool Seat(int side) => side is >= 0 and <= Lobby.MaxSeats;
 
     /// <summary>A known value of an enum, whatever its underlying type, or the file is refused.</summary>
     static T Named<T>(byte b) where T : struct, Enum =>

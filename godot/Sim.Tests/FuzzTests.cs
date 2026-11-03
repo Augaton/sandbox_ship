@@ -194,6 +194,29 @@ public class FuzzTests
         return w;
     }
 
+    /// <summary>
+    /// A battle of what came after the first pass: dense terrain, ships on patrol, guarding,
+    /// holding fire, with orders queued, veterans among them.
+    /// </summary>
+    internal static World Rough(int seed)
+    {
+        var w = Scenario.CreateSkirmish(new SkirmishOptions
+        {
+            Player = Faction.Klaed, Enemies = [Faction.Nairan], EnemyAI = true, Seed = seed, Size = MapSize.Small, Terrain = TerrainDensity.Dense,
+        });
+        var ships = Enumerable.Range(0, 6).Select(i => Worlds.SpawnShip(w, Faction.Klaed, ShipClass.Frigate, 800 + i * 60, 900)).ToList();
+        ships[0].Xp = 400;
+        ships[1].Xp = 90;
+        var ids = ships.Select(e => e.Id).ToArray();
+        Movement.IssuePatrol(w, ids[..2], [new Point(1500, 900), new Point(1500, 1500)]);
+        Movement.IssueGuard(w, ids[2..4], ids[0]);
+        Movement.IssueMove(w, ids[4..], 1200, 1200);
+        Movement.IssueMove(w, ids[4..], 1400, 600, queued: true);
+        Movement.SetStance(w, ids[3..], Stance.Hold);
+        Steps.Run(w, 20);
+        return w;
+    }
+
     [Fact]
     public void Battle_snapshots_whole_and_in_parts()
     {
@@ -208,6 +231,12 @@ public class FuzzTests
         Snapshot.Read(new BinaryReader(new MemoryStream(whole)), replica);
         Survives("Snapshot.Read (réplique déjà remplie)", [whole], bytes => Snapshot.Read(new BinaryReader(new MemoryStream(bytes)), replica));
         Survives("Snapshot.ReadPart", parts.Take(4), bytes => Snapshot.ReadPart(new BinaryReader(new MemoryStream(bytes)), new World(), new SnapshotFrames()));
+        var rough = Rough(5);
+        using var rs = new MemoryStream();
+        using (var bw = new BinaryWriter(rs, Encoding.UTF8, true)) Snapshot.Write(rough, Faction.Klaed, bw, rough.Events.ToList());
+        Survives("Snapshot.Read (terrain, ordres, vétérans)", [rs.ToArray()], bytes => Snapshot.Read(new BinaryReader(new MemoryStream(bytes)), new World()));
+        var roughParts = Snapshot.WriteParts(rough, Faction.Klaed, rough.Events.ToList(), null, new SnapshotFrames());
+        Survives("Snapshot.ReadPart (terrain, ordres, vétérans)", roughParts.Take(4), bytes => Snapshot.ReadPart(new BinaryReader(new MemoryStream(bytes)), new World(), new SnapshotFrames()));
     }
 
     [Fact]
@@ -228,10 +257,24 @@ public class FuzzTests
         return g;
     }
 
+    /// <summary>A campaign with a deal of every kind running or offered, and veterans in a fleet.</summary>
+    internal static Galaxy Diplomatic(int seed)
+    {
+        var g = Campaign(seed);
+        g.Offers.Add(new DealOffer { From = Faction.Nairan, To = Faction.Klaed, Kind = DealKind.Alliance, Remaining = 30 });
+        g.Offers.Add(new DealOffer { From = Faction.Klaed, To = Faction.Nautolan, Kind = DealKind.Tribute, Amount = 250, PerMinute = true, Remaining = 20 });
+        g.Truces.Add(new Truce { A = Faction.Klaed, B = Faction.Nairan, Remaining = 300 });
+        g.Pacts.Add(new Pact { Kind = DealKind.Trade, A = Faction.Klaed, B = Faction.Nairan });
+        g.Tributes.Add(new Tribute { Payer = Faction.Nautolan, Payee = Faction.Klaed, PerMinute = 120, Remaining = 400 });
+        var fleet = g.Fleets.Values.First(f => f.Ships.Count > 0);
+        fleet.Ranks.Add(fleet.Ships.Keys.First(), 2, 1);
+        return g;
+    }
+
     [Fact]
     public void Galaxy_snapshots_and_charts()
     {
-        var g = Campaign(5);
+        var g = Diplomatic(5);
         using var ms = new MemoryStream();
         using (var w = new BinaryWriter(ms, Encoding.UTF8, true)) GalaxySnapshot.Write(g, Faction.Klaed, w, g.Events.ToList(), null, default);
         var snapshot = ms.ToArray();
@@ -254,8 +297,16 @@ public class FuzzTests
             new Command.UseAbility(ids[0], AbilityId.Cloak, new Aim(1, 2, 3)), new Command.SetAutoAbilities(true),
             new Command.Move(ids, 5, 6, Queued: true), new Command.Patrol(ids, [new Point(1, 2), new Point(300, 400)], true),
             new Command.Guard(ids, ids[0], true), new Command.SetStance(ids, Stance.Hold),
+            new Command.Attack(ids, ids[0], Queued: true), new Command.SetRally(10, 20), new Command.PilotInput(ids[0], 1, -1, 30, 40, true),
         ];
         Survives("Commands.ReadCommand", commands.Select(c => Bytes(bw => Commands.Write(bw, c))), bytes => Commands.ReadCommand(new BinaryReader(new MemoryStream(bytes))));
+    }
+
+    [Fact]
+    public void Galaxy_commands_from_players()
+    {
+        Survives("Commands.ReadGalaxyCommand", ProtocolTests.GalaxyCommands().Select(c => Bytes(bw => Commands.Write(bw, c))),
+            bytes => Commands.ReadGalaxyCommand(new BinaryReader(new MemoryStream(bytes))));
     }
 
     static byte[] Bytes(Action<BinaryWriter> write)
@@ -279,12 +330,18 @@ public class FuzzTests
         var bytes = Bytes(bw => Replays.Write(bw.BaseStream, Replays.Of(w, Faction.Klaed, "0.5.0", 1_700_000_000_000)!));
         Survives("Replays.Read", [bytes], b => Replays.Read(new MemoryStream(b)));
         Survives("Replays.Read (en-tête)", [bytes], b => Replays.Read(new MemoryStream(b), headerOnly: true));
+        // A replay that reads is played: its battle made from what the file says, its orders given as they come.
+        Survives("ReplayPlayer", [bytes], b =>
+        {
+            var player = new ReplayPlayer(Replays.Read(new MemoryStream(b)));
+            for (var i = 0; i < 60 && !player.Over; i++) player.Step();
+        });
     }
 
     [Fact]
     public void Campaign_saves()
     {
-        var g = Campaign(7);
+        var g = Diplomatic(7);
         var dir = Directory.CreateTempSubdirectory("fuzz-saves").FullName;
         try
         {
@@ -322,5 +379,19 @@ public class FuzzTests
         {
             Directory.Delete(dir, true);
         }
+    }
+
+    [Fact]
+    public void Survival_records()
+    {
+        var list = new List<SurvivalRecord>();
+        for (var i = 1; i <= 12; i++) SurvivalRecords.Insert(list, new SurvivalRecord(i * 100, i, i * 30.5, 1 + i % 3, 1_700_000_000_000 + i, "Kla'ed, Nairan"));
+        var seed = Encoding.UTF8.GetBytes(SurvivalRecords.Serialize(list));
+        Survives("SurvivalRecords.Parse", [seed], bytes =>
+        {
+            var read = SurvivalRecords.Parse(Encoding.UTF8.GetString(bytes));
+            Assert.True(read.Count <= SurvivalRecords.Kept * Lobby.MaxSeats);
+            Assert.All(read, r => Assert.True(r.Score >= 0 && r.Wave >= 0 && double.IsFinite(r.Held) && r.Seats is >= 1 and <= Lobby.MaxSeats));
+        }, _ => false);
     }
 }

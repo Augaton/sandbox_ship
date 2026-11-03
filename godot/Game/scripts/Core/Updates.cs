@@ -1,16 +1,15 @@
 // Whether a newer version is out: the latest release on GitHub, asked once a launch from the menu,
 // in the background. Only that request goes out, with what GitHub's API asks of every caller;
 // failing or slow, it says nothing.
-using System.Text.Json;
-using System.Text.RegularExpressions;
 using Godot;
+using SandboxShip.Sim;
 
 namespace SandboxShip.Core;
 
-public static partial class Updates
+public static class Updates
 {
     const string Latest = "https://api.github.com/repos/Augaton/sandbox_ship/releases/latest";
-    const string Releases = "https://github.com/Augaton/sandbox_ship/releases/tag/";
+    const string ReleasePage = "https://github.com/Augaton/sandbox_ship/releases/tag/";
     /// <summary>Seconds before giving up.</summary>
     const double Patience = 6;
     /// <summary>The largest answer read: a release's description fits in far less.</summary>
@@ -22,7 +21,7 @@ public static partial class Updates
     public static string? Newer { get; private set; }
 
     /// <summary>Its release page, made from its tag: no address from the answer is ever opened.</summary>
-    public static string? Page => Newer is null ? null : Releases + Newer;
+    public static string? Page => Newer is null ? null : ReleasePage + Newer;
 
     /// <summary>A newer version was found: the menu shows it.</summary>
     public static event Action? Found;
@@ -42,7 +41,7 @@ public static partial class Updates
         {
             http.QueueFree();
             if (result != (long)HttpRequest.Result.Success || code != 200) return;
-            if (Read(body) is not { } tag || !IsNewer(tag, Ui.Menu.Version)) return;
+            if (Releases.Tag(body) is not { } tag || !Releases.IsNewer(tag, Ui.Menu.Version)) return;
             Newer = tag;
             Found?.Invoke();
         };
@@ -50,25 +49,4 @@ public static partial class Updates
         if (http.Request(Dev.UpdateUrl ?? Latest, [$"User-Agent: SandboxShip/{Ui.Menu.Version}", "Accept: application/vnd.github+json"]) != Error.Ok)
             http.QueueFree();
     }
-
-    /// <summary>The release's tag, when it is a version ("v1.2.3"); anything else is no answer.</summary>
-    static string? Read(byte[] body)
-    {
-        try
-        {
-            using var doc = JsonDocument.Parse(body);
-            return doc.RootElement.ValueKind == JsonValueKind.Object && doc.RootElement.TryGetProperty("tag_name", out var tag)
-                && tag.ValueKind == JsonValueKind.String && Tag().IsMatch(tag.GetString()!) ? tag.GetString() : null;
-        }
-        catch (JsonException)
-        {
-            return null;
-        }
-    }
-
-    static bool IsNewer(string tag, string current) =>
-        System.Version.TryParse(tag.TrimStart('v'), out var theirs) && System.Version.TryParse(current, out var ours) && theirs > ours;
-
-    [GeneratedRegex(@"^v?\d{1,4}\.\d{1,4}\.\d{1,4}$")]
-    private static partial Regex Tag();
 }

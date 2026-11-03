@@ -4994,6 +4994,10 @@ msgstr "carriers"
 msgid "Trop d'ordres d'un coup : les derniers sont ignorés."
 msgstr "Too many orders at once: the latest are ignored."
 
+#: Sim/Net/GalaxyHost.cs
+msgid "Trop d'offres d'un coup : attends un peu avant d'en refaire."
+msgstr "Too many offers at once: wait a little before making more."
+
 #: Sim/Net/RelayHub.cs
 msgid "Trop de connexions depuis ton adresse."
 msgstr "Too many connections from your address."

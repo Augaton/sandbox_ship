@@ -55,6 +55,32 @@ public class ProtocolTests
         yield return new Message.Say("On attaque au nord ?");
         yield return new Message.Said("Bob", new string('é', Chat.MaxText));
         yield return new Message.Record(BattleHistory.Bytes(FuzzTests.Battle(3).History!));
+        yield return new Message.Order(new Command.Attack([4, 8], 23, Queued: true));
+        foreach (var c in GalaxyCommands()) yield return new Message.Plan(c);
+    }
+
+    /// <summary>One galaxy command of each kind, the deals' included.</summary>
+    internal static IEnumerable<GalaxyCommand> GalaxyCommands()
+    {
+        yield return new GalaxyCommand.SendFleet(3, 7, new ShipCounts { [ShipClass.Frigate] = 2 }, [new HeroId(Faction.Klaed, HeroRole.Admiral)]);
+        yield return new GalaxyCommand.RedirectFleet(3, 8);
+        yield return new GalaxyCommand.StopFleet(3);
+        yield return new GalaxyCommand.EnqueueBuild(2, GalaxyBuild.Ship(ShipClass.Battlecruiser));
+        yield return new GalaxyCommand.CancelBuild(2, 1, QueueSide.Buildings);
+        yield return new GalaxyCommand.SetLoop(2, ShipClass.Fighter, true);
+        yield return new GalaxyCommand.SetRally(2, 5);
+        yield return new GalaxyCommand.StartTech(TechId.Shields);
+        yield return new GalaxyCommand.CancelTech(0);
+        yield return new GalaxyCommand.FireLance(2, 9);
+        yield return new GalaxyCommand.OfferTruce(Faction.Nairan);
+        yield return new GalaxyCommand.AnswerTruce(Faction.Nairan, true);
+        yield return new GalaxyCommand.BreakTruce(Faction.Nairan);
+        yield return new GalaxyCommand.ProposeDeal(Faction.Nautolan, DealKind.Tribute, 250, true);
+        yield return new GalaxyCommand.AnswerDeal(Faction.Nautolan, DealKind.Alliance, false);
+        yield return new GalaxyCommand.EndDeal(Faction.Nautolan, DealKind.Trade);
+        yield return new GalaxyCommand.ChooseBattle(4, BattleStatus.Tactical);
+        yield return new GalaxyCommand.DelegateBattle(4);
+        yield return new GalaxyCommand.Retreat(4);
     }
 
     [Fact]
@@ -69,7 +95,7 @@ public class ProtocolTests
             Assert.Equal(bytes, Protocol.Encode(back));
             tags.Add(bytes[0]);
         }
-        Assert.Equal(18, tags.Count);
+        Assert.Equal(19, tags.Count);
         // Fields come back as sent, not only their bytes.
         var room = (Message.Room)Protocol.Decode(Protocol.Encode(Every().OfType<Message.Room>().First()));
         Assert.Equal([new Member(Lobby.Host, "Hôte"), new Member(77, "Bob")], room.Members);

@@ -28,7 +28,17 @@ public sealed class GalaxyHost(Galaxy galaxy, Action<int, Message> send)
         public bool Charted;
     }
 
+    /// <summary>
+    /// Offers a player may make at once, then one every OfferEvery seconds: an offer turned down
+    /// and made again at once, over and over, would flood whoever it is made to.
+    /// </summary>
+    public const int OfferBurst = 4;
+    public const double OfferEvery = 5;
+    public const string TooManyOffers = "Trop d'offres d'un coup : attends un peu avant d'en refaire.";
+
     readonly Dictionary<int, Remote> remotes = [];
+    readonly ChatGate offers = new(OfferBurst, OfferEvery);
+    double now;
     readonly MemoryStream buffer = new(), news = new();
     readonly Stopwatch clock = new();
     byte[]? chart;
@@ -60,7 +70,13 @@ public sealed class GalaxyHost(Galaxy galaxy, Action<int, Message> send)
     /// <summary>A player's command, for the next step; from a peer not (or no longer) in the campaign, nothing.</summary>
     public void Receive(int peer, GalaxyCommand c)
     {
-        if (remotes.TryGetValue(peer, out var r) && r.Pace.Take(false, r.Sink.Pending)) r.Sink.Send(c);
+        if (!remotes.TryGetValue(peer, out var r) || !r.Pace.Take(false, r.Sink.Pending)) return;
+        if (c is GalaxyCommand.OfferTruce or GalaxyCommand.ProposeDeal && !offers.Allow(peer, now))
+        {
+            send(peer, new Message.Refused(TooManyOffers));
+            return;
+        }
+        r.Sink.Send(c);
     }
 
     /// <summary>Applies the commands that came since the last call, each player's in order, and tells each player those refused.</summary>
@@ -82,6 +98,7 @@ public sealed class GalaxyHost(Galaxy galaxy, Action<int, Message> send)
     /// <summary>Real time goes by: each player whose snapshot is due gets one.</summary>
     public void Tick(double dt)
     {
+        now += dt;
         foreach (var (peer, r) in remotes)
         {
             if (r.Pace.Refill(dt)) send(peer, new Message.Refused(OrderPace.TooMany));
@@ -132,6 +149,7 @@ public sealed class GalaxyHost(Galaxy galaxy, Action<int, Message> send)
     /// <summary>A player left: the AI plays its side from now on, and the battles that waited for it go on.</summary>
     public void Drop(int peer)
     {
+        offers.Forget(peer);
         if (remotes.Remove(peer, out var r)) Galaxies.HandToAI(galaxy, r.Side);
     }
 

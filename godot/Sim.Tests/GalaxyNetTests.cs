@@ -320,6 +320,32 @@ public class GalaxyNetTests(ITestOutputHelper output)
     }
 
     [Fact]
+    public void A_player_cannot_flood_another_with_offers_refused_and_made_again()
+    {
+        var t = new Table(Campaign(seats: 2));
+        var g = t.Galaxy;
+        var offered = 0;
+        // Ten seconds of a truce offered every frame, the host turning each one down at once.
+        for (var i = 0; i < 600; i++)
+        {
+            t.Order(new GalaxyCommand.OfferTruce(Alice));
+            t.Order(new GalaxyCommand.ProposeDeal(Alice, DealKind.Trade));
+            t.Frame();
+            offered += t.Heard.OfType<DealOffered>().Count(o => o.From == Bobs);
+            t.Heard.Clear();
+            Galaxies.RefuseDeal(g, Alice, Bobs, DealKind.Truce);
+            Galaxies.RefuseDeal(g, Alice, Bobs, DealKind.Trade);
+        }
+        Expect.Less(offered, GalaxyHost.OfferBurst + 10 / GalaxyHost.OfferEvery + 1);
+        Assert.Contains(GalaxyHost.TooManyOffers, t.Refusals);
+        // Another kind of order still goes through.
+        var fleet = g.Fleets.Values.First(f => f.Side == Bobs);
+        t.Order(new GalaxyCommand.SendFleet(fleet.Id, Neighbours(g, fleet.At!.Value)[0]));
+        t.Frame();
+        Assert.Null(fleet.At);
+    }
+
+    [Fact]
     public void A_replica_kept_up_by_snapshots_matches_the_host_on_all_its_viewer_knows()
     {
         var g = Campaign(seats: 3);
