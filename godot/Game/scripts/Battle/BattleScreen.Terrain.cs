@@ -1,8 +1,10 @@
 // The battle's terrain on screen (Sim/Terrain.cs): nebulae as drifts of cloud, belts as packed
-// rocks, minefields as a ring of blinking mines, gravity wells as a dark heart and a swirl. What
-// never moves is drawn once, on two canvases (the clouds smoothed, the rocks left crisp), again
-// only if the terrain changes (a replica's arrives with its first whole snapshot); the mines and
-// the swirl, on a small layer drawn every frame, only where the view is. Not in the web version.
+// rocks, minefields as blinking mines, gravity wells as a dark heart and a swirl. What never
+// moves is drawn once, on two canvases (the clouds smoothed, the rocks left crisp), again only if
+// the terrain changes (a replica's arrives with its first whole snapshot); the mines and the
+// swirl, on a small layer drawn every frame, only where the view is. All of it lies under the fog
+// of war, dimmed there; thin outlines over the fog keep each piece's shape readable everywhere,
+// as the minimap shows it, at the same width on screen whatever the zoom. Not in the web version.
 using Godot;
 using SandboxShip.Core;
 using SandboxShip.Render;
@@ -16,7 +18,7 @@ public partial class BattleScreen
     public static readonly Color NebulaTint = Palette.Hex(0x9a78e6), NebulaEdge = Palette.Hex(0x4fb8cc);
     public static readonly Color RockTint = Palette.Hex(0x8a7f70), WellTint = Palette.Hex(0x6fa8ff);
 
-    DrawCanvas clouds = null!, rocks = null!, terrainLive = null!;
+    DrawCanvas clouds = null!, rocks = null!, terrainLive = null!, terrainMarks = null!;
     /// <summary>The terrain the static canvases show: drawn again when the world's changes.</summary>
     int terrainDrawn = -1;
 
@@ -27,11 +29,16 @@ public partial class BattleScreen
         worldRoot.AddChild(clouds);
         worldRoot.AddChild(rocks);
         terrainLive = Layer(Depth.Field + 0.5, "terrain", PaintTerrainLive);
+        terrainMarks = Layer(Depth.Fog + 0.5, "terrain", PaintTerrainMarks);
     }
 
     void RedrawTerrain()
     {
-        if (World.Terrain.Count > 0) terrainLive.QueueRedraw();
+        if (World.Terrain.Count > 0)
+        {
+            terrainLive.QueueRedraw();
+            terrainMarks.QueueRedraw();
+        }
         var signature = World.Terrain.Count == 0 ? 0 : World.Terrain.Count * 31 + World.Terrain[^1].Id;
         if (signature == terrainDrawn) return;
         terrainDrawn = signature;
@@ -108,19 +115,6 @@ public partial class BattleScreen
                         laid.Add(((int)(rnd() * keys.Count) % keys.Count, x, y, rnd() * Math.Tau, big ? 48 + rnd() * 26 : 16 + rnd() * 26, shade));
                     }
                     break;
-                case TerrainKind.Minefield:
-                    // Where the field lies: a faint wash, a dashed red ring.
-                    Draw.Disc(g, p.X, p.Y, p.Radius, Palette.Danger with { A = 0.035f }, 1);
-                    const int dashes = 28;
-                    for (var i = 0; i < dashes; i++)
-                    {
-                        var a = i * Math.Tau / dashes;
-                        Draw.Arc(g, p.X, p.Y, p.Radius, a, a + Math.Tau / dashes * 0.55, 4, Palette.Danger with { A = 0.4f }, 2);
-                    }
-                    break;
-                case TerrainKind.Well:
-                    for (var k = 1; k <= 3; k++) Draw.Ring(g, p.X, p.Y, p.Radius * k / 3, WellTint with { A = 0.07f + 0.05f * (3 - k) }, 1.5, 1);
-                    break;
             }
         }
         foreach (var rock in laid.OrderBy(r => r.Key))
@@ -160,14 +154,19 @@ public partial class BattleScreen
             if (!view.Intersects(new Rect2((float)(p.X - p.Radius), (float)(p.Y - p.Radius), (float)(2 * p.Radius), (float)(2 * p.Radius)))) continue;
             if (p.Kind == TerrainKind.Minefield)
             {
+                // A red wash while it is armed.
+                if (p.Armed) Draw.Disc(g, p.X, p.Y, p.Radius, Palette.Danger with { A = 0.05f }, z);
                 for (var i = 0; i < p.Mines; i++)
                 {
                     var (x, y) = MineAt(p, i);
-                    Draw.Disc(g, x, y, 6, Palette.Hex(0x262b36), z);
-                    Draw.Ring(g, x, y, 6, Palette.Hex(0x5d6576), 1.5, z);
-                    // Each blinks on its own beat.
+                    // Two pixels on screen at least: a field zoomed out still shows its mines.
+                    var r = Math.Max(11, 2 / z);
+                    // Each blinks on its own beat, a red glow around it while lit.
                     var blink = 0.5 + 0.5 * Math.Sin(now * 3.2 + i * 1.7);
-                    if (blink > 0.55) Draw.Disc(g, x, y, 2.6, Palette.Danger with { A = (float)blink }, z);
+                    if (blink > 0.55) Draw.Disc(g, x, y, r * 2.2, Palette.Danger with { A = (float)(0.22 * blink) }, z);
+                    Draw.Disc(g, x, y, r, Palette.Hex(0x262b36), z);
+                    Draw.Ring(g, x, y, r, Palette.Hex(0x6b7486), 2 / Math.Min(1, z), z);
+                    if (blink > 0.55) Draw.Disc(g, x, y, r * 0.45, Palette.Danger with { A = (float)blink }, z);
                 }
             }
             else if (p.Kind == TerrainKind.Well)
@@ -181,6 +180,52 @@ public partial class BattleScreen
                     Draw.Arc(g, p.X, p.Y, r, from, from + 1.3, 14, color, 2.5 / z);
                     Draw.Arc(g, p.X, p.Y, r, from + Math.PI, from + Math.PI + 1.3, 14, color, 2.5 / z);
                 }
+            }
+        }
+    }
+
+    /// <summary>
+    /// Over the fog: each piece's outline, faint, a pixel and a half wide on screen. A belt's
+    /// band, a field's dashed ring (fainter once cleared), a well's rim, a nebula's edge.
+    /// </summary>
+    void PaintTerrainMarks(DrawCanvas g)
+    {
+        if (World.Terrain.Count == 0) return;
+        var view = ViewRect().Grow(80);
+        var z = Zoom;
+        var width = 1.5 / z;
+        foreach (var p in World.Terrain)
+        {
+            var (x0, y0) = (Math.Min(p.X, p.X2) - p.Radius, Math.Min(p.Y, p.Y2) - p.Radius);
+            var box = new Rect2((float)x0, (float)y0, (float)(Math.Max(p.X, p.X2) + p.Radius - x0), (float)(Math.Max(p.Y, p.Y2) + p.Radius - y0));
+            if (!view.Intersects(box)) continue;
+            switch (p.Kind)
+            {
+                case TerrainKind.Belt:
+                    var (_, ux, uy) = Spine(p);
+                    var (nx, ny) = (-uy * p.Radius, ux * p.Radius);
+                    var color = RockTint with { A = 0.35f };
+                    Draw.Line(g, p.X + nx, p.Y + ny, p.X2 + nx, p.Y2 + ny, color, width);
+                    Draw.Line(g, p.X - nx, p.Y - ny, p.X2 - nx, p.Y2 - ny, color, width);
+                    var a = Math.Atan2(uy, ux);
+                    Draw.Arc(g, p.X, p.Y, p.Radius, a + Math.PI / 2, a + Math.PI * 1.5, 12, color, width);
+                    Draw.Arc(g, p.X2, p.Y2, p.Radius, a - Math.PI / 2, a + Math.PI / 2, 12, color, width);
+                    break;
+                case TerrainKind.Minefield:
+                    const int dashes = 28;
+                    var ring = Palette.Danger with { A = p.Armed ? 0.55f : 0.2f };
+                    for (var i = 0; i < dashes; i++)
+                    {
+                        var from = i * Math.Tau / dashes;
+                        Draw.Arc(g, p.X, p.Y, p.Radius, from, from + Math.Tau / dashes * 0.55, 4, ring, width);
+                    }
+                    break;
+                case TerrainKind.Well:
+                    Draw.Ring(g, p.X, p.Y, p.Radius, WellTint with { A = 0.35f }, width, z);
+                    break;
+                default:
+                    Draw.Ring(g, p.X, p.Y, p.Radius * 0.85, NebulaTint with { A = 0.18f }, width, z);
+                    break;
             }
         }
     }

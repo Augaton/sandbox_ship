@@ -102,7 +102,7 @@ public static class Terrains
         var share = 1.0;
         foreach (var p in world.Terrain)
         {
-            if (p.Kind != TerrainKind.Well) continue;
+            if (p.Kind != TerrainKind.Well || Math.Abs(e.X - p.X) > p.Radius || Math.Abs(e.Y - p.Y) > p.Radius) continue;
             var d = p.Distance(e.X, e.Y);
             if (d < p.Radius) share = Math.Min(share, WellSlow + (1 - WellSlow) * d / p.Radius);
         }
@@ -264,13 +264,18 @@ public static class Terrains
         var (ux, uy) = (dx / len, dy / len);
         TerrainPatch? first = null;
         var firstAt = double.PositiveInfinity;
+        var pad = e.Radius + Clearance;
+        var (minX, maxX, minY, maxY) = (Math.Min(e.X, x) - pad, Math.Max(e.X, x) + pad, Math.Min(e.Y, y) - pad, Math.Max(e.Y, y) + pad);
         foreach (var p in world.Terrain)
         {
             var mines = p.Armed;
             if (p.Kind != TerrainKind.Belt && !mines) continue;
+            // Far from the way, at a glance: most pieces, for most ships.
+            if (Math.Min(p.X, p.X2) - p.Radius > maxX || Math.Max(p.X, p.X2) + p.Radius < minX
+                || Math.Min(p.Y, p.Y2) - p.Radius > maxY || Math.Max(p.Y, p.Y2) + p.Radius < minY) continue;
             if (mines && (p.Holds(x, y, e.Radius) || p.Holds(e.X, e.Y))) continue;
             if (!mines && SameSide(p, e.X, e.Y, x, y)) continue;
-            var at = Crossing(p, e.X, e.Y, ux, uy, len, e.Radius + Clearance);
+            var at = Crossing(p, e.X, e.Y, ux, uy, len, pad);
             if (at < firstAt)
             {
                 firstAt = at;
@@ -372,6 +377,8 @@ public static class Terrains
     {
         var reach = p.Radius + pad;
         if (p.Kind != TerrainKind.Belt) return CircleHit(p.X - x, p.Y - y, ux, uy, len, reach);
+        // A path that never comes near the band needs no closer look.
+        if (SpineDistance(p, x, y, x + ux * len, y + uy * len) >= reach) return double.PositiveInfinity;
         // A band: the nearest of its spine's points to the path, sampled along the spine; a band is short.
         var best = double.PositiveInfinity;
         var span = Hypot(p.X2 - p.X, p.Y2 - p.Y);
