@@ -97,13 +97,22 @@ public partial class Main : Node
                 });
                 break;
             case "sandbox" or "gallery": StartBattle(new BattleOptions { Player = Faction.Klaed, Slots = BattleOptions.Versus(Faction.Klaed, [Faction.Nairan]), Mode = GameMode.Sandbox, Size = Dev.Size }); break;
-            case "campaign": StartCampaign(new MenuChoice { Size = Dev.Size }); break;
+            case "campaign": StartCampaign(DevCampaign()); break;
             case "tutorial": StartBattle(Ui.Tutorial.Options()); break;
             case "replay" when Dev.Replay is string file && ReplayStore.Load(file, out _) is { } replay: StartBattle(BattleOptions.Watch(replay)); break;
             // With --host, the lobby first: the battle is served (Session.Launch).
             case "stress" when !Dev.Host: StartBattle(new BattleOptions { Player = Faction.Klaed, Slots = BattleOptions.Versus(Faction.Klaed, [Faction.Nairan, Faction.Nautolan]), Size = MapSize.Large, Seed = 7 }); break;
             default: ShowMenu(); break;
         }
+    }
+
+    /// <summary>The campaign of --start=campaign: the player against one AI, or with --seats against more, as a lobby seats them.</summary>
+    static MenuChoice DevCampaign()
+    {
+        if (Dev.Seats <= 2) return new MenuChoice { Size = Dev.Size };
+        var lobby = Lobby.Create(LobbyMode.Campaign, 7);
+        while (lobby.Seats.Count < Dev.Seats && lobby.AddBot() is not null) { }
+        return new MenuChoice { Size = Dev.Size, Seats = lobby.Slots(), Seed = lobby.Seed };
     }
 
     /// <summary>Leaves the game: the "Quitter" entry of the menu, and the end of a capture.</summary>

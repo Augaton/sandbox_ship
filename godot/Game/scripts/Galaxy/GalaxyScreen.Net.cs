@@ -117,7 +117,7 @@ public partial class GalaxyScreen
     int devChoices, devAttacks, devRaids, devBuilds;
     bool devTruce;
     ulong? devWatch, devPausedAt;
-    (Side From, ulong At)? devOffer;
+    (Side From, DealKind Kind, ulong At)? devOffer;
 
     void DevCampaign()
     {
@@ -182,15 +182,15 @@ public partial class GalaxyScreen
         if (Dev.Answer is null) return;
         if (devOffer is null && g.Offers.Find(o => o.To == Player) is { } offer && Hud.DialogOpen)
         {
-            devOffer = (offer.From, now);
+            devOffer = (offer.From, offer.Kind, now);
             Main.Instance.Snap("offre-de-treve");
         }
         if (devOffer is { } d && now - d.At > 2500)
         {
             devOffer = null;
             Hud.CloseDialog();
-            Sink.Send(new GalaxyCommand.AnswerTruce(d.From, Dev.Answer == "yes"));
-            GD.Print($"[réseau] Trêve de {Who(d.From)} : {(Dev.Answer == "yes" ? "acceptée" : "refusée")}");
+            Sink.Send(new GalaxyCommand.AnswerDeal(d.From, d.Kind, Dev.Answer == "yes"));
+            GD.Print($"[réseau] Offre ({d.Kind}) de {Who(d.From)} : {(Dev.Answer == "yes" ? "acceptée" : "refusée")}");
             Main.Instance.Snap("treve-repondue", 60);
         }
     }

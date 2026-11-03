@@ -96,6 +96,8 @@ public static class Dev
     public static bool Campaign, Resume, Watch;
     /// <summary>--intro: the opening plays even for a capture or a start straight into a screen.</summary>
     public static bool Intro;
+    /// <summary>--deals: a campaign started with deals made and offered, the diplomacy list open, for its captures.</summary>
+    public static bool Deals;
     /// <summary>--no-hud: the battle without its interface, for captures of what is on the field.</summary>
     public static bool NoHud;
     /// <summary>--lang=fr|en: the language of this run. --lang-report=FILE: the texts shown with no English, for the catalog (Lang).</summary>
@@ -180,6 +182,7 @@ public static class Dev
                 case "--raid": Raid = Ages(value); break;
                 case "--build": Build = Ages(value); break;
                 case "--choose": Choose = value.Split(','); break;
+                case "--deals": Deals = true; break;
                 case "--truce": Truce = double.Parse(value, System.Globalization.CultureInfo.InvariantCulture); break;
                 case "--answer": Answer = value; break;
                 case "--save": SavePath = value; break;

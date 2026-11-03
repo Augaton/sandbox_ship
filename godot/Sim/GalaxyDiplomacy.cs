@@ -134,7 +134,7 @@ public static partial class Galaxies
     public static int TeamOf(Galaxy g, Side side) => g.Factions.TryGetValue(side, out var f) ? f.Team : 0;
 
     /// <summary>The same side, or two sides of the same team other than 0.</summary>
-    static bool Teammates(Galaxy g, Side a, Side b) => a == b || (TeamOf(g, a) is var t && t != 0 && t == TeamOf(g, b));
+    public static bool Teammates(Galaxy g, Side a, Side b) => a == b || (TeamOf(g, a) is var t && t != 0 && t == TeamOf(g, b));
 
     /// <summary>Teammates, or sides that signed an alliance: they never fight, see together and win together.</summary>
     public static bool Allies(Galaxy g, Side a, Side b) => Teammates(g, a, b) || Allied(g, a, b);

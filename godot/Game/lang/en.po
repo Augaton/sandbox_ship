@@ -5605,3 +5605,319 @@ msgstr "No deal"
 #: Sim/GalaxyDiplomacy.cs
 msgid "Aucune alliance"
 msgstr "No alliance"
+
+#: Game/scripts/Galaxy/GalaxyHud.Diplomacy.cs
+msgid "{0} crédits par minute"
+msgstr "{0} credits per minute"
+
+#: Game/scripts/Galaxy/GalaxyHud.Diplomacy.cs
+msgid "{0} crédits"
+msgstr "{0} credits"
+
+#: Game/scripts/Galaxy/GalaxyHud.Diplomacy.cs
+msgid "la trêve"
+msgstr "the truce"
+
+#: Game/scripts/Galaxy/GalaxyHud.Diplomacy.cs
+msgid "l'alliance"
+msgstr "the alliance"
+
+#: Game/scripts/Galaxy/GalaxyHud.Diplomacy.cs
+msgid "l'accord commercial"
+msgstr "the trade agreement"
+
+#: Game/scripts/Galaxy/GalaxyHud.Diplomacy.cs
+msgid "le tribut"
+msgstr "the tribute"
+
+#: Game/scripts/Galaxy/GalaxyHud.Diplomacy.cs
+msgid "la demande de tribut"
+msgstr "the demand for tribute"
+
+#: Game/scripts/Galaxy/GalaxyHud.Diplomacy.cs
+msgid "{0} propose une alliance"
+msgstr "{0} offers an alliance"
+
+#: Game/scripts/Galaxy/GalaxyHud.Diplomacy.cs
+msgid "{0} propose un accord commercial"
+msgstr "{0} offers a trade agreement"
+
+#: Game/scripts/Galaxy/GalaxyHud.Diplomacy.cs
+msgid "{0} offre un tribut de {1}"
+msgstr "{0} offers a tribute of {1}"
+
+#: Game/scripts/Galaxy/GalaxyHud.Diplomacy.cs
+msgid "{0} exige un tribut de {1}"
+msgstr "{0} demands a tribute of {1}"
+
+#: Game/scripts/Galaxy/GalaxyHud.Diplomacy.cs
+msgid "{0} sans aucun combat entre vous, ni sur les planètes ni en chemin, et aucune flotte envoyée chez l'autre."
+msgstr "{0} without any fighting between you, on planets or on the way, and no fleet sent to the other's planets."
+
+#: Game/scripts/Galaxy/GalaxyHud.Diplomacy.cs
+msgid "Vous partageriez la vision, ne vous battriez plus et gagneriez ensemble. La rompre serait une trahison."
+msgstr "You would share vision, fight no more and win together. Breaking it would be a betrayal."
+
+#: Game/scripts/Galaxy/GalaxyHud.Diplomacy.cs
+msgid "Tant que dure la paix, chacun gagnerait {0} crédits de plus par seconde."
+msgstr "While peace lasts, each of you would earn {0} more credits per second."
+
+#: Game/scripts/Galaxy/GalaxyHud.Diplomacy.cs
+msgid "Elle te paierait {0} contre une trêve de {1}."
+msgstr "It would pay you {0} for a truce of {1}."
+
+#: Game/scripts/Galaxy/GalaxyHud.Diplomacy.cs
+msgid "Tu lui paierais {0} contre une trêve de {1}. Refuser, c'est rester en guerre."
+msgstr "You would pay it {0} for a truce of {1}. Refusing means staying at war."
+
+#: Game/scripts/Galaxy/GalaxyHud.Diplomacy.cs
+msgid "Alliée : vision partagée, aucun combat, victoire commune"
+msgstr "Allied: shared vision, no fighting, shared victory"
+
+#: Game/scripts/Galaxy/GalaxyHud.Diplomacy.cs
+msgid "En guerre ; trahie, elle refuse trêve et alliance encore {0}"
+msgstr "At war; betrayed, it refuses any truce or alliance for {0} more"
+
+#: Game/scripts/Galaxy/GalaxyHud.Diplomacy.cs
+msgid "Commerce : +{0}/s chacun"
+msgstr "Trade: +{0}/s each"
+
+#: Game/scripts/Galaxy/GalaxyHud.Diplomacy.cs
+msgid "Tu lui paies {0}, encore {1}"
+msgstr "You pay it {0}, {1} left"
+
+#: Game/scripts/Galaxy/GalaxyHud.Diplomacy.cs
+msgid "Elle te paie {0}, encore {1}"
+msgstr "It pays you {0}, {1} left"
+
+#: Game/scripts/Galaxy/GalaxyHud.Diplomacy.cs
+msgid "Ton offre ({0}) : réponse sous {1}"
+msgstr "Your offer ({0}): answer within {1}"
+
+#: Game/scripts/Galaxy/GalaxyHud.Diplomacy.cs
+msgid "Son offre ({0}) : réponse sous {1}"
+msgstr "Its offer ({0}): answer within {1}"
+
+#: Game/scripts/Galaxy/GalaxyHud.Diplomacy.cs
+msgid "{0} · confiance {1}"
+msgstr "{0} · trust {1}"
+
+#: Game/scripts/Galaxy/GalaxyHud.Diplomacy.cs
+msgid "Trêve : {0} sans combat. Alliance : vision partagée, aucun combat, victoire commune ; la rompre est une trahison. Commerce : des crédits pour les deux tant que dure la paix, plus encore entre planètes voisines. Tribut : des crédits contre une trêve, une fois ou par minute. Une IA répond selon sa force, sa personnalité et sa confiance en toi ; elle n'oublie pas une trahison. Jamais d'accord avec les Errants."
+msgstr "Truce: {0} without fighting. Alliance: shared vision, no fighting, shared victory; breaking it is a betrayal. Trade: credits for both while peace lasts, more between neighbouring planets. Tribute: credits for a truce, once or per minute. An AI answers by its strength, its personality and its trust in you; it does not forget a betrayal. Never a deal with the Errants."
+
+#: Game/scripts/Galaxy/GalaxyHud.Diplomacy.cs
+msgid "{0} et {1}"
+msgstr "{0} and {1}"
+
+#: Game/scripts/Galaxy/GalaxyHud.Diplomacy.cs
+msgid "Alliances entre les autres : {0}"
+msgstr "Alliances between the others: {0}"
+
+#: Game/scripts/Galaxy/GalaxyHud.Diplomacy.cs
+msgid "Proposer {0} sans combat"
+msgstr "Offer {0} without fighting"
+
+#: Game/scripts/Galaxy/GalaxyHud.Diplomacy.cs
+msgid "Alliance"
+msgstr "Alliance"
+
+#: Game/scripts/Galaxy/GalaxyHud.Diplomacy.cs
+msgid "Proposer une alliance : vision partagée, aucun combat, victoire commune"
+msgstr "Offer an alliance: shared vision, no fighting, shared victory"
+
+#: Game/scripts/Galaxy/GalaxyHud.Diplomacy.cs
+msgid "Commerce"
+msgstr "Trade"
+
+#: Game/scripts/Galaxy/GalaxyHud.Diplomacy.cs
+msgid "Proposer un accord commercial : +{0}/s chacun tant que dure la paix"
+msgstr "Offer a trade agreement: +{0}/s each while peace lasts"
+
+#: Game/scripts/Galaxy/GalaxyHud.Diplomacy.cs
+msgid "Payer un tribut"
+msgstr "Pay a tribute"
+
+#: Game/scripts/Galaxy/GalaxyHud.Diplomacy.cs
+msgid "Offrir des crédits contre une trêve"
+msgstr "Offer credits for a truce"
+
+#: Game/scripts/Galaxy/GalaxyHud.Diplomacy.cs
+msgid "Exiger un tribut"
+msgstr "Demand a tribute"
+
+#: Game/scripts/Galaxy/GalaxyHud.Diplomacy.cs
+msgid "Exiger des crédits contre une trêve"
+msgstr "Demand credits for a truce"
+
+#: Game/scripts/Galaxy/GalaxyHud.Diplomacy.cs
+msgid "Arrêter le commerce"
+msgstr "Stop trading"
+
+#: Game/scripts/Galaxy/GalaxyHud.Diplomacy.cs
+msgid "Mettre fin à l'accord commercial"
+msgstr "End the trade agreement"
+
+#: Game/scripts/Galaxy/GalaxyHud.Diplomacy.cs
+msgid "Cesser de payer"
+msgstr "Stop paying"
+
+#: Game/scripts/Galaxy/GalaxyHud.Diplomacy.cs
+msgid "Rompt la trêve que le tribut achète"
+msgstr "Breaks the truce the tribute buys"
+
+#: Game/scripts/Galaxy/GalaxyHud.Diplomacy.cs
+msgid "Lever le tribut"
+msgstr "Lift the tribute"
+
+#: Game/scripts/Galaxy/GalaxyHud.Diplomacy.cs
+msgid "Elle cesse de te payer ; la trêve tient"
+msgstr "It stops paying you; the truce holds"
+
+#: Game/scripts/Galaxy/GalaxyHud.Diplomacy.cs
+msgid "Vos flottes pourront de nouveau se battre"
+msgstr "Your fleets may fight again"
+
+#: Game/scripts/Galaxy/GalaxyHud.Diplomacy.cs
+msgid "Rompre l'alliance"
+msgstr "Break the alliance"
+
+#: Game/scripts/Galaxy/GalaxyHud.Diplomacy.cs
+msgid "Une trahison : la guerre après une courte trêve"
+msgstr "A betrayal: war after a short truce"
+
+#: Game/scripts/Galaxy/GalaxyHud.Diplomacy.cs
+msgid "Offre faite à {0} : réponse sous {1}"
+msgstr "Offer made to {0}: answer within {1}"
+
+#: Game/scripts/Galaxy/GalaxyHud.Diplomacy.cs
+msgid "Offre de {0} refusée"
+msgstr "Offer from {0} refused"
+
+#: Game/scripts/Galaxy/GalaxyHud.Diplomacy.cs
+msgid "Rompre l'alliance avec {0} ?"
+msgstr "Break the alliance with {0}?"
+
+#: Game/scripts/Galaxy/GalaxyHud.Diplomacy.cs
+msgid "Vous ne partagerez plus la vision. {0} de trêve pour retirer vos flottes, puis la guerre. {1} refusera toute trêve et toute alliance pendant {2}, et les autres factions te feront moins confiance."
+msgstr "You will no longer share vision. {0} of truce to pull your fleets apart, then war. {1} will refuse any truce or alliance for {2}, and the other factions will trust you less."
+
+#: Game/scripts/Galaxy/GalaxyHud.Diplomacy.cs
+msgid "Cesser de payer {0} ?"
+msgstr "Stop paying {0}?"
+
+#: Game/scripts/Galaxy/GalaxyHud.Diplomacy.cs
+msgid "C'est rompre la trêve que le tribut achète : vos flottes pourront de nouveau se battre, et {0} refusera toute trêve pendant {1}."
+msgstr "That breaks the truce the tribute buys: your fleets may fight again, and {0} will refuse any truce for {1}."
+
+#: Game/scripts/Galaxy/GalaxyHud.Diplomacy.cs
+msgid "Payer un tribut à {0}"
+msgstr "Pay a tribute to {0}"
+
+#: Game/scripts/Galaxy/GalaxyHud.Diplomacy.cs
+msgid "Exiger un tribut de {0}"
+msgstr "Demand a tribute from {0}"
+
+#: Game/scripts/Galaxy/GalaxyHud.Diplomacy.cs
+msgid "Des crédits contre une trêve de {0}. Plus une faction se sent forte, plus elle demande ; par minute, tu paies tant que dure la trêve, et cesser de payer la rompt."
+msgstr "Credits for a truce of {0}. The stronger a faction feels, the more it asks; per minute, you pay while the truce lasts, and stopping breaks it."
+
+#: Game/scripts/Galaxy/GalaxyHud.Diplomacy.cs
+msgid "Elle paie si elle te craint et en a les moyens, contre une trêve de {0}. Elle te le reprochera."
+msgstr "It pays if it fears you and can afford it, for a truce of {0}. It will hold it against you."
+
+#: Game/scripts/Galaxy/GalaxyHud.Diplomacy.cs
+msgid "L'offre tient {0} ; la liste Diplomatie (T) la garde jusque-là."
+msgstr "The offer stands for {0}; the Diplomacy list (T) keeps it until then."
+
+#: Game/scripts/Galaxy/GalaxyHud.Diplomacy.cs
+msgid "{0} refuse {1}. {2}."
+msgstr "{0} refuses {1}. {2}."
+
+#: Game/scripts/Galaxy/GalaxyHud.Diplomacy.cs
+msgid "{0} refuse {1}"
+msgstr "{0} refuses {1}"
+
+#: Game/scripts/Galaxy/GalaxyHud.Diplomacy.cs
+msgid "Alliance signée avec {0} : vision partagée, aucun combat, victoire commune"
+msgstr "Alliance signed with {0}: shared vision, no fighting, shared victory"
+
+#: Game/scripts/Galaxy/GalaxyHud.Diplomacy.cs
+msgid "Accord commercial avec {0} : +{1}/s chacun"
+msgstr "Trade agreement with {0}: +{1}/s each"
+
+#: Game/scripts/Galaxy/GalaxyHud.Diplomacy.cs
+msgid "Alliance entre {0} et {1}"
+msgstr "Alliance between {0} and {1}"
+
+#: Game/scripts/Galaxy/GalaxyHud.Diplomacy.cs
+msgid "Accord commercial entre {0} et {1}"
+msgstr "Trade agreement between {0} and {1}"
+
+#: Game/scripts/Galaxy/GalaxyHud.Diplomacy.cs
+msgid "Alliance rompue avec {0} : {1} de trêve pour retirer vos flottes"
+msgstr "Alliance with {0} broken: {1} of truce to pull your fleets apart"
+
+#: Game/scripts/Galaxy/GalaxyHud.Diplomacy.cs
+msgid "{0} rompt votre alliance : {1} de trêve, puis la guerre"
+msgstr "{0} breaks your alliance: {1} of truce, then war"
+
+#: Game/scripts/Galaxy/GalaxyHud.Diplomacy.cs
+msgid "Commerce arrêté avec {0}"
+msgstr "Trade with {0} stopped"
+
+#: Game/scripts/Galaxy/GalaxyHud.Diplomacy.cs
+msgid "Fin du commerce avec {0} : la paix est rompue"
+msgstr "Trade with {0} over: the peace is broken"
+
+#: Game/scripts/Galaxy/GalaxyHud.Diplomacy.cs
+msgid "{0} arrête le commerce"
+msgstr "{0} stops trading"
+
+#: Game/scripts/Galaxy/GalaxyHud.Diplomacy.cs
+msgid "Fin de l'alliance entre {0} et {1}"
+msgstr "End of the alliance between {0} and {1}"
+
+#: Game/scripts/Galaxy/GalaxyHud.Diplomacy.cs
+msgid "Fin de l'accord commercial entre {0} et {1}"
+msgstr "End of the trade agreement between {0} and {1}"
+
+#: Game/scripts/Galaxy/GalaxyHud.Diplomacy.cs
+msgid "Tribut à {0} : {1}, contre la paix"
+msgstr "Tribute to {0}: {1}, for peace"
+
+#: Game/scripts/Galaxy/GalaxyHud.Diplomacy.cs
+msgid "Tribut de {0} : {1}, contre la paix"
+msgstr "Tribute from {0}: {1}, for peace"
+
+#: Game/scripts/Galaxy/GalaxyHud.Diplomacy.cs
+msgid "{0} paie un tribut à {1}"
+msgstr "{0} pays a tribute to {1}"
+
+#: Game/scripts/Galaxy/GalaxyHud.Diplomacy.cs
+msgid "Fin du tribut avec {0}"
+msgstr "Tribute with {0} over"
+
+#: Game/scripts/Galaxy/GalaxyHud.Diplomacy.cs
+msgid "Tribut de {0} levé"
+msgstr "Tribute from {0} lifted"
+
+#: Game/scripts/Galaxy/GalaxyHud.Diplomacy.cs
+msgid "{0} lève le tribut"
+msgstr "{0} lifts the tribute"
+
+#: Game/scripts/Galaxy/GalaxyHud.Diplomacy.cs
+msgid "Tribut à {0} cessé : la trêve est rompue"
+msgstr "Tribute to {0} stopped: the truce is broken"
+
+#: Game/scripts/Galaxy/GalaxyHud.Diplomacy.cs
+msgid "{0} cesse de payer : la trêve est rompue"
+msgstr "{0} stops paying: the truce is broken"
+
+#: Game/scripts/Galaxy/GalaxyHud.Diplomacy.cs
+msgid "Alliée"
+msgstr "Allied"
+
+#: Game/scripts/Galaxy/GalaxyHud.Diplomacy.cs
+msgid "Avec {0} : vision partagée, aucun combat ; tes flottes y vont."
+msgstr "With {0}: shared vision, no fighting; your fleets go there."

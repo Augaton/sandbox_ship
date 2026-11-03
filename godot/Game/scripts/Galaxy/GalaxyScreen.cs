@@ -92,6 +92,30 @@ public partial class GalaxyScreen : Node
         var home = Galaxy.Planets.FindIndex(p => p.Owner == Galaxy.Player);
         Click(home >= 0 ? home : null, false);
         Build();
+        if (Dev.Deals && opts.Net is null) DevDeals();
+    }
+
+    /// <summary>
+    /// Checking the diplomacy list (--deals): an alliance with the first AI, a truce and trade
+    /// with the second, which demands a tribute besides; the list open.
+    /// </summary>
+    void DevDeals()
+    {
+        var g = Galaxy;
+        var rivals = g.Factions.Values.Where(f => f.Id != Player && f.AI is not null).Select(f => f.Id).ToList();
+        if (rivals.Count > 0)
+        {
+            g.Factions[rivals[0]].AI!.Trust[Player] = 60;
+            Sink.Send(new GalaxyCommand.ProposeDeal(rivals[0], DealKind.Alliance));
+        }
+        if (rivals.Count > 1)
+        {
+            g.Truces.Add(new Truce { A = Player, B = rivals[1], Remaining = Galaxies.TruceTime });
+            Sink.Send(new GalaxyCommand.ProposeDeal(rivals[1], DealKind.Trade));
+            g.Offers.Add(new DealOffer { From = rivals[1], To = Player, Kind = DealKind.Demand, Amount = 60, PerMinute = true, Remaining = Galaxies.OfferTime });
+            g.Events.Add(new DealOffered(rivals[1], Player, DealKind.Demand, 60, true));
+        }
+        Hud.ToggleDrawer(GalaxyHud.Drawer.Diplomacy);
     }
 
     /// <summary>A galaxy of its own: new, loaded from a save (the most recent one to continue), or played ahead (--skip).</summary>
