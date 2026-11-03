@@ -5018,6 +5018,22 @@ msgstr "With adapted colors, each seat has its own (Options, Accessibility)."
 msgid "Adaptée"
 msgstr "Adapted"
 
+#: Game/scripts/Ui/Menu.cs
+msgid "Nouvelle version {0} disponible"
+msgstr "New version {0} available"
+
+#: Game/scripts/Ui/Menu.cs
+msgid "Ouvre la page de la version sur GitHub"
+msgstr "Opens the release page on GitHub"
+
+#: Game/scripts/Ui/Options.cs
+msgid "Mises à jour"
+msgstr "Updates"
+
+#: Game/scripts/Ui/Options.cs
+msgid "Vérifier au lancement si une nouvelle version est sortie"
+msgstr "Check at launch whether a new version is out"
+
 #: Game/scripts/Ui/Options.cs
 msgid "Couleurs des camps"
 msgstr "Side colors"

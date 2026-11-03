@@ -15,6 +15,7 @@ public static class Options
         ("Combat", "Mes vaisseaux utilisent leurs capacités seuls quand c'est utile", s => s.AutoAbilities, (s, v) => s.AutoAbilities = v),
         ("Son", $"Couper le son (touche {Bindings.Label(Bindings.Mute)} en bataille)", s => s.Muted, (s, v) => s.Muted = v),
         ("Accessibilité", "Réduire les animations : ouverture, menus, secousses de la vue", s => s.ReduceMotion, (s, v) => s.ReduceMotion = v),
+        ("Mises à jour", "Vérifier au lancement si une nouvelle version est sortie", s => s.CheckUpdates, (s, v) => s.CheckUpdates = v),
     ];
 
     /// <summary>

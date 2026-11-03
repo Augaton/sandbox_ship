@@ -42,6 +42,8 @@ public sealed class Settings
     public string Language { get; set; } = "";
     /// <summary>The sides' colors: as chosen in the lobby, or a palette told apart with any color blindness (Palette).</summary>
     public SideColors Colors { get; set; } = SideColors.Standard;
+    /// <summary>Look once a launch, on the menu, whether a newer version is out (Updates).</summary>
+    public bool CheckUpdates { get; set; } = true;
     /// <summary>The keys the player chose, by command; the others keep their default (Bindings).</summary>
     public Dictionary<string, Bindings.Combo> Keys { get; set; } = [];
 
