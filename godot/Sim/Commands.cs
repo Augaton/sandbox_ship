@@ -78,6 +78,12 @@ public abstract record GalaxyCommand
     /// <summary>Accepts or refuses the truce `From` offered.</summary>
     public sealed record AnswerTruce(Side From, bool Accept) : GalaxyCommand;
     public sealed record BreakTruce(Side Other) : GalaxyCommand;
+    /// <summary>Offers `To` a deal: a tribute or a demand of `Amount` credits, once or each minute.</summary>
+    public sealed record ProposeDeal(Side To, DealKind Kind, double Amount = 0, bool PerMinute = false) : GalaxyCommand;
+    /// <summary>Accepts or refuses the deal of this kind `From` offered.</summary>
+    public sealed record AnswerDeal(Side From, DealKind Kind, bool Accept) : GalaxyCommand;
+    /// <summary>Ends a deal with `Other`: breaks a truce or an alliance, gives up trade, stops or lets off a tribute.</summary>
+    public sealed record EndDeal(Side Other, DealKind Kind) : GalaxyCommand;
     /// <summary>
     /// How the issuer wants a battle waiting for it fought: commanded in the battle view (Tactical)
     /// or resolved on its own (Auto). It starts once every human side in it has chosen.
@@ -343,6 +349,16 @@ public static partial class Commands
                 return Result.OK;
             case GalaxyCommand.BreakTruce b:
                 return Galaxies.BreakTruce(g, issuer, b.Other);
+            case GalaxyCommand.ProposeDeal p:
+                if (!Defined(p.Kind) || !double.IsFinite(p.Amount)) return Invalid;
+                return Galaxies.ProposeDeal(g, issuer, p.To, p.Kind, p.Amount, p.PerMinute);
+            case GalaxyCommand.AnswerDeal a:
+                if (!Defined(a.Kind)) return Invalid;
+                if (a.Accept) return Galaxies.AcceptDeal(g, issuer, a.From, a.Kind);
+                Galaxies.RefuseDeal(g, issuer, a.From, a.Kind);
+                return Result.OK;
+            case GalaxyCommand.EndDeal e:
+                return Defined(e.Kind) ? Galaxies.EndDeal(g, issuer, e.Other, e.Kind) : Invalid;
             case GalaxyCommand.ChooseBattle b:
                 if (b.Mode is not (BattleStatus.Auto or BattleStatus.Tactical)) return Invalid;
                 if (OwnBattle(g, issuer, b.Battle) is not { } choosing) return NotYours;

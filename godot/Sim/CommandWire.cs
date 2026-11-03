@@ -115,6 +115,9 @@ public static partial class Commands
             case GalaxyCommand.ChooseBattle b: Tag(w, 14); w.Write7BitEncodedInt(b.Battle); w.Write((byte)b.Mode); break;
             case GalaxyCommand.DelegateBattle b: Tag(w, 15); w.Write7BitEncodedInt(b.Battle); break;
             case GalaxyCommand.Retreat b: Tag(w, 16); w.Write7BitEncodedInt(b.Battle); break;
+            case GalaxyCommand.ProposeDeal p: Tag(w, 17); w.Write7BitEncodedInt(p.To.Id); w.Write((byte)p.Kind); w.Write(p.Amount); w.Write(p.PerMinute); break;
+            case GalaxyCommand.AnswerDeal a: Tag(w, 18); w.Write7BitEncodedInt(a.From.Id); w.Write((byte)a.Kind); w.Write(a.Accept); break;
+            case GalaxyCommand.EndDeal e: Tag(w, 19); w.Write7BitEncodedInt(e.Other.Id); w.Write((byte)e.Kind); break;
             default: throw new ArgumentException($"Commande sans format : {c.GetType().Name}");
         }
     }
@@ -137,6 +140,9 @@ public static partial class Commands
         14 => new GalaxyCommand.ChooseBattle(r.ReadVarint(), r.ReadEnum<BattleStatus>()),
         15 => new GalaxyCommand.DelegateBattle(r.ReadVarint()),
         16 => new GalaxyCommand.Retreat(r.ReadVarint()),
+        17 => new GalaxyCommand.ProposeDeal(new Side(r.ReadVarint()), r.ReadEnum<DealKind>(), r.ReadDouble(), r.ReadBoolean()),
+        18 => new GalaxyCommand.AnswerDeal(new Side(r.ReadVarint()), r.ReadEnum<DealKind>(), r.ReadBoolean()),
+        19 => new GalaxyCommand.EndDeal(new Side(r.ReadVarint()), r.ReadEnum<DealKind>()),
         var tag => throw new InvalidDataException($"Commande galactique inconnue : {tag}"),
     };
 

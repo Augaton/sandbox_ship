@@ -62,8 +62,18 @@ public static partial class GalaxySnapshot
         ReadBattles(r, replica);
         replica.Truces = [];
         for (var n = Count(r); n > 0; n--) replica.Truces.Add(new Truce { A = SideOf(r), B = SideOf(r), Remaining = r.ReadSingle() });
+        replica.Pacts = [];
+        for (var n = Count(r); n > 0; n--) replica.Pacts.Add(new Pact { Kind = Valid<DealKind>(r.ReadByte()), A = SideOf(r), B = SideOf(r) });
+        replica.Tributes = [];
+        for (var n = Count(r); n > 0; n--) replica.Tributes.Add(new Tribute { Payer = SideOf(r), Payee = SideOf(r), PerMinute = r.ReadSingle(), Remaining = r.ReadSingle() });
         replica.Offers = [];
-        for (var n = Count(r); n > 0; n--) replica.Offers.Add(new TruceOffer { From = SideOf(r), To = SideOf(r), Remaining = r.ReadSingle() });
+        for (var n = Count(r); n > 0; n--)
+        {
+            replica.Offers.Add(new DealOffer
+            {
+                From = SideOf(r), To = SideOf(r), Kind = Valid<DealKind>(r.ReadByte()), Amount = r.ReadSingle(), PerMinute = r.ReadBoolean(), Remaining = r.ReadSingle(),
+            });
+        }
         replica.Ongoing = [];
         for (var n = Count(r); n > 0; n--)
         {
@@ -221,6 +231,12 @@ public static partial class GalaxySnapshot
                 var grudge = r.ReadSingle();
                 if (f.AI is { } ai) ai.Grudges[viewer] = grudge;
             }
+            if (f.AI is { } bot)
+            {
+                bot.Personality = Valid<Personality>(r.ReadByte());
+                bot.Trust.Clear();
+                bot.Trust[viewer] = r.ReadSingle();
+            }
             // Only the viewer's own economy is known.
             f.Credits = 0;
             f.Research = new ResearchLevels();
@@ -300,7 +316,12 @@ public static partial class GalaxySnapshot
         Tag.TechResearched => new TechResearched(SideOf(r), Valid<TechId>(r.ReadByte())),
         Tag.BountyPaid => new BountyPaid(PlanetOf(r, g), SideOf(r), r.ReadDouble(), OptionalTech(r), ReadLane(r, g)),
         Tag.GalaxyVictory => new GalaxyVictory(SideOf(r), r.ReadVarint()),
-        Tag.TruceOffered => new TruceOffered(SideOf(r), SideOf(r)),
+        Tag.DealOffered => new DealOffered(SideOf(r), SideOf(r), Valid<DealKind>(r.ReadByte()), r.ReadDouble(), r.ReadBoolean()),
+        Tag.DealRefused => new DealRefused(SideOf(r), SideOf(r), Valid<DealKind>(r.ReadByte()), r.ReadText()),
+        Tag.PactSigned => new PactSigned(Valid<DealKind>(r.ReadByte()), SideOf(r), SideOf(r)),
+        Tag.PactEnded => new PactEnded(Valid<DealKind>(r.ReadByte()), SideOf(r), SideOf(r), OptionalSide(r)),
+        Tag.TributeSigned => new TributeSigned(SideOf(r), SideOf(r), r.ReadDouble(), r.ReadBoolean()),
+        Tag.TributeEnded => new TributeEnded(SideOf(r), SideOf(r), OptionalSide(r)),
         Tag.TruceSigned => new TruceSigned(SideOf(r), SideOf(r)),
         Tag.TruceEnded => new TruceEnded(SideOf(r), SideOf(r), OptionalSide(r)),
         Tag.IncidentStarted => new IncidentStarted(Valid<IncidentKind>(r.ReadByte()), PlanetOf(r, g), OtherOf(r, g), OptionalSide(r)),

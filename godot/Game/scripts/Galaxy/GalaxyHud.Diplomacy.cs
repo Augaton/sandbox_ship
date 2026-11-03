@@ -28,7 +28,7 @@ public partial class GalaxyHud
     /// <summary>Every other side but the player's allies, who need no truce.</summary>
     IEnumerable<Side> Rivals() => G.Factions.Keys.Where(f => !Galaxies.Allies(G, f, Player));
 
-    TruceOffer? OfferFrom(Side rival) => G.Offers.Find(o => o.From == rival && o.To == Player);
+    DealOffer? OfferFrom(Side rival) => G.Offers.Find(o => o.From == rival && o.To == Player && o.Kind == DealKind.Truce);
 
     double Grudge(Side rival) => G.Factions[rival].AI?.Grudges.GetValueOrDefault(Player) ?? 0;
 
@@ -189,7 +189,7 @@ public partial class GalaxyHud
         var player = Player;
         switch (ev)
         {
-            case TruceOffered o when o.To == player:
+            case DealOffered { Kind: DealKind.Truce } o when o.To == player:
                 Sfx.Play(Sound.Alert);
                 Notify($"{NameOf(o.From)} propose une trêve de {Minutes(Galaxies.TruceTime)}");
                 if (!DialogOpen) ShowOffer(o.From);

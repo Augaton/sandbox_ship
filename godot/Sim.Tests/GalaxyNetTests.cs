@@ -120,7 +120,7 @@ public class GalaxyNetTests(ITestOutputHelper output)
         g.Factions[Alice].Credits = 1234;
         // Bob's eyes do not reach Alice's capital, the bot offered Alice a truce, and holds a grudge against Bob.
         Assert.DoesNotContain(aliceHome.Id, VisiblePlanets(g, Bobs));
-        g.Offers.Add(new TruceOffer { From = Bot, To = Alice, Remaining = 30 });
+        g.Offers.Add(new DealOffer { From = Bot, To = Alice, Remaining = 30 });
         g.Factions[Bot].AI!.Grudges[Bobs] = 120;
         g.Factions[Bot].AI!.Grudges[Alice] = 60;
 

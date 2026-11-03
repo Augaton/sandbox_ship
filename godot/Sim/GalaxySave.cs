@@ -46,9 +46,11 @@ public static class GalaxySave
         /// at war with all, in its race's color: their factions get those once read.
         /// </summary>
         public bool Sides;
-        /// <summary>Truces, offers and random events (not in the web version): none in older saves.</summary>
+        /// <summary>Diplomacy and random events (not in the web version): none in older saves, whose offers are all truces.</summary>
         public List<Truce> Truces = [];
-        public List<TruceOffer> Offers = [];
+        public List<DealOffer> Offers = [];
+        public List<Pact> Pacts = [];
+        public List<Tribute> Tributes = [];
         public bool Incidents = true;
         public double NextIncident;
         public long IncidentSeed;
@@ -80,7 +82,8 @@ public static class GalaxySave
                 return copy;
             }).ToList(),
             Factions = [.. g.Factions.Values], NextId = g.NextId, Seed = g.Seed, Winner = g.Winner, Sides = true,
-            Truces = g.Truces, Offers = g.Offers, Incidents = g.Incidents, NextIncident = g.NextIncident, IncidentSeed = g.IncidentSeed, Ongoing = g.Ongoing,
+            Truces = g.Truces, Offers = g.Offers, Pacts = g.Pacts, Tributes = g.Tributes,
+            Incidents = g.Incidents, NextIncident = g.NextIncident, IncidentSeed = g.IncidentSeed, Ongoing = g.Ongoing,
             Humans = g.Humans, Name = name,
         };
         return JsonSerializer.Serialize(save, Options);
@@ -159,7 +162,8 @@ public static class GalaxySave
         var g = new Galaxy
         {
             Time = s.Time, Player = s.Player, W = s.W, H = s.H, Planets = s.Planets, Lanes = s.Lanes, NextId = s.NextId, Seed = s.Seed, Winner = s.Winner,
-            Truces = s.Truces, Offers = s.Offers, Incidents = s.Incidents, NextIncident = s.NextIncident, IncidentSeed = s.IncidentSeed, Ongoing = s.Ongoing,
+            Truces = s.Truces, Offers = s.Offers, Pacts = s.Pacts, Tributes = s.Tributes,
+            Incidents = s.Incidents, NextIncident = s.NextIncident, IncidentSeed = s.IncidentSeed, Ongoing = s.Ongoing,
             Humans = s.Humans,
         };
         foreach (var f in s.Fleets) g.Fleets[f.Id] = f;

@@ -183,10 +183,10 @@ public class DiplomacyTests
         return g;
     }
 
-    static TruceOffered RunToOffer(Galaxy g)
+    static DealOffered RunToOffer(Galaxy g)
     {
-        for (var t = 0; t < 30 && !g.Events.Exists(e => e is TruceOffered); t++) RunGalaxy(g, 1);
-        return Assert.Single(g.Events.OfType<TruceOffered>());
+        for (var t = 0; t < 30 && !g.Events.Exists(e => e is DealOffered); t++) RunGalaxy(g, 1);
+        return Assert.Single(g.Events.OfType<DealOffered>());
     }
 
     [Fact]

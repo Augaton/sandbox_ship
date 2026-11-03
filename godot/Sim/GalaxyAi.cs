@@ -15,7 +15,7 @@ public sealed partial class GalaxyAIState
     public double Idle;
 }
 
-public static class GalaxyAi
+public static partial class GalaxyAi
 {
     const double ThinkInterval = 2;
     const string NoCredits = "Crédits insuffisants";
@@ -424,39 +424,6 @@ public static class GalaxyAi
     static bool BusyElsewhere(Galaxy g, Side side, Side other) =>
         g.Factions.Values.Any(t => !t.Eliminated && t.Id != other && AtWar(g, side, t.Id) && Contact(g, side, t.Id));
 
-    /// <summary>
-    /// An AI's answer to a truce: yes when it is the weaker, or busy with a third faction; never
-    /// while it bears a grudge against one that broke a truce with it.
-    /// </summary>
-    public static Result AnswerTruce(Galaxy g, Side side, Side from)
-    {
-        var ai = g.Factions[side].AI!;
-        if (ai.Grudges.GetValueOrDefault(from) > 0) return Result.Fail("Elle n'a pas oublié la trêve rompue");
-        if (Might(g, side) < Might(g, from) || BusyElsewhere(g, side, from)) return Result.OK;
-        return Result.Fail("Elle se croit la plus forte");
-    }
-
-    /// <summary>
-    /// Now and then, an AI offers a truce to the strongest rival it faces: when it is clearly the
-    /// weaker, or to have its hands free against a third faction.
-    /// </summary>
-    static void OfferTruces(Galaxy g, Side side)
-    {
-        var ai = g.Factions[side].AI!;
-        if (ai.OfferWait > 0) return;
-        var mine = Might(g, side);
-        var rivals = g.Factions.Values
-            .Where(f => !f.Eliminated && f.Id != side && !ai.Grudges.ContainsKey(f.Id) && CanOfferTruce(g, side, f.Id).Ok)
-            .OrderByDescending(f => Might(g, f.Id));
-        foreach (var r in rivals)
-        {
-            if (!Contact(g, side, r.Id) || (mine >= Might(g, r.Id) * 0.7 && !BusyElsewhere(g, side, r.Id))) continue;
-            ai.OfferWait = OfferPause;
-            ProposeTruce(g, side, r.Id);
-            return;
-        }
-    }
-
     public static void UpdateGalaxyAI(Galaxy g, double dt)
     {
         foreach (var f in g.Factions.Values)
@@ -466,7 +433,7 @@ public static class GalaxyAi
             if (f.AI.Timer > 0) continue;
             f.AI.Timer = ThinkInterval * (Worlds.Difficulties[f.AI.Difficulty].Think / Worlds.Difficulties[Difficulty.Normal].Think);
             var hops = HopsToEnemy(g, f.Id);
-            OfferTruces(g, f.Id);
+            OfferDeals(g, f.Id);
             Spend(g, f.Id, hops);
             Command(g, f.Id, hops);
         }

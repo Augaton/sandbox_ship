@@ -749,6 +749,7 @@ public static partial class Galaxies
         var def = SideOf(defender, defenders);
         var world = Battle.CreatePlanetBattle(att, def, defense, (int)Math.Floor(GalaxyRand(g) * 2147483646) + 1);
         var status = Human(g, attacker) || Human(g, defender) ? BattleStatus.Pending : BattleStatus.Auto;
+        Attacked(g, attacker, defender);
         g.Battles.Add(new GalaxyBattle
         {
             Id = id, PlanetId = planetId, Lane = lane, Attacker = attacker, Defender = defender, From = from, World = world, Status = status,
@@ -1032,6 +1033,7 @@ public static partial class Galaxies
     }
 
     /// <summary>Galaxy income per second for a side: planets, plus mines (more on rich deposits, more with research).</summary>
+    /// <summary>What a side earns a second: its planets, and its trade agreements (not in the web version).</summary>
     public static double IncomeOf(Galaxy g, Side side)
     {
         double s = 0;
@@ -1039,7 +1041,7 @@ public static partial class Galaxies
         {
             if (p.Owner == side) s += PlanetIncome(g, p);
         }
-        return s;
+        return g.Pacts.Count > 0 ? s + TradeIncome(g, side) : s;
     }
 
     /// <summary>What one planet pays its owner per second, mining research included.</summary>

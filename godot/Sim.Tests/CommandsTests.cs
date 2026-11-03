@@ -395,6 +395,8 @@ public class CommandsTests
             new GalaxyCommand.SetRally(9, 10), new GalaxyCommand.StartTech(TechId.Hangars), new GalaxyCommand.CancelTech(0), new GalaxyCommand.FireLance(11, 12),
             new GalaxyCommand.OfferTruce(new Side(1)), new GalaxyCommand.AnswerTruce(new Side(2), true), new GalaxyCommand.BreakTruce(new Side(4)),
             new GalaxyCommand.ChooseBattle(13, BattleStatus.Tactical), new GalaxyCommand.DelegateBattle(14), new GalaxyCommand.Retreat(15),
+            new GalaxyCommand.ProposeDeal(new Side(5), DealKind.Demand, 60, true), new GalaxyCommand.AnswerDeal(new Side(1), DealKind.Alliance, false),
+            new GalaxyCommand.EndDeal(new Side(2), DealKind.Trade),
         ];
         foreach (var c in galaxy)
         {

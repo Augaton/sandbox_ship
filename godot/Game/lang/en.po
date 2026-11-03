@@ -5529,3 +5529,79 @@ msgstr "Technological"
 #: Sim/Data/Personalities.cs
 msgid "Recherche sans relâche et mise sur les gros vaisseaux."
 msgstr "Researches relentlessly and bets on big ships."
+
+#: Sim/GalaxyAiDiplomacy.cs
+msgid "Elle n'a pas oublié ta trahison"
+msgstr "It has not forgotten your betrayal"
+
+#: Sim/GalaxyAiDiplomacy.cs
+msgid "Elle veut la galaxie pour elle seule"
+msgstr "It wants the galaxy for itself alone"
+
+#: Sim/GalaxyAiDiplomacy.cs
+msgid "Elle ne te fait pas encore assez confiance"
+msgstr "It does not trust you enough yet"
+
+#: Sim/GalaxyAiDiplomacy.cs
+msgid "Elle se méfie de toi"
+msgstr "It distrusts you"
+
+#: Sim/GalaxyAiDiplomacy.cs
+msgid "Elle en veut au moins {0} crédits par minute de trêve"
+msgstr "It wants at least {0} credits per minute of truce"
+
+#: Sim/GalaxyAiDiplomacy.cs
+msgid "Elle n'a pas de quoi payer"
+msgstr "It cannot afford it"
+
+#: Sim/GalaxyAiDiplomacy.cs
+msgid "Elle ne te craint pas"
+msgstr "It does not fear you"
+
+#: Sim/GalaxyDiplomacy.cs
+msgid "Aucun accord possible"
+msgstr "No deal possible"
+
+#: Sim/GalaxyDiplomacy.cs
+msgid "Déjà alliées"
+msgstr "Already allied"
+
+#: Sim/GalaxyDiplomacy.cs
+msgid "Alliance déjà en cours"
+msgstr "Alliance already in force"
+
+#: Sim/GalaxyDiplomacy.cs
+msgid "Accord commercial déjà en cours"
+msgstr "Trade agreement already in force"
+
+#: Sim/GalaxyDiplomacy.cs
+msgid "Il faut d'abord la paix"
+msgstr "Peace must come first"
+
+#: Sim/GalaxyDiplomacy.cs
+msgid "Montant invalide"
+msgstr "Invalid amount"
+
+#: Sim/GalaxyDiplomacy.cs
+msgid "Tribut déjà en cours"
+msgstr "Tribute already in force"
+
+#: Sim/GalaxyDiplomacy.cs
+msgid "L'offre n'est plus valable"
+msgstr "The offer no longer holds"
+
+#: Sim/GalaxyDiplomacy.cs
+msgid "Aucun accord commercial"
+msgstr "No trade agreement"
+
+#: Sim/GalaxyDiplomacy.cs
+msgid "Aucun tribut"
+msgstr "No tribute"
+
+#: Sim/GalaxyDiplomacy.cs
+msgid "Aucun accord"
+msgstr "No deal"
+
+#: Sim/GalaxyDiplomacy.cs
+msgid "Aucune alliance"
+msgstr "No alliance"

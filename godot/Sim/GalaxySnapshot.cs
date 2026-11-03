@@ -17,10 +17,13 @@
 //             only where the team has eyes (Galaxies.Known); queues, loops and rally points only the viewer's own
 //   fleets    n count; each: see WriteFleet. Those the team sees (Galaxies.FleetVisible), and the Errants', whose guard all know
 //   sides     n count; each: n side, u8 race, n team, u32 color, u8 flags (eliminated, AI, viewer, grudge), [f32 grudge
-//             of an AI against the viewer]; the viewer's own also its economy (credits, research, hero delays)
+//             of an AI against the viewer], [an AI's u8 personality, f32 trust in the viewer]; the viewer's own also its
+//             economy (credits, research, hero delays)
 //   battles   n count; each: see WriteBattle. Those that hold the galaxy (waiting or commanded), and the others the team knows of
 //   truces    n count; each: n a, n b, f32 left
-//   offers    n count; each: n from, n to, f32 left. Those to or from the viewer
+//   pacts     n count; each: u8 kind, n a, n b
+//   tributes  n count; each: n payer, n payee, f32 per minute, f32 left
+//   offers    n count; each: n from, n to, u8 kind, f32 amount, u8 per minute, f32 left. Those to or from the viewer
 //   incidents n count; each: u8 kind, n planet, n other + 1, f32 left, ships
 //   events    n count; each: u8 tag and its fields (see WriteEvent), those the viewer may know of
 using SandboxShip.Sim.Data;
@@ -33,8 +36,12 @@ public readonly record struct GalaxyClock(double Speed, bool Paused);
 
 public static partial class GalaxySnapshot
 {
-    /// <summary>Bumped with any change to the layout, the chart's included: a reader refuses any other version. 2: the chart apart.</summary>
-    public const ushort Version = 2;
+    /// <summary>
+    /// Bumped with any change to the layout, the chart's included: a reader refuses any other
+    /// version. 2: the chart apart. 3: alliances, trade and tributes, offers of every kind, an
+    /// AI's personality and trust.
+    /// </summary>
+    public const ushort Version = 3;
     const uint Magic = 0x504E5347, ChartMagic = 0x54484347;
 
     /// <summary>What never changes in a campaign (see the layout above): sent once to each player, before its first snapshot.</summary>
@@ -68,8 +75,8 @@ public static partial class GalaxySnapshot
 
     enum Tag : byte
     {
-        BattleStarted = 1, BattleEnded, Captured, PlanetBuilt, TechResearched, BountyPaid, GalaxyVictory, TruceOffered, TruceSigned,
-        TruceEnded, IncidentStarted, IncidentEnded, RuinsExplored, LanceFired,
+        BattleStarted = 1, BattleEnded, Captured, PlanetBuilt, TechResearched, BountyPaid, GalaxyVictory, DealOffered, TruceSigned,
+        TruceEnded, IncidentStarted, IncidentEnded, RuinsExplored, LanceFired, DealRefused, PactSigned, PactEnded, TributeSigned, TributeEnded,
     }
 
     /// <summary>
@@ -117,12 +124,30 @@ public static partial class GalaxySnapshot
             w.Write7BitEncodedInt(t.B.Id);
             w.Write((float)t.Remaining);
         }
+        w.Write7BitEncodedInt(g.Pacts.Count);
+        foreach (var p in g.Pacts)
+        {
+            w.Write((byte)p.Kind);
+            w.Write7BitEncodedInt(p.A.Id);
+            w.Write7BitEncodedInt(p.B.Id);
+        }
+        w.Write7BitEncodedInt(g.Tributes.Count);
+        foreach (var t in g.Tributes)
+        {
+            w.Write7BitEncodedInt(t.Payer.Id);
+            w.Write7BitEncodedInt(t.Payee.Id);
+            w.Write((float)t.PerMinute);
+            w.Write((float)t.Remaining);
+        }
         var offers = g.Offers.Where(o => o.From == viewer || o.To == viewer).ToList();
         w.Write7BitEncodedInt(offers.Count);
         foreach (var o in offers)
         {
             w.Write7BitEncodedInt(o.From.Id);
             w.Write7BitEncodedInt(o.To.Id);
+            w.Write((byte)o.Kind);
+            w.Write((float)o.Amount);
+            w.Write(o.PerMinute);
             w.Write((float)o.Remaining);
         }
         w.Write7BitEncodedInt(g.Ongoing.Count);
@@ -247,6 +272,11 @@ public static partial class GalaxySnapshot
             w.Write(f.Color);
             w.Write((byte)((f.Eliminated ? Out : 0) | (f.AI is not null ? Bot : 0) | (own ? Viewer : 0) | (grudge > 0 ? Grudge : 0)));
             if (grudge > 0) w.Write((float)grudge);
+            if (f.AI is { } ai)
+            {
+                w.Write((byte)ai.Personality);
+                w.Write((float)ai.Trust.GetValueOrDefault(viewer));
+            }
             if (!own) continue;
             w.Write(f.Credits);
             w.Write7BitEncodedInt(Techs.All.Count);
@@ -347,8 +377,9 @@ public static partial class GalaxySnapshot
 
     /// <summary>
     /// Whether the viewer may hear of an event, as the map would tell it: what befalls its team,
-    /// planets changing hands (known everywhere), truces, random events, ruins, star lances and
-    /// the end of the campaign; a battle ending where its team has eyes; truce offers it made or got.
+    /// planets changing hands (known everywhere), truces, pacts and tributes, random events, ruins,
+    /// star lances and the end of the campaign; a battle ending where its team has eyes; offers
+    /// it made or got, and their refusals.
     /// </summary>
     static bool Tells(Galaxy g, Side viewer, GalaxyEvent ev, HashSet<int> seen) => ev switch
     {
@@ -357,8 +388,10 @@ public static partial class GalaxySnapshot
         PlanetBuilt b => Allies(g, b.Side, viewer),
         TechResearched t => Allies(g, t.Side, viewer),
         BountyPaid b => Allies(g, b.Side, viewer),
-        TruceOffered o => o.From == viewer || o.To == viewer,
-        Captured or GalaxyVictory or TruceSigned or TruceEnded or IncidentStarted or IncidentEnded or RuinsExplored or LanceFired => true,
+        DealOffered o => o.From == viewer || o.To == viewer,
+        DealRefused o => o.From == viewer || o.To == viewer,
+        Captured or GalaxyVictory or TruceSigned or TruceEnded or PactSigned or PactEnded or TributeSigned or TributeEnded
+            or IncidentStarted or IncidentEnded or RuinsExplored or LanceFired => true,
         _ => false,
     };
 
@@ -422,10 +455,46 @@ public static partial class GalaxySnapshot
                 w.Write7BitEncodedInt(v.Side.Id);
                 w.Write7BitEncodedInt(v.Team);
                 break;
-            case TruceOffered o:
-                w.Write((byte)Tag.TruceOffered);
+            case DealOffered o:
+                w.Write((byte)Tag.DealOffered);
                 w.Write7BitEncodedInt(o.From.Id);
                 w.Write7BitEncodedInt(o.To.Id);
+                w.Write((byte)o.Kind);
+                w.Write(o.Amount);
+                w.Write(o.PerMinute);
+                break;
+            case DealRefused o:
+                w.Write((byte)Tag.DealRefused);
+                w.Write7BitEncodedInt(o.From.Id);
+                w.Write7BitEncodedInt(o.To.Id);
+                w.Write((byte)o.Kind);
+                w.Write(o.Reason);
+                break;
+            case PactSigned p:
+                w.Write((byte)Tag.PactSigned);
+                w.Write((byte)p.Kind);
+                w.Write7BitEncodedInt(p.A.Id);
+                w.Write7BitEncodedInt(p.B.Id);
+                break;
+            case PactEnded p:
+                w.Write((byte)Tag.PactEnded);
+                w.Write((byte)p.Kind);
+                w.Write7BitEncodedInt(p.A.Id);
+                w.Write7BitEncodedInt(p.B.Id);
+                WriteSide(w, p.By);
+                break;
+            case TributeSigned t:
+                w.Write((byte)Tag.TributeSigned);
+                w.Write7BitEncodedInt(t.Payer.Id);
+                w.Write7BitEncodedInt(t.Payee.Id);
+                w.Write(t.Amount);
+                w.Write(t.PerMinute);
+                break;
+            case TributeEnded t:
+                w.Write((byte)Tag.TributeEnded);
+                w.Write7BitEncodedInt(t.Payer.Id);
+                w.Write7BitEncodedInt(t.Payee.Id);
+                WriteSide(w, t.By);
                 break;
             case TruceSigned s:
                 w.Write((byte)Tag.TruceSigned);
