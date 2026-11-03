@@ -765,10 +765,26 @@ public static partial class Galaxies
     /// </summary>
     static void DetectConflicts(Galaxy g)
     {
+        // The fleets standing at each planet, in one walk over the fleets and in their order, as
+        // FleetsAt gives them: most planets have none, and asking each in turn made lists for nothing.
+        Dictionary<int, List<Fleet>>? standing = null;
+        foreach (var f in g.Fleets.Values)
+        {
+            if (f.At is not int p || f.BattleId is not null) continue;
+            standing ??= [];
+            if (!standing.TryGetValue(p, out var list)) standing[p] = list = [];
+            list.Add(f);
+        }
         foreach (var planet in g.Planets)
         {
             if (BattleAt(g, planet.Id)) continue;
-            var here = FleetsAt(g, planet.Id).OrderBy(f => f.ArrivedAt).ToList();
+            // No fleet there: no one takes it, no one fights over it.
+            if (standing is null || !standing.TryGetValue(planet.Id, out var fleets))
+            {
+                planet.Occupation = null;
+                continue;
+            }
+            var here = fleets.OrderBy(f => f.ArrivedAt).ToList();
             var present = here.Select(f => f.Side).Distinct().ToList();
             var owner = planet.Owner;
             var defended = owner is Side o && (Fortified(planet) || present.Contains(o));
@@ -1414,7 +1430,11 @@ public static partial class Galaxies
         foreach (var f in g.Factions.Values)
         {
             if (!f.Eliminated) f.Credits += IncomeOf(g, f.Id) * (f.AI is not null ? Worlds.Difficulties[f.AI.Difficulty].Income : 1) * dt;
-            foreach (var h in f.HeroCooldowns.Keys.ToList()) f.HeroCooldowns[h] = Math.Max(0, f.HeroCooldowns[h] - dt);
+            // Copied to be changed while walked, only when there is something to walk.
+            if (f.HeroCooldowns.Count > 0)
+            {
+                foreach (var h in f.HeroCooldowns.Keys.ToList()) f.HeroCooldowns[h] = Math.Max(0, f.HeroCooldowns[h] - dt);
+            }
         }
         UpdateProduction(g, dt);
         UpdateLances(g, dt);

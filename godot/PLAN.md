@@ -310,6 +310,14 @@ tests de `FixtureTests` et `CrossTests` les listent.
     le menu (0,7 ms par image pour la bataille du fond) ; la campagne (0,3 à 0,4 ms par pas). La taille de la première génération
     du ramasse-miettes ne se règle que par variable d'environnement : `System.GC.Gen0Size` et `GCgen0size` dans la configuration
     du projet restent sans effet. Les pointes d'image isolées suivent surtout la charge de la machine.
+- Performances, troisième passe (2026-11-03, après les sprites des stations, la Survie sans fin, la traduction et la
+  sécurité), sur un export release :
+  - Bataille de mesure : 60 images/s en moyenne, 10 Kio alloués par image (inchangé depuis la deuxième passe),
+    3,2 ms de simulation par image ; les lampes des stations coûtent 0,08 ms, l'anglais 0,03 ms.
+  - Campagne : 53 → 31 à 34 Kio alloués par pas galactique, 0,66 → 0,37 à 0,42 ms. `DetectConflicts` range les
+    flottes par planète en un passage et passe les planètes vides (30 → 9 Kio) ; les délais des héros ne sont plus
+    copiés quand il n'y en a pas. Résultat identique, tests de galaxie compris.
+  - Serveur en ligne : le relais léger (`godot/Relay/`, .NET seul) tient une partie avec 41 Mo au lieu de 170.
 - Équilibrage (2026-11-03, après les nouvelles armes et l'IA des vaisseaux), mesuré en parties entre IA de difficulté normale,
   chaque paire de races dans les deux sens, une heure au plus par partie. Les pourcentages sont les victoires de chaque race.
 
