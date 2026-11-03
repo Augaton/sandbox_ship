@@ -208,6 +208,17 @@ public sealed partial class Session
                     Main.Instance.Start(lobby, link);
                 }
                 break;
+            // The battle over time, for the end screen: one that cannot be read only leaves the curves out.
+            case Message.Record rec when link is not null:
+                try
+                {
+                    link.World.History = BattleHistory.Read(new BinaryReader(new MemoryStream(rec.History)));
+                }
+                catch (Exception e) when (e is InvalidDataException or EndOfStreamException)
+                {
+                    Log($"Historique de la bataille illisible : {e.Message}");
+                }
+                break;
             case Message.News n when link is not null:
                 try
                 {

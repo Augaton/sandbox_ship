@@ -210,6 +210,14 @@ public class FuzzTests
         Survives("Snapshot.ReadPart", parts.Take(4), bytes => Snapshot.ReadPart(new BinaryReader(new MemoryStream(bytes)), new World(), new SnapshotFrames()));
     }
 
+    [Fact]
+    public void A_battle_over_time()
+    {
+        var w = Battle(5);
+        w.History!.Close(w);
+        Survives("BattleHistory.Read", [BattleHistory.Bytes(w.History)], bytes => BattleHistory.Read(new BinaryReader(new MemoryStream(bytes))));
+    }
+
     internal static Galaxy Campaign(int seed)
     {
         var g = Galaxies.CreateGalaxy(Faction.Klaed, [Faction.Nairan, Faction.Nautolan], true, seed, GalaxyGen.GenerateLayout(seed, 3, MapSize.Small));

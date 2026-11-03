@@ -5549,3 +5549,38 @@ msgstr "Impassable terrain"
 #: Game/scripts/Ui/Hud.Terrain.cs
 msgid "Boucliers et coques s'y régénèrent à {0} de leur rythme"
 msgstr "Shields and hulls regenerate there at {0} of their pace"
+
+#: Game/scripts/Ui/Hud.Charts.cs
+msgid "Armée en vol"
+msgstr "Fleet in flight"
+
+#: Game/scripts/Ui/Hud.Charts.cs
+msgid "Tes meilleurs vaisseaux"
+msgstr "Your best ships"
+
+#: Game/scripts/Ui/Hud.Charts.cs
+msgid "{0} destructions pour {1} crédits"
+msgstr "{0} kills worth {1} credits"
+
+msgid "1 destruction pour {0} crédits"
+msgstr "1 kill worth {0} credits"
+
+#: Game/scripts/Ui/Hud.Charts.cs
+msgid "en service"
+msgstr "still flying"
+
+#: Game/scripts/Ui/Hud.Charts.cs
+msgid "détruit"
+msgstr "destroyed"
+
+#: Game/scripts/Ui/Hud.Dialogs.cs
+msgid "Dépensés"
+msgstr "Spent"
+
+#: Sim/BattleHistory.cs
+msgid "Échantillons"
+msgstr "Samples"
+
+#: Sim/BattleHistory.cs
+msgid "Camps"
+msgstr "Sides"

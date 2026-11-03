@@ -16,8 +16,9 @@ public partial class Hud
     Action? onModalClose;
     /// <summary>The pause menu paused the game, and resumes it when it closes.</summary>
     bool menuPaused;
-    /// <summary>The open dialog's scrolled body, kept as tall as the screen allows.</summary>
+    /// <summary>The open dialog's scrolled body, kept as tall as the screen allows, less its buttons under it.</summary>
     ScrollContainer? modalScroll;
+    Control? modalActions;
 
     /// <summary>Opens a dialog in place of the open one; `onClose` runs when it is closed.</summary>
     void OpenModal(Control content, Action? onClose = null)
@@ -39,25 +40,46 @@ public partial class Hud
         if (!shaded) FadeIn(shade);
         FadeIn(center);
         modal = m;
-        modalScroll = content.GetChildCount() > 0 ? content.GetChild(0) as ScrollContainer : null;
+        // A dialog's body is scrolled, or (Dialog) scrolled with its buttons pinned under it.
+        var first = content.GetChildCount() > 0 ? content.GetChild(0) : null;
+        var pinned = first is not null && first.HasMeta(ActionsMeta);
+        modalScroll = pinned ? first!.GetChild(0) as ScrollContainer : first as ScrollContainer;
+        modalActions = pinned ? first!.GetChild<Control>(1) : null;
         onModalClose = onClose;
     }
 
-    /// <summary>The dialog panel: a heading, then its parts 16 pixels apart, scrolled if the screen is too short.</summary>
+    /// <summary>
+    /// The dialog panel: a heading, then its parts 16 pixels apart, scrolled if the screen is too
+    /// short; its buttons, when they come last, under the scroll, in view however long the parts.
+    /// </summary>
     PanelContainer Dialog(string title, params Control[] parts)
     {
         var p = Panel(24, 24);
         var body = Column(16);
         body.AddChild(Text(title, size: 22, bold: true));
-        foreach (var c in parts) body.AddChild(c);
-        p.AddChild(Scroll(body));
+        var actions = parts.Length > 0 && parts[^1].HasMeta(ActionsMeta) ? parts[^1] : null;
+        foreach (var c in parts) if (c != actions) body.AddChild(c);
+        if (actions is null)
+        {
+            p.AddChild(Scroll(body));
+            return p;
+        }
+        var frame = Column(16);
+        frame.SetMeta(ActionsMeta, true);
+        frame.AddChild(Scroll(body));
+        frame.AddChild(actions);
+        p.AddChild(frame);
         return p;
     }
+
+    /// <summary>Marks a row of dialog buttons, and a dialog body that holds one under its scroll.</summary>
+    const string ActionsMeta = "actions";
 
     /// <summary>A row of dialog buttons.</summary>
     static HBoxContainer Actions(params Button[] buttons)
     {
         var row = Row(8);
+        row.SetMeta(ActionsMeta, true);
         foreach (var b in buttons) row.AddChild(b);
         return row;
     }
@@ -71,6 +93,7 @@ public partial class Hud
         modal.QueueFree();
         modal = null;
         modalScroll = null;
+        modalActions = null;
     }
 
     void CloseModal()
@@ -136,14 +159,18 @@ public partial class Hud
     {
         var box = Column(16);
         box.AddChild(Para($"Durée : {Names.Duration(World.Time)}", Palette.Muted));
-        // The neutral guardians of a raid are not a player.
-        var rows = World.Factions.Values.Where(f => f.Race != Faction.Errant).Select(f =>
+        // What a side spent comes from the battle's history, its last sample.
+        var history = World.History is { Times.Count: > 0 } h ? h : null;
+        var rows = World.Factions.Values.Where(f => Ranked(f.Id)).Select(f =>
         {
             var s = f.Stats;
             var color = f.Id == Player ? Palette.Accent : Palette.Text;
-            return (Who(f.Id, color), color, new[] { s.Built, s.Lost, s.Kills, Js.Round(s.Damage), Js.Round(s.Earned) }.Select(v => N(v)));
+            var values = new[] { s.Built, s.Lost, s.Kills, Js.Round(s.Damage), Js.Round(s.Earned) }.Select(v => N(v));
+            if (history is not null) values = values.Append(history.Sides.TryGetValue(f.Id, out var points) ? N(Js.Round(points[^1].Spent)) : "-");
+            return (Who(f.Id, color), color, values);
         });
-        box.AddChild(Table(["Faction", "Construits", "Perdus", "Détruits", "Dégâts", "Crédits gagnés"], rows));
+        string[] heads = ["Faction", "Construits", "Perdus", "Détruits", "Dégâts", "Crédits gagnés"];
+        box.AddChild(Table(history is not null ? [.. heads, "Dépensés"] : heads, rows));
         return box;
     }
 
@@ -190,11 +217,13 @@ public partial class Hud
     /// <summary>The end screen's title: a survival game comes to its end, there is no winning it.</summary>
     string EndTitle(bool won) => World.Mode.Kind == BattleMode.Survival ? "Fin de la survie" : won ? "Victoire" : "Défaite";
 
-    /// <summary>The end screen's table: a survival game's scoreboard, else each faction's record.</summary>
-    Control EndTable() => World.Mode.Kind == BattleMode.Survival ? SurvivalEnd() : StatsTable();
+    /// <summary>The end screen's table: a survival game's scoreboard, else each faction's record; the battle over time under it.</summary>
+    Control EndTable() => WithCharts(World.Mode.Kind == BattleMode.Survival ? SurvivalEnd() : StatsTable());
 
     public void ShowEnd(bool won)
     {
+        // A battle played here takes its last sample now; a player's comes from the host (Message.Record).
+        if (scene.Opts.Net is null) World.History?.Close(World);
         PlayerProfile.BattleEnded(scene, won);
         Music.Sting(won);
         if (scene.Opts.Net is not null)
@@ -213,10 +242,11 @@ public partial class Hud
     public void ShowBattleEnd(bool won, Action onBack, string? watched = null)
     {
         if (watched is null) PlayerProfile.BattleEnded(scene, won);
+        if (scene.Opts.Net is null) World.History?.Close(World);
         var back = Primary(Button("Retour à la carte", onBack));
         OpenModal(Dialog(watched is not null ? "Bataille terminée" : won ? "Victoire" : "Défaite",
             Para($"{watched ?? (won ? "La bataille est gagnée." : "La bataille est perdue.")} Les survivants regagnent la carte galactique.", max: 672),
-            StatsTable(), Actions(back)));
+            WithCharts(StatsTable()), Actions(back)));
     }
 
     /// <summary>Asks before an action that loses progress; `back` runs if the player changes their mind.</summary>

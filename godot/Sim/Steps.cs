@@ -32,6 +32,7 @@ public static class Steps
         Worlds.RemoveDead(world);
         Modes.Update(world, dt);
         Worlds.CheckVictory(world);
+        world.History?.Step(world);
     }
 
     /// <summary>Runs the simulation for `seconds` of game time.</summary>
