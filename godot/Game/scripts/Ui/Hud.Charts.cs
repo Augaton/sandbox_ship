@@ -92,7 +92,8 @@ public partial class Hud
             }
             var name = a.Hero is HeroId hero ? Heroes.Defs[hero].Name : Ships.Defs[a.Cls].Name;
             line.AddChild(Text(name, Palette.Text, 14, bold: true));
-            line.AddChild(Text($"{N(a.Kills)} destructions pour {N(Js.Round(a.Value))} crédits", Palette.Accent, 14));
+            var worth = N(Js.Round(a.Value));
+            line.AddChild(Text(a.Kills == 1 ? $"1 destruction pour {worth} crédits" : $"{N(a.Kills)} destructions pour {worth} crédits", Palette.Accent, 14));
             line.AddChild(Text(a.Alive ? "en service" : "détruit", Palette.Muted, 13));
             box.AddChild(line);
         }

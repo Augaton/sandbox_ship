@@ -5478,6 +5478,9 @@ msgstr "Your best ships"
 msgid "{0} destructions pour {1} crédits"
 msgstr "{0} kills worth {1} credits"
 
+msgid "1 destruction pour {0} crédits"
+msgstr "1 kill worth {0} credits"
+
 #: Game/scripts/Ui/Hud.Charts.cs
 msgid "en service"
 msgstr "still flying"
