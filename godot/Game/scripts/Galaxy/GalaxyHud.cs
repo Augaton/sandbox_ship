@@ -4,6 +4,7 @@
 // HUD's blocks (Ui/HudKit.cs).
 using Godot;
 using SandboxShip.Core;
+using SandboxShip.Render;
 using SandboxShip.Sim;
 using SandboxShip.Sim.Data;
 using SandboxShip.Ui;
@@ -171,15 +172,32 @@ public partial class GalaxyHud : CanvasLayer
         return box;
     }
 
-    /// <summary>A grid button of the panel: its name, then its price or why not, smaller.</summary>
-    static LabelButton GridButton(string name, Action act)
+    /// <summary>A grid button of the panel: what it makes, pictured, then its name, then its price or why not, smaller.</summary>
+    static LabelButton GridButton(string name, Action act, Texture2D? icon = null)
     {
         var b = new LabelButton { SizeFlagsHorizontal = Control.SizeFlags.ExpandFill, MinSize = new Vector2(0, 40) };
         b.Add(name, Palette.Text, 14, wrap: true);
         b.Add("", Palette.Accent, 12, wrap: true);
+        b.SetIcon(icon);
         HudKit.OnPress(b, act);
         return b;
     }
+
+    /// <summary>The picture of what a build makes, in the player's race: the ship, the hero's, the station or the platforms of the next level, the building.</summary>
+    Texture2D? BuildIcon(Planet p, GalaxyBuild build) => build.Kind switch
+    {
+        GalaxyBuildKind.Ship => Assets.ShipIcon(Race, build.Cls),
+        GalaxyBuildKind.Hero => Assets.ShipIcon(Race, Heroes.Defs[build.Hero].Base),
+        GalaxyBuildKind.Station => Assets.StationIcon(Race, p.Station + 1),
+        GalaxyBuildKind.Mine => Assets.BuildingIcon(Race, BuildableType.Mine),
+        GalaxyBuildKind.Platform => Assets.BuildingIcon(Race, BuildableType.Platform, p.PlatformTier),
+        GalaxyBuildKind.PlatformTier => Assets.BuildingIcon(Race, BuildableType.Platform, p.PlatformTier + 1),
+        GalaxyBuildKind.Lab => Assets.BuildingIcon(Race, BuildableType.Lab),
+        GalaxyBuildKind.RepairDock => Assets.BuildingIcon(Race, BuildableType.RepairDock),
+        GalaxyBuildKind.IonCannon => Assets.BuildingIcon(Race, BuildableType.IonCannon),
+        GalaxyBuildKind.StarLance => Assets.BuildingIcon(Race, BuildableType.StarLance),
+        _ => null,
+    };
 
     static GridContainer Grid()
     {
@@ -286,7 +304,7 @@ public partial class GalaxyHud : CanvasLayer
         panel.AnchorLeft = 1;
         panel.AnchorRight = 1;
         panel.AnchorBottom = 1;
-        panel.OffsetLeft = -8 - 340;
+        panel.OffsetLeft = -8 - GalaxyScreen.PanelW;
         panel.OffsetRight = -8;
         panel.OffsetTop = 64;
         panel.OffsetBottom = -8;
@@ -708,7 +726,7 @@ public partial class GalaxyHud : CanvasLayer
         var grid = Grid();
         foreach (var build in builds)
         {
-            var b = GridButton(Galaxies.BuildName(p, build), () => Enqueue(build));
+            var b = GridButton(Galaxies.BuildName(p, build), () => Enqueue(build), BuildIcon(p, build));
             if (build.Kind == GalaxyBuildKind.Hero)
             {
                 var hero = Heroes.Defs[build.Hero];

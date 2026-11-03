@@ -347,6 +347,33 @@ public partial class LabelButton : Button
 
     public Label Line(int i) => box.GetChild<Label>(i);
 
+    TextureRect? icon;
+
+    /// <summary>A picture left of the lines, in a slot of its own, its pixels kept sharp: what the button makes.</summary>
+    public void SetIcon(Texture2D? texture)
+    {
+        if (icon is null)
+        {
+            if (texture is null) return;
+            icon = new TextureRect
+            {
+                StretchMode = TextureRect.StretchModeEnum.KeepCentered,
+                TextureFilter = TextureFilterEnum.Nearest,
+                MouseFilter = MouseFilterEnum.Ignore,
+            };
+            icon.SetAnchorsPreset(LayoutPreset.LeftWide);
+            icon.OffsetLeft = padX;
+            icon.OffsetRight = padX + Render.Assets.IconSize;
+            AddChild(icon);
+            box.OffsetLeft = padX + IconRoom;
+        }
+        icon.Texture = texture;
+        Fit();
+    }
+
+    /// <summary>The width a picture takes left of the lines, with the gap after it.</summary>
+    public const int IconRoom = Render.Assets.IconSize + 6;
+
     /// <summary>The color a line has while the button is enabled.</summary>
     public void SetColor(int line, Color c) => colors[line] = c;
 
@@ -367,6 +394,7 @@ public partial class LabelButton : Button
     void Fit()
     {
         var m = box.GetCombinedMinimumSize();
+        if (icon is not null) m = new Vector2(m.X + IconRoom, Math.Max(m.Y, Render.Assets.IconSize));
         var size = new Vector2(Math.Max(MinSize.X, m.X + 2 * padX), Math.Max(MinSize.Y, m.Y + 2 * padY));
         if (CustomMinimumSize != size) CustomMinimumSize = size;
     }

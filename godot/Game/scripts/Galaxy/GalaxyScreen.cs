@@ -16,7 +16,8 @@ public partial class GalaxyScreen : Node
 {
     /// <summary>Room kept free for the HUD: top bar and the planet panel on the right.</summary>
     const float Top = 64;
-    const float PanelW = 340;
+    /// <summary>Wide enough for two columns of production buttons, each a picture and a name beside it.</summary>
+    public const float PanelW = 380;
     static readonly Color Neutral = Palette.Hex(0x6b7588);
     static readonly Color LaneColor = Palette.Hex(0x2a3446);
     static readonly Color BattleColor = Palette.Hex(0xe8705f);

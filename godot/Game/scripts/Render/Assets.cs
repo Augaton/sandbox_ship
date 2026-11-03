@@ -139,6 +139,9 @@ public static class Assets
         }
         foreach (var key in strips.Keys) OpaqueSize(key);
         StructureLooks(works, built);
+        foreach (var ((f, _), look) in ships) if (f != Faction.Errant) Icon(look, f);
+        // Drawn in each race's own colors: none of these takes a side's.
+        foreach (var look in stations.Values.Concat(buildings.Values).Concat(lances.Values)) Icon(look, Faction.Errant);
         foreach (var img in pixels.Values) img.Dispose();
         pixels.Clear();
         Progress = 1;
@@ -261,6 +264,123 @@ public static class Assets
     {
         k = k switch { WeaponKind.Missile => WeaponKind.Torpedo, WeaponKind.Ion or WeaponKind.Beam => WeaponKind.Laser, _ => k };
         return projectiles.TryGetValue((f, k), out var p) ? p : projectiles[(Faction.Nairan, k)];
+    }
+
+    /// <summary>Side of a production button's picture, in pixels.</summary>
+    public const int IconSize = 32;
+    /// <summary>The production buttons' pictures, by look, made as the game loads: no button draws or scales one.</summary>
+    static readonly Dictionary<Look, Texture2D> icons = [];
+
+    public static Texture2D? ShipIcon(Faction f, ShipClass c) => ships.TryGetValue((f, c), out var l) ? icons.GetValueOrDefault(l) : null;
+
+    public static Texture2D? StationIcon(Faction f, int level) =>
+        stations.TryGetValue((f, Math.Clamp(level, 1, Station.Levels.Count)), out var l) ? icons.GetValueOrDefault(l) : null;
+
+    /// <summary>A building's picture at a level (its first if it has no such level); the star lance's for it.</summary>
+    public static Texture2D? BuildingIcon(Faction f, BuildableType type, int level = 1)
+    {
+        var top = 1 + (Buildables.Defs[type].Tiers?.Count ?? 0);
+        var look = type == BuildableType.StarLance ? lances.GetValueOrDefault(f) : buildings.GetValueOrDefault((f, type, Math.Clamp(level, 1, top)));
+        return look is not null ? icons.GetValueOrDefault(look) : null;
+    }
+
+    /// <summary>
+    /// A look's picture for the production buttons: the first frames of its layers laid as in
+    /// battle, cropped to what shows, then brought near IconSize at a whole scale (each pixel
+    /// repeated, or each block of them averaged) so that the pixel art stays sharp. A look that
+    /// takes its side's color takes its race's.
+    /// </summary>
+    static void Icon(Look look, Faction race)
+    {
+        if (icons.ContainsKey(look)) return;
+        var main = look.Layers[^1];
+        IEnumerable<Layer> layers = look.Gun is { } gun ? [.. look.Layers, gun] : look.Layers;
+        if (layers.Any(l => !pixels.ContainsKey(l.Key))) return;
+        // Each layer's texture pixels against the main one's, as LayerScale sizes them in battle.
+        var unit = main.Size / OpaqueSize(main.Key);
+        var placed = new List<(Image Image, int X, int Y)>();
+        foreach (var l in layers)
+        {
+            var s = strips[l.Key];
+            var img = pixels[l.Key].GetRegion(new Rect2I(0, 0, s.FrameW, s.FrameH));
+            var k = l.Size / OpaqueSize(l.Key) / unit;
+            if (Math.Abs(k - 1) > 0.01) img.Resize(Math.Max(1, (int)Math.Round(s.FrameW * k)), Math.Max(1, (int)Math.Round(s.FrameH * k)), Image.Interpolation.Nearest);
+            // Offsets are in radii; a main texture pixel is 2 * main.Size / OpaqueSize radii.
+            placed.Add((img, (int)Math.Round(l.X / (2 * unit)), (int)Math.Round(l.Y / (2 * unit))));
+        }
+        var w = placed.Max(p => p.Image.GetWidth() + 2 * Math.Abs(p.X));
+        var h = placed.Max(p => p.Image.GetHeight() + 2 * Math.Abs(p.Y));
+        using var canvas = Image.CreateEmpty(w, h, false, Image.Format.Rgba8);
+        foreach (var (img, x, y) in placed)
+        {
+            var (iw, ih) = (img.GetWidth(), img.GetHeight());
+            canvas.BlendRect(img, new Rect2I(0, 0, iw, ih), new Vector2I((w - iw) / 2 + x, (h - ih) / 2 + y));
+            img.Dispose();
+        }
+        var used = canvas.GetUsedRect();
+        if (used.Size.X == 0 || used.Size.Y == 0) return;
+        var icon = canvas.GetRegion(used);
+        if (look.Tint) Tint(icon, Core.Palette.Hex(Factions.Defs[race].Color));
+        var side = Math.Max(icon.GetWidth(), icon.GetHeight());
+        if (side <= IconSize)
+        {
+            var up = IconSize / side;
+            if (up > 1) icon.Resize(icon.GetWidth() * up, icon.GetHeight() * up, Image.Interpolation.Nearest);
+        }
+        else icon = Shrink(icon, (side + IconSize - 1) / IconSize);
+        if (Core.Dev.Dump is string into) icon.SavePng($"{into}/icon-{main.Key}{(look.Tint ? "-" + race.ToString().ToLowerInvariant() : "")}.png");
+        icons[look] = ImageTexture.CreateFromImage(icon);
+        icon.Dispose();
+    }
+
+    static void Tint(Image img, Color c)
+    {
+        var data = img.GetData();
+        for (var i = 0; i < data.Length; i += 4)
+        {
+            data[i] = (byte)(data[i] * c.R);
+            data[i + 1] = (byte)(data[i + 1] * c.G);
+            data[i + 2] = (byte)(data[i + 2] * c.B);
+        }
+        img.SetData(img.GetWidth(), img.GetHeight(), false, Image.Format.Rgba8, data);
+    }
+
+    /// <summary>An image `d` times smaller: each block of d × d pixels averaged, weighed by how opaque each is.</summary>
+    static Image Shrink(Image img, int d)
+    {
+        var (w, h) = (img.GetWidth(), img.GetHeight());
+        var (sw, sh) = ((w + d - 1) / d, (h + d - 1) / d);
+        var src = img.GetData();
+        var dst = new byte[sw * sh * 4];
+        for (var y = 0; y < sh; y++)
+        {
+            for (var x = 0; x < sw; x++)
+            {
+                double r = 0, g = 0, b = 0, a = 0;
+                for (var j = y * d; j < Math.Min(h, y * d + d); j++)
+                {
+                    for (var i = x * d; i < Math.Min(w, x * d + d); i++)
+                    {
+                        var o = (j * w + i) * 4;
+                        double alpha = src[o + 3];
+                        r += src[o] * alpha;
+                        g += src[o + 1] * alpha;
+                        b += src[o + 2] * alpha;
+                        a += alpha;
+                    }
+                }
+                var q = (y * sw + x) * 4;
+                if (a > 0)
+                {
+                    dst[q] = (byte)(r / a);
+                    dst[q + 1] = (byte)(g / a);
+                    dst[q + 2] = (byte)(b / a);
+                }
+                dst[q + 3] = (byte)(a / (d * d));
+            }
+        }
+        img.Dispose();
+        return Image.CreateFromData(sw, sh, false, Image.Format.Rgba8, dst);
     }
 
     /// <summary>The pack sprite of a ship class, for pictures outside the battle (the menu); null for a placeholder.</summary>

@@ -6,6 +6,7 @@
 using Godot;
 using SandboxShip.Battle;
 using SandboxShip.Core;
+using SandboxShip.Render;
 using SandboxShip.Sim;
 using SandboxShip.Sim.Data;
 using static SandboxShip.Ui.HudKit;
@@ -22,8 +23,8 @@ public partial class Hud : CanvasLayer
     const double RefreshMs = 100;
     static readonly double[] Speeds = [0.5, 1, 2, 4];
     static readonly ShipClass[] ShipyardClasses = Ships.All.Where(c => !Ships.Defs[c].FromHangar).ToArray();
-    /// <summary>Build buttons are laid out in columns at least this wide, 6 pixels apart.</summary>
-    const int ColumnWidth = 132, ColumnGap = 6;
+    /// <summary>Build buttons are laid out in columns at least this wide (a picture, then room for the name), 6 pixels apart.</summary>
+    const int ColumnWidth = 132 + LabelButton.IconRoom, ColumnGap = 6;
 
     readonly BattleScreen scene;
     readonly bool sandbox;
@@ -50,6 +51,8 @@ public partial class Hud : CanvasLayer
     readonly Dictionary<TechId, LabelButton> techButtons = [];
     readonly Dictionary<HeroId, LabelButton> heroButtons = [];
     Button? upgradeButton;
+    /// <summary>The station level the upgrade button pictures, 0 for none.</summary>
+    int upgradeLevel;
     Minimap minimap = null!;
     VBoxContainer toasts = null!;
     /// <summary>When each toast fades out and when it goes, in milliseconds.</summary>
@@ -260,7 +263,7 @@ public partial class Hud : CanvasLayer
         var shipRow = Grid(shipList);
         foreach (var cls in ShipyardClasses)
         {
-            var b = BuildButton(Ships.OrderName(cls));
+            var b = BuildButton(Ships.OrderName(cls), Assets.ShipIcon(Race, cls));
             // Shift: five at once, as many as the queue and the credits allow.
             b.Pressed += () => Report(scene.Sink.Send(new Command.EnqueueShip(cls, Input.IsKeyPressed(Key.Shift) ? 5 : 1)));
             // Right click: keep this class in production.
@@ -280,7 +283,7 @@ public partial class Hud : CanvasLayer
         foreach (var h in Heroes.Of(Race))
         {
             var id = h.Id;
-            var b = BuildButton($"{h.Name}, {h.Title.ToLowerInvariant()}");
+            var b = BuildButton($"{h.Name}, {h.Title.ToLowerInvariant()}", Assets.ShipIcon(Race, h.Base));
             var power = Abilities.Defs[h.Ability];
             b.TooltipText = $"{h.Description} {power.Name} : {power.Description}";
             b.Pressed += () => Report(scene.Sink.Send(new Command.EnqueueHero(id)));
@@ -293,11 +296,12 @@ public partial class Hud : CanvasLayer
         var buildingList = Scrolled(buildings);
         upgradeButton = Button("", () => Report(scene.Sink.Send(new Command.UpgradeStation())));
         upgradeButton.SizeFlagsHorizontal = Control.SizeFlags.ShrinkBegin;
+        upgradeButton.TextureFilter = CanvasItem.TextureFilterEnum.Nearest;
         buildingList.AddChild(upgradeButton);
         var structureRow = Grid(buildingList);
         foreach (var type in Buildables.All)
         {
-            var b = BuildButton(Buildables.Defs[type].Name);
+            var b = BuildButton(Buildables.Defs[type].Name, Assets.BuildingIcon(Race, type));
             b.Pressed += () => scene.Controls.SetMode(new PlaceMode(type));
             structureRow.AddChild(b);
             structureButtons[type] = b;
@@ -318,8 +322,8 @@ public partial class Hud : CanvasLayer
         ShowTab(Tab.Ships);
     }
 
-    /// <summary>A production button: the name, and under it the price or why it cannot be built.</summary>
-    static LabelButton BuildButton(string name)
+    /// <summary>A production button: what it makes, pictured, then the name, and under it the price or why it cannot be built.</summary>
+    static LabelButton BuildButton(string name, Texture2D? icon = null)
     {
         var b = new LabelButton(true, 8, 4)
         {
@@ -328,6 +332,7 @@ public partial class Hud : CanvasLayer
         };
         b.Add(name, Palette.Text, 14, wrap: true);
         b.Add("", Palette.Accent, 12, wrap: true);
+        b.SetIcon(icon);
         return b;
     }
 
@@ -734,6 +739,13 @@ public partial class Hud : CanvasLayer
         }
         var next = station is not null && station.Level < Station.Levels.Count ? Station.Levels[station.Level] : null;
         var up = Structures.CanUpgrade(w, Player);
+        // The station it would become, pictured; changed only when its level does.
+        var toLevel = next is not null ? station!.Level + 1 : 0;
+        if (toLevel != upgradeLevel)
+        {
+            upgradeLevel = toLevel;
+            upgradeButton!.Icon = toLevel > 0 ? Assets.StationIcon(Race, toLevel) : null;
+        }
         upgradeButton!.Disabled = !up.Ok;
         upgradeButton.Text = next is not null
             ? $"Améliorer la station au niveau {station!.Level + 1} ({N(next.UpgradeCost)} cr){(up.Ok ? "" : $" : {up.Reason}")}"
