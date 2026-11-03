@@ -205,12 +205,12 @@ public static partial class Snapshot
         if (r.ReadUInt32() != Magic) throw new InvalidDataException("Pas un instantané de bataille");
         var version = r.ReadUInt16();
         if (version != Version) throw new InvalidDataException($"Instantané en version {version}, version {Version} attendue");
-        var viewer = new Side(r.Read7BitEncodedInt());
-        var seq = r.Read7BitEncodedInt();
-        var from = r.Read7BitEncodedInt();
+        var viewer = new Side(r.ReadVarint());
+        var seq = r.ReadVarint();
+        var from = r.ReadVarint();
         var kind = r.ReadByte();
-        var index = r.Read7BitEncodedInt();
-        var count = r.Read7BitEncodedInt();
+        var index = r.ReadVarint();
+        var count = r.ReadVarint();
         var time = r.ReadDouble();
         if (seq <= 0 || count < 1 || index >= count || kind > ShotPart) throw new InvalidDataException("Partie d'instantané mal formée");
         var baseline = frames.Find(from);
@@ -332,7 +332,7 @@ public static partial class Snapshot
             }
             if (!In(change)) throw new InvalidDataException($"Tir {change} hors de sa partie");
             if (id == change) b++;
-            shots.Add(new(change, r.Read7BitEncodedInt(), r.ReadByte(), r.ReadSingle(), r.ReadSingle(), r.ReadSingle(), r.ReadSingle()));
+            shots.Add(new(change, r.ReadVarint(), r.ReadByte(), r.ReadSingle(), r.ReadSingle(), r.ReadSingle(), r.ReadSingle()));
             change = --changes > 0 ? NextId(r, change) : int.MaxValue;
         }
         if (gone != removed.Count || shots.Count - before != count) throw new InvalidDataException("Tirs mal formés");

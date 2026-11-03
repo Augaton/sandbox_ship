@@ -6,8 +6,10 @@
 // (Open), a dedicated server (Open, Public) or a player (Join). A player only ever reaches the
 // host of its own game, and a host only its own players. Each game has a budget of bytes a
 // second: unreliable packets beyond it are left out (the next snapshot replaces them); a host
-// that keeps sending reliable ones far beyond it loses its game. A connection that does not say
-// what it is in time, or says something malformed or out of place, is told why and let go.
+// that keeps sending reliable ones far beyond it loses its game, a player who does so is let go.
+// A connection that does not say what it is in time, or says something malformed or out of place,
+// is told why and let go. One address holds a few connections and games at most, and every
+// connection a number of frames a second: one machine cannot fill the server.
 using SandboxShip.Sim.Data;
 
 namespace SandboxShip.Sim.Net;
@@ -17,12 +19,23 @@ public sealed record RelayLimits
 {
     /// <summary>Connections at once, of every kind.</summary>
     public int Connections { get; init; } = 512;
+    /// <summary>Connections at once from one address: a few machines behind one box, each with a game and the list open.</summary>
+    public int ConnectionsPerAddress { get; init; } = 16;
+    /// <summary>Games listed at once from one address.</summary>
+    public int RoomsPerAddress { get; init; } = 4;
+    /// <summary>
+    /// Frames a second from one connection, and at once: a host sends a snapshot in parts to each
+    /// of its players twenty times a second, some two thousand frames; beyond, frames are left out.
+    /// </summary>
+    public double FramesPerSecond { get; init; } = 4000;
     /// <summary>Games listed at once, relayed and dedicated.</summary>
     public int Rooms { get; init; } = 32;
     /// <summary>Players in one relayed game, as a host listening by itself takes them.</summary>
     public int PlayersPerRoom { get; init; } = Lobby.MaxSeats + 2;
-    /// <summary>Bytes a second relayed for one game, both ways, before compression: five players at a host's highest snapshot rate, and room to spare.</summary>
+    /// <summary>Bytes a second a host sends its players through the server, before compression: five players at its highest snapshot rate, and room to spare.</summary>
     public int RoomBytesPerSecond { get; init; } = 2 << 20;
+    /// <summary>Bytes a second a player sends its host through the server: orders, acknowledgements and lines of chat are far less.</summary>
+    public int PlayerBytesPerSecond { get; init; } = 256 << 10;
     /// <summary>Seconds a new connection has to say what it is.</summary>
     public double HelloWait { get; init; } = 5;
     /// <summary>Seconds the multiplayer screen's connection may go without asking for the list.</summary>
@@ -45,6 +58,16 @@ public sealed class RelayHub
         /// <summary>A player's number in its game.</summary>
         public int Player;
         public double Listed = double.NegativeInfinity;
+        /// <summary>Frames it may still send now: refilled at FramesPerSecond, up to two seconds of them.</summary>
+        public double Frames = double.NaN, FramesAt;
+        /// <summary>A player's bytes for its host.</summary>
+        public readonly Meter Sent = new();
+    }
+
+    /// <summary>A byte budget: filled at its rate up to two seconds of it; in debt after reliable packets beyond it.</summary>
+    sealed class Meter
+    {
+        public double Budget, At = double.NaN;
     }
 
     sealed class Room(int id, Conn host, LanGame game, string address)
@@ -57,8 +80,8 @@ public sealed class RelayHub
         public readonly string Address = address;
         public readonly SortedDictionary<int, Conn> Players = [];
         public int Next = 2;
-        /// <summary>The byte budget: filled at the room's rate up to two seconds of it; in debt after reliable packets beyond it.</summary>
-        public double Budget, At = double.NaN;
+        /// <summary>The host's bytes for its players.</summary>
+        public readonly Meter Sent = new();
         public bool Relayed => Address.Length == 0;
     }
 
@@ -101,6 +124,7 @@ public sealed class RelayHub
         var c = new Conn(conn, address, now) { Port = port };
         conns[conn] = c;
         if (conns.Count > limits.Connections) Close(c, "Le serveur en ligne est saturé : réessaie dans un moment.");
+        else if (conns.Values.Count(o => o.Address == address) > limits.ConnectionsPerAddress) Close(c, "Trop de connexions depuis ton adresse.");
     }
 
     /// <summary>A connection went by itself (or after being let go): its game closes, or its host hears of it.</summary>
@@ -114,6 +138,11 @@ public sealed class RelayHub
     {
         if (!conns.TryGetValue(conn, out var c)) return;
         BytesIn += bytes.Length;
+        if (!Paced(c, now))
+        {
+            Dropped++;
+            return;
+        }
         RelayFrame f;
         try
         {
@@ -142,7 +171,7 @@ public sealed class RelayHub
                 break;
             case (Role.Host, RelayFrame.ToPlayer t):
                 // A player who just left may still be written to: nothing to carry.
-                if (c.Room!.Players.TryGetValue(t.Player, out var to)) Carry(c.Room, to, new RelayFrame.FromHost(t.Payload), channel, flags, now);
+                if (c.Room!.Players.TryGetValue(t.Player, out var to)) Carry(c.Room, c, to, new RelayFrame.FromHost(t.Payload), channel, flags, now);
                 break;
             case (Role.Host, RelayFrame.Kick k):
                 if (!c.Room!.Players.Remove(k.Player, out var kicked)) return;
@@ -151,7 +180,7 @@ public sealed class RelayHub
                 Send(c, new RelayFrame.Went(k.Player));
                 log($"Joueur {k.Player} renvoyé par l'hôte de la partie {c.Room.Id}");
                 break;
-            case (Role.Player, RelayFrame.ToHost t): Carry(c.Room!, c.Room!.Host, new RelayFrame.FromPlayer(c.Player, t.Payload), channel, flags, now); break;
+            case (Role.Player, RelayFrame.ToHost t): Carry(c.Room!, c, c.Room!.Host, new RelayFrame.FromPlayer(c.Player, t.Payload), channel, flags, now); break;
             default: Close(c, "Message inattendu pour le serveur en ligne."); break;
         }
     }
@@ -164,6 +193,17 @@ public sealed class RelayHub
             if (c.Role == Role.New && now - c.Since > limits.HelloWait) Close(c, "Pas de réponse.");
             else if (c.Role == Role.Lister && now - c.Listed > limits.ListWait) Close(c, "Liste inactive.");
         }
+    }
+
+    /// <summary>Whether a connection may send this frame now: its allowance fills at FramesPerSecond, up to two seconds' worth.</summary>
+    bool Paced(Conn c, double now)
+    {
+        var rate = limits.FramesPerSecond;
+        c.Frames = double.IsNaN(c.Frames) ? 2 * rate : Math.Min(2 * rate, c.Frames + (now - c.FramesAt) * rate);
+        c.FramesAt = now;
+        if (c.Frames < 1) return false;
+        c.Frames -= 1;
+        return true;
     }
 
     bool SameWire(Conn c, int wire)
@@ -180,6 +220,11 @@ public sealed class RelayHub
         if (rooms.Count >= limits.Rooms)
         {
             Close(c, $"Le serveur en ligne est complet ({limits.Rooms} parties) : réessaie plus tard.");
+            return;
+        }
+        if (rooms.Values.Count(r => r.Host.Address == c.Address) >= limits.RoomsPerAddress)
+        {
+            Close(c, "Trop de parties ouvertes depuis ton adresse.");
             return;
         }
         var address = o.Public ? Relay.Endpoint(o.Address.Length > 0 ? o.Address : c.Address, o.Game.Port) : "";
@@ -229,26 +274,36 @@ public sealed class RelayHub
 
     /// <summary>
     /// A game's message from one end to the other, on the channel it came on and as reliable as
-    /// it came, within the game's budget: an unreliable one beyond it is left out, and a game
-    /// several seconds in debt is closed.
+    /// it came, within its sender's budget (the host's for its game, each player's its own): an
+    /// unreliable one beyond it is left out; a host several seconds in debt loses its game, a
+    /// player in debt is let go, its host's game untouched.
     /// </summary>
-    void Carry(Room room, Conn to, RelayFrame f, int channel, int flags, double now)
+    void Carry(Room room, Conn from, Conn to, RelayFrame f, int channel, int flags, double now)
     {
         var bytes = Relay.Encode(f);
-        var rate = limits.RoomBytesPerSecond;
-        room.Budget = double.IsNaN(room.At) ? 2.0 * rate : Math.Min(2.0 * rate, room.Budget + (now - room.At) * rate);
-        room.At = now;
+        var host = from == room.Host;
+        var (meter, rate) = host ? (room.Sent, limits.RoomBytesPerSecond) : (from.Sent, limits.PlayerBytesPerSecond);
+        meter.Budget = double.IsNaN(meter.At) ? 2.0 * rate : Math.Min(2.0 * rate, meter.Budget + (now - meter.At) * rate);
+        meter.At = now;
         var reliable = (flags & Relay.Reliable) != 0;
-        if (!reliable && room.Budget < bytes.Length)
+        if (!reliable && meter.Budget < bytes.Length)
         {
             Dropped++;
             return;
         }
-        room.Budget -= bytes.Length;
-        if (room.Budget < -4.0 * rate)
+        meter.Budget -= bytes.Length;
+        if (meter.Budget < -4.0 * rate)
         {
-            log($"Partie {room.Id} « {room.Game.Name} » : débit trop élevé");
-            Close(room.Host, "Débit trop élevé pour le serveur en ligne : la partie est fermée.");
+            if (host)
+            {
+                log($"Partie {room.Id} « {room.Game.Name} » : débit trop élevé");
+                Close(room.Host, "Débit trop élevé pour le serveur en ligne : la partie est fermée.");
+            }
+            else
+            {
+                log($"Joueur {from.Player} de la partie {room.Id} : débit trop élevé");
+                Close(from, "Débit trop élevé pour le serveur en ligne.");
+            }
             return;
         }
         BytesOut += bytes.Length;

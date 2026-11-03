@@ -19,13 +19,13 @@ public static partial class GalaxySnapshot
         var (w, h) = (r.ReadSingle(), r.ReadSingle());
         var lanes = new List<Lane>();
         // Lanes come before the planets they join: checked once both are read.
-        for (var n = Count(r); n > 0; n--) lanes.Add(new Lane(r.Read7BitEncodedInt(), r.Read7BitEncodedInt()));
+        for (var n = Count(r); n > 0; n--) lanes.Add(new Lane(r.ReadVarint(), r.ReadVarint()));
         var planets = new List<Planet>();
         for (var n = Count(r); n > 0; n--)
         {
             planets.Add(new Planet
             {
-                Id = planets.Count, Name = r.ReadString(), X = r.ReadSingle(), Y = r.ReadSingle(), Income = r.ReadSingle(), MineSlots = r.Read7BitEncodedInt(),
+                Id = planets.Count, Name = r.ReadText(), X = r.ReadSingle(), Y = r.ReadSingle(), Income = r.ReadSingle(), MineSlots = r.ReadVarint(),
             });
         }
         if (lanes.Exists(l => (uint)l.A >= (uint)planets.Count || (uint)l.B >= (uint)planets.Count)) throw new InvalidDataException("Voie vers une planète inconnue");
@@ -54,7 +54,7 @@ public static partial class GalaxySnapshot
         clock = clock with { Paused = (flags & 1) != 0 };
         replica.Winner = (flags & 2) != 0 ? SideOf(r) : null;
         replica.Humans.Clear();
-        for (var n = Count(r); n > 0; n--) replica.Humans[SideOf(r)] = r.ReadString();
+        for (var n = Count(r); n > 0; n--) replica.Humans[SideOf(r)] = r.ReadText();
         if (Count(r) != replica.Planets.Count) throw new InvalidDataException("Planètes autres que celles de la carte");
         foreach (var p in replica.Planets) ReadPlanet(r, replica, p);
         ReadFleets(r, replica);
@@ -85,24 +85,24 @@ public static partial class GalaxySnapshot
     /// <summary>A count, checked: a broken snapshot must not ask for a huge list.</summary>
     static int Count(BinaryReader r)
     {
-        var n = r.Read7BitEncodedInt();
+        var n = r.ReadVarint();
         return n is >= 0 and <= 1 << 16 ? n : throw new InvalidDataException($"Liste de {n} éléments");
     }
 
     static Side SideOf(BinaryReader r)
     {
-        var id = r.Read7BitEncodedInt();
+        var id = r.ReadVarint();
         return id >= 0 ? new Side(id) : throw new InvalidDataException($"Camp {id}");
     }
 
-    static Side? OptionalSide(BinaryReader r) => r.Read7BitEncodedInt() is var id and > 0 ? new Side(id - 1) : null;
+    static Side? OptionalSide(BinaryReader r) => r.ReadVarint() is var id and > 0 ? new Side(id - 1) : null;
 
     static int PlanetOf(BinaryReader r, Galaxy g) =>
-        r.Read7BitEncodedInt() is var id && (uint)id < (uint)g.Planets.Count ? id : throw new InvalidDataException($"Planète inconnue : {id}");
+        r.ReadVarint() is var id && (uint)id < (uint)g.Planets.Count ? id : throw new InvalidDataException($"Planète inconnue : {id}");
 
     /// <summary>An incident's other planet, as n + 1: -1 for none.</summary>
     static int OtherOf(BinaryReader r, Galaxy g) =>
-        r.Read7BitEncodedInt() - 1 is var id && id >= -1 && id < g.Planets.Count ? id : throw new InvalidDataException($"Planète inconnue : {id}");
+        r.ReadVarint() - 1 is var id && id >= -1 && id < g.Planets.Count ? id : throw new InvalidDataException($"Planète inconnue : {id}");
 
     /// <summary>An enum value the host's build knows: the view looks them up, an unknown one would throw there.</summary>
     static T Valid<T>(byte value) where T : struct, Enum
@@ -122,7 +122,7 @@ public static partial class GalaxySnapshot
     static ShipCounts ReadShips(BinaryReader r)
     {
         var ships = new ShipCounts();
-        for (var n = Count(r); n > 0; n--) ships[Valid<ShipClass>(r.ReadByte())] = r.Read7BitEncodedInt();
+        for (var n = Count(r); n > 0; n--) ships[Valid<ShipClass>(r.ReadByte())] = r.ReadVarint();
         return ships;
     }
 
@@ -143,14 +143,14 @@ public static partial class GalaxySnapshot
         p.Occupation = null;
         if ((flags & Seen) != 0)
         {
-            p.Station = r.Read7BitEncodedInt();
-            p.Mines = r.Read7BitEncodedInt();
-            p.Platforms = r.Read7BitEncodedInt();
-            p.PlatformTier = r.Read7BitEncodedInt();
-            p.Lab = r.Read7BitEncodedInt();
-            p.RepairDock = r.Read7BitEncodedInt();
-            p.IonCannon = r.Read7BitEncodedInt();
-            p.StarLance = r.Read7BitEncodedInt();
+            p.Station = r.ReadVarint();
+            p.Mines = r.ReadVarint();
+            p.Platforms = r.ReadVarint();
+            p.PlatformTier = r.ReadVarint();
+            p.Lab = r.ReadVarint();
+            p.RepairDock = r.ReadVarint();
+            p.IonCannon = r.ReadVarint();
+            p.StarLance = r.ReadVarint();
             if (p.StarLance > 0) p.LanceCharge = r.ReadSingle();
             if ((flags & Occupied) != 0) p.Occupation = new Occupation { Side = SideOf(r), Remaining = r.ReadSingle() };
         }
@@ -185,7 +185,7 @@ public static partial class GalaxySnapshot
         var fleets = new OrderedDictionary<int, Fleet>();
         for (var n = Count(r); n > 0; n--)
         {
-            var id = r.Read7BitEncodedInt();
+            var id = r.ReadVarint();
             if (!g.Fleets.TryGetValue(id, out var f)) f = new Fleet { Id = id };
             f.Side = SideOf(r);
             f.Ships = ReadShips(r);
@@ -196,7 +196,7 @@ public static partial class GalaxySnapshot
             f.Came = f.From;
             (f.To, f.Progress) = (null, 0);
             if ((flags & Moving) != 0) (f.To, f.Progress) = (PlanetOf(r, g), r.ReadSingle());
-            f.BattleId = (flags & Fighting) != 0 ? r.Read7BitEncodedInt() : null;
+            f.BattleId = (flags & Fighting) != 0 ? r.ReadVarint() : null;
             f.Condition = r.ReadSingle();
             f.Path = [];
             if ((flags & Routed) != 0) for (var k = Count(r); k > 0; k--) f.Path.Add(PlanetOf(r, g));
@@ -213,7 +213,7 @@ public static partial class GalaxySnapshot
             var side = SideOf(r);
             if (!g.Factions.TryGetValue(side, out var f)) f = new GalaxyFaction { Id = side };
             f.Race = Valid<Faction>(r.ReadByte());
-            f.Team = r.Read7BitEncodedInt();
+            f.Team = r.ReadVarint();
             f.Color = r.ReadUInt32();
             var flags = r.ReadByte();
             f.Eliminated = (flags & Out) != 0;
@@ -236,7 +236,7 @@ public static partial class GalaxySnapshot
                 var techs = Count(r);
                 for (var t = 0; t < techs; t++)
                 {
-                    var level = r.Read7BitEncodedInt();
+                    var level = r.ReadVarint();
                     if (t < Techs.All.Count) f.Research[Techs.All[t]] = level;
                 }
                 if (r.ReadBoolean()) f.Researching = ReadJob(r);
@@ -257,7 +257,7 @@ public static partial class GalaxySnapshot
         var battles = new List<GalaxyBattle>();
         for (var n = Count(r); n > 0; n--)
         {
-            var id = r.Read7BitEncodedInt();
+            var id = r.ReadVarint();
             var b = g.Battles.Find(x => x.Id == id) ?? new GalaxyBattle { Id = id, World = new World() };
             b.PlanetId = PlanetOf(r, g);
             var flags = r.ReadByte();
@@ -281,8 +281,8 @@ public static partial class GalaxySnapshot
                     var strength = r.ReadSingle();
                     var d = new PlanetDefense
                     {
-                        Station = r.Read7BitEncodedInt(), Platforms = r.Read7BitEncodedInt(), Mines = r.Read7BitEncodedInt(),
-                        RepairDock = r.Read7BitEncodedInt(), IonCannon = r.Read7BitEncodedInt(), PlatformTier = r.Read7BitEncodedInt(),
+                        Station = r.ReadVarint(), Platforms = r.ReadVarint(), Mines = r.ReadVarint(),
+                        RepairDock = r.ReadVarint(), IonCannon = r.ReadVarint(), PlatformTier = r.ReadVarint(),
                     };
                     b.Forces[side] = new BattleForce(ships, heroes, strength, d);
                 }
@@ -296,13 +296,13 @@ public static partial class GalaxySnapshot
 
     static GalaxyEvent ReadEvent(BinaryReader r, Galaxy g) => (Tag)r.ReadByte() switch
     {
-        Tag.BattleStarted => new BattleStarted(r.Read7BitEncodedInt()),
+        Tag.BattleStarted => new BattleStarted(r.ReadVarint()),
         Tag.BattleEnded => new BattleEnded(PlanetOf(r, g), SideOf(r), SideOf(r), Valid<BattleResult>(r.ReadByte()), ReadLane(r, g)),
         Tag.Captured => new Captured(PlanetOf(r, g), SideOf(r), OptionalSide(r)),
-        Tag.PlanetBuilt => new PlanetBuilt(PlanetOf(r, g), SideOf(r), r.ReadString()),
+        Tag.PlanetBuilt => new PlanetBuilt(PlanetOf(r, g), SideOf(r), r.ReadText()),
         Tag.TechResearched => new TechResearched(SideOf(r), Valid<TechId>(r.ReadByte())),
         Tag.BountyPaid => new BountyPaid(PlanetOf(r, g), SideOf(r), r.ReadDouble(), OptionalTech(r), ReadLane(r, g)),
-        Tag.GalaxyVictory => new GalaxyVictory(SideOf(r), r.Read7BitEncodedInt()),
+        Tag.GalaxyVictory => new GalaxyVictory(SideOf(r), r.ReadVarint()),
         Tag.TruceOffered => new TruceOffered(SideOf(r), SideOf(r)),
         Tag.TruceSigned => new TruceSigned(SideOf(r), SideOf(r)),
         Tag.TruceEnded => new TruceEnded(SideOf(r), SideOf(r), OptionalSide(r)),

@@ -32,6 +32,8 @@ public sealed class BattleHost(World world, Action<int, Message> send)
         /// <summary>A spectator who sees everything, fog or not: its snapshots are written as if there were none.</summary>
         public bool All;
         public readonly DelayedSink<Command> Sink = sink;
+        /// <summary>How fast its orders are taken: a flood is left out.</summary>
+        public readonly OrderPace Pace = new();
         public readonly List<SimEvent> Events = [];
         /// <summary>The snapshots sent, baselines of the next ones once acknowledged.</summary>
         public readonly SnapshotFrames Frames = new();
@@ -81,7 +83,7 @@ public sealed class BattleHost(World world, Action<int, Message> send)
     /// <summary>A player's command, for the next step; from a peer not (or no longer) in the battle, nothing.</summary>
     public void Receive(int peer, Command c)
     {
-        if (remotes.TryGetValue(peer, out var r)) r.Sink.Send(c);
+        if (remotes.TryGetValue(peer, out var r) && r.Pace.Take(c is Command.PilotInput, r.Sink.Pending)) r.Sink.Send(c);
     }
 
     /// <summary>A player read one of its snapshots: the next ones are written against it.</summary>
@@ -112,6 +114,7 @@ public sealed class BattleHost(World world, Action<int, Message> send)
     {
         foreach (var (peer, r) in remotes)
         {
+            if (r.Pace.Refill(dt)) send(peer, new Message.Refused(OrderPace.TooMany));
             r.Wait -= dt;
             // A millisecond early is on time: three frames at 60 images a second add up to a hair under 1/20 s.
             if (r.Wait > 0.001) continue;

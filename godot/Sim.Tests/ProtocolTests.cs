@@ -20,7 +20,8 @@ public class ProtocolTests
         return l;
     }
 
-    static IEnumerable<Message> Every()
+    /// <summary>One of each message, as the network carries them (FuzzTests breaks them).</summary>
+    internal static IEnumerable<Message> Every()
     {
         yield return Protocol.Hello("0.3.0", "Aurélien");
         yield return new Message.Challenge([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16]);

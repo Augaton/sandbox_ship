@@ -6,7 +6,8 @@
 # - a tag vX.Y.Z makes the version's release, once the version in the game matches the tag,
 #   and goes to itch.io if the repository names the game there (see the itch job).
 # Before anything is published, both exports are started without a window, each on its system.
-# Pull requests publish nothing.
+# The online server on its own (godot/Relay) is built, started and published beside them.
+# Pull requests publish nothing. Actions are pinned to their commits, downloads to their hashes.
 name: Build
 
 on:
@@ -34,8 +35,8 @@ jobs:
     name: Tests de la simulation
     runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-dotnet@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - uses: actions/setup-dotnet@67a3573c9a986a3f9c594539f4ab511d57bb3ce9 # v4.3.1
         with:
           dotnet-version: ${{ env.DOTNET_VERSION }}
       - name: Tests
@@ -49,7 +50,7 @@ jobs:
     needs: test
     runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
 
       - name: Version du jeu et tag
         if: startsWith(github.ref, 'refs/tags/v')
@@ -61,13 +62,13 @@ jobs:
           grep -qx "application/product_version=\"$v.0\"" godot/Game/export_presets.cfg || { echo "::error file=godot/Game/export_presets.cfg::product_version n'est pas $v.0"; ok=0; }
           [ "$ok" = 1 ]
 
-      - uses: actions/setup-dotnet@v4
+      - uses: actions/setup-dotnet@67a3573c9a986a3f9c594539f4ab511d57bb3ce9 # v4.3.1
         with:
           dotnet-version: ${{ env.DOTNET_VERSION }}
 
       - name: Cache de Godot
         id: godot-cache
-        uses: actions/cache@v4
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
         with:
           path: ~/godot
           key: godot-${{ env.GODOT_VERSION }}-mono-linux-templates
@@ -148,9 +149,50 @@ jobs:
           zip -qr "../../dist/SandboxShip-$v-windows-x86_64.zip" "SandboxShip-$v-windows-x86_64"
           ls -l ../../dist
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: sandbox-ship
+          path: dist/*
+          if-no-files-found: error
+
+  # The online server on its own (godot/Relay): its ENet built from its pinned source, then the
+  # program; it must start, and stop on SIGTERM as a panel stops it, before it is published.
+  relay:
+    name: Serveur en ligne léger
+    needs: test
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - uses: actions/setup-dotnet@67a3573c9a986a3f9c594539f4ab511d57bb3ce9 # v4.3.1
+        with:
+          dotnet-version: ${{ env.DOTNET_VERSION }}
+      - name: ENet
+        run: godot/Relay/native/build.sh
+      - name: Programme
+        run: |
+          # Named as the game's archives are: the tag, the branch for main and dev, else the commit.
+          case "$GITHUB_REF" in
+            refs/tags/v*|refs/heads/main|refs/heads/dev) v="$GITHUB_REF_NAME" ;;
+            *) v="build-${GITHUB_SHA::7}" ;;
+          esac
+          echo "RELAY_DIR=SandboxShip-relay-$v-linux-x86_64" >> "$GITHUB_ENV"
+          dotnet publish godot/Relay -c Release -p:RestoreLockedMode=true -p:InformationalVersion="$v" -o "build/SandboxShip-relay-$v-linux-x86_64"
+      - name: Démarrage et arrêt
+        working-directory: build/${{ env.RELAY_DIR }}
+        run: |
+          ./sandbox-ship-relay --port=27031 > "$RUNNER_TEMP/relay.log" 2>&1 &
+          pid=$!
+          for i in $(seq 1 50); do grep -q "à l'écoute sur le port 27031" "$RUNNER_TEMP/relay.log" && break; sleep 0.1; done
+          grep -q "à l'écoute sur le port 27031" "$RUNNER_TEMP/relay.log" || { cat "$RUNNER_TEMP/relay.log"; echo "::error::le serveur en ligne ne démarre pas"; exit 1; }
+          kill -TERM "$pid"
+          code=0; wait "$pid" || code=$?
+          cat "$RUNNER_TEMP/relay.log"
+          [ "$code" = 0 ] && grep -q "Arrêté" "$RUNNER_TEMP/relay.log"
+      - name: Archive
+        run: mkdir -p dist && tar -czf "dist/$RELAY_DIR.tar.gz" -C build "$RELAY_DIR"
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: sandbox-ship-relay
           path: dist/*
           if-no-files-found: error
 
@@ -161,7 +203,7 @@ jobs:
     runs-on: windows-latest
     timeout-minutes: 15
     steps:
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
         with:
           name: sandbox-ship
           path: dist
@@ -185,14 +227,16 @@ jobs:
   release:
     name: Publication
     if: github.event_name != 'pull_request' && (startsWith(github.ref, 'refs/tags/v') || github.ref == 'refs/heads/main' || github.ref == 'refs/heads/dev')
-    needs: [export, smoke-windows]
+    needs: [export, smoke-windows, relay]
     runs-on: ubuntu-24.04
     permissions:
       contents: write
     steps:
-      - uses: actions/download-artifact@v4
+      # The game's archives and the online server's, side by side.
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
         with:
-          name: sandbox-ship
+          pattern: sandbox-ship*
+          merge-multiple: true
           path: dist
       - name: Release GitHub
         env:
@@ -221,7 +265,7 @@ jobs:
     needs: [export, smoke-windows]
     runs-on: ubuntu-24.04
     steps:
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
         with:
           name: sandbox-ship
           path: dist
@@ -231,7 +275,9 @@ jobs:
           ITCH_GAME: ${{ vars.ITCH_GAME }}
         run: |
           if [ -z "$BUTLER_API_KEY" ]; then echo "::warning::secret BUTLER_API_KEY absent : rien n'est envoyé sur itch.io"; exit 0; fi
-          curl -fsSL --retry 3 -o butler.zip https://broth.itch.zone/butler/linux-amd64/LATEST/archive/default
+          # butler at a version and a hash of its own, never whatever LATEST is that day.
+          curl -fsSL --retry 3 -o butler.zip https://broth.itch.zone/butler/linux-amd64/15.32.0/archive/default
+          echo "2335971394ef6596f95ded0833e85ee28755e13761716ef4c91d6b11f69162f5  butler.zip" | sha256sum -c --quiet -
           unzip -q butler.zip -d butler && chmod +x butler/butler
           mkdir -p linux windows
           tar -xzf dist/*-linux-x86_64.tar.gz -C linux --strip-components=1

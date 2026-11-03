@@ -21,11 +21,8 @@ public sealed class RelayLink
     public bool Down { get; private set; }
     /// <summary>What the server said last on closing it, or why its words could not be read.</summary>
     public string? Problem { get; private set; }
-    /// <summary>
-    /// Seconds before a link's round trip means something: ENet starts it at 500 ms and brings it
-    /// down an eighth of the way each ping; at one ping every 100 ms, it is within a few ms by then.
-    /// </summary>
-    public const double Settle = 4;
+    /// <summary>Seconds before a link's round trip means something (Relay.PingSettle).</summary>
+    public const double Settle = Relay.PingSettle;
 
     ulong upAt;
 

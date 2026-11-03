@@ -84,6 +84,12 @@ public static class Relay
     public const int Wire = 2, MinWire = 1;
     /// <summary>Where the online server listens, unless told otherwise.</summary>
     public const int DefaultPort = 27029;
+    /// <summary>
+    /// Seconds before a link's round trip means something: ENet starts it at 500 ms and brings it
+    /// down an eighth of the way each ping; at one ping every 100 ms, it is within a few ms by then.
+    /// The game's links and both online servers (the game's --relay and godot/Relay) wait as long.
+    /// </summary>
+    public const double PingSettle = 4;
     /// <summary>As Godot's own ENet peer: reliable messages on channel 0, unreliable ones on 1.</summary>
     public const int Channels = 2;
     /// <summary>ENet's packet flags, as Godot names them (ENetPacketPeer.Flag*).</summary>
@@ -191,7 +197,7 @@ public static class Relay
     /// <summary>A number that cannot be negative: a version, a game, a player.</summary>
     static int Count(BinaryReader r)
     {
-        var n = r.Read7BitEncodedInt();
+        var n = r.ReadVarint();
         return n >= 0 ? n : throw new InvalidDataException($"Nombre négatif : {n}");
     }
 

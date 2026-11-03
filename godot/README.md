@@ -106,11 +106,26 @@ godot --headless --path godot/Game -- --relay --port=27029
 
 Il n'ouvre que ce port (UDP). Sa ligne « à l'écoute sur le port » dit qu'il est prêt ; il écrit chaque partie ouverte
 ou fermée, chaque joueur qui entre ou part, et toutes les dix secondes sa charge : parties, joueurs, débit avant et
-après compression, paquets écartés, processeur. Limites : 32 parties, 8 joueurs par partie, 2 Mio/s par partie avant
-compression (au-delà, les instantanés sont écartés ; une partie qui dépasse de loin en messages fiables est fermée),
-512 connexions, 5 s pour se présenter, messages d'1 Mio au plus. Un joueur n'atteint que l'hôte de sa partie, un
+après compression, paquets écartés, processeur. Limites : 32 parties, 8 joueurs par partie, 2 Mio/s de l'hôte vers
+ses joueurs avant compression et 256 Kio/s de chaque joueur vers son hôte (au-delà, les instantanés sont écartés ; un
+hôte qui dépasse de loin en messages fiables perd sa partie, un joueur est renvoyé), 512 connexions dont 16 et
+4 parties par adresse, 4 000 messages par seconde et par connexion, 5 s pour se présenter, messages d'1 Mio au plus. Un joueur n'atteint que l'hôte de sa partie, un
 hôte que ses joueurs ; une autre version du jeu est refusée avec la raison. Ctrl+C l'arrête après avoir prévenu
 chacun. Sur Pelican, l'egg `hosting/pelican/egg-sandbox-ship.yaml` le lance avec le rôle `relay`.
+
+**Serveur en ligne léger** (`godot/Relay`) : le même serveur, en programme à part, en .NET 10 seul, sans Godot ni
+le jeu : même `RelayHub`, même ENet (1.3.18, celui que Godot embarque, compilé depuis sa source officielle à
+empreinte figée), même compression zstd que Godot, mêmes limites et mêmes lignes dans la console. Il tient en
+1,4 Mio, est prêt en une demi-seconde, et occupe environ 40 Mio de mémoire en partie, contre 170 pour le jeu lancé
+avec `--relay`. Il n'écoute qu'en IPv4.
+
+```bash
+godot/Relay/native/build.sh                                   # son ENet : libsandboxship_enet.so
+dotnet run --project godot/Relay -c Release -- --port=27029   # le serveur
+```
+
+La CI le publie avec le jeu : `SandboxShip-relay-<version>-linux-x86_64.tar.gz` ; il lui faut le runtime .NET 10
+(`./sandbox-ship-relay --port=27029`). SIGTERM ou Ctrl+C l'arrêtent après avoir prévenu chacun.
 
 Pour vérifier sans clic, après `--` : `--host` (héberge un salon de `--mode` avec une place libre, et lance
 trois secondes après que tout le monde est prêt), `--join=ADRESSE:PORT` (rejoint, et se dit prêt une fois

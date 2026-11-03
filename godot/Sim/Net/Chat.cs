@@ -54,20 +54,21 @@ public sealed class ChatLog
 
 /// <summary>
 /// How fast each player may write, on the host: Burst lines at once, then one more every Every
-/// seconds. A line beyond it is not relayed; its writer is told to wait.
+/// seconds. A line beyond it is not relayed; its writer is told to wait. The host paces requests
+/// in its lobby with one too, faster (AskBurst, AskEvery): each one taken goes to every member.
 /// </summary>
-public sealed class ChatGate
+public sealed class ChatGate(int burst = ChatGate.Burst, double every = ChatGate.Every)
 {
-    public const int Burst = 4;
-    public const double Every = 1.5;
+    public const int Burst = 4, AskBurst = 20;
+    public const double Every = 1.5, AskEvery = 0.1;
 
     readonly Dictionary<int, (double Tokens, double At)> buckets = [];
 
     /// <summary>Whether `peer` may write a line at `now` (seconds); if so, the line is counted.</summary>
     public bool Allow(int peer, double now)
     {
-        var (tokens, at) = buckets.TryGetValue(peer, out var b) ? b : (Burst, now);
-        tokens = Math.Min(Burst, tokens + (now - at) / Every);
+        var (tokens, at) = buckets.TryGetValue(peer, out var b) ? b : (burst, now);
+        tokens = Math.Min(burst, tokens + (now - at) / every);
         if (tokens < 1)
         {
             buckets[peer] = (tokens, now);

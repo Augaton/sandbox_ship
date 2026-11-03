@@ -1,0 +1,34 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- The online server on its own: the game's list of games and its relay (Sim/Net/RelayHub.cs)
+       over ENet, without Godot or the game. It needs the .NET 10 runtime and its ENet,
+       libsandboxship_enet.so, built by native/build.sh next to it. -->
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <RootNamespace>SandboxShip.Online</RootNamespace>
+    <AssemblyName>sandbox-ship-relay</AssemblyName>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    <!-- Light: no culture data, one plain garbage collector and no background one. -->
+    <InvariantGlobalization>true</InvariantGlobalization>
+    <ServerGarbageCollection>false</ServerGarbageCollection>
+    <ConcurrentGarbageCollection>false</ConcurrentGarbageCollection>
+    <SatelliteResourceLanguages>en</SatelliteResourceLanguages>
+    <!-- The CI names the build it publishes (-p:InformationalVersion=…). -->
+    <InformationalVersion>dev</InformationalVersion>
+    <IncludeSourceRevisionInInformationalVersion>false</IncludeSourceRevisionInInformationalVersion>
+    <!-- Packages restored as recorded in packages.lock.json, their content hashes checked. -->
+    <RestorePackagesWithLockFile>true</RestorePackagesWithLockFile>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="../Sim/Sim.csproj" />
+    <!-- Zstandard in C# (MIT): Godot compresses ENet's packets with standard zstd frames. -->
+    <PackageReference Include="ZstdSharp.Port" Version="0.8.8" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="native/libsandboxship_enet.so" Condition="Exists('native/libsandboxship_enet.so')" Link="libsandboxship_enet.so"
+          CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+  </ItemGroup>
+</Project>

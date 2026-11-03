@@ -5,3 +5,5 @@ obj/
 *.user
 TestResults/
 build/
+# The online server's ENet, built by Relay/native/build.sh.
+Relay/native/*.so
