@@ -22,9 +22,9 @@ public partial class Hud
         return box;
     }
 
-    /// <summary>The sides drawn: the players, and the Errants only when they are the game (a survival).</summary>
+    /// <summary>The sides drawn, the player's first: the players, and the Errants only when they are the game (a survival).</summary>
     IEnumerable<Side> Charted(BattleHistory h) => h.Sides.Keys.Where(s =>
-        World.Mode.Kind == BattleMode.Survival || !World.Factions.TryGetValue(s, out var f) || f.Race != Faction.Errant);
+        World.Mode.Kind == BattleMode.Survival || !World.Factions.TryGetValue(s, out var f) || f.Race != Faction.Errant).OrderBy(s => s != Player);
 
     /// <summary>Army and earnings over time, side by side, and which line is whose; none for a battle too short to draw.</summary>
     Control? Charts()
@@ -96,7 +96,8 @@ public partial class Hud
 
 /// <summary>
 /// Curves over a battle: time across, values up from nothing to the highest, a line per side in
-/// its color with its mark at its end; with the adapted colors, marks along it too.
+/// its color with its mark at its end, the first side's over the others; with the adapted colors,
+/// marks along it too.
 /// </summary>
 public partial class Chart : Control
 {
@@ -139,8 +140,10 @@ public partial class Chart : Control
         Vector2 At(int i, float v) => new(
             plot.Position.X + (float)((times[i] - t0) / span) * plot.Size.X,
             plot.Position.Y + (1 - Math.Clamp(v / max, 0, 1)) * plot.Size.Y);
-        foreach (var (side, color, values) in series)
+        // The first series last, over the others: the player's line shows even where another runs along it.
+        for (var k = series.Length - 1; k >= 0; k--)
         {
+            var (side, color, values) = series[k];
             var points = new Vector2[times.Count];
             for (var i = 0; i < points.Length; i++) points[i] = At(i, values[i]);
             DrawPolyline(points, color, 2, true);

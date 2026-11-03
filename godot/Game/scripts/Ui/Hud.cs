@@ -559,7 +559,7 @@ public partial class Hud : CanvasLayer
         }
         var banner = Math.Min(720, Screen.X - 32) - 24;
         if (pilotText.CustomMinimumSize.X != banner) pilotText.CustomMinimumSize = new Vector2(banner, 0);
-        if (modalScroll is not null) Fit(modalScroll, h - 32 - 50);
+        if (modalScroll is not null) Fit(modalScroll, h - 32 - 50 - (modalActions is null ? 0 : modalActions.GetCombinedMinimumSize().Y + 16));
     }
 
     /// <summary>The tooltip follows the pointer every frame; its text changes with the refresh.</summary>

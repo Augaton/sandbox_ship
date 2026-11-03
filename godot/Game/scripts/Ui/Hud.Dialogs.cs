@@ -16,8 +16,9 @@ public partial class Hud
     Action? onModalClose;
     /// <summary>The pause menu paused the game, and resumes it when it closes.</summary>
     bool menuPaused;
-    /// <summary>The open dialog's scrolled body, kept as tall as the screen allows.</summary>
+    /// <summary>The open dialog's scrolled body, kept as tall as the screen allows, less its buttons under it.</summary>
     ScrollContainer? modalScroll;
+    Control? modalActions;
 
     /// <summary>Opens a dialog in place of the open one; `onClose` runs when it is closed.</summary>
     void OpenModal(Control content, Action? onClose = null)
@@ -39,25 +40,46 @@ public partial class Hud
         if (!shaded) FadeIn(shade);
         FadeIn(center);
         modal = m;
-        modalScroll = content.GetChildCount() > 0 ? content.GetChild(0) as ScrollContainer : null;
+        // A dialog's body is scrolled, or (Dialog) scrolled with its buttons pinned under it.
+        var first = content.GetChildCount() > 0 ? content.GetChild(0) : null;
+        var pinned = first is not null && first.HasMeta(ActionsMeta);
+        modalScroll = pinned ? first!.GetChild(0) as ScrollContainer : first as ScrollContainer;
+        modalActions = pinned ? first!.GetChild<Control>(1) : null;
         onModalClose = onClose;
     }
 
-    /// <summary>The dialog panel: a heading, then its parts 16 pixels apart, scrolled if the screen is too short.</summary>
+    /// <summary>
+    /// The dialog panel: a heading, then its parts 16 pixels apart, scrolled if the screen is too
+    /// short; its buttons, when they come last, under the scroll, in view however long the parts.
+    /// </summary>
     PanelContainer Dialog(string title, params Control[] parts)
     {
         var p = Panel(24, 24);
         var body = Column(16);
         body.AddChild(Text(title, size: 22, bold: true));
-        foreach (var c in parts) body.AddChild(c);
-        p.AddChild(Scroll(body));
+        var actions = parts.Length > 0 && parts[^1].HasMeta(ActionsMeta) ? parts[^1] : null;
+        foreach (var c in parts) if (c != actions) body.AddChild(c);
+        if (actions is null)
+        {
+            p.AddChild(Scroll(body));
+            return p;
+        }
+        var frame = Column(16);
+        frame.SetMeta(ActionsMeta, true);
+        frame.AddChild(Scroll(body));
+        frame.AddChild(actions);
+        p.AddChild(frame);
         return p;
     }
+
+    /// <summary>Marks a row of dialog buttons, and a dialog body that holds one under its scroll.</summary>
+    const string ActionsMeta = "actions";
 
     /// <summary>A row of dialog buttons.</summary>
     static HBoxContainer Actions(params Button[] buttons)
     {
         var row = Row(8);
+        row.SetMeta(ActionsMeta, true);
         foreach (var b in buttons) row.AddChild(b);
         return row;
     }
@@ -71,6 +93,7 @@ public partial class Hud
         modal.QueueFree();
         modal = null;
         modalScroll = null;
+        modalActions = null;
     }
 
     void CloseModal()

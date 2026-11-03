@@ -193,7 +193,9 @@ public sealed partial class Session
     void EndFight(BattleResult? result)
     {
         var id = fought!.Id;
-        // A last snapshot first, so that the end's tally shows the last blows.
+        // A last snapshot first, so that the end's tally shows the last blows; a decided battle's history
+        // goes with it (Message.Record), its outcome being the campaign's word, not a winner of its own.
+        if (result is not null) fought!.World.History?.Close(fought.World);
         fight!.Tick(1);
         foreach (var peer in fight.Peers.ToList()) net.Send(peer, new Message.Over(id, result));
         Log($"Bataille {id} terminée : {result?.ToString() ?? "laissée à l'IA"}");
