@@ -139,8 +139,8 @@ onglet Variables) et que la clé de butler est dans le secret `BUTLER_API_KEY` (
 
 ```bash
 git push . dev:main
-git tag v1.0.0 main
-git push origin main dev v1.0.0
+git tag v1.1.0 main
+git push origin main dev v1.1.0
 ```
 
 ## Le dépôt
