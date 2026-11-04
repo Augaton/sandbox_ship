@@ -2,7 +2,9 @@
 // seeds each: who wins, how, and how long it takes. A measure, not a check, and a long one: it
 // only runs when asked,
 //   BALANCE=1 dotnet test Sim.Tests --filter ModeBalance --logger "console;verbosity=detailed"
-// TERRAIN=light or dense: on that battle terrain (BalanceTests.Terrain).
+// TERRAIN=light or dense: on that battle terrain (BalanceTests.Terrain). SEEDS=N: N seeds per
+// pair of races instead of 4, best for one series alone, e.g. the assault on 108 games:
+//   BALANCE=1 SEEDS=18 dotnet test Sim.Tests --filter Measures_assault --logger "console;verbosity=detailed"
 using SandboxShip.Sim.Data;
 using Xunit;
 using Xunit.Abstractions;
@@ -11,7 +13,7 @@ namespace SandboxShip.Sim.Tests;
 
 public class ModeBalanceTests(ITestOutputHelper output)
 {
-    const int Seeds = 4;
+    static readonly int Seeds = int.TryParse(Environment.GetEnvironmentVariable("SEEDS"), out var n) && n > 0 ? n : 4;
     const double Limit = 60 * 60;
     const double Dt = 1.0 / 30;
 
@@ -83,10 +85,19 @@ public class ModeBalanceTests(ITestOutputHelper output)
         {
             var w = Play(new SkirmishOptions { Mode = BattleMode.Assault, Slots = [Seat(p.A, p.A, 1), Seat(p.B, p.B, 2)], Seed = p.Seed * 101 });
             var how = w.Winner is Side s ? Worlds.TeamOf(w, s) == Assault.Defenders ? "défense" : "attaque" : "nul";
-            return ($"{p.A} défend contre {p.B}, graine {p.Seed}", w, how);
+            // How close a hold was: what is left of the fortress's hull.
+            var left = how == "défense" && Worlds.StationOf(w, p.A) is { } fortress ? $" (station à {Js.Round(100 * fortress.Hull / fortress.MaxHull)} %)" : "";
+            return (Game: $"{p.A} défend contre {p.B}, graine {p.Seed}", World: w, Outcome: how + left, Defender: p.A, Attacker: p.B, Held: how == "défense");
         }).ToList();
-        Report("assaut", games);
-        output.WriteLine($"défense {games.Count(g => g.Item3 == "défense")}, attaque {games.Count(g => g.Item3 == "attaque")}");
+        Report("assaut", [.. games.Select(g => (g.Game, g.World, g.Outcome))]);
+        output.WriteLine($"défense {games.Count(g => g.Held)}, attaque {games.Count(g => g.World.Winner is not null && !g.Held)} sur {games.Count}");
+        // Each race's wins in both roles, as in PLAN.md's table.
+        foreach (var f in Factions.All)
+        {
+            int held = games.Count(g => g.Defender == f && g.Held), taken = games.Count(g => g.Attacker == f && g.World.Winner is not null && !g.Held);
+            int asDefender = games.Count(g => g.Defender == f), asAttacker = games.Count(g => g.Attacker == f);
+            output.WriteLine($"{f}: {Js.Round(100.0 * (held + taken) / (asDefender + asAttacker))} % (en défense {held} / {asDefender}, en attaque {taken} / {asAttacker})");
+        }
     }
 
     [Fact]

@@ -50,7 +50,7 @@ public static class Replays
     /// Layout of the file below: a replay of another layout is not read. Bumped with any change, as
     /// Commands.WireVersion with the commands'. 2: the terrain. 3: each seat's personality.
     /// </summary>
-    public const int FormatVersion = 3;
+    public const int FormatVersion = 4;
     /// <summary>"SSRP", the file's first four bytes.</summary>
     const uint Magic = 0x50525353;
 
@@ -149,9 +149,9 @@ public static class Replays
         if (r.ReadUInt32() != Magic) throw new InvalidDataException("Ce fichier n'est pas une rediffusion.");
         var format = r.ReadInt32();
         var wire = r.ReadInt32();
-        // Formats 1 and 2 still read: their battles had no terrain (1), their AIs all played Balanced.
-        // So do commands 1: those of 2 but the new tags.
-        if (format is not (1 or 2 or FormatVersion) || wire is not (1 or Commands.WireVersion)) throw new InvalidDataException("Rediffusion d'une autre version du jeu, illisible par celle-ci.");
+        // Formats 1 to 3 still read: their battles had no terrain (1), their AIs all played Balanced
+        // (1, 2), their waves the usual strength (1 to 3). So do commands 1: those of 2 but the new tags.
+        if (format is not (1 or 2 or 3 or FormatVersion) || wire is not (1 or Commands.WireVersion)) throw new InvalidDataException("Rediffusion d'une autre version du jeu, illisible par celle-ci.");
         var version = r.ReadText();
         var savedAt = r.ReadInt64();
         var length = r.ReadInt64();
@@ -204,6 +204,7 @@ public static class Replays
         w.Write((byte)o.Difficulty);
         w.Write(o.Raid);
         w.Write((byte)o.Terrain);
+        w.Write(o.WaveStrength);
     }
 
     static SkirmishOptions ReadOptions(BinaryReader r, int format)
@@ -235,6 +236,7 @@ public static class Replays
         o.Difficulty = Named<Difficulty>(r.ReadByte());
         o.Raid = r.ReadBoolean();
         if (format >= 2) o.Terrain = Named<TerrainDensity>(r.ReadByte());
+        if (format >= 4) o.WaveStrength = r.ReadInt32();
         // A battle that can be made, as a lobby makes them: a replay is a file from anyone, and
         // CreateSkirmish throws on the rest (two seats on a side, a zone score of nothing...).
         if (!double.IsFinite(o.Credits) || o.Credits < 0 || Scenario.SlotsOf(o).Exists(s => !Seat(s.Side.Id)) || !Scenario.Check(o).Ok)

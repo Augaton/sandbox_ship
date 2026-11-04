@@ -531,6 +531,7 @@ public partial class Selection : Node
         else if (Bindings.Pressed(ev, Bindings.CenterSelection)) CenterOnSelection();
         else if (Bindings.Pressed(ev, Bindings.LastAlert)) scene.JumpToAlert();
         else if (Bindings.Pressed(ev, Bindings.Idle)) SelectIdle(ev.ShiftPressed);
+        else if (Bindings.Pressed(ev, Bindings.Build)) scene.Hud.ToggleProduction();
         else if (Bindings.Pressed(ev, Bindings.Mute))
         {
             Settings.Current.Muted = !Settings.Current.Muted;

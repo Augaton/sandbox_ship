@@ -3,6 +3,7 @@
 // player's role in an assault, the flagships still flying in regicide. Also each mode's line
 // on the end screen.
 using Godot;
+using SandboxShip.Battle;
 using SandboxShip.Core;
 using SandboxShip.Sim;
 using SandboxShip.Sim.Data;
@@ -44,14 +45,10 @@ public partial class Hud
     void TickModes(double delta)
     {
         if (modePanel is null) return;
-        // The piloting banner and the toasts make room below the panel.
+        // The piloting banner makes room below the panel.
         var below = ModeTop + modePanel.Size.Y + 6;
         var banner = pilotBanner.GetParent<Control>();
-        if (banner.OffsetTop != below)
-        {
-            banner.OffsetTop = below;
-            toasts.OffsetTop = below + 48;
-        }
+        if (banner.OffsetTop != below) banner.OffsetTop = below;
         modeTimer -= delta;
         if (modeTimer > 0) return;
         modeTimer = RefreshMs;
@@ -71,6 +68,66 @@ public partial class Hud
             else camps.Add([f.Id]);
         }
         return camps;
+    }
+
+    /// <summary>How long the objective shows at the start of a battle, then how long it fades, in milliseconds.</summary>
+    const double ObjectiveLife = 9000, ObjectiveFade = 600;
+
+    PanelContainer? objective;
+    double objectiveEnd;
+
+    /// <summary>
+    /// At the start of a battle set up in a lobby: how to win it, under the mode panel, for a few
+    /// seconds; the panel keeps the score after. None in the campaign, the tutorial, the sandbox, a
+    /// replay or for a spectator, nor in a battle joined late.
+    /// </summary>
+    void BuildObjective()
+    {
+        var o = scene.Opts;
+        if (campaign is not null || sandbox || o.Tutorial || o.Replay is not null || o.Net is { Watching: true } || World.Time > 5) return;
+        var (title, text) = Objective();
+        objective = Ignore(Panel(14, 10, Palette.Accent));
+        objective.SizeFlagsHorizontal = Control.SizeFlags.ShrinkCenter;
+        var lines = Column(4);
+        lines.AddChild(Text(title, Palette.Accent, 16, bold: true));
+        var line = Text(text, wrap: true);
+        line.CustomMinimumSize = new Vector2(Math.Min(560, Screen.X - 64), 0);
+        lines.AddChild(line);
+        objective.AddChild(lines);
+        pilotBanner.GetParent().AddChild(objective);
+        objectiveEnd = BattleScreen.Now + ObjectiveLife;
+    }
+
+    /// <summary>The objective fades out once read; it goes at once when a dialog opens over it.</summary>
+    void FadeObjective()
+    {
+        if (objective is null) return;
+        var left = objectiveEnd - BattleScreen.Now;
+        if (modal is null && left > 0) return;
+        if (modal is null && left > -ObjectiveFade)
+        {
+            objective.Modulate = new Color(1, 1, 1, (float)(1 + left / ObjectiveFade));
+            return;
+        }
+        objective.QueueFree();
+        objective = null;
+    }
+
+    /// <summary>The mode's way to win, as the player plays it: in an assault, its role.</summary>
+    (string Title, string Text) Objective()
+    {
+        var m = World.Mode;
+        return m.Kind switch
+        {
+            BattleMode.Survival => ("Survie", "Tenez ensemble contre les vagues d'Errants, de plus en plus fortes : la première arrive dans "
+                + $"{Names.Duration(Math.Max(0, m.NextWave - World.Time))}. La partie dure tant qu'une station tient."),
+            BattleMode.Zones => ("Contrôle de zone", $"Tiens les balises avec tes vaisseaux pour marquer des points : le premier camp à {m.ZoneTarget} points gagne, s'il garde une station."),
+            BattleMode.Assault => Worlds.TeamOf(World, Player) == Assault.Defenders
+                ? ("Assaut : tu défends", $"Garde au moins une station de la forteresse jusqu'à la fin du temps, dans {Names.Duration(m.Deadline - World.Time)}.")
+                : ("Assaut : tu attaques", $"Détruis toutes les stations de la forteresse avant la fin du temps, dans {Names.Duration(m.Deadline - World.Time)}."),
+            BattleMode.Regicide => ("Régicide", "Ton vaisseau amiral porte la couronne : s'il tombe, tu as perdu. Abats ceux des autres pour gagner."),
+            _ => ("Escarmouche", "Détruis les stations ennemies : le dernier camp à en garder une gagne."),
+        };
     }
 
     static Part Heading(string mode, string detail) => SpansPart(14, (mode, Palette.Accent, true), (detail, Palette.Muted, false));

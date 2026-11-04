@@ -137,6 +137,31 @@ public class ReplayTests
     }
 
     [Fact]
+    public void A_survival_replay_keeps_its_waves_strength_and_a_format_3_file_has_the_usual_ones()
+    {
+        byte[] Bytes(int strength)
+        {
+            var o = Options(BattleMode.Survival, 5);
+            o.WaveStrength = strength;
+            var (_, replay) = Record(o, 30);
+            using var file = new MemoryStream();
+            Replays.Write(file, replay);
+            return file.ToArray();
+        }
+        var fierce = Bytes(140);
+        Assert.Equal(140, Replays.Read(new MemoryStream(fierce)).Options.WaveStrength);
+        // The same battle at the usual strength differs only by it, the options' last field: without
+        // it and under format 3, the file is one of the last version, whose waves were the usual.
+        var usual = Bytes(100);
+        var at = Enumerable.Range(0, usual.Length).First(i => usual[i] != fierce[i]);
+        var format3 = usual[..at].Concat(usual[(at + 4)..]).ToArray();
+        BitConverter.GetBytes(3).CopyTo(format3, 4);
+        var old = Replays.Read(new MemoryStream(format3));
+        Assert.Equal((100, BattleMode.Survival, 5), (old.Options.WaveStrength, old.Options.Mode, old.Options.Seed));
+        Assert.Equal(Replays.Read(new MemoryStream(usual)).Commands.Count, old.Commands.Count);
+    }
+
+    [Fact]
     public void Only_a_world_made_from_options_is_recorded_and_a_stranger_file_is_refused()
     {
         Assert.False(Replays.Record(CreateWorld(2000, 2000)));

@@ -114,9 +114,10 @@ public static class Protocol
     /// 6: the lobby's terrain (Settings), with the host's consent to the direct link.
     /// 7: the battle over time at its end (Record). 8: with commands 2 (stances, patrols, guards,
     /// orders queued) and battle snapshots 8 (veterans). 9: a bot's personality (Ask's
-    /// SetPersonality), the deals of the campaign (galaxy commands and snapshot).
+    /// SetPersonality), the deals of the campaign (galaxy commands and snapshot). 10: the lobby's
+    /// start credits and survival waves' strength (Settings).
     /// </summary>
-    public const int Version = 9;
+    public const int Version = 10;
     /// <summary>Where a host listens for players, unless told otherwise.</summary>
     public const int DefaultPort = 24680;
     /// <summary>Where hosts call out to the local network, and the join screen listens.</summary>
@@ -313,6 +314,8 @@ public static class Protocol
                 w.Write(v.Spectators);
                 w.Write(v.Direct);
                 w.Write((byte)v.Terrain);
+                w.Write7BitEncodedInt(v.Credits);
+                w.Write7BitEncodedInt(v.WaveStrength);
                 break;
             default: throw new ArgumentException($"Demande sans format : {q.GetType().Name}");
         }
@@ -328,7 +331,7 @@ public static class Protocol
         6 => new LobbyRequest.AddBot(),
         7 => new LobbyRequest.Remove(r.ReadVarint()),
         8 => new LobbyRequest.Settings(new LobbySettings(r.ReadEnum<MapKind>(), r.ReadEnum<MapSize>(), r.ReadVarint(), r.ReadBoolean(),
-            r.ReadBoolean(), r.ReadVarint(), r.ReadVarint(), r.ReadBoolean(), r.ReadBoolean(), r.ReadEnum<TerrainDensity>())),
+            r.ReadBoolean(), r.ReadVarint(), r.ReadVarint(), r.ReadBoolean(), r.ReadBoolean(), r.ReadEnum<TerrainDensity>(), r.ReadVarint(), r.ReadVarint())),
         9 => new LobbyRequest.SetPersonality(r.ReadVarint(), r.ReadEnumOrNone<Personality>()),
         var tag => throw new InvalidDataException($"Demande inconnue : {tag}"),
     };

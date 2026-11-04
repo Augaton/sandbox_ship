@@ -26,6 +26,8 @@ public sealed class SkirmishOptions
     public int ZoneTarget = 100;
     /// <summary>Assault: minutes the defenders must hold out; the defenders are team 1.</summary>
     public int AssaultMinutes = 15;
+    /// <summary>Survival: the waves' strength, in percent of their usual value (Survival.Compose).</summary>
+    public int WaveStrength = 100;
     /// <summary>
     /// Who plays, 2 to 6 seats, the local player's first; each AI plays at its own difficulty.
     /// Side 3 is the Errants' (see Raid): seats take 0 to 2, then 4 and up. Empty: the
@@ -62,6 +64,8 @@ public static class Scenario
     };
 
     public const double StartCredits = 1500;
+    /// <summary>The waves' strength a battle may have, in percent: the lobby offers less than that, a replay from anyone may say more.</summary>
+    public const int MinWaveStrength = 25, MaxWaveStrength = 400;
 
     /// <summary>
     /// Scatters asteroid fields at random, clear of the given spots and of each other.
@@ -156,6 +160,7 @@ public static class Scenario
         if (slots.Exists(s => s.Race == Faction.Errant)) return Result.Fail("Les Errants ne sont pas jouables");
         if ((survival || (o.Raid && Modes.AllowsRaid(o.Mode))) && slots.Exists(s => s.Side == Faction.Errant)) return Result.Fail("Le camp 3 revient aux Errants");
         if (o.Mode == BattleMode.Zones && o.ZoneTarget < 1) return Result.Fail("Le score à atteindre doit être d'au moins 1");
+        if (o.WaveStrength is < MinWaveStrength or > MaxWaveStrength) return Result.Fail($"La force des vagues va de {MinWaveStrength} à {MaxWaveStrength} %");
         if (o.Mode == BattleMode.Assault)
         {
             if (o.AssaultMinutes < 1) return Result.Fail("L'assaut doit durer au moins 1 min");

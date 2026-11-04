@@ -22,6 +22,7 @@ public partial class Menu
         var p = PlayerProfile.Current;
         var s = p.Stats;
         Titled("Profil", "Tes parties sur cette machine. Échap : retour");
+        header.AddChild(ProfileTabs());
 
         var main = Pairs(
             ("Batailles jouées", HudKit.N(s.Battles)),

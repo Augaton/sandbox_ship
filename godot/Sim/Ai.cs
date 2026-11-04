@@ -443,7 +443,7 @@ public static class Ai
     /// Sends ships at a station on attack-move (not in the web version: the stance): a wave goes
     /// for what it sees and stays on it, the home fleet fights back and comes back.
     /// </summary>
-    static void Send(World world, List<Entity> ships, Entity at, Stance stance)
+    internal static void Send(World world, List<Entity> ships, Entity at, Stance stance)
     {
         foreach (var e in ships) e.Stance = stance;
         Movement.IssueMove(world, ships.Select(e => e.Id), at.X, at.Y, true);

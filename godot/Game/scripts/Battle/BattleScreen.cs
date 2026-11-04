@@ -39,6 +39,8 @@ public partial class BattleScreen : Node
     long seekTo;
     const int SeekStepsPerFrame = 300;
     Ui.Tutorial? tutorial;
+    /// <summary>Where the tutorial's card ends down the screen; null without a tutorial.</summary>
+    public float? TutorialBottom => tutorial?.Bottom;
     static readonly Result Watching = Result.Fail("Rediffusion : aucun ordre possible");
 
     double acc;
@@ -82,9 +84,9 @@ public partial class BattleScreen : Node
         {
             // In the sandbox, nobody plays by itself: the others only do what the player spawns.
             Slots = [.. o.Slots.Select(s => sandbox ? s with { AI = null } : s)],
-            Credits = sandbox ? 50000 : o.Tutorial ? Ui.Tutorial.Credits : Scenario.StartCredits, Seed = o.Seed ?? 1,
+            Credits = sandbox ? 50000 : o.Tutorial ? Ui.Tutorial.Credits : o.Credits, Seed = o.Seed ?? 1,
             Map = o.Map, Size = o.Size, Fog = o.Fog && !sandbox, Raid = o.Raid, Terrain = o.Terrain,
-            Mode = o.Rules, ZoneTarget = o.ZoneTarget, AssaultMinutes = o.AssaultMinutes,
+            Mode = o.Rules, ZoneTarget = o.ZoneTarget, AssaultMinutes = o.AssaultMinutes, WaveStrength = o.WaveStrength,
         }));
         // The sandbox's tools are open in a game played alone, outside the campaign; a replay has them as recorded.
         if (o.Replay is null) World.SandboxTools = o.Campaign is null && !o.Demo && o.Net is null && !o.Tutorial;

@@ -67,7 +67,7 @@ Les fichiers de chaque version sont sur la page [Releases](../../releases). Les 
 Ni l'installeur ni l'exécutable Windows ne sont signés : si Windows affiche « Windows a protégé
 votre ordinateur », choisir « Informations complémentaires », puis « Exécuter quand même ».
 
-Les commandes principales en bataille ; toutes sont dans le jeu, menu « Commandes » :
+Les commandes principales en bataille ; toutes sont dans le jeu, Options, onglet « Commandes » :
 
 | Touche | Effet |
 |---|---|
@@ -76,6 +76,7 @@ Les commandes principales en bataille ; toutes sont dans le jeu, menu « Command
 | F puis clic | Attaque-mouvement : engage tout ce qui croise la route |
 | E | Capacité des vaisseaux sélectionnés |
 | P | Piloter le vaisseau sélectionné |
+| B | Ouvrir ou replier la production |
 | Ctrl + 1 à 9, puis 1 à 9 | Créer un groupe, puis le rappeler |
 | ZQSD ou flèches, molette | Déplacer la vue, zoomer |
 | Espace | Pause |

@@ -40,7 +40,16 @@ public partial class Hud : CanvasLayer
     HFlowContainer quickbar = null!;
     ScrollContainer selectionScroll = null!;
     VBoxContainer selection = null!;
-    readonly Dictionary<Tab, (Button Button, Control Body)> tabs = [];
+    /// <summary>A production tab: its button and its name, what it shows, how many it has under way.</summary>
+    sealed record TabParts(Button Button, string Label, Control Body, int Queued = 0);
+
+    readonly Dictionary<Tab, TabParts> tabs = [];
+    PanelContainer? buildPanel;
+    Control? buildSpacer;
+    /// <summary>Whether the production shows its buttons, and on which tab; it starts folded, out of the battle's way.</summary>
+    bool buildOpen;
+    Tab tab = Tab.Ships;
+    PanelContainer selectionPanel = null!;
     readonly List<ScrollContainer> buildScrolls = [];
     readonly List<GridContainer> grids = [];
     HFlowContainer? unitsQueue, buildingsQueue, researchStatus;
@@ -55,8 +64,8 @@ public partial class Hud : CanvasLayer
     int upgradeLevel;
     Minimap minimap = null!;
     VBoxContainer toasts = null!;
-    /// <summary>When each toast fades out and when it goes, in milliseconds.</summary>
-    readonly Dictionary<Control, (double Fade, double End)> toastTimes = [];
+    /// <summary>When each toast fades out and when it goes, in milliseconds; its message, and how many times it came.</summary>
+    readonly Dictionary<Control, (double Fade, double End, string Text, int Count)> toastTimes = [];
     PanelContainer? sandboxPanel;
     OptionButton? spawnFaction, spawnWhat;
     Button? spawnButton;
@@ -92,6 +101,7 @@ public partial class Hud : CanvasLayer
         if (campaign is null && scene.Opts.Net is null) BuildSandbox(sandbox);
         BuildOverlays();
         BuildModes();
+        BuildObjective();
         RefreshModes();
         Refresh();
     }
@@ -134,28 +144,25 @@ public partial class Hud : CanvasLayer
         if (campaign is not null)
         {
             credits.Text = campaign;
-            group.AddChild(Button("Aide", () => ShowHelp()));
-            group.AddChild(Button("Options", ShowOptions));
             if (scene.Opts.Campaign?.Attacker == Player && scene.Opts.Net is not { Watching: true })
             {
                 group.AddChild(Button("Retraite", scene.Retreat, "Les survivants regagnent la planète d'où ils venaient"));
             }
-            return;
         }
-        credits.Text = "Crédits";
-        if (scene.Opts.Net is not null)
+        else
         {
-            NetButtons(group);
-            return;
+            credits.Text = "Crédits";
+            if (scene.Opts.Net is null)
+            {
+                sandboxButton = group.Add(Button("Bac à sable", () =>
+                {
+                    sandboxPanel!.Visible = !sandboxPanel.Visible;
+                    RefreshModes();
+                }));
+            }
         }
-        sandboxButton = group.Add(Button("Bac à sable", () =>
-        {
-            sandboxPanel!.Visible = !sandboxPanel.Visible;
-            RefreshModes();
-        }));
-        group.AddChild(Button("Aide", () => ShowHelp()));
-        group.AddChild(Button("Options", ShowOptions));
-        group.AddChild(Button("Menu", () => Confirm("Quitter la partie ?", "La bataille en cours sera perdue.", "Quitter", scene.ToMenu)));
+        // The pause menu (Escape) has the rest: options, controls, restart, leave.
+        group.AddChild(Button("Menu", PauseMenu, "Menu (Échap) : options, commandes, quitter"));
     }
 
     /// <summary>The player's star lance in the top bar: building, charging, or ready to fire.</summary>
@@ -199,15 +206,17 @@ public partial class Hud : CanvasLayer
         bar.AddChild(left);
         quickbar = Flow(4);
         left.AddChild(quickbar);
-        var panel = Panel();
-        panel.CustomMinimumSize = new Vector2(0, 120);
-        left.AddChild(panel);
+        selectionPanel = Panel();
+        selectionPanel.CustomMinimumSize = new Vector2(0, 120);
+        left.AddChild(selectionPanel);
         selection = Column(0);
         selectionScroll = Scroll(selection);
-        panel.AddChild(selectionScroll);
+        selectionPanel.AddChild(selectionScroll);
 
         if (campaign is null) BuildProduction(bar);
-        else bar.AddChild(Ignore(new Control { SizeFlagsHorizontal = Control.SizeFlags.ExpandFill }));
+        // Room taken by the production when it is open, left to the battle when it is folded.
+        buildSpacer = bar.Add(Ignore(new Control { SizeFlagsHorizontal = Control.SizeFlags.ExpandFill }));
+        ShowTab();
 
         var mini = Panel(0, 0);
         mini.SizeFlagsVertical = Control.SizeFlags.ShrinkEnd;
@@ -218,18 +227,17 @@ public partial class Hud : CanvasLayer
 
     void BuildProduction(HBoxContainer bar)
     {
-        var build = Panel();
-        build.SizeFlagsHorizontal = Control.SizeFlags.ExpandFill;
-        build.SizeFlagsVertical = Control.SizeFlags.ShrinkEnd;
-        bar.AddChild(build);
+        buildPanel = Panel();
+        buildPanel.SizeFlagsVertical = Control.SizeFlags.ShrinkEnd;
+        bar.AddChild(buildPanel);
         var box = Column(8);
-        build.AddChild(box);
+        buildPanel.AddChild(box);
         var tabRow = box.Add(Row(4));
         Control AddTab(Tab id, string label)
         {
-            var button = tabRow.Add(Button(label, () => ShowTab(id), height: 36));
+            var button = tabRow.Add(Button(label, () => PressTab(id), $"{label} : ouvrir ou replier ({Bindings.Label(Bindings.Build)})", 36));
             var body = box.Add(Column(8));
-            tabs[id] = (button, body);
+            tabs[id] = new TabParts(button, label, body);
             return body;
         }
         // Buttons scroll inside each tab; tabs and queue stay in view.
@@ -319,7 +327,6 @@ public partial class Hud : CanvasLayer
             techButtons[tech] = b;
         }
         researchStatus = Queue(research);
-        ShowTab(Tab.Ships);
     }
 
     /// <summary>A production button: what it makes, pictured, then the name, and under it the price or why it cannot be built.</summary>
@@ -336,13 +343,47 @@ public partial class Hud : CanvasLayer
         return b;
     }
 
-    void ShowTab(Tab id)
+    /// <summary>A tab pressed: the production opens on it, or folds when it was the one open.</summary>
+    void PressTab(Tab id)
     {
+        buildOpen = !(buildOpen && tab == id);
+        tab = id;
+        ShowTab();
+    }
+
+    /// <summary>The production key: opens on the last tab, or folds.</summary>
+    public void ToggleProduction()
+    {
+        if (buildPanel is null) return;
+        buildOpen = !buildOpen;
+        ShowTab();
+    }
+
+    /// <summary>
+    /// Open, the production shows its tab's buttons and queue across the bottom. Folded, it is its
+    /// tabs, each with how many it has under way, and the last tab's queue when it holds something.
+    /// </summary>
+    void ShowTab()
+    {
+        if (buildPanel is null) return;
         foreach (var (key, t) in tabs)
         {
-            Outline(t.Button, key == id ? Palette.Accent : null);
-            t.Body.Visible = key == id;
+            Outline(t.Button, buildOpen && key == tab ? Palette.Accent : null);
+            t.Body.Visible = key == tab && (buildOpen || t.Queued > 0);
         }
+        foreach (var s in buildScrolls) s.Visible = buildOpen;
+        buildPanel.SizeFlagsHorizontal = buildOpen ? Control.SizeFlags.ExpandFill : Control.SizeFlags.ShrinkBegin;
+        buildSpacer!.Visible = !buildOpen;
+    }
+
+    /// <summary>How many a tab has under way, in its button: a change refolds the panel around its queue.</summary>
+    void SetQueued(Tab id, int n)
+    {
+        var t = tabs[id];
+        if (t.Queued == n) return;
+        tabs[id] = t with { Queued = n };
+        t.Button.Text = n > 0 ? $"{t.Label} ({n})" : t.Label;
+        ShowTab();
     }
 
     void BuildSandbox(bool open)
@@ -423,14 +464,15 @@ public partial class Hud : CanvasLayer
     SpawnMode PickSpawn() =>
         new((Faction)spawnFaction!.GetItemMetadata(spawnFaction.Selected).AsInt32(), spawnWhat!.GetItemMetadata(spawnWhat.Selected).AsString());
 
-    /// <summary>Toasts, the piloting banner and the tooltip: above the panels, centered or by the pointer.</summary>
+    /// <summary>Where the toasts start, under the top bar, on the left: the middle is the battle's.</summary>
+    const float ToastTop = 64;
+
+    /// <summary>Toasts on the left, the piloting banner centered, the tooltip by the pointer: above the panels.</summary>
     void BuildOverlays()
     {
-        var toastArea = Column(4);
-        toastArea.SetAnchorsPreset(Control.LayoutPreset.TopWide);
-        toastArea.OffsetTop = 112;
-        root.AddChild(toastArea);
-        toasts = toastArea;
+        toasts = Ignore(Column(4));
+        toasts.Position = new Vector2(8, ToastTop);
+        root.AddChild(toasts);
 
         var bannerArea = Column(0);
         bannerArea.SetAnchorsPreset(Control.LayoutPreset.TopWide);
@@ -462,23 +504,36 @@ public partial class Hud : CanvasLayer
     /// <summary>An attack or a loss, with a button to go and see.</summary>
     public void Alert(string text, Action see) => AddToast(text, see);
 
-    /// <summary>Short messages that fade out on their own; an alert stays longer and offers to go and see.</summary>
+    /// <summary>
+    /// Short messages that fade out on their own; an alert stays longer and offers to go and see.
+    /// A message already showing is counted again (×2) and starts its time over, rather than stacked.
+    /// </summary>
     void AddToast(string text, Action? see)
     {
         if (root is null) return;
+        var life = see is not null ? 4500 : 2200;
+        var now = BattleScreen.Now;
+        if (see is null && toasts.GetChildren().OfType<Control>().FirstOrDefault(c => toastTimes.TryGetValue(c, out var shown) && shown.Text == text) is { } same)
+        {
+            var count = toastTimes[same].Count + 1;
+            same.GetChild(0).GetChild<Label>(0).Text = $"{text} ×{count}";
+            same.Modulate = Colors.White;
+            toastTimes[same] = (now + life, now + life + 400, text, count);
+            toasts.MoveChild(same, -1);
+            return;
+        }
         var t = see is null ? Panel(12, 6) : Panel(12, 6, Palette.Danger);
-        t.SizeFlagsHorizontal = Control.SizeFlags.ShrinkCenter;
+        t.SizeFlagsHorizontal = Control.SizeFlags.ShrinkBegin;
         var row = Row(12);
         t.AddChild(row);
         var label = Text(text);
         label.SizeFlagsVertical = Control.SizeFlags.ShrinkCenter;
         row.AddChild(label);
         if (see is not null) row.AddChild(Button("Voir", see, "Retour arrière : aller à la dernière alerte", 32));
+        else t.MouseFilter = Control.MouseFilterEnum.Ignore;
         toasts.AddChild(t);
         while (toasts.GetChildCount() > 4) RemoveToast(toasts.GetChild<Control>(0));
-        var life = see is not null ? 4500 : 2200;
-        var now = BattleScreen.Now;
-        toastTimes[t] = (now + life, now + life + 400);
+        toastTimes[t] = (now + life, now + life + 400, text, 1);
     }
 
     void RemoveToast(Control t)
@@ -486,12 +541,14 @@ public partial class Hud : CanvasLayer
         toastTimes.Remove(t);
         toasts.RemoveChild(t);
         t.QueueFree();
+        // Back to the width of what is left.
+        toasts.Size = Vector2.Zero;
     }
 
     void FadeToasts()
     {
         var now = BattleScreen.Now;
-        foreach (var (t, (fade, end)) in toastTimes.ToList())
+        foreach (var (t, (fade, end, _, _)) in toastTimes.ToList())
         {
             if (now >= end) RemoveToast(t);
             else if (now >= fade) t.Modulate = new Color(1, 1, 1, (float)Math.Max(0, 1 - (now - fade) / 300));
@@ -529,6 +586,7 @@ public partial class Hud : CanvasLayer
         if (root is null) return;
         PlaceTip();
         FadeToasts();
+        FadeObjective();
         Layout();
         TickModes(delta);
         timer -= delta;
@@ -549,6 +607,9 @@ public partial class Hud : CanvasLayer
     void Layout()
     {
         var h = Screen.Y;
+        // The tutorial's card holds the top left corner: the toasts come under it.
+        var top = scene.TutorialBottom is float card ? card + 8 : ToastTop;
+        if (toasts.Position.Y != top) toasts.Position = new Vector2(8, top);
         Fit(selectionScroll, h * 0.42);
         foreach (var s in buildScrolls) Fit(s, Math.Max(104, h * 0.4 - 112));
         foreach (var g in grids)
@@ -802,10 +863,14 @@ public partial class Hud : CanvasLayer
         ], "Rien en construction.");
         // Each queued level is named by the level it reaches.
         var reached = f.Research.Clone();
-        RenderList(researchStatus!, ResearchQueue.Jobs(f).Select((job, i) => new QueueEntry(
+        var jobs = ResearchQueue.Jobs(f).ToList();
+        RenderList(researchStatus!, jobs.Select((job, i) => new QueueEntry(
             $"{Techs.Defs[job.Tech].Name} {++reached[job.Tech]}", $"research:{i}", i == 0 ? 1 - job.Remaining / job.Total : 0,
             () => scene.Sink.Send(new Command.CancelResearch(i)), i == 0 ? job.Remaining : null)).ToList(),
             "Aucune recherche en file. Chaque niveau demande une station du même niveau (niveau 4 pour les derniers).");
+        SetQueued(Tab.Ships, f.Queue.Count);
+        SetQueued(Tab.Buildings, f.BuildQueue.Count + sites.Count);
+        SetQueued(Tab.Research, jobs.Count);
     }
 
     /// <summary>

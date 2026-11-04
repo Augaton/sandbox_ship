@@ -47,6 +47,10 @@ public sealed class Lobby
     public const int Host = 0;
     public static readonly IReadOnlyList<int> ZoneTargets = [50, 100, 200];
     public static readonly IReadOnlyList<int> AssaultLengths = [10, 15, 20];
+    /// <summary>The credits each side may start with (HasCredits), the usual ones first.</summary>
+    public static readonly IReadOnlyList<int> StartCredits = [(int)Scenario.StartCredits, 4000, 10000];
+    /// <summary>Survival: how strong the waves may be, in percent of their usual value, in the menu's order.</summary>
+    public static readonly IReadOnlyList<int> WaveStrengths = [70, 100, 140];
     /// <summary>The colors a seat can take: the races' own, then the players'. Never the Errants' gold.</summary>
     public static readonly IReadOnlyList<uint> Colors = [.. Factions.All.Select(f => Factions.Defs[f].Color), .. Factions.PlayerColors];
 
@@ -76,6 +80,10 @@ public sealed class Lobby
     public int ZoneTarget { get; set; } = 100;
     /// <summary>Assault: the minutes the defenders must hold out, one of AssaultLengths.</summary>
     public int AssaultMinutes { get; set; } = 15;
+    /// <summary>The credits each side starts with, one of StartCredits, in the modes that let them be chosen (HasCredits).</summary>
+    public int Credits { get; set; } = (int)Scenario.StartCredits;
+    /// <summary>Survival: the waves' strength, one of WaveStrengths.</summary>
+    public int WaveStrength { get; set; } = 100;
     /// <summary>Set up on a dedicated server: nobody plays on the host, so no seat is Host's (see Sim/Net/LobbyRoom.cs).</summary>
     public bool Dedicated { get; set; }
     /// <summary>Over the network: players may come in to watch, without a seat, the lobby as the battle.</summary>
@@ -116,6 +124,12 @@ public sealed class Lobby
     public bool TeamsLocked => Mode == LobbyMode.Survival;
     [JsonIgnore]
     public bool HasRaid => Mode is not (LobbyMode.Campaign or LobbyMode.Sandbox) && Modes.AllowsRaid(Rules);
+    /// <summary>
+    /// The battles where every side starts on even terms: an assault has its fortress and its
+    /// bridgehead, survival its records, the sandbox and the campaign their own credits.
+    /// </summary>
+    [JsonIgnore]
+    public bool HasCredits => Mode is LobbyMode.Skirmish or LobbyMode.Zones or LobbyMode.Regicide;
     /// <summary>The sandbox shows everything; the campaign's battles keep their own fog.</summary>
     [JsonIgnore]
     public bool HasFog => Mode is not (LobbyMode.Campaign or LobbyMode.Sandbox);
@@ -252,6 +266,7 @@ public sealed class Lobby
     {
         Mode = Rules, ZoneTarget = ZoneTarget, AssaultMinutes = AssaultMinutes, Slots = Slots(), Seed = Seed, Map = Map, Size = Size,
         Fog = HasFog && Fog, Raid = HasRaid && Raid, Terrain = HasTerrain ? Terrain : TerrainDensity.None,
+        Credits = HasCredits ? Credits : Scenario.StartCredits, WaveStrength = Mode == LobbyMode.Survival ? WaveStrength : 100,
     };
 
     /// <summary>The campaign's galaxy, as GalaxyScreen makes it: the classic one for two, or one drawn from the seed with a capital per seat.</summary>
@@ -347,6 +362,7 @@ public sealed class Lobby
     public bool Sane() =>
         Enum.IsDefined(Mode) && Enum.IsDefined(Map) && Enum.IsDefined(Size) && Seed >= 1
         && ZoneTargets.Contains(ZoneTarget) && AssaultLengths.Contains(AssaultMinutes)
+        && StartCredits.Contains(Credits) && WaveStrengths.Contains(WaveStrength)
         && Seats is { Count: >= 1 and <= MaxSeats }
         && Seats.TrueForAll(s => s is not null && Enum.IsDefined(s.Kind) && Enum.IsDefined(s.Difficulty) && Factions.All.Contains(s.Race)
             && (s.Personality is not { } p || Enum.IsDefined(p))

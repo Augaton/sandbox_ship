@@ -122,13 +122,60 @@ public partial class Menu
             Titled("Nouvelle partie", "Choisis un mode. Échap : retour");
             body.AddChild(Section("Campagne", ModeCard(Modes[0])));
         }
+        // The skirmish, the battle most play, across; the four other modes under it, two by two.
+        var grid = Grid();
+        foreach (var m in Modes.Where(m => m.Mode is not (LobbyMode.Campaign or LobbyMode.Skirmish or LobbyMode.Sandbox))) grid.AddChild(ModeCard(m));
+        body.AddChild(Section("Bataille", ModeCard(Modes.First(m => m.Mode == LobbyMode.Skirmish)), grid));
+        // Alone, to learn or to try: neither is hosted.
+        if (!hosting)
+        {
+            var training = Grid();
+            training.AddChild(TutorialCard());
+            training.AddChild(ModeCard(Modes.First(m => m.Mode == LobbyMode.Sandbox)));
+            body.AddChild(Section("Entraînement", training));
+        }
+        if (hosting && hostError is not null) body.AddChild(Paragraph(hostError, Palette.Danger, 14));
+        footer.AddChild(Btn("Retour", Back));
+    }
+
+    static GridContainer Grid()
+    {
         var grid = new GridContainer { Columns = 2 };
         grid.AddThemeConstantOverride("h_separation", 8);
         grid.AddThemeConstantOverride("v_separation", 8);
-        foreach (var m in Modes.Skip(1).Where(m => !hosting || m.Mode != LobbyMode.Sandbox)) grid.AddChild(ModeCard(m));
-        body.AddChild(Section("Bataille", grid));
-        if (hosting && hostError is not null) body.AddChild(Paragraph(hostError, Palette.Danger, 14));
-        footer.AddChild(Btn("Retour", Back));
+        return grid;
+    }
+
+    /// <summary>The tutorial, as a card beside the sandbox: a battle that teaches one thing at a time.</summary>
+    Control TutorialCard()
+    {
+        const string about = "Une bataille guidée, une chose à la fois : sélectionner, produire, attaquer.";
+        var tile = Tile("tutorial", false, () => Main.Instance.StartBattle(Tutorial.Options()), $"Didacticiel, 1 joueur : {about}", col =>
+        {
+            var name = UiTheme.Text("Didacticiel");
+            name.AddThemeFontOverride("font", Bold);
+            col.AddChild(name);
+            var line = Small(about);
+            line.CustomMinimumSize = new Vector2(0, 36);
+            col.AddChild(line);
+        }, Assets.ShipSprite(Faction.Nautolan, ShipClass.Scout));
+        tile.AddChild(Corner("1 joueur"));
+        return tile;
+    }
+
+    /// <summary>A card's bottom right corner: how many play it, over its picture.</summary>
+    static MarginContainer Corner(string text)
+    {
+        var count = UiTheme.Text(text, Palette.Accent, 13);
+        count.SizeFlagsHorizontal = count.SizeFlagsVertical = Control.SizeFlags.ShrinkEnd;
+        count.MouseFilter = Control.MouseFilterEnum.Ignore;
+        count.AddThemeConstantOverride("outline_size", 5);
+        count.AddThemeColorOverride("font_outline_color", Palette.Bg);
+        var corner = new MarginContainer { MouseFilter = Control.MouseFilterEnum.Ignore };
+        corner.AddThemeConstantOverride("margin_right", 10);
+        corner.AddThemeConstantOverride("margin_bottom", 8);
+        corner.AddChild(count);
+        return corner;
     }
 
     /// <summary>The campaign the host saved over the network, as a card that hosts it again; null without one.</summary>
@@ -174,16 +221,7 @@ public partial class Menu
             about.CustomMinimumSize = new Vector2(0, 36);
             col.AddChild(about);
         }, ModeArt(m.Mode));
-        var count = UiTheme.Text(Players(m.Mode), Palette.Accent, 13);
-        count.SizeFlagsHorizontal = count.SizeFlagsVertical = Control.SizeFlags.ShrinkEnd;
-        count.MouseFilter = Control.MouseFilterEnum.Ignore;
-        count.AddThemeConstantOverride("outline_size", 5);
-        count.AddThemeColorOverride("font_outline_color", Palette.Bg);
-        var corner = new MarginContainer { MouseFilter = Control.MouseFilterEnum.Ignore };
-        corner.AddThemeConstantOverride("margin_right", 10);
-        corner.AddThemeConstantOverride("margin_bottom", 8);
-        corner.AddChild(count);
-        tile.AddChild(corner);
+        tile.AddChild(Corner(Players(m.Mode)));
         return tile;
     }
 
@@ -421,22 +459,44 @@ public partial class Menu
         return l.Seats.Exists(s => !s.Plays) ? $"{note} Les places ouvertes ou fermées ne jouent pas." : note;
     }
 
+    /// <summary>Whether the map's finer settings (its type, its terrain, its seed) show, or wait behind one button.</summary>
+    bool moreMap;
+
+    static readonly (TerrainDensity Value, string Label)[] TerrainNames = [(TerrainDensity.None, "Aucun"), (TerrainDensity.Light, "Léger"), (TerrainDensity.Dense, "Dense")];
+
     Control MapSection(Lobby l)
     {
         var battle = l.Mode != LobbyMode.Campaign;
         var settings = new VBoxContainer { SizeFlagsHorizontal = Control.SizeFlags.ExpandFill };
         settings.AddThemeConstantOverride("separation", 12);
-        settings.AddChild(Labelled("Type", Group("map", [(MapKind.Random, "Aléatoire"), (MapKind.Classic, "Classique")], l.Map,
-            v => Set(s => s with { Map = v }), v => v == MapKind.Classic && !l.ClassicAllowed)));
         var classic = l.Map == MapKind.Classic && !battle;
         settings.AddChild(Labelled(battle ? "Taille de la carte" : "Taille de la galaxie",
             Group("size", Scenario.MapSizes.Select(s => (s.Key, s.Value.Name)), l.Size, v => Set(s => s with { Size = v }), _ => classic)));
-        if (l.HasTerrain)
+        var row = new HBoxContainer();
+        row.AddThemeConstantOverride("separation", 14);
+        var more = Btn(moreMap ? "Moins de réglages" : "Plus de réglages", () => Pick("act:more", () => moreMap = !moreMap), key: "act:more");
+        row.AddChild(more);
+        // Folded, what they are now beside the button, each its own label: each translates whole.
+        if (!moreMap)
         {
-            settings.AddChild(Labelled("Terrain", Group("terrain", [(TerrainDensity.None, "Aucun"), (TerrainDensity.Light, "Léger"), (TerrainDensity.Dense, "Dense")],
-                l.Terrain, v => Set(s => s with { Terrain = v }))));
+            var now = new List<string> { l.Map == MapKind.Classic ? "carte classique" : "carte aléatoire" };
+            if (l.HasTerrain) now.Add(l.Terrain switch { TerrainDensity.None => "sans terrain", TerrainDensity.Light => "terrain léger", _ => "terrain dense" });
+            now.Add($"graine {l.Seed}");
+            foreach (var value in now)
+            {
+                var label = UiTheme.Text(value, Palette.Muted, 13);
+                label.SizeFlagsVertical = Control.SizeFlags.ShrinkCenter;
+                row.AddChild(label);
+            }
         }
-        settings.AddChild(SeedRow(l));
+        settings.AddChild(row);
+        if (moreMap)
+        {
+            settings.AddChild(Labelled("Type", Group("map", [(MapKind.Random, "Aléatoire"), (MapKind.Classic, "Classique")], l.Map,
+                v => Set(s => s with { Map = v }), v => v == MapKind.Classic && !l.ClassicAllowed)));
+            if (l.HasTerrain) settings.AddChild(Labelled("Terrain", Group("terrain", TerrainNames, l.Terrain, v => Set(s => s with { Terrain = v }))));
+            settings.AddChild(SeedRow(l));
+        }
 
         var (mapW, mapH) = battle ? (Scenario.MapSizes[l.Size].W, Scenario.MapSizes[l.Size].H) : (l.Layout().W, l.Layout().H);
         preview = new Control
@@ -455,7 +515,8 @@ public partial class Menu
         var why = !l.ClassicAllowed ? " La carte classique est faite pour deux." : classic ? " La galaxie classique a sa taille." : "";
         var terrain = l.HasTerrain && l.Terrain != TerrainDensity.None
             ? " Nébuleuses, astéroïdes, mines et puits gravitationnels : chaque place a le même terrain autour d'elle." : "";
-        return Section(battle ? "Carte" : "Galaxie", map, Note($"La même graine redonne la même carte.{why + terrain}"));
+        return moreMap ? Section(battle ? "Carte" : "Galaxie", map, Note($"La même graine redonne la même carte.{why + terrain}"))
+            : Section(battle ? "Carte" : "Galaxie", map);
     }
 
     Control SeedRow(Lobby l)
@@ -500,6 +561,17 @@ public partial class Menu
         {
             items.Add(Labelled("Durée de l'assaut", Group("assault", Lobby.AssaultLengths.Select(v => (v, $"{v} min")), l.AssaultMinutes,
                 v => Set(s => s with { AssaultMinutes = v }))));
+        }
+        if (l.HasCredits)
+        {
+            items.Add(Labelled("Crédits de départ", Group("credits", Lobby.StartCredits.Select(v => (v, HudKit.N(v))), l.Credits,
+                v => Set(s => s with { Credits = v }))));
+        }
+        if (l.Mode == LobbyMode.Survival)
+        {
+            items.Add(Labelled("Vagues", Group("waves", Lobby.WaveStrengths.Select(v => (v, WavesName(v))), l.WaveStrength,
+                v => Set(s => s with { WaveStrength = v }))));
+            if (l.WaveStrength != 100) items.Add(Note("Les records ne comptent que les parties aux vagues normales."));
         }
         if (l.HasRaid)
         {
@@ -583,6 +655,14 @@ public partial class Menu
         return swatches[color] = ImageTexture.CreateFromImage(img);
     }
 
+    /// <summary>A waves' strength as the lobby names it.</summary>
+    static string WavesName(int strength) => strength switch
+    {
+        < 100 => $"Douces ({strength} %)",
+        100 => "Normales",
+        _ => $"Féroces ({strength} %)",
+    };
+
     /// <summary>The game the lobby makes, in one line beside the launch button.</summary>
     static string Summary(Lobby l)
     {
@@ -601,6 +681,8 @@ public partial class Menu
             : l.Map == MapKind.Classic ? $"carte {size} classique" : $"carte {size}";
         var more = new List<string>();
         if (l.Mode == LobbyMode.Zones) more.Add($"objectif {l.ZoneTarget}");
+        if (l.HasCredits && l.Credits != (int)Scenario.StartCredits) more.Add($"{HudKit.N(l.Credits)} crédits");
+        if (l.Mode == LobbyMode.Survival && l.WaveStrength != 100) more.Add($"vagues à {l.WaveStrength} %");
         if (l.HasRaid && l.Raid) more.Add("raid");
         if (l.HasFog && !l.Fog) more.Add("sans brouillard");
         if (l.HasTerrain && l.Terrain != TerrainDensity.Light) more.Add(l.Terrain == TerrainDensity.None ? "sans terrain" : "terrain dense");

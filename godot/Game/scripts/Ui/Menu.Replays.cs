@@ -15,7 +15,8 @@ public partial class Menu
 
     void ReplaysScreen()
     {
-        Titled("Rediffusions", "Chaque bataille jouée depuis un salon s'enregistre ; les 30 dernières restent. Échap : retour");
+        Titled("Profil", "Chaque bataille jouée depuis un salon s'enregistre ; les 30 dernières restent. Échap : retour");
+        header.AddChild(ProfileTabs());
         if (replayProblem is not null) body.AddChild(Paragraph(replayProblem, Palette.Danger, 14));
         var entries = ReplayStore.List();
         if (entries.Count == 0) body.AddChild(Paragraph("Aucune rediffusion pour l'instant : la prochaine bataille jouée apparaîtra ici.", Palette.Muted, 14));

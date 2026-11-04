@@ -288,6 +288,8 @@ public class FinalSecurityTests
             Two(o => o.Credits = -5),
             Two(o => o.ZoneTarget = 0, BattleMode.Zones),
             Two(o => o.AssaultMinutes = -3, BattleMode.Assault),
+            Two(o => o.WaveStrength = 0, BattleMode.Survival),
+            Two(o => o.WaveStrength = 100_000, BattleMode.Survival),
         ];
         foreach (var o in forged)
         {

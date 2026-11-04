@@ -6199,3 +6199,140 @@ msgstr "Guard"
 #: Game/scripts/Ui/Tutorial.cs
 msgid "Ordre en file"
 msgstr "Queued order"
+
+#: Game/scripts/Core/Bindings.cs
+msgid "Ouvrir ou replier la production"
+msgstr "Open or fold the production"
+
+#: Game/scripts/Ui/Hud.Modes.cs
+msgid "Tenez ensemble contre les vagues d'Errants, de plus en plus fortes : la première arrive dans {0}. La partie dure tant qu'une station tient."
+msgstr "Hold together against ever stronger waves of Errants: the first one comes in {0}. The game lasts as long as a station stands."
+
+#: Game/scripts/Ui/Hud.Modes.cs
+msgid "Tiens les balises avec tes vaisseaux pour marquer des points : le premier camp à {0} points gagne, s'il garde une station."
+msgstr "Hold the beacons with your ships to score points: the first camp to {0} points wins, if it still has a station."
+
+#: Game/scripts/Ui/Hud.Modes.cs
+msgid "Assaut : tu défends"
+msgstr "Assault: you defend"
+
+#: Game/scripts/Ui/Hud.Modes.cs
+msgid "Garde au moins une station de la forteresse jusqu'à la fin du temps, dans {0}."
+msgstr "Keep at least one station of the fortress until time runs out, in {0}."
+
+#: Game/scripts/Ui/Hud.Modes.cs
+msgid "Assaut : tu attaques"
+msgstr "Assault: you attack"
+
+#: Game/scripts/Ui/Hud.Modes.cs
+msgid "Détruis toutes les stations de la forteresse avant la fin du temps, dans {0}."
+msgstr "Destroy every station of the fortress before time runs out, in {0}."
+
+#: Game/scripts/Ui/Hud.Modes.cs
+msgid "Ton vaisseau amiral porte la couronne : s'il tombe, tu as perdu. Abats ceux des autres pour gagner."
+msgstr "Your flagship wears the crown: if it falls, you lose. Bring down the others' to win."
+
+#: Game/scripts/Ui/Hud.Modes.cs
+msgid "Détruis les stations ennemies : le dernier camp à en garder une gagne."
+msgstr "Destroy the enemy stations: the last camp to keep one wins."
+
+#: Game/scripts/Ui/Hud.Survival.cs
+msgid "Vagues à {0} % : hors des records, qui comptent les vagues normales."
+msgstr "Waves at {0} %: outside the records, which count normal waves only."
+
+#: Game/scripts/Ui/Hud.cs
+msgid "Menu (Échap) : options, commandes, quitter"
+msgstr "Menu (Escape): options, controls, quit"
+
+#: Game/scripts/Ui/Hud.cs
+msgid "{0} : ouvrir ou replier ({1})"
+msgstr "{0}: open or fold ({1})"
+
+#: Game/scripts/Ui/Menu.Lobby.cs
+msgid "Entraînement"
+msgstr "Training"
+
+#: Game/scripts/Ui/Menu.Lobby.cs
+msgid "Une bataille guidée, une chose à la fois : sélectionner, produire, attaquer."
+msgstr "A guided battle, one thing at a time: select, build, attack."
+
+#: Game/scripts/Ui/Menu.Lobby.cs
+msgid "Didacticiel, 1 joueur : {0}"
+msgstr "Tutorial, 1 player: {0}"
+
+#: Game/scripts/Ui/Menu.Lobby.cs
+#: Game/scripts/Ui/Menu.Lobby.cs
+msgid "Moins de réglages"
+msgstr "Fewer settings"
+
+
+
+#: Game/scripts/Ui/Menu.Lobby.cs
+msgid "Crédits de départ"
+msgstr "Starting credits"
+
+#: Game/scripts/Ui/Menu.Lobby.cs
+msgid "Vagues"
+msgstr "Waves"
+
+#: Game/scripts/Ui/Menu.Lobby.cs
+msgid "Les records ne comptent que les parties aux vagues normales."
+msgstr "The records count only games with normal waves."
+
+#: Game/scripts/Ui/Menu.Lobby.cs
+msgid "Douces ({0} %)"
+msgstr "Mild ({0} %)"
+
+#: Game/scripts/Ui/Menu.Lobby.cs
+msgid "Normales"
+msgstr "Normal"
+
+#: Game/scripts/Ui/Menu.Lobby.cs
+msgid "Féroces ({0} %)"
+msgstr "Fierce ({0} %)"
+
+#: Game/scripts/Ui/Menu.Lobby.cs
+#: Game/scripts/Ui/Menu.cs
+msgid "Les changements s'appliquent tout de suite. Échap : retour"
+msgstr "Changes apply at once. Escape: back"
+
+#: Game/scripts/Ui/Menu.cs
+msgid "Statistiques et succès"
+msgstr "Statistics and achievements"
+
+#: Game/scripts/Ui/Options.cs
+msgid "Général"
+msgstr "General"
+
+#: Sim/Scenario.cs
+msgid "La force des vagues va de {0} à {1} %"
+msgstr "The waves' strength goes from {0} to {1} %"
+
+
+
+
+#: Game/scripts/Ui/Menu.Lobby.cs
+msgid "vagues à {0} %"
+msgstr "waves at {0} %"
+
+
+#: Game/scripts/Ui/Menu.Lobby.cs
+msgid "carte classique"
+msgstr "classic map"
+
+#: Game/scripts/Ui/Menu.Lobby.cs
+msgid "carte aléatoire"
+msgstr "random map"
+
+#: Game/scripts/Ui/Menu.Lobby.cs
+msgid "terrain léger"
+msgstr "light terrain"
+
+#: Game/scripts/Ui/Menu.Lobby.cs
+msgid "graine {0}"
+msgstr "seed {0}"
+
+
+#: Game/scripts/Ui/Menu.Lobby.cs
+msgid "Plus de réglages"
+msgstr "More settings"

@@ -38,6 +38,7 @@ public static class Controls
         new(Label(CenterStation), "Centrer la vue sur la station", null),
         new(Label(LastAlert), "Aller à la dernière alerte (encore : la précédente)", null),
         new($"{Label(Idle)}, Maj + {Label(Idle)}", "Vaisseau inactif suivant, tous les inactifs", null),
+        new(Label(Build), "Ouvrir ou replier la production", null),
         Same("Clic droit sur la minicarte", "Envoyer la sélection (Ctrl : attaque-mouvement)"),
         Same("Maj + clic sur un vaisseau à produire", "En commander 5 ; clic droit : production en boucle"),
         Same("Clic droit sur la file", "Annuler un élément"),

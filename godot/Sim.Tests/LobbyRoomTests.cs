@@ -112,6 +112,10 @@ public class LobbyRoomTests
         Assert.True(room.Apply(Lobby.Host, new LobbyRequest.Settings(LobbySettings.Of(room.Lobby) with { Seed = 77, Size = MapSize.Small, Fog = false })));
         Assert.Equal((77, MapSize.Small, false), (room.Lobby.Seed, room.Lobby.Size, room.Lobby.Fog));
         Assert.False(room.Apply(Lobby.Host, new LobbyRequest.Settings(LobbySettings.Of(room.Lobby) with { ZoneTarget = 123 })));
+        Assert.True(room.Apply(Lobby.Host, new LobbyRequest.Settings(LobbySettings.Of(room.Lobby) with { Credits = 4000, WaveStrength = 140 })));
+        Assert.Equal((4000, 140), (room.Lobby.Credits, room.Lobby.WaveStrength));
+        Assert.False(room.Apply(Lobby.Host, new LobbyRequest.Settings(LobbySettings.Of(room.Lobby) with { Credits = 1_000_000 })));
+        Assert.False(room.Apply(Lobby.Host, new LobbyRequest.Settings(LobbySettings.Of(room.Lobby) with { WaveStrength = 1000 })));
         Assert.Empty(room.Seatless());
         Assert.True(room.Apply(Lobby.Host, new LobbyRequest.SetKind(bob.Id, SeatKind.Bot, Difficulty.Hard)));
         Assert.Equal((SeatKind.Bot, Difficulty.Hard), (bob.Kind, bob.Difficulty));

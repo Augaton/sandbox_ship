@@ -100,6 +100,9 @@ public partial class Tutorial : CanvasLayer
         ShowStep();
     }
 
+    /// <summary>Where the card ends, down the screen: the battle's toasts come under it.</summary>
+    public float Bottom => card.Position.Y + card.Size.Y;
+
     /// <summary>A few ships in front of the station, between it and the middle of the map.</summary>
     void Fleet()
     {

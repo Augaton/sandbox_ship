@@ -60,6 +60,9 @@ public static class Survival
         return (400 + 250 * n + 35 * n * n) * (1 + 0.4 * (seats - 1));
     }
 
+    /// <summary>The waves' strength as a factor of their budget: the lobby's (SkirmishOptions.WaveStrength), else the usual.</summary>
+    public static double Strength(World world) => (world.Origin?.WaveStrength ?? 100) / 100.0;
+
     /// <summary>Seconds from wave `wave` to the next one, if it is not beaten first.</summary>
     public static double Spacing(int wave) => Math.Max(MinInterval, Interval - 2 * (wave - 1));
 
@@ -128,7 +131,7 @@ public static class Survival
     public static ShipCounts Compose(World world, int wave)
     {
         var theme = Theme(wave);
-        var budget = Budget(wave, Seats(world)) * (theme == WaveTheme.Swarm ? 1.25 : 1);
+        var budget = Budget(wave, Seats(world)) * (theme == WaveTheme.Swarm ? 1.25 : 1) * Strength(world);
         var cap = theme == WaveTheme.Swarm ? MaxSwarm : MaxShips;
         var roster = Roster(wave, theme);
         // A theme with nothing it can afford yet falls back on the wave's roster.

@@ -52,6 +52,28 @@ public class SurvivalTests
     }
 
     [Fact]
+    public void The_lobby_s_waves_strength_scales_every_wave()
+    {
+        World At(int strength) => Scenario.CreateSkirmish(new SkirmishOptions
+        {
+            Mode = BattleMode.Survival, Seed = 3, WaveStrength = strength,
+            Slots = [new(Faction.Klaed, Faction.Klaed), new(Faction.Nairan, Faction.Nairan)],
+        });
+        double Value(ShipCounts s) => Ships.All.Sum(c => s.Of(c) * Ships.Defs[c].Cost);
+        var (soft, usual, fierce) = (At(70), At(100), At(140));
+        Assert.Equal(0.7, Sim.Survival.Strength(soft), 6);
+        foreach (var wave in new[] { 3, 8 })
+        {
+            Expect.Greater(Value(Sim.Survival.Compose(usual, wave)), Value(Sim.Survival.Compose(soft, wave)));
+            Expect.Greater(Value(Sim.Survival.Compose(fierce, wave)), Value(Sim.Survival.Compose(usual, wave)));
+        }
+        // A world not made from options (a player's copy over the network) has the usual waves.
+        usual.Origin = null;
+        Assert.Equal(1, Sim.Survival.Strength(usual));
+        Assert.False(Scenario.Check(new SkirmishOptions { Mode = BattleMode.Survival, WaveStrength = 0, Slots = [new(Faction.Klaed, Faction.Klaed)] }).Ok);
+    }
+
+    [Fact]
     public void A_wave_comes_from_an_edge_after_the_grace_period_and_goes_for_the_team()
     {
         var w = Survival();

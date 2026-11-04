@@ -366,12 +366,14 @@ public partial class Menu : Node
             case Screen.Lobby: LobbyScreen(); break;
             case Screen.Multiplayer: MultiplayerScreen(); break;
             case Screen.Options:
-                Titled("Options", "Les changements s'appliquent tout de suite.");
-                body.AddChild(Options.Body(true));
+                Titled("Options", "Les changements s'appliquent tout de suite. Échap : retour");
+                header.AddChild(OptionsTabs());
+                body.AddChild(Options.Body(Options.Shown, true));
                 footer.AddChild(Btn("Retour", Back));
                 break;
             case Screen.Controls:
-                Titled("Commandes", "Clique une touche, puis appuie sur la nouvelle. Échap : retour");
+                Titled("Options", "Clique une touche, puis appuie sur la nouvelle. Échap : retour");
+                header.AddChild(OptionsTabs());
                 body.AddChild(new KeysEditor());
                 body.AddChild(Section("Souris et touches fixes, en bataille", Controls.List(Controls.BattleFixed, 330)));
                 body.AddChild(Section("Souris et touches fixes, sur la carte galactique", Controls.List(Controls.GalaxyFixed, 330)));
@@ -390,6 +392,41 @@ public partial class Menu : Node
                 break;
         }
     }
+
+    /// <summary>
+    /// A screen's tabs, under its title, the one shown on: a tab puts its screen in place, the
+    /// focus on its tab, and Back still leads home.
+    /// </summary>
+    HFlowContainer Tabs(params (string Key, string Label, bool On, Action Open)[] tabs)
+    {
+        var flow = Flow();
+        foreach (var (key, label, on, open) in tabs)
+        {
+            var k = $"tab:{key}";
+            flow.AddChild(Btn(label, () =>
+            {
+                open();
+                Build();
+                Settle(keyed.GetValueOrDefault(k), 0);
+            }, on ? On : null, k));
+        }
+        return flow;
+    }
+
+    /// <summary>The options' pages, then the keys.</summary>
+    HFlowContainer OptionsTabs() => Tabs([
+        .. Options.Pages.Select(p => (p.Page.ToString(), p.Name, screen == Screen.Options && Options.Shown == p.Page, (Action)(() =>
+        {
+            screen = Screen.Options;
+            Options.Shown = p.Page;
+        }))),
+        ("controls", "Commandes", screen == Screen.Controls, () => screen = Screen.Controls),
+    ]);
+
+    /// <summary>The player's record, then the replays.</summary>
+    HFlowContainer ProfileTabs() => Tabs(
+        ("profile", "Statistiques et succès", screen == Screen.Profile, () => screen = Screen.Profile),
+        ("replays", "Rediffusions", screen == Screen.Replays, () => screen = Screen.Replays));
 
     void Titled(string title, string? note = null)
     {
@@ -423,27 +460,35 @@ public partial class Menu : Node
             nav.AddChild(under);
             nav.AddChild(Nav("Charger une partie", () => Open(Screen.Load, "load"), key: "load"));
         }
+        // The tutorial is with the modes, the replays in the profile, the keys in the options;
+        // the tutorial shows here too until a first battle is played.
         nav.AddChild(Nav("Nouvelle partie", () => OpenModes(false), latest is null, "new"));
-        nav.AddChild(Nav("Didacticiel", () => Main.Instance.StartBattle(Tutorial.Options()), key: "tutorial"));
+        if (PlayerProfile.Current.Stats.Battles == 0) nav.AddChild(Nav("Didacticiel", () => Main.Instance.StartBattle(Tutorial.Options()), key: "tutorial"));
         nav.AddChild(Nav("Multijoueur", () => Open(Screen.Multiplayer, "multi"), key: "multi"));
-        nav.AddChild(Nav("Rediffusions", () => Open(Screen.Replays, "replays"), key: "replays"));
         nav.AddChild(Nav("Profil", () => Open(Screen.Profile, "profile"), key: "profile"));
         nav.AddChild(Nav("Options", () => Open(Screen.Options, "options"), key: "options"));
-        nav.AddChild(Nav("Commandes", () => Open(Screen.Controls, "controls"), key: "controls"));
-        nav.AddChild(Nav("Crédits", () => Open(Screen.Credits, "credits"), key: "credits"));
         nav.AddChild(Nav("Quitter", Main.Instance.QuitGame));
         body.AddChild(nav);
         body.AddChild(Spacer(0.5f));
         footer.AddChild(UiTheme.Text($"Version {Version}", Palette.Muted, 13));
+        footer.AddChild(new Control { CustomMinimumSize = new Vector2(12, 0), MouseFilter = Control.MouseFilterEnum.Ignore });
+        footer.AddChild(FooterLink("Crédits", () => Open(Screen.Credits, "credits"), "credits"));
         if (Updates.Page is not null) footer.AddChild(NewerLink());
+    }
+
+    /// <summary>A quiet entry beside the version, in its size.</summary>
+    Button FooterLink(string text, Action act, string? key = null)
+    {
+        var b = Btn(text, act, NavItem, key);
+        b.CustomMinimumSize = new Vector2(0, 0);
+        b.AddThemeFontSizeOverride("font_size", 13);
+        return b;
     }
 
     /// <summary>A newer version is out: a quiet line beside the version, that opens its release page.</summary>
     Button NewerLink()
     {
-        var b = Btn($"Nouvelle version {Updates.Newer} disponible", () => OS.ShellOpen(Updates.Page!), NavItem);
-        b.CustomMinimumSize = new Vector2(0, 0);
-        b.AddThemeFontSizeOverride("font_size", 13);
+        var b = FooterLink($"Nouvelle version {Updates.Newer} disponible", () => OS.ShellOpen(Updates.Page!));
         b.AddThemeColorOverride("font_color", Palette.Accent);
         b.TooltipText = "Ouvre la page de la version sur GitHub";
         return b;

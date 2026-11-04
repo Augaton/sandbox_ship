@@ -20,13 +20,11 @@ public partial class Hud
         scene.Selected.RemoveWhere(id => !World.Entities.Has(id));
         var ents = scene.Selected.Select(id => World.Entities.Get(id)!).ToList();
         List<Part> parts;
+        // Nothing selected, no panel: the battle has the room.
+        selectionPanel.Visible = ents.Count > 0;
         if (ents.Count == 0)
         {
-            parts =
-            [
-                Title("Aucune sélection"),
-                TextPart("Clic gauche ou rectangle : sélectionner.\nClic droit : déplacer ou attaquer.\nAide : toutes les commandes.", Palette.Muted),
-            ];
+            parts = [];
         }
         else if (ents.Count == 1)
         {

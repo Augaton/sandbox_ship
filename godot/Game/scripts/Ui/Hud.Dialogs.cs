@@ -268,7 +268,6 @@ public partial class Hud
         OpenModal(Dialog(title, Para(text), Actions(no, yes)), back);
     }
 
-    void ShowOptions() => OpenModal(Options.Panel(CloseModal));
 
     static readonly string[] HelpNotes =
     [

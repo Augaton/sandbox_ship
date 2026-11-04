@@ -286,7 +286,7 @@ public partial class Main : Node
         {
             Player = me, Slots = o.Slots, Mode = lobby.Mode == LobbyMode.Sandbox ? GameMode.Sandbox : GameMode.Skirmish,
             Seed = o.Seed, Map = o.Map, Size = o.Size, Raid = o.Raid, Terrain = o.Terrain, Fog = o.Fog, Rules = o.Mode, ZoneTarget = o.ZoneTarget, AssaultMinutes = o.AssaultMinutes,
-            Net = net,
+            Credits = o.Credits, WaveStrength = o.WaveStrength, Net = net,
         });
     }
 

@@ -113,6 +113,48 @@ public class LobbyTests
     }
 
     [Fact]
+    public void Start_credits_and_the_waves_strength_go_only_to_the_modes_that_have_them()
+    {
+        foreach (var mode in new[] { LobbyMode.Skirmish, LobbyMode.Zones, LobbyMode.Regicide })
+        {
+            var l = Lobby.Create(mode, 3);
+            l.Credits = 10000;
+            Assert.True(l.HasCredits);
+            Assert.Equal(10000, l.Skirmish().Credits);
+        }
+        // An assault has its fortress and its bridgehead, survival its records: the usual credits.
+        foreach (var mode in new[] { LobbyMode.Assault, LobbyMode.Survival })
+        {
+            var l = Lobby.Create(mode, 3);
+            l.Credits = 10000;
+            Assert.Equal(Scenario.StartCredits, l.Skirmish().Credits);
+        }
+        var survival = Lobby.Create(LobbyMode.Survival, 3);
+        survival.WaveStrength = 140;
+        Assert.Equal(140, survival.Skirmish().WaveStrength);
+        var skirmish = Lobby.Create(LobbyMode.Skirmish, 3);
+        skirmish.WaveStrength = 140;
+        Assert.Equal(100, skirmish.Skirmish().WaveStrength);
+        // A file's lobby with a value the menu does not offer is set aside.
+        skirmish.WaveStrength = 100;
+        skirmish.Credits = 999_999;
+        Assert.False(skirmish.Sane());
+        skirmish.Credits = 4000;
+        skirmish.WaveStrength = 0;
+        Assert.False(skirmish.Sane());
+    }
+
+    [Fact]
+    public void A_lobby_kept_before_the_credits_and_the_waves_reads_with_the_usual_ones()
+    {
+        var json = System.Text.Json.Nodes.JsonNode.Parse(System.Text.Json.JsonSerializer.Serialize(Lobby.Create(LobbyMode.Survival, 3), Lobby.Json))!.AsObject();
+        Assert.True(json.Remove("credits") && json.Remove("waveStrength"));
+        var old = System.Text.Json.JsonSerializer.Deserialize<Lobby>(json.ToJsonString(), Lobby.Json)!;
+        Assert.True(old.Sane());
+        Assert.Equal(((int)Scenario.StartCredits, 100), (old.Credits, old.WaveStrength));
+    }
+
+    [Fact]
     public void The_classic_map_is_for_two_only()
     {
         var lobby = Lobby.Create(LobbyMode.Campaign, 3);

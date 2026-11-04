@@ -564,9 +564,10 @@ public class TerrainTests(ITestOutputHelper output)
         Replays.Write(file, replay);
         var bytes = file.ToArray();
         // Format 1: no personality byte closing each seat's 16 (format 3), after the header and the
-        // options' first fields; no terrain byte after the options, just before the count of commands (none).
+        // options' first fields; at the options' end, before the count of commands (none), neither
+        // the terrain byte nor the waves' strength (format 4).
         var seats = 4 + 4 + 4 + 1 + "test".Length + 8 + 8 + 4 + 4 + 4 + 1 + 1 + 4 + 4 + 4;
-        var dropped = Enumerable.Range(0, o.Slots.Count).Select(i => seats + 16 * i + 15).Append(bytes.Length - 5).ToHashSet();
+        var dropped = Enumerable.Range(0, o.Slots.Count).Select(i => seats + 16 * i + 15).Concat(Enumerable.Range(bytes.Length - 9, 5)).ToHashSet();
         var old = bytes.Where((_, i) => !dropped.Contains(i)).ToArray();
         BitConverter.GetBytes(1).CopyTo(old, 4);
         var back = Replays.Read(new MemoryStream(old));
@@ -575,7 +576,7 @@ public class TerrainTests(ITestOutputHelper output)
         // Its AIs all played Balanced.
         Assert.Equal(o.Slots.Select(s => s with { Personality = Personality.Balanced }), back.Options.Slots);
         // An unknown terrain is refused.
-        bytes[^5] = 7;
+        bytes[^9] = 7;
         Assert.Throws<InvalidDataException>(() => Replays.Read(new MemoryStream(bytes)));
     }
 

@@ -28,7 +28,7 @@ public static class Bindings
         ZoomIn = "zoom_in", ZoomOut = "zoom_out", Pause = "pause", Stop = "stop",
         SelectAll = "select_all", AttackMove = "attack_move", Patrol = "patrol", Guard = "guard", Stance = "stance",
         Ability = "ability", Pilot = "pilot", CenterSelection = "center_selection",
-        CenterStation = "center_station", LastAlert = "last_alert", Idle = "idle", Mute = "mute",
+        CenterStation = "center_station", LastAlert = "last_alert", Idle = "idle", Build = "build", Mute = "mute",
         Overview = "overview", Fleets = "fleets", Empire = "empire", Log = "log", Diplomacy = "diplomacy";
 
     static Combo Phys(Key k) => new(k, Physical: true);
@@ -55,6 +55,7 @@ public static class Bindings
         new(CenterStation, "Centrer la vue sur la station", Where.Battle, new Combo(Key.H)),
         new(LastAlert, "Aller à la dernière alerte", Where.Battle, new Combo(Key.Backspace)),
         new(Idle, "Vaisseau inactif suivant (Maj : tous)", Where.Battle, new Combo(Key.I)),
+        new(Build, "Ouvrir ou replier la production", Where.Battle, new Combo(Key.B)),
         new(Mute, "Couper ou rétablir le son", Where.Battle, new Combo(Key.M)),
         new(Overview, "Revoir toute la galaxie", Where.Galaxy, new Combo(Key.H), new Combo(Key.Home)),
         new(Fleets, "Volet des flottes", Where.Galaxy, new Combo(Key.F)),

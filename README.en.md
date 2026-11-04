@@ -65,7 +65,7 @@ Every version's files are on the [Releases](../../releases) page. The `main-buil
 Neither the installer nor the Windows executable is signed: if Windows shows "Windows protected
 your PC", choose "More info", then "Run anyway".
 
-The main battle controls; all of them are in the game, "Controls" menu:
+The main battle controls; all of them are in the game, Options, "Controls" tab:
 
 | Key | Effect |
 |---|---|
@@ -74,6 +74,7 @@ The main battle controls; all of them are in the game, "Controls" menu:
 | F then click | Attack-move: engages everything on the way |
 | E | Ability of the selected ships |
 | P | Fly the selected ship |
+| B | Open or fold the production |
 | Ctrl + 1 to 9, then 1 to 9 | Create a group, then recall it |
 | WASD or arrows, wheel | Move the view, zoom |
 | Space | Pause |

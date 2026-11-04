@@ -18,20 +18,37 @@ public static class Options
         ("Mises à jour", "Vérifier au lancement si une nouvelle version est sortie", s => s.CheckUpdates, (s, v) => s.CheckUpdates = v),
     ];
 
+    /// <summary>The options' pages, each a tab: what a player looks for is on one screen, without scrolling.</summary>
+    public enum Page { General, Display, Sound, Access }
+
+    public static readonly (Page Page, string Name)[] Pages =
+        [(Page.General, "Général"), (Page.Display, "Affichage"), (Page.Sound, "Son"), (Page.Access, "Accessibilité")];
+
+    /// <summary>The page shown last, on the menu or in battle: the options open on it again.</summary>
+    public static Page Shown { get; set; }
+
+    /// <summary>The page each group of check boxes is on.</summary>
+    static Page PageOf(string group) => group switch
+    {
+        "Son" => Page.Sound,
+        "Accessibilité" => Page.Access,
+        _ => Page.General,
+    };
+
     /// <summary>
-    /// The settings, under a heading per group. `focusable`: reachable with the keyboard, as on
-    /// the menu; in battle, Space and Enter stay the game's.
+    /// The settings of a page, under a heading per group. `focusable`: reachable with the
+    /// keyboard, as on the menu; in battle, Space and Enter stay the game's.
     /// </summary>
-    public static VBoxContainer Body(bool focusable = false)
+    public static VBoxContainer Body(Page page, bool focusable = false)
     {
         var s = Settings.Current;
         var focus = focusable ? Control.FocusModeEnum.All : Control.FocusModeEnum.None;
         var box = new VBoxContainer();
         box.AddThemeConstantOverride("separation", 18);
-        box.AddChild(LanguagePart(s, focus));
-        box.AddChild(DisplayPart(s, focus));
+        if (page == Page.General) box.AddChild(LanguagePart(s, focus));
+        if (page == Page.Display) box.AddChild(DisplayPart(s, focus));
         var toggles = Toggles;
-        foreach (var group in toggles.Select(t => t.Group).Distinct())
+        foreach (var group in toggles.Select(t => t.Group).Distinct().Where(g => PageOf(g) == page))
         {
             var part = new VBoxContainer();
             part.AddThemeConstantOverride("separation", 2);
@@ -62,7 +79,7 @@ public static class Options
             box.AddChild(part);
         }
         // Only on the menu: in battle, a name could not change any more.
-        if (focusable) box.AddChild(Multiplayer(s));
+        if (focusable && page == Page.General) box.AddChild(Multiplayer(s));
         return box;
     }
 
@@ -218,7 +235,7 @@ public static class Options
         return row;
     }
 
-    /// <summary>The options dialog of the pause menu; `onClose` runs when it is closed.</summary>
+    /// <summary>The options dialog of the pause menu, a tab a page; `onClose` runs when it is closed.</summary>
     public static PanelContainer Panel(Action onClose)
     {
         var p = HudKit.Panel(24, 24);
@@ -228,17 +245,28 @@ public static class Options
         p.AddChild(box);
         var title = HudKit.Text("Options", size: 22, bold: true);
         box.AddChild(title);
+        var tabs = HudKit.Row(4);
+        box.AddChild(tabs);
         // Taller than the screen leaves room for, the settings scroll.
         var screen = ((SceneTree)Engine.GetMainLoop()).Root.GetVisibleRect().Size;
         var scroll = new ScrollContainer
         {
             HorizontalScrollMode = ScrollContainer.ScrollMode.Disabled,
-            CustomMinimumSize = new Vector2(620, Math.Max(240, Math.Min(620, screen.Y - 200))),
+            CustomMinimumSize = new Vector2(620, Math.Max(240, Math.Min(460, screen.Y - 260))),
         };
-        var body = Body();
-        body.SizeFlagsHorizontal = Control.SizeFlags.ExpandFill;
-        scroll.AddChild(body);
         box.AddChild(scroll);
+        var buttons = new Dictionary<Page, Button>();
+        void Open(Page page)
+        {
+            Shown = page;
+            foreach (var (key, b) in buttons) HudKit.Outline(b, key == page ? Palette.Accent : null);
+            foreach (var child in scroll.GetChildren()) child.QueueFree();
+            var body = Body(page);
+            body.SizeFlagsHorizontal = Control.SizeFlags.ExpandFill;
+            scroll.AddChild(body);
+        }
+        foreach (var (page, name) in Pages) buttons[page] = tabs.Add(HudKit.Button(name, () => Open(page), height: 36));
+        Open(Shown);
         var close = HudKit.Primary(HudKit.Button("Fermer", onClose));
         close.SizeFlagsHorizontal = Control.SizeFlags.ShrinkEnd;
         box.AddChild(close);

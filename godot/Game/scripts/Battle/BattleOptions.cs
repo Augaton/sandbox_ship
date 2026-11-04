@@ -32,6 +32,10 @@ public sealed record BattleOptions
     public BattleMode Rules { get; init; } = BattleMode.Standard;
     public int ZoneTarget { get; init; } = 100;
     public int AssaultMinutes { get; init; } = 15;
+    /// <summary>What each side starts with, as the lobby chose (Lobby.Credits); the sandbox and the tutorial have their own.</summary>
+    public double Credits { get; init; } = Scenario.StartCredits;
+    /// <summary>Survival: the waves' strength, in percent.</summary>
+    public int WaveStrength { get; init; } = 100;
     /// <summary>The main menu's backdrop: a showcase fight under a drifting camera, without HUD, input or sound.</summary>
     public bool Demo { get; init; }
     /// <summary>A battle over the network: the host's world, or a player's replica of it (Network.NetBattle).</summary>
@@ -46,7 +50,8 @@ public sealed record BattleOptions
     {
         Player = r.Player, Slots = r.Options.Slots, Mode = r.SandboxTools ? GameMode.Sandbox : GameMode.Skirmish, Seed = r.Options.Seed,
         Map = r.Options.Map, Size = r.Options.Size, Raid = r.Options.Raid, Terrain = r.Options.Terrain, Fog = r.Options.Fog, Rules = r.Options.Mode,
-        ZoneTarget = r.Options.ZoneTarget, AssaultMinutes = r.Options.AssaultMinutes, Replay = r,
+        ZoneTarget = r.Options.ZoneTarget, AssaultMinutes = r.Options.AssaultMinutes, Credits = r.Options.Credits,
+        WaveStrength = r.Options.WaveStrength, Replay = r,
     };
 
     /// <summary>The player's race against one or two others, each on its race's own side, every one at war with all; the enemies' AI at `difficulty`.</summary>

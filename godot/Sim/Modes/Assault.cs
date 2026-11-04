@@ -22,9 +22,12 @@ public static class Assault
 
     static readonly (ShipClass Cls, int Count)[] Garrison =
         [(ShipClass.Frigate, 4), (ShipClass.Torpedo, 2), (ShipClass.Battlecruiser, 2), (ShipClass.Bulwark, 1)];
+    // The opening clash mostly decides an assault between AIs, and it tips sharply: with 6
+    // frigates here (12 700 credits), the defense won 79 games of 108; with 8 (14 000), 58; with
+    // 6 frigates and a third battlecruiser, 42; with a fourth, 14.
     static readonly (ShipClass Cls, int Count)[] Armada =
     [
-        (ShipClass.Frigate, 6), (ShipClass.Torpedo, 4), (ShipClass.Bomber, 4), (ShipClass.Support, 2),
+        (ShipClass.Frigate, 8), (ShipClass.Torpedo, 4), (ShipClass.Bomber, 4), (ShipClass.Support, 2),
         (ShipClass.Battlecruiser, 2),
     ];
 
@@ -97,18 +100,20 @@ public static class Assault
 
     /// <summary>
     /// The defending AI holds (it sends no waves, see Modes.WaveTarget). The attacking AI does not
-    /// wait for the odds: a wave at the nearest fortress as soon as enough of its fleet is idle,
-    /// and near the end, every idle warship.
+    /// wait for the odds: a wave at the nearest fortress as soon as enough of its fleet is ready,
+    /// and near the end, every ready warship.
     /// </summary>
     public static void Think(World world, FactionState f)
     {
         if (f.Team != Attackers) return;
-        var idle = Modes.Idle(world, f);
-        if (idle.Count == 0) return;
-        var value = idle.Sum(id => Ships.UnitValue(world.Entities.Get(id)!.Cls));
-        if (value < WaveSize && world.Mode.Deadline - world.Time > AllIn) return;
-        var from = world.Entities.Get(idle[0])!;
-        var fortress = world.Factions.Values.Where(d => d.Team == Defenders).Select(d => StationOf(world, d.Id)).OfType<Entity>().MinBy(s => Dist(s, from));
-        if (fortress is not null) Movement.IssueMove(world, idle, fortress.X, fortress.Y, true);
+        // Ready: every warship at home, idle or still on its way to the rally point, as for the
+        // all-in past Ai.AllInTime, which an assault never reaches. Big hulls jostling there may
+        // never quite get to their spot: waited for as idle, they could sit at home for the rest
+        // of the battle, clock and all. Not one holding a spot for a mine.
+        var ready = Ai.Warships(world, f).Where(e => e.Order?.Type != OrderType.AttackMove && e.Stance != Stance.Hold && !Modes.Kept(world, e)).ToList();
+        if (ready.Count == 0) return;
+        if (ready.Sum(e => Ships.UnitValue(e.Cls)) < WaveSize && world.Mode.Deadline - world.Time > AllIn) return;
+        var fortress = world.Factions.Values.Where(d => d.Team == Defenders).Select(d => StationOf(world, d.Id)).OfType<Entity>().MinBy(s => Dist(s, ready[0]));
+        if (fortress is not null) Ai.Send(world, ready, fortress, Stance.Aggressive);
     }
 }

@@ -85,7 +85,7 @@ public static class PlayerProfile
         var network = s.Opts.Net is not null && Humans() > 1;
         var recap = new BattleRecap(ModeOf(s), won, me.Race, w.Time, me.Stats.Kills, me.Stats.Lost, me.Stats.Built,
             Enemies: foes.Count, Hardest: foes.Select(f => f.AI?.Difficulty).Max(), Network: network,
-            Hosted: network && s.Opts.Net!.Host is not null, Waves: w.Mode.Kind == BattleMode.Survival ? w.Mode.Cleared : 0);
+            Hosted: network && s.Opts.Net!.Host is not null, Waves: w.Mode.Kind == BattleMode.Survival && FullWaves(s) ? w.Mode.Cleared : 0);
         Announce(Profiles.RecordBattle(Current, recap, Now));
         Flush();
     }
@@ -107,6 +107,9 @@ public static class PlayerProfile
         Save();
     }
 
+    /// <summary>Survival waves at their usual strength or more: softer ones count toward no wave record, nor its achievements.</summary>
+    public static bool FullWaves(BattleScreen s) => s.Opts.WaveStrength >= 100;
+
     /// <summary>
     /// Every frame of a battle, before its events go: the player's titans and colossi put in
     /// service, the star lance fired, survival waves beaten.
@@ -126,7 +129,7 @@ public static class PlayerProfile
                 case AbilityUsed { Id: AbilityId.StarLance } a when a.Side == s.Opts.Player:
                     Moment(Profiles.Moment.Lance);
                     break;
-                case WaveCleared wc:
+                case WaveCleared wc when FullWaves(s):
                     var earned = Profiles.Reached(Current, wc.Wave, Now);
                     if (earned.Count > 0)
                     {

@@ -232,10 +232,11 @@ tests de `FixtureTests` et `CrossTests` les listent.
   0,1 point/s à son camp tant qu'il a une station ; le premier au score (100) gagne, détruire les stations aussi.
   L'IA envoie ses vaisseaux inactifs à la balise la plus proche qu'elle ne tient pas. Entre IA : 8 à 14 min.
 - Assaut : l'équipe 1 tient une forteresse (station niveau 4, trois plateformes niveau 3, canon ionique, 9 vaisseaux),
-  l'équipe 2 arrive d'une tête de pont (station niveau 3 nue) avec une flotte de 12 000 cr et 30 cr/s de plus. La
-  défense gagne si une station tient au bout du temps (15 min), l'attaque en les détruisant toutes. L'IA défend sans
-  sortir ; en attaque, une vague dès 5 000 cr de vaisseaux prêts, tout dans les 3 dernières minutes. Entre IA : 13
-  victoires de la défense, 11 de l'attaque sur 24.
+  l'équipe 2 arrive d'une tête de pont (station niveau 3 nue) avec une flotte de 14 000 cr (20 vaisseaux) et 30 cr/s
+  de plus. La défense gagne si une station tient au bout du temps (15 min), l'attaque en les détruisant toutes. L'IA
+  défend sans sortir ; en attaque, une vague dès 5 000 cr de vaisseaux prêts (oisifs ou encore en route vers le point
+  de ralliement), tout dans les 3 dernières minutes. Entre IA : 114 victoires de la défense, 102 de l'attaque sur 216
+  (équilibrage du 2026-11-04).
 - Régicide : chaque camp commence avec son amiral (héros) pour vaisseau amiral, couronné, connu de tous sur la
   minicarte, jamais reconstruit ; le perdre élimine le camp, dont tout s'autodétruit sans prime. La dernière équipe
   avec un vaisseau amiral gagne, les stations ne décident rien. L'IA le garde à 900 de sa station, sur le flanc
@@ -403,6 +404,30 @@ tests de `FixtureTests` et `CrossTests` les listent.
     bombardiers (−0,48 → +0,06 sur une échelle de −1 à +1) sans rien écraser ; croiseur, cuirassé et Léviathan restent à moins de
     0,1 de leurs anciens scores.
   - Reste à juger en vraie partie : le tout ou rien à 30 minutes face à un joueur, et l'assaut, où la défense garde l'avantage.
+- Assaut rééquilibré (2026-11-04), mêmes parties entre IA de difficulté normale, graines 1 à 18 puis 1 à 36
+  (`BALANCE=1 SEEDS=18 dotnet test Sim.Tests --filter Measures_assault`, chaque race dans les deux rôles) :
+
+  | Mesure | Kla'ed | Nairan | Nautolan | Nuls |
+  |---|---|---|---|---|
+  | Assaut, avant (108) | 63 % | 50 % | 38 % | 0 (défense 81, attaque 27) |
+  | Assaut, après (108) | 61 % | 42 % | 47 % | 0 (défense 58, attaque 50) |
+  | Assaut, après (216) | 56 % | 42 % | 52 % | 0 (défense 114, attaque 102) |
+
+  - Depuis la mesure du 2026-11-03, prise avant les postures, les vétérans et les personnalités, la défense était passée
+    de 58 % à 75 % : chaque vague mourait sous les plateformes et la flotte de la forteresse, qui passait de 10 000 à
+    30 000 ou 45 000 cr en 15 min pendant que celle de l'attaque finissait entre 10 000 et 23 000.
+  - La flotte de départ de l'attaque passe de 6 à 8 frégates (12 700 → 14 000 cr). Le premier choc décide le plus
+    souvent, et il bascule net : 6 frégates et un troisième croiseur (14 700 cr) ne laissent à la défense que 42 parties
+    sur 108 ; un quatrième, 14, en 5 min (médiane). Sur les graines 19 à 36, jamais réglées, la défense en gagne 56 sur 108.
+  - L'IA d'attaque envoie aussi les vaisseaux encore en route vers son point de ralliement : les grosses coques s'y
+    bousculent sans atteindre leur place et, attendues comme oisives, restaient chez elles (une partie suivie : flotte
+    immobile dès la 8e minute, 23 000 cr inemployés à la fin). Seule, cette correction change peu (défense 79 sur 108).
+  - Sans effet net sur 24 parties : vagues de 2 500 cr ou dès le premier vaisseau prêt, vagues laissées au seul mode
+    (pire, 21 défenses sur 24), penchant pour les grosses coques, recherche à chaque occasion, tête de pont rapprochée
+    (70 % de la largeur au lieu de 88 %). Le revenu de 30 cr/s n'est pas un levier : un seul chantier ne construit pas
+    plus vite, et l'attaque finit avec 8 000 à 24 000 cr inemployés.
+  - Reste : 40 des 50 victoires de l'attaque (108 parties) tombent avant la 9e minute, et 50 des 58 défenses finissent
+    avec une station intacte ; l'horloge décide peu.
 - Succès et statistiques (2026-11-03) : 36 succès, dont 4 cachés, et les statistiques du joueur, en logique pure dans
   `Sim/Profile.cs` (`ProfileTests`), comptés côté jeu par `Core/PlayerProfile.cs` et gardés dans `user://profile.json`
   (écrit par fichier temporaire, relu borné : un fichier cassé ou forgé donne un profil vide ou borné). Seul le joueur
@@ -438,6 +463,30 @@ tests de `FixtureTests` et `CrossTests` les listent.
   volumes au plus fort, une bataille monte à −3 dBFS. Mesure : `tools/loudness.py` (BS.1770 ; musique sur toute sa durée,
   effet sur ses 100 ms les plus fortes), sur `--sfx-dump` et `--music-dump`, ou `--record` sur un `--music-record`. Une
   capture lit les volumes du joueur : la lancer avec `XDG_DATA_HOME` vers un dossier vide pour mesurer aux volumes par défaut.
+- Interface, menus et modes (2026-11-04) :
+  - Bataille : le bas de l'écran ne prend plus qu'une rangée tant qu'on ne s'en sert pas. La production démarre repliée sur
+    ses onglets, chacun avec le compte de sa file (« Bâtiments (1) ») ; un onglet l'ouvre, le même la replie, B aussi
+    (`Bindings.Build`, réglable). Repliée, elle garde en vue la file de son dernier onglet quand elle tient quelque chose.
+    Le panneau de sélection n'existe que s'il y a une sélection. En haut, un seul bouton « Menu » ouvre le menu Échap, qui
+    avait déjà options, commandes, recommencer et quitter ; la campagne garde « Retraite ». Les avis passent en haut à
+    gauche (sous la carte du didacticiel quand il est là, `BattleScreen.TutorialBottom`), et un avis déjà affiché se compte
+    (« Construction terminée ×2 ») au lieu de s'empiler.
+  - Objectif : au départ d'une bataille lancée d'un salon, un bandeau sous le panneau du mode dit comment gagner (en assaut,
+    selon le rôle), 9 s puis s'efface ; pas en campagne, au didacticiel, au bac à sable, en rediffusion, en spectateur, ni
+    dans une bataille rejointe en cours (`Hud.BuildObjective`).
+  - Menu : l'accueil passe à cinq entrées (Continuer et Charger s'il y a une sauvegarde, Nouvelle partie, Multijoueur,
+    Profil, Options, Quitter) ; le didacticiel y reste tant qu'aucune bataille n'est jouée, et devient une carte
+    « Entraînement » de Nouvelle partie, à côté du bac à sable ; l'escarmouche y prend toute la largeur au-dessus des quatre
+    autres modes. Crédits en pied de page. Options en onglets (Général, Affichage, Son, Accessibilité, et au menu
+    Commandes), dans le menu comme en bataille (`Options.Page`, la dernière ouverte gardée) ; Profil en deux onglets,
+    statistiques et succès, rediffusions (`Menu.Tabs`). Au salon, le type de carte, le terrain et la graine se replient
+    sous « Plus de réglages », leurs valeurs affichées à côté.
+  - Règles : crédits de départ (1 500, 4 000 ou 10 000 ; escarmouche, zones et régicide seulement : l'assaut a sa
+    forteresse, la survie ses records) et force des vagues en survie (70, 100 ou 140 % de leur budget, `Survival.Strength`,
+    lue dans `World.Origin`). Les records de survie et le profil (meilleure vague, succès de vagues) ne comptent que les
+    vagues normales ou plus fortes. Protocole 10 (les deux règles dans `LobbySettings`) ; rediffusions au format 4, qui
+    garde la force des vagues ; les formats 1 à 3 se lisent toujours, aux vagues normales. Le serveur en ligne n'a pas à
+    changer : le relais compare la version de l'hôte à celle du joueur, sans en figer aucune.
 - Sécurité (2026-11-03) : ce qu'un inconnu peut envoyer au serveur en ligne, à un hôte ou au jeu, et les fichiers du joueur.
   Chaque lecteur exposé passe un test de robustesse à graine fixe (`FuzzTests` : trames du relais, messages du jeu, ordres,
   instantanés de bataille entiers et en parties, galaxie, rediffusions, sauvegardes), et chaque correction a son test
