@@ -429,6 +429,15 @@ tests de `FixtureTests` et `CrossTests` les listent.
     (`HudKit.Primary`, boutons « MenuPrimary »), cases cochées et décochées, crans des curseurs (hauteur selon la
     valeur), refus sur un bouton désactivé, survol au pointeur dans le menu et les dialogues seulement (`Sfx.HoverSounds`)
     et aux touches partout, souffle à l'ouverture et à la fermeture d'un écran du menu ou d'un dialogue.
+- Mixage (2026-11-04) : les sons d'interface et les avis, repris aux niveaux de la version web, passaient 20 à 33 dB sous
+  la musique (clic −49 LUFS, survol −59, contre −26 pour la musique du menu, aux volumes par défaut). Chacun est relevé
+  après son rendu, sa forme gardée (`Sfx.Lift`, +13 à +23 dB) : clic −29, alerte −27, action principale −27, cases −29 et
+  −30, refus −31, ouverture et fermeture −32, crans −34, survol −37. Les sons de bataille gardent leur mixage : une grosse
+  bataille (`--start=stress`) tient à −25 LUFS, la musique de la galaxie et du menu à −26, celle de bataille de −31 au
+  calme à −27 au plus fort. Un limiteur (`AudioEffectHardLimiter`, plafond −0,3 dB) tient le bus principal : les deux
+  volumes au plus fort, une bataille monte à −3 dBFS. Mesure : `tools/loudness.py` (BS.1770 ; musique sur toute sa durée,
+  effet sur ses 100 ms les plus fortes), sur `--sfx-dump` et `--music-dump`, ou `--record` sur un `--music-record`. Une
+  capture lit les volumes du joueur : la lancer avec `XDG_DATA_HOME` vers un dossier vide pour mesurer aux volumes par défaut.
 - Sécurité (2026-11-03) : ce qu'un inconnu peut envoyer au serveur en ligne, à un hôte ou au jeu, et les fichiers du joueur.
   Chaque lecteur exposé passe un test de robustesse à graine fixe (`FuzzTests` : trames du relais, messages du jeu, ordres,
   instantanés de bataille entiers et en parties, galaxie, rediffusions, sauvegardes), et chaque correction a son test

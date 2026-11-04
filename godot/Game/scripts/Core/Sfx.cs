@@ -45,6 +45,20 @@ public static class Sfx
         [Sound.Open] = 150, [Sound.Close] = 150,
     };
 
+    /// <summary>
+    /// Decibels added to a sound once rendered, its shape kept: the interface's and the notices'
+    /// sounds, ported from the web version's levels, sat 20 to 30 dB under the music. Lifted, at
+    /// the default volumes, the click and the alert come within 1 to 3 LU of the menu's music
+    /// (-26 LUFS), the main action and the boxes beside them, the slider's steps and the hover
+    /// under them. Measured with tools/loudness.py on --sfx-dump and --music-dump. The battle's
+    /// sounds keep the web version's mix: a big battle sits at the menu music's loudness.
+    /// </summary>
+    static readonly Dictionary<Sound, double> Lift = new()
+    {
+        [Sound.Click] = 20, [Sound.Confirm] = 15, [Sound.ToggleOn] = 19, [Sound.ToggleOff] = 19, [Sound.Tick] = 23,
+        [Sound.Hover] = 22, [Sound.Denied] = 15, [Sound.Open] = 16, [Sound.Close] = 16, [Sound.Alert] = 14, [Sound.Built] = 13,
+    };
+
     const int Rate = 44100;
     /// <summary>Stereo copies of each sound, from hard left to hard right.</summary>
     const int PanSteps = 9;
@@ -409,7 +423,7 @@ public static class Sfx
     /// <summary>Each part plays this long past its fade, as the web version stops its nodes.</summary>
     const double Tail = 0.02;
 
-    /// <summary>A sound as mono samples in [-1, 1], at full volume.</summary>
+    /// <summary>A sound as mono samples in [-1, 1], at full volume, lifted if it is.</summary>
     static float[] Render(Sound sound)
     {
         var parts = Recipe(sound);
@@ -420,6 +434,11 @@ public static class Sfx
             var n = Math.Min(output.Length - start, (int)Math.Ceiling((p.Length + Tail) * Rate));
             if (p is Tone t) AddTone(output, start, n, t);
             else AddBurst(output, start, n, (Burst)p);
+        }
+        if (Lift.TryGetValue(sound, out var db))
+        {
+            var gain = (float)Math.Pow(10, db / 20);
+            for (var i = 0; i < output.Length; i++) output[i] *= gain;
         }
         return output;
     }

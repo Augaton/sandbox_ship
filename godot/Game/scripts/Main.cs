@@ -29,6 +29,9 @@ public partial class Main : Node
         // A capture is silent: whoever works next to it hears nothing, whatever the audio driver.
         // Recording the game's sound is the one capture that keeps it, through its own bus effect.
         if ((Dev.Shot is not null || Dev.Snap is not null) && Dev.MusicRecord is null) AudioServer.SetBusMute(0, true);
+        // The whole mix under a limiter (before --music-record's recorder, which hears it): with both
+        // volumes at full, a big battle peaks at -3 dBFS, and a click or an alert on it can pass 0.
+        AudioServer.AddBusEffect(0, new AudioEffectHardLimiter());
         if (Dev.MusicDump is string dump)
         {
             Music.Dump(dump);
