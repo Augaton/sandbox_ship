@@ -149,14 +149,35 @@ public static partial class Galaxies
     /// <summary>Attacks alone sink trust no lower than this: only betrayals go further.</summary>
     const double TrustAttackFloor = -60;
 
-    public static Truce? TruceOf(Galaxy g, Side a, Side b) => g.Truces.Find(t => (t.A == a && t.B == b) || (t.A == b && t.B == a));
+    // Plain loops: asked for every pair of factions at every step, a predicate capturing them
+    // allocated each time.
+    public static Truce? TruceOf(Galaxy g, Side a, Side b)
+    {
+        foreach (var t in g.Truces)
+        {
+            if ((t.A == a && t.B == b) || (t.A == b && t.B == a)) return t;
+        }
+        return null;
+    }
 
-    public static Pact? PactOf(Galaxy g, DealKind kind, Side a, Side b) =>
-        g.Pacts.Find(p => p.Kind == kind && ((p.A == a && p.B == b) || (p.A == b && p.B == a)));
+    public static Pact? PactOf(Galaxy g, DealKind kind, Side a, Side b)
+    {
+        foreach (var p in g.Pacts)
+        {
+            if (p.Kind == kind && ((p.A == a && p.B == b) || (p.A == b && p.B == a))) return p;
+        }
+        return null;
+    }
 
     /// <summary>The tribute one of the two pays the other, if any.</summary>
-    public static Tribute? TributeOf(Galaxy g, Side a, Side b) =>
-        g.Tributes.Find(t => (t.Payer == a && t.Payee == b) || (t.Payer == b && t.Payee == a));
+    public static Tribute? TributeOf(Galaxy g, Side a, Side b)
+    {
+        foreach (var t in g.Tributes)
+        {
+            if ((t.Payer == a && t.Payee == b) || (t.Payer == b && t.Payee == a)) return t;
+        }
+        return null;
+    }
 
     /// <summary>Whether two sides are bound by a truce.</summary>
     public static bool AtPeace(Galaxy g, Side a, Side b) => g.Truces.Count > 0 && a != b && TruceOf(g, a, b) is not null;
@@ -594,14 +615,16 @@ public static partial class Galaxies
                 }
             }
         }
-        foreach (var o in g.Offers.ToList())
+        for (var i = g.Offers.Count - 1; i >= 0; i--)
         {
+            var o = g.Offers[i];
             o.Remaining -= dt;
-            if (Gone(o.From) || Gone(o.To)) g.Offers.Remove(o);
+            if (Gone(o.From) || Gone(o.To)) g.Offers.RemoveAt(i);
             else if (o.Remaining <= 0)
             {
-                g.Offers.Remove(o);
+                g.Offers.RemoveAt(i);
                 Turned(g, o);
+                i = Math.Min(i, g.Offers.Count);
             }
         }
         g.Pacts.RemoveAll(p => Gone(p.A) || Gone(p.B));
@@ -636,6 +659,7 @@ public static partial class Galaxies
             ai.OfferWait = Math.Max(0, ai.OfferWait - dt);
             Fade(ai.Grudges, dt);
             Fade(ai.TruceRest, dt);
+            Fade(ai.Yielded, dt);
             Fade(ai.BoughtTrust, dt * TrustBuyable / TruceTime);
             if (f.Eliminated) continue;
             foreach (var other in g.Factions.Values)
@@ -666,9 +690,12 @@ public static partial class Galaxies
     static void Fade(Dictionary<Side, double> left, double by)
     {
         if (left.Count == 0) return;
-        foreach (var k in left.Keys.ToList())
+        // In place: a value changed and an entry removed as the walk goes leave it valid (.NET Core 3
+        // and later); a copy of the keys allocated for every AI at every step.
+        foreach (var k in left.Keys)
         {
-            if ((left[k] -= by) <= 0) left.Remove(k);
+            ref var v = ref System.Runtime.InteropServices.CollectionsMarshal.GetValueRefOrNullRef(left, k);
+            if ((v -= by) <= 0) left.Remove(k);
         }
     }
 

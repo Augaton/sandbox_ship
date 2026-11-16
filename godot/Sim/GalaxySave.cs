@@ -170,6 +170,11 @@ public static class GalaxySave
             Humans = s.Humans,
         };
         foreach (var f in s.Fleets) g.Fleets[f.Id] = f;
+        // Planets and sides out of range would bring down the view or the step that looks them up.
+        g.Chronicle.RemoveAll(e => !Galaxies.SaneEntry(e, g));
+        g.Promises.RemoveAll(p => (uint)p.Planet >= (uint)g.Planets.Count || !s.Factions.Exists(f => f.Id == p.Asker) || !s.Factions.Exists(f => f.Id == p.Helper));
+        g.Offers.RemoveAll(o => o.Planet is int planet && (uint)planet >= (uint)g.Planets.Count);
+        g.Pacts.RemoveAll(p => p.Target is Side t && !s.Factions.Exists(f => f.Id == t));
         foreach (var f in s.Factions)
         {
             if (!s.Sides)

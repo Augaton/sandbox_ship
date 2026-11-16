@@ -282,7 +282,28 @@ public class FuzzTests
         Survives("GalaxySnapshot.ReadChart", [chart], bytes => GalaxySnapshot.ReadChart(new BinaryReader(new MemoryStream(bytes)), new Galaxy()));
         var replica = new Galaxy();
         GalaxySnapshot.ReadChart(new BinaryReader(new MemoryStream(chart)), replica);
-        Survives("GalaxySnapshot.Read", [snapshot, WithEvents(g)], bytes => GalaxySnapshot.Read(new BinaryReader(new MemoryStream(bytes)), replica));
+        Survives("GalaxySnapshot.Read", [snapshot, WithEvents(g), WithAccords(g)], bytes => GalaxySnapshot.Read(new BinaryReader(new MemoryStream(bytes)), replica));
+    }
+
+    /// <summary>A snapshot carrying the diplomacy of this version: a joint war, shared vision, a bundle offered, a chronicle of every kind, a promise, an AI's reasons.</summary>
+    static byte[] WithAccords(Galaxy g)
+    {
+        var mine = g.Planets.First(p => p.Owner == Faction.Klaed).Id;
+        g.Pacts.Add(new Pact { Kind = DealKind.JointWar, A = Faction.Klaed, B = Faction.Nairan, Target = Faction.Nautolan, Remaining = 300 });
+        g.Pacts.Add(new Pact { Kind = DealKind.Vision, A = Faction.Klaed, B = Faction.Nairan });
+        g.Offers.Add(new DealOffer { From = Faction.Nairan, To = Faction.Klaed, Kind = DealKind.Bundle, Terms = DealTerms.Truce | DealTerms.Tribute, Amount = 60, PerMinute = true, Remaining = 30 });
+        g.Offers.Add(new DealOffer { From = Faction.Nairan, To = Faction.Klaed, Kind = DealKind.Help, Planet = mine, Remaining = 30 });
+        foreach (var kind in Enum.GetValues<ChronicleKind>())
+        {
+            var extra = kind switch { ChronicleKind.Said => (int)Remark.Threat, ChronicleKind.Ceded or ChronicleKind.Issued or ChronicleKind.Asked => mine, _ => -1 };
+            g.Chronicle.Add(new DiploEntry { Time = 12, Kind = kind, Deal = DealKind.Truce, A = Faction.Nairan, B = Faction.Klaed, By = Faction.Nairan, Amount = 50, Extra = extra });
+        }
+        g.Promises.Add(new HelpPromise { Asker = Faction.Nairan, Helper = Faction.Klaed, Planet = mine, Remaining = 40 });
+        g.Factions[Faction.Nairan].Reputation = -12;
+        g.Factions[Faction.Nairan].AI!.Why[Faction.Klaed] = new() { [TrustCause.Gifts] = 8, [TrustCause.Betrayal] = -30 };
+        using var ms = new MemoryStream();
+        using (var w = new BinaryWriter(ms, Encoding.UTF8, true)) GalaxySnapshot.Write(g, Faction.Klaed, w, [], null, default);
+        return ms.ToArray();
     }
 
     /// <summary>A snapshot carrying the events of this version: a battle's toll, an occupation, a rally cancelled, a ship built.</summary>

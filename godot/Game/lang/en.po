@@ -7479,3 +7479,7 @@ msgstr "One offer waiting"
 
 msgid "intacte"
 msgstr "intact"
+
+#: Sim/GalaxyAiDiplomacy.cs
+msgid "Elle t'a déjà cédé une fois : plus maintenant"
+msgstr "It gave in to you once already: not again"

@@ -79,6 +79,9 @@ public class ProtocolTests
         yield return new GalaxyCommand.ProposeDeal(Faction.Nautolan, DealKind.Tribute, 250, true);
         yield return new GalaxyCommand.AnswerDeal(Faction.Nautolan, DealKind.Alliance, false);
         yield return new GalaxyCommand.EndDeal(Faction.Nautolan, DealKind.Trade);
+        yield return new GalaxyCommand.ProposeAccord(Faction.Nairan, DealKind.JointWar, Target: Faction.Nautolan);
+        yield return new GalaxyCommand.ProposeAccord(Faction.Nautolan, DealKind.Ultimatum, Planet: 4);
+        yield return new GalaxyCommand.ProposeAccord(Faction.Nairan, DealKind.Bundle, 90, true, Terms: DealTerms.Truce | DealTerms.Vision | DealTerms.Tribute);
         yield return new GalaxyCommand.ChooseBattle(4, BattleStatus.Tactical);
         yield return new GalaxyCommand.DelegateBattle(4);
         yield return new GalaxyCommand.Retreat(4);

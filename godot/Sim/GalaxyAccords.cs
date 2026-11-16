@@ -57,6 +57,12 @@ public sealed record AiSaid(Side From, Side To, Remark What) : GalaxyEvent;
 
 public sealed partial class Galaxy
 {
+    /// <summary>
+    /// Diplomatic changes so far (an event, a reputation): what an AI would answer is worked out
+    /// again after one. Trust that battles wear away is not one: it moved at every battle, and a
+    /// second's delay changes nothing there. Not saved.
+    /// </summary>
+    public int DiploChanges;
     /// <summary>What was signed, broken, refused… between factions, the oldest first (ChronicleMax at most).</summary>
     public List<DiploEntry> Chronicle = [];
     public List<HelpPromise> Promises = [];
@@ -70,6 +76,11 @@ public sealed partial class GalaxyAIState
     public Dictionary<Side, double> Breaking = [];
     /// <summary>Galaxy seconds before the AI asks for help again, and before it issues another ultimatum.</summary>
     public double AskWait, ThreatWait;
+    /// <summary>Galaxy seconds during which the AI, having given in to each faction's ultimatum, will not again (UltimatumMemory).</summary>
+    public Dictionary<Side, double> Yielded = [];
+    /// <summary>On the host, what the AI would answer each viewer and its peace price, worked out at a galaxy time: a snapshot reuses them for a second.</summary>
+    [JsonIgnore]
+    internal Dictionary<Side, (double At, int Changes, double Price, DealPreview Preview)> Minds = [];
     /// <summary>On a replica, what the AI would answer the viewer (sent by the host, who works it out); null on the host.</summary>
     [JsonIgnore]
     public DealPreview? Preview;
@@ -85,6 +96,11 @@ public static partial class Galaxies
 {
     /// <summary>Galaxy seconds a joint war lasts, an ultimatum waits for its answer, and a player has to keep a promise of help.</summary>
     public const double JointWarTime = 600, UltimatumTime = 90, HelpTime = 180;
+    /// <summary>
+    /// Galaxy seconds an AI that gave in to an ultimatum refuses another from the same faction:
+    /// asked again and again, a strong player drained a weak AI's credits every few seconds.
+    /// </summary>
+    public const double UltimatumMemory = 900;
     /// <summary>How much stronger than the one it is made to an ultimatum's maker must be.</summary>
     public const double UltimatumEdge = 1.5;
     /// <summary>The longest chronicle the galaxy keeps.</summary>
@@ -101,15 +117,23 @@ public static partial class Galaxies
     /// <summary>A faction's reputation moved by `delta`, within ±TrustMax.</summary>
     static void Repute(Galaxy g, Side side, double delta)
     {
-        if (g.Factions.TryGetValue(side, out var f)) f.Reputation = Math.Clamp(f.Reputation + delta, -TrustMax, TrustMax);
+        if (!g.Factions.TryGetValue(side, out var f)) return;
+        f.Reputation = Math.Clamp(f.Reputation + delta, -TrustMax, TrustMax);
+        g.DiploChanges++;
     }
 
     /// <summary>The joint war `a` and `b` wage together, if any.</summary>
     public static Pact? JointWarOf(Galaxy g, Side a, Side b) => PactOf(g, DealKind.JointWar, a, b);
 
     /// <summary>Whether `side` swore a joint war against `target` with anyone.</summary>
-    public static bool Sworn(Galaxy g, Side side, Side target) =>
-        g.Pacts.Exists(p => p.Kind == DealKind.JointWar && p.Target == target && (p.A == side || p.B == side));
+    public static bool Sworn(Galaxy g, Side side, Side target)
+    {
+        foreach (var p in g.Pacts)
+        {
+            if (p.Kind == DealKind.JointWar && p.Target == target && (p.A == side || p.B == side)) return true;
+        }
+        return false;
+    }
 
     /// <summary>Whether two sides share their sight: allies, or a pact of vision.</summary>
     public static bool SharesSight(Galaxy g, Side a, Side b) => Allies(g, a, b) || (g.Pacts.Count > 0 && PactOf(g, DealKind.Vision, a, b) is not null);
@@ -178,6 +202,7 @@ public static partial class Galaxies
         }
         if (AtWar(g, from, to)) Sign(g, from, to);
         Trusts(g, to, from, -15, cause: TrustCause.Ultimatum);
+        if (victim.AI is { } ai) ai.Yielded[from] = UltimatumMemory;
         Note(g, new UltimatumEnded(from, to, true));
         return Result.OK;
     }
@@ -286,23 +311,32 @@ public static partial class Galaxies
     static void UpdateAccords(Galaxy g, double dt)
     {
         bool Gone(Side f) => !g.Factions.TryGetValue(f, out var gf) || gf.Eliminated;
-        foreach (var war in g.Pacts.Where(p => p.Kind == DealKind.JointWar).ToList())
+        // Backwards by index: an end removes its pact or promise, and nothing is copied at every step.
+        for (var i = g.Pacts.Count - 1; i >= 0; i--)
         {
+            var war = g.Pacts[i];
+            if (war.Kind != DealKind.JointWar) continue;
             war.Remaining -= dt;
-            if (Gone(war.A) || Gone(war.B)) g.Pacts.Remove(war);
+            if (Gone(war.A) || Gone(war.B)) g.Pacts.RemoveAt(i);
             else if (war.Remaining <= 0 || war.Target is not Side t || Gone(t)) EndJointWar(g, war, null);
+            i = Math.Min(i, g.Pacts.Count);
         }
-        foreach (var p in g.Promises.ToList())
+        for (var i = g.Promises.Count - 1; i >= 0; i--)
         {
+            var p = g.Promises[i];
             p.Remaining -= dt;
             if (Gone(p.Asker) || Gone(p.Helper) || g.Planets[p.Planet].Owner != p.Asker)
             {
-                g.Promises.Remove(p);
+                g.Promises.RemoveAt(i);
                 continue;
             }
-            var kept = g.Fleets.Values.Any(f => f.Side == p.Helper && f.At == p.Planet);
+            var kept = false;
+            foreach (var f in g.Fleets.Values)
+            {
+                if (f.Side == p.Helper && f.At == p.Planet) kept = true;
+            }
             if (!kept && p.Remaining > 0) continue;
-            g.Promises.Remove(p);
+            g.Promises.RemoveAt(i);
             Trusts(g, p.Asker, p.Helper, kept ? 20 : -25, cause: TrustCause.Help);
             Repute(g, p.Helper, kept ? 8 : -10);
             Note(g, new HelpAnswered(p.Asker, p.Helper, p.Planet, kept));
@@ -322,13 +356,26 @@ public static partial class Galaxies
     static void Settle<T>(Dictionary<T, double> left, double by) where T : notnull
     {
         if (left.Count == 0) return;
-        foreach (var k in left.Keys.ToList())
+        // In place, as Fade: no copy of the keys for every AI and every faction at every step.
+        foreach (var k in left.Keys)
         {
-            var v = left[k];
+            ref var v = ref System.Runtime.InteropServices.CollectionsMarshal.GetValueRefOrNullRef(left, k);
             if (Math.Abs(v) <= by) left.Remove(k);
-            else left[k] = v - Math.Sign(v) * by;
+            else v -= Math.Sign(v) * by;
         }
     }
+
+    /// <summary>
+    /// Whether a chronicle line's extra is one its kind may have: a planet of the galaxy for a
+    /// cession, an ultimatum or a request for help, a side for a joint war, a known remark for
+    /// words said, none otherwise. The view looks them up: one out of range would bring it down.
+    /// </summary>
+    public static bool SaneEntry(DiploEntry e, Galaxy g) => e.Extra == -1 || e.Kind switch
+    {
+        ChronicleKind.Said => Enum.IsDefined((Remark)e.Extra),
+        ChronicleKind.Ceded or ChronicleKind.Issued or ChronicleKind.Asked or ChronicleKind.Kept or ChronicleKind.Failed => (uint)e.Extra < (uint)g.Planets.Count,
+        _ => e.Deal == DealKind.JointWar && e.Extra is >= 0 and <= Lobby.MaxSeats,
+    };
 
     /// <summary>An AI speaks to a player; to another AI, it keeps its words.</summary>
     internal static void Say(Galaxy g, Side from, Side to, Remark what)
@@ -341,6 +388,7 @@ public static partial class Galaxies
     static void Note(Galaxy g, GalaxyEvent ev)
     {
         g.Events.Add(ev);
+        g.DiploChanges++;
         if (Entry(g, ev) is not { } e) return;
         e.Time = g.Time;
         g.Chronicle.Add(e);

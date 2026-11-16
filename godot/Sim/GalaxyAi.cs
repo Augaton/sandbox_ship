@@ -605,20 +605,58 @@ public static partial class GalaxyAi
     }
 
     /// <summary>What a faction could bring to a war: its fleets, and a minute of its income.</summary>
-    public static double Might(Galaxy g, Side side) =>
-        g.Fleets.Values.Where(f => f.Side == side).Sum(FleetStrength) + IncomeOf(g, side) * 60;
+    public static double Might(Galaxy g, Side side)
+    {
+        // A plain loop: diplomacy asks it of every faction, many times a second.
+        var s = 0.0;
+        foreach (var f in g.Fleets.Values)
+        {
+            if (f.Side == side) s += FleetStrength(f);
+        }
+        return s + IncomeOf(g, side) * 60;
+    }
 
     /// <summary>Whether two factions face each other: planets two lanes apart at most, or a battle between them.</summary>
     static bool Contact(Galaxy g, Side a, Side b)
     {
-        if (g.Battles.Exists(x => (x.Attacker == a && x.Defender == b) || (x.Attacker == b && x.Defender == a))) return true;
-        var hops = Hops(g, g.Planets.Where(p => p.Owner == a).Select(p => p.Id));
-        return g.Planets.Exists(p => p.Owner == b && hops.GetValueOrDefault(p.Id, 99) <= 2);
+        foreach (var x in g.Battles)
+        {
+            if ((x.Attacker == a && x.Defender == b) || (x.Attacker == b && x.Defender == a)) return true;
+        }
+        // Two walks over the lanes, nothing allocated: `near`, a's planets and those next to them;
+        // then b's within one lane of those. It walked the whole galaxy from a's planets, a list
+        // of neighbours made for each, and diplomacy asks it of every pair many times a second.
+        var count = g.Planets.Count;
+        Span<bool> near = count <= 512 ? stackalloc bool[count] : new bool[count];
+        foreach (var p in g.Planets)
+        {
+            if (p.Owner == a) near[p.Id] = true;
+        }
+        foreach (var (x, y) in g.Lanes)
+        {
+            if (g.Planets[x].Owner == a) near[y] = true;
+            if (g.Planets[y].Owner == a) near[x] = true;
+        }
+        foreach (var p in g.Planets)
+        {
+            if (p.Owner == b && near[p.Id]) return true;
+        }
+        foreach (var (x, y) in g.Lanes)
+        {
+            if ((near[x] && g.Planets[y].Owner == b) || (near[y] && g.Planets[x].Owner == b)) return true;
+        }
+        return false;
     }
 
     /// <summary>Whether the faction is at war, face to face, with a third galaxy faction besides `other`.</summary>
-    static bool BusyElsewhere(Galaxy g, Side side, Side other) =>
-        g.Factions.Values.Any(t => !t.Eliminated && t.Id != other && AtWar(g, side, t.Id) && Contact(g, side, t.Id));
+    static bool BusyElsewhere(Galaxy g, Side side, Side other)
+    {
+        foreach (var t in g.Factions.Values)
+        {
+            if (!t.Eliminated && t.Id != other && AtWar(g, side, t.Id) && Contact(g, side, t.Id)) return true;
+        }
+        return false;
+    }
 
     public static void UpdateGalaxyAI(Galaxy g, double dt)
     {

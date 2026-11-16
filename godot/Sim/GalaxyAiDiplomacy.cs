@@ -13,7 +13,7 @@ using static SandboxShip.Sim.Galaxies;
 namespace SandboxShip.Sim;
 
 /// <summary>Why an AI says yes or no: its answer, which the diplomacy screen shows ahead (a reason in words, Reason).</summary>
-public enum DealWhy { Yes, GrudgeTruce, Grudge, RecentTruce, Stronger, WantsAll, NotTrusted, Distrust, Price, Spent, NoMeans, NotAfraid, Sworn, NoThreat, Treasured }
+public enum DealWhy { Yes, GrudgeTruce, Grudge, RecentTruce, Stronger, WantsAll, NotTrusted, Distrust, Price, Spent, NoMeans, NotAfraid, Sworn, NoThreat, Treasured, Yielded }
 
 /// <summary>
 /// What an AI would answer the viewer, worked out by the host and sent to a replica, which cannot:
@@ -68,6 +68,7 @@ public static partial class GalaxyAi
         DealWhy.Sworn => "Elle a juré la guerre à ce camp",
         DealWhy.NoThreat => "Cette cible ne l'inquiète pas",
         DealWhy.Treasured => "Elle tient trop à cette planète",
+        DealWhy.Yielded => "Elle t'a déjà cédé une fois : plus maintenant",
         _ => "",
     };
 
@@ -153,12 +154,15 @@ public static partial class GalaxyAi
     /// A joint war on `target`: against a faction that threatens it (as strong as it nearly, or the
     /// one dominating the galaxy), that it faces, with a faction it does not mistrust.
     /// </summary>
-    static DealWhy AnswerJointWar(Galaxy g, Side side, Side from, Side target)
+    static DealWhy AnswerJointWar(Galaxy g, Side side, Side from, Side target) => AnswerJointWar(g, side, from, target, Leader(g));
+
+    /// <summary>The same, the leader worked out once by the caller (PreviewFor asks it for every third faction).</summary>
+    static DealWhy AnswerJointWar(Galaxy g, Side side, Side from, Side target, Side? leader)
     {
         if (Grudge(g, side, from)) return DealWhy.Grudge;
         if (Regard(g, side, from) < -10) return DealWhy.Distrust;
         if (!Contact(g, side, target)) return DealWhy.NoThreat;
-        return Might(g, target) >= Might(g, side) * 0.8 || Leader(g) == target || Sworn(g, side, target) ? DealWhy.Yes : DealWhy.NoThreat;
+        return Might(g, target) >= Might(g, side) * 0.8 || leader == target || Sworn(g, side, target) ? DealWhy.Yes : DealWhy.NoThreat;
     }
 
     /// <summary>
@@ -222,6 +226,7 @@ public static partial class GalaxyAi
     /// <summary>An ultimatum: given in to out of fear, if it can pay, or if the planet is a lesser one of its own; defied otherwise, and war follows.</summary>
     static DealWhy AnswerUltimatum(Galaxy g, Side side, Side from, double amount, int? planet)
     {
+        if (g.Factions[side].AI!.Yielded.ContainsKey(from)) return DealWhy.Yielded;
         if (!Fears(g, side, from)) return DealWhy.NotAfraid;
         if (planet is int p) return Lesser(g, side, g.Planets[p]) ? DealWhy.Yes : DealWhy.Treasured;
         return amount <= MeansOnce(g, side) ? DealWhy.Yes : DealWhy.NoMeans;
@@ -254,6 +259,23 @@ public static partial class GalaxyAi
         return DealWhy.Yes;
     }
 
+    /// <summary>Galaxy seconds the host reuses what an AI would answer a viewer, if nothing diplomatic happened meanwhile.</summary>
+    const double MindLife = 3;
+
+    /// <summary>
+    /// What the AI `side` would answer `viewer` and its peace price, for the snapshots and the
+    /// screen: worked out at most every MindLife galaxy seconds, and at once after a diplomatic change
+    /// (Galaxy.DiploChanges). Every snapshot of every player asked it of every AI, five times a second.
+    /// </summary>
+    public static (double Price, DealPreview? Preview) Mind(Galaxy g, Side side, Side viewer)
+    {
+        var ai = g.Factions[side].AI!;
+        if (ai.Minds.TryGetValue(viewer, out var m) && m.Changes == g.DiploChanges && g.Time >= m.At && g.Time - m.At < MindLife) return (m.Price, m.Preview);
+        m = (g.Time, g.DiploChanges, PeacePrice(g, side, viewer), PreviewFor(g, side, viewer));
+        ai.Minds[viewer] = m;
+        return (m.Price, m.Preview);
+    }
+
     /// <summary>What the AI `side` would answer `viewer`, for the diplomacy screen: on the host directly, sent to a replica.</summary>
     public static DealPreview PreviewFor(Galaxy g, Side side, Side viewer)
     {
@@ -262,11 +284,12 @@ public static partial class GalaxyAi
             Truce = TruceWhy(g, side, viewer), Alliance = AnswerAlliance(g, side, viewer),
             Trade = AnswerTrade(g, side, viewer), Vision = AnswerVision(g, side, viewer),
         };
+        var leader = Leader(g);
         foreach (var t in g.Factions.Values)
         {
-            if (t.Id != side && t.Id != viewer && !t.Eliminated) p.JointWar[t.Id] = AnswerJointWar(g, side, viewer, t.Id);
+            if (t.Id != side && t.Id != viewer && !t.Eliminated) p.JointWar[t.Id] = AnswerJointWar(g, side, viewer, t.Id, leader);
         }
-        if (Fears(g, side, viewer))
+        if (Fears(g, side, viewer) && !g.Factions[side].AI!.Yielded.ContainsKey(viewer))
         {
             (p.DemandLimit, p.YieldLimit, p.Cedes) = (MeansPerMinute(g, side), MeansOnce(g, side), true);
         }

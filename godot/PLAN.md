@@ -583,6 +583,20 @@ tests de `FixtureTests` et `CrossTests` les listent.
     agressive, défensive, économe, technologique), aucun nul, médiane 35 min ; niveaux à revenu égal : Difficile bat
     Normale 45 à 3, Normale bat Facile 38 à 10, Difficile bat Facile 42 à 6. Ultimatums et demandes d'aide ne visent
     que les joueurs : ces séries ne les voient pas, ni rien de ce qu'un humain fera de l'écran.
+  - Sécurité : une IA qui a cédé à un ultimatum n'y cède plus devant le même camp pendant 15 min (`UltimatumMemory`) ;
+    avant, un joueur fort la vidait de ses crédits ultimatum après ultimatum. Une ligne d'historique dont le complément
+    ne va pas avec sa sorte (une planète qui n'existe pas, une réplique inconnue) est refusée à la lecture d'un instantané
+    et retirée d'une sauvegarde, comme une promesse d'aide, une offre ou une guerre commune qui désigne une planète ou un
+    camp absent (`Galaxies.SaneEntry`) : l'écran ou le pas qui les cherchent tombaient. Les causes de confiance sont lues
+    finies. Le fuzz couvre `ProposeAccord` et des instantanés avec accords, historique de chaque sorte et promesse.
+  - Performances (banc console en Release, avant la diplomatie contre après) : un instantané de galaxie était passé de 7 à
+    13,5 Kio à 15 à 34 Kio, la réponse prévue de chaque IA y étant recalculée à chaque envoi. Elle est gardée 3 s par IA
+    et par joueur, et recalculée aussitôt après un événement diplomatique (`GalaxyAi.Mind`, `Galaxy.DiploChanges`) ;
+    l'écran de l'hôte s'en sert aussi. Le contact entre deux camps (`GalaxyAi.Contact`) parcourait toute la galaxie et
+    faisait une liste de voisins par planète : deux passes sur les voies maintenant, sans rien allouer, mêmes réponses
+    (les parties du banc finissent aux mêmes instants). Trêves, pactes et tributs se cherchent sans fermeture, et les
+    oublis par pas (rancunes, causes, offres, guerres communes, promesses) ne copient plus rien. Après : instantané 6 à
+    9,5 Kio, pas de campagne 19 à 29 Kio (21 à 33 avant la diplomatie).
 - Sécurité (2026-11-03) : ce qu'un inconnu peut envoyer au serveur en ligne, à un hôte ou au jeu, et les fichiers du joueur.
   Chaque lecteur exposé passe un test de robustesse à graine fixe (`FuzzTests` : trames du relais, messages du jeu, ordres,
   instantanés de bataille entiers et en parties, galaxie, rediffusions, sauvegardes), et chaque correction a son test

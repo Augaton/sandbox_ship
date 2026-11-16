@@ -78,11 +78,14 @@ public static partial class GalaxySnapshot
         replica.Chronicle = [];
         for (var n = Count(r); n > 0; n--)
         {
-            replica.Chronicle.Add(new DiploEntry
+            var e = new DiploEntry
             {
                 Time = Amount(r), Kind = Valid<ChronicleKind>(r.ReadByte()), Deal = Valid<DealKind>(r.ReadByte()), A = SideOf(r), B = SideOf(r),
-                By = OptionalSide(r), Amount = Amount(r), Extra = r.ReadVarint() - 1 is var x && x is >= -1 and < 1 << 16 ? x : throw new InvalidDataException($"Ligne {x}"),
-            });
+                By = OptionalSide(r), Amount = Amount(r),
+            };
+            e.Extra = r.ReadVarint() - 1;
+            if (!Galaxies.SaneEntry(e, replica)) throw new InvalidDataException($"Ligne {e.Kind} {e.Extra}");
+            replica.Chronicle.Add(e);
         }
         replica.Promises = [];
         for (var n = Count(r); n > 0; n--)
@@ -143,7 +146,7 @@ public static partial class GalaxySnapshot
     static DealPreview ReadMind(BinaryReader r, GalaxyAIState ai, Side viewer)
     {
         var why = new Dictionary<TrustCause, double>();
-        for (var n = Count(r); n > 0; n--) why[Valid<TrustCause>(r.ReadByte())] = r.ReadSingle();
+        for (var n = Count(r); n > 0; n--) why[Valid<TrustCause>(r.ReadByte())] = r.ReadSingle() is var v && float.IsFinite(v) && Math.Abs(v) <= 1e6 ? v : throw new InvalidDataException($"Cause {v}");
         ai.Why[viewer] = why;
         var p = new DealPreview
         {

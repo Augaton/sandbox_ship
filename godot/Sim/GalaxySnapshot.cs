@@ -162,12 +162,19 @@ public static partial class GalaxySnapshot
             w.Write((byte)o.Terms);
         }
         // The chronicle the viewer may read: what concerns it, and what all know of the others'
-        // truces, alliances and joint wars. The latest ChronicleSent lines.
-        var chronicle = g.Chronicle.Where(e => e.A == viewer || e.B == viewer || e.Kind != ChronicleKind.Said && e.Deal is DealKind.Truce or DealKind.Alliance or DealKind.JointWar
-            && e.Kind is ChronicleKind.Signed or ChronicleKind.Broken or ChronicleKind.Expired or ChronicleKind.Ended).TakeLast(ChronicleSent).ToList();
-        w.Write7BitEncodedInt(chronicle.Count);
-        foreach (var e in chronicle)
+        // truces, alliances and joint wars. The latest ChronicleSent lines, counted from the end.
+        var (first, lines) = (g.Chronicle.Count, 0);
+        for (var i = g.Chronicle.Count - 1; i >= 0 && lines < ChronicleSent; i--)
         {
+            if (!Readable(g.Chronicle[i], viewer)) continue;
+            lines++;
+            first = i;
+        }
+        w.Write7BitEncodedInt(lines);
+        for (var i = first; i < g.Chronicle.Count; i++)
+        {
+            var e = g.Chronicle[i];
+            if (!Readable(e, viewer)) continue;
             w.Write((float)e.Time);
             w.Write((byte)e.Kind);
             w.Write((byte)e.Deal);
@@ -177,10 +184,12 @@ public static partial class GalaxySnapshot
             w.Write((float)e.Amount);
             w.Write7BitEncodedInt(e.Extra + 1);
         }
-        var promises = g.Promises.Where(p => p.Asker == viewer || p.Helper == viewer).ToList();
-        w.Write7BitEncodedInt(promises.Count);
-        foreach (var p in promises)
+        var promised = 0;
+        foreach (var p in g.Promises) if (p.Asker == viewer || p.Helper == viewer) promised++;
+        w.Write7BitEncodedInt(promised);
+        foreach (var p in g.Promises)
         {
+            if (p.Asker != viewer && p.Helper != viewer) continue;
             w.Write7BitEncodedInt(p.Asker.Id);
             w.Write7BitEncodedInt(p.Helper.Id);
             w.Write7BitEncodedInt(p.Planet);
@@ -298,6 +307,11 @@ public static partial class GalaxySnapshot
     /// <summary>The most chronicle lines a snapshot carries.</summary>
     const int ChronicleSent = 120;
 
+    /// <summary>A chronicle line the viewer may read: its own, or a truce, an alliance or a joint war of others, which all know.</summary>
+    static bool Readable(DiploEntry e, Side viewer) => e.A == viewer || e.B == viewer || e.Kind != ChronicleKind.Said
+        && e.Deal is DealKind.Truce or DealKind.Alliance or DealKind.JointWar && e.Kind is ChronicleKind.Signed or ChronicleKind.Broken or ChronicleKind.Expired or ChronicleKind.Ended;
+
+
     static void WriteSides(Galaxy g, BinaryWriter w, Side viewer)
     {
         w.Write7BitEncodedInt(g.Factions.Count);
@@ -318,9 +332,10 @@ public static partial class GalaxySnapshot
                 w.Write((float)ai.Trust.GetValueOrDefault(viewer));
                 // Worked out here: a replica sees only part of the AI's fleets and income.
                 var talks = !own && !f.Eliminated && g.Factions.ContainsKey(viewer);
-                w.Write((float)(talks ? GalaxyAi.PeacePrice(g, f.Id, viewer) : 0));
+                var mind = talks ? GalaxyAi.Mind(g, f.Id, viewer) : default;
+                w.Write((float)mind.Price);
                 w.Write(talks);
-                if (talks) WriteMind(w, g, f.Id, ai, viewer);
+                if (talks) WriteMind(w, ai, viewer, mind.Preview!);
             }
             if (!own) continue;
             w.Write(f.Credits);
@@ -480,7 +495,7 @@ public static partial class GalaxySnapshot
     static void WriteSide(BinaryWriter w, Side? side) => w.Write7BitEncodedInt(side is Side s ? s.Id + 1 : 0);
 
     /// <summary>An AI's mind towards the viewer: why it trusts it so much (cause, amount), and what it would answer it (DealPreview).</summary>
-    static void WriteMind(BinaryWriter w, Galaxy g, Side side, GalaxyAIState ai, Side viewer)
+    static void WriteMind(BinaryWriter w, GalaxyAIState ai, Side viewer, DealPreview p)
     {
         var why = ai.Why.GetValueOrDefault(viewer);
         w.Write7BitEncodedInt(why?.Count ?? 0);
@@ -489,7 +504,6 @@ public static partial class GalaxySnapshot
             w.Write((byte)cause);
             w.Write((float)amount);
         }
-        var p = GalaxyAi.PreviewFor(g, side, viewer);
         w.Write((byte)p.Truce);
         w.Write((byte)p.Alliance);
         w.Write((byte)p.Trade);

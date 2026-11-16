@@ -281,6 +281,63 @@ public class AccordsTests
     }
 
     [Fact]
+    public void An_AI_that_gave_in_to_an_ultimatum_will_not_again_for_a_while()
+    {
+        var g = Three();
+        Truce(g, Klaed, Nairan);
+        Arm(g, Klaed, 30);
+        g.Factions[Nairan].Credits = 5000;
+        Assert.True(ProposeDeal(g, Klaed, Nairan, DealKind.Ultimatum, 300).Ok);
+        // Asked again at once: drained ultimatum after ultimatum, before. Now it defies, and war follows.
+        Assert.Equal(Result.Fail(GalaxyAi.Reason(DealWhy.Yielded)), ProposeDeal(g, Klaed, Nairan, DealKind.Ultimatum, 300));
+        Assert.True(AtWar(g, Klaed, Nairan));
+        Assert.False(GalaxyAi.PreviewFor(g, Nairan, Klaed).Cedes);
+    }
+
+    [Fact]
+    public void A_snapshot_tells_at_once_what_an_AI_would_answer_after_a_diplomatic_change()
+    {
+        var g = Three();
+        Truce(g, Klaed, Nairan);
+        var replica = new Galaxy();
+        GalaxySnapshot.ReadChart(new BinaryReader(new MemoryStream(GalaxySnapshot.Chart(g))), replica);
+        DealWhy Told()
+        {
+            using var ms = new MemoryStream();
+            using (var w = new BinaryWriter(ms, System.Text.Encoding.UTF8, true)) GalaxySnapshot.Write(g, Klaed, w, [], null, default);
+            ms.Position = 0;
+            GalaxySnapshot.Read(new BinaryReader(ms), replica);
+            return replica.Factions[Nairan].AI!.Preview!.Alliance;
+        }
+        Assert.Equal(DealWhy.NotTrusted, Told());
+        // A gift at the same galaxy time: the answer told changes with it, not a second later.
+        g.Factions[Klaed].Credits = 100000;
+        Trust(g, Nairan, Klaed, 45);
+        Assert.True(ProposeDeal(g, Klaed, Nairan, DealKind.Tribute, 400).Ok);
+        Assert.Equal(DealWhy.Yes, Told());
+    }
+
+    [Fact]
+    public void A_chronicle_line_naming_a_planet_or_a_remark_that_does_not_exist_is_refused_or_dropped()
+    {
+        var g = Three();
+        g.Chronicle.Add(new DiploEntry { Kind = ChronicleKind.Ceded, Deal = DealKind.Ultimatum, A = Nairan, B = Klaed, Extra = 9999 });
+        var replica = new Galaxy();
+        GalaxySnapshot.ReadChart(new BinaryReader(new MemoryStream(GalaxySnapshot.Chart(g))), replica);
+        using var ms = new MemoryStream();
+        using (var w = new BinaryWriter(ms, System.Text.Encoding.UTF8, true)) GalaxySnapshot.Write(g, Klaed, w, [], null, default);
+        Assert.Throws<InvalidDataException>(() => GalaxySnapshot.Read(new BinaryReader(new MemoryStream(ms.ToArray())), replica));
+        // A save: the line goes, and a promise for a planet that does not exist with it; the rest loads.
+        g.Chronicle.Add(new DiploEntry { Kind = ChronicleKind.Said, A = Nairan, B = Klaed, Extra = 77 });
+        g.Chronicle.Add(new DiploEntry { Kind = ChronicleKind.Signed, Deal = DealKind.Truce, A = Nairan, B = Klaed });
+        g.Promises.Add(new HelpPromise { Asker = Nairan, Helper = Klaed, Planet = 9999, Remaining = 5 });
+        var back = GalaxySave.Deserialize(GalaxySave.Serialize(g))!;
+        Assert.Equal(DealKind.Truce, Assert.Single(back.Chronicle).Deal);
+        Assert.Empty(back.Promises);
+        RunGalaxy(back, 1);
+    }
+
+    [Fact]
     public void A_save_keeps_the_chronicle_the_promises_reputations_and_joint_wars()
     {
         var g = Three(human: true);

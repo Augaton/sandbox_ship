@@ -448,10 +448,10 @@ public partial class GalaxyHud
     // ── Proposals ─────────────────────────────────────────────────────────────────────
 
     /// <summary>What an AI would answer the player, worked out here on the host, sent by it to a replica.</summary>
-    DealPreview? PreviewOf(Side r) => G.Factions[r].AI is { } ai ? ai.Preview ?? GalaxyAi.PreviewFor(G, r, Player) : null;
+    DealPreview? PreviewOf(Side r) => G.Factions[r].AI is { } ai ? ai.Preview ?? GalaxyAi.Mind(G, r, Player).Preview : null;
 
     /// <summary>The peace price an AI asks of the player, in credits a minute.</summary>
-    double PriceOf(Side r) => G.Factions[r].AI is { } ai ? ai.Asked ?? GalaxyAi.PeacePrice(G, r, Player) : 0;
+    double PriceOf(Side r) => G.Factions[r].AI is { } ai ? ai.Asked ?? GalaxyAi.Mind(G, r, Player).Price : 0;
 
     /// <summary>"Réponse prévue : …", in words and colors; null for a player, who answers for themselves.</summary>
     (string Text, Color Color)? Forecast(Side r, DealWhy? why, double price = 0) => why is not DealWhy w ? null
