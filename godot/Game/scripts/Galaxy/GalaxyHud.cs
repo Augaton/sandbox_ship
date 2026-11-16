@@ -1291,7 +1291,7 @@ public partial class GalaxyHud : CanvasLayer
             + "Les flottes traversent les planètes neutres ou alliées et s'arrêtent aux planètes ennemies. Tu perds quand tu n'as plus de planète. "
             + "Chaque planète a deux files : bâtiments et vaisseaux. Certaines planètes ont un bonus. "
             + $"À plus de {N(Galaxies.SupplyLanes)} voies de tes stations, une flotte est hors ravitaillement : elle s'use de {HudKit.Percent(Galaxies.SupplyWear * 60)} par minute et ne se répare plus. "
-            + "La liste Diplomatie (T) propose et rompt les trêves. Toutes les quelques minutes, un événement survient : épave à récupérer, bande errante, tempête ionique, essor commercial. "
+            + "L'écran Diplomatie (T) montre les relations de tous les camps et, avant chaque offre, la réponse d'une IA : trêves, alliances, commerce, vision partagée, guerres communes, tributs et ultimatums ; trahir abîme ta réputation auprès de tous. Toutes les quelques minutes, un événement survient : épave à récupérer, bande errante, tempête ionique, essor commercial. "
             + "Les Errants, neutres, gardent la planète la plus isolée avec leur Colosse : ils n'en bougent jamais et ne comptent pas pour la victoire. "
             + $"Chaque vaisseau abattu rapporte {HudKit.Percent(Worlds.KillShare)} de sa valeur ; le Colosse, {N(Raids.Bounty)} crédits et un niveau de recherche. "
             + "La campagne se sauvegarde toute seule ; « Continuer la campagne » la reprend depuis le menu.", Palette.Muted));

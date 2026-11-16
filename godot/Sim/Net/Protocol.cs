@@ -117,9 +117,10 @@ public static class Protocol
     /// SetPersonality), the deals of the campaign (galaxy commands and snapshot). 10: the lobby's
     /// start credits and survival waves' strength (Settings). 11: galaxy snapshots 4 (a battle's toll
     /// and each side's power, occupations begun, rally points cancelled, what an AI asks for peace, a
-    /// truce prolonged).
+    /// truce prolonged). 12: galaxy snapshots 5 and ProposeAccord (shared vision, joint wars,
+    /// ultimatums, requests for help, bundles; reputations, the chronicle, what an AI would answer).
     /// </summary>
-    public const int Version = 11;
+    public const int Version = 12;
     /// <summary>Where a host listens for players, unless told otherwise.</summary>
     public const int DefaultPort = 24680;
     /// <summary>Where hosts call out to the local network, and the join screen listens.</summary>

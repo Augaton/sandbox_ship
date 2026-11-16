@@ -41,9 +41,11 @@ public static partial class GalaxySnapshot
     /// version. 2: the chart apart. 3: alliances, trade and tributes, offers of every kind, an
     /// AI's personality and trust. 4: a battle's toll (BattleEnded), occupations begun, rally points
     /// cancelled, ships told from other builds, each side's power in a battle in place of its hull and
-    /// shields, what an AI asks the viewer for peace, a truce prolonged.
+    /// shields, what an AI asks the viewer for peace, a truce prolonged. 5: shared vision, joint wars,
+    /// ultimatums, requests for help and bundles (pacts' targets, offers' terms), reputations, what an
+    /// AI would answer the viewer and why it trusts it, the chronicle, promises of help.
     /// </summary>
-    public const ushort Version = 4;
+    public const ushort Version = 5;
     const uint Magic = 0x504E5347, ChartMagic = 0x54484347;
 
     /// <summary>What never changes in a campaign (see the layout above): sent once to each player, before its first snapshot.</summary>
@@ -79,7 +81,7 @@ public static partial class GalaxySnapshot
     {
         BattleStarted = 1, BattleEnded, Captured, PlanetBuilt, TechResearched, BountyPaid, GalaxyVictory, DealOffered, TruceSigned,
         TruceEnded, IncidentStarted, IncidentEnded, RuinsExplored, LanceFired, DealRefused, PactSigned, PactEnded, TributeSigned, TributeEnded,
-        OccupationBegun, RallyCancelled,
+        OccupationBegun, RallyCancelled, UltimatumEnded, PlanetCeded, HelpAnswered, AiSaid,
     }
 
     /// <summary>
@@ -134,6 +136,8 @@ public static partial class GalaxySnapshot
             w.Write((byte)p.Kind);
             w.Write7BitEncodedInt(p.A.Id);
             w.Write7BitEncodedInt(p.B.Id);
+            WriteSide(w, p.Target);
+            w.Write((float)p.Remaining);
         }
         w.Write7BitEncodedInt(g.Tributes.Count);
         foreach (var t in g.Tributes)
@@ -153,6 +157,34 @@ public static partial class GalaxySnapshot
             w.Write((float)o.Amount);
             w.Write(o.PerMinute);
             w.Write((float)o.Remaining);
+            WriteSide(w, o.Target);
+            w.Write7BitEncodedInt((o.Planet ?? -1) + 1);
+            w.Write((byte)o.Terms);
+        }
+        // The chronicle the viewer may read: what concerns it, and what all know of the others'
+        // truces, alliances and joint wars. The latest ChronicleSent lines.
+        var chronicle = g.Chronicle.Where(e => e.A == viewer || e.B == viewer || e.Kind != ChronicleKind.Said && e.Deal is DealKind.Truce or DealKind.Alliance or DealKind.JointWar
+            && e.Kind is ChronicleKind.Signed or ChronicleKind.Broken or ChronicleKind.Expired or ChronicleKind.Ended).TakeLast(ChronicleSent).ToList();
+        w.Write7BitEncodedInt(chronicle.Count);
+        foreach (var e in chronicle)
+        {
+            w.Write((float)e.Time);
+            w.Write((byte)e.Kind);
+            w.Write((byte)e.Deal);
+            w.Write7BitEncodedInt(e.A.Id);
+            w.Write7BitEncodedInt(e.B.Id);
+            WriteSide(w, e.By);
+            w.Write((float)e.Amount);
+            w.Write7BitEncodedInt(e.Extra + 1);
+        }
+        var promises = g.Promises.Where(p => p.Asker == viewer || p.Helper == viewer).ToList();
+        w.Write7BitEncodedInt(promises.Count);
+        foreach (var p in promises)
+        {
+            w.Write7BitEncodedInt(p.Asker.Id);
+            w.Write7BitEncodedInt(p.Helper.Id);
+            w.Write7BitEncodedInt(p.Planet);
+            w.Write((float)p.Remaining);
         }
         w.Write7BitEncodedInt(g.Ongoing.Count);
         foreach (var i in g.Ongoing)
@@ -263,6 +295,9 @@ public static partial class GalaxySnapshot
     // Side flags.
     const int Out = 1, Bot = 2, Viewer = 4, Grudge = 8;
 
+    /// <summary>The most chronicle lines a snapshot carries.</summary>
+    const int ChronicleSent = 120;
+
     static void WriteSides(Galaxy g, BinaryWriter w, Side viewer)
     {
         w.Write7BitEncodedInt(g.Factions.Count);
@@ -276,12 +311,16 @@ public static partial class GalaxySnapshot
             w.Write(f.Color);
             w.Write((byte)((f.Eliminated ? Out : 0) | (f.AI is not null ? Bot : 0) | (own ? Viewer : 0) | (grudge > 0 ? Grudge : 0)));
             if (grudge > 0) w.Write((float)grudge);
+            w.Write((float)f.Reputation);
             if (f.AI is { } ai)
             {
                 w.Write((byte)ai.Personality);
                 w.Write((float)ai.Trust.GetValueOrDefault(viewer));
                 // Worked out here: a replica sees only part of the AI's fleets and income.
-                w.Write((float)(!own && g.Factions.ContainsKey(viewer) ? GalaxyAi.PeacePrice(g, f.Id, viewer) : 0));
+                var talks = !own && !f.Eliminated && g.Factions.ContainsKey(viewer);
+                w.Write((float)(talks ? GalaxyAi.PeacePrice(g, f.Id, viewer) : 0));
+                w.Write(talks);
+                if (talks) WriteMind(w, g, f.Id, ai, viewer);
             }
             if (!own) continue;
             w.Write(f.Credits);
@@ -416,6 +455,10 @@ public static partial class GalaxySnapshot
         OccupationBegun o => Allies(g, o.From, viewer),
         RallyCancelled r => r.Side == viewer,
         DealOffered o => o.From == viewer || o.To == viewer,
+        UltimatumEnded u => u.From == viewer || u.To == viewer,
+        HelpAnswered h => h.Asker == viewer || h.Helper == viewer,
+        AiSaid s => s.To == viewer,
+        PlanetCeded => true,
         DealRefused o => o.From == viewer || o.To == viewer,
         Captured or GalaxyVictory or TruceSigned or TruceEnded or PactSigned or PactEnded or TributeSigned or TributeEnded
             or IncidentStarted or IncidentEnded or RuinsExplored or LanceFired => true,
@@ -435,6 +478,32 @@ public static partial class GalaxySnapshot
 
     /// <summary>An optional side, as n side + 1 (0: none).</summary>
     static void WriteSide(BinaryWriter w, Side? side) => w.Write7BitEncodedInt(side is Side s ? s.Id + 1 : 0);
+
+    /// <summary>An AI's mind towards the viewer: why it trusts it so much (cause, amount), and what it would answer it (DealPreview).</summary>
+    static void WriteMind(BinaryWriter w, Galaxy g, Side side, GalaxyAIState ai, Side viewer)
+    {
+        var why = ai.Why.GetValueOrDefault(viewer);
+        w.Write7BitEncodedInt(why?.Count ?? 0);
+        foreach (var (cause, amount) in why ?? [])
+        {
+            w.Write((byte)cause);
+            w.Write((float)amount);
+        }
+        var p = GalaxyAi.PreviewFor(g, side, viewer);
+        w.Write((byte)p.Truce);
+        w.Write((byte)p.Alliance);
+        w.Write((byte)p.Trade);
+        w.Write((byte)p.Vision);
+        w.Write7BitEncodedInt(p.JointWar.Count);
+        foreach (var (target, answer) in p.JointWar)
+        {
+            w.Write7BitEncodedInt(target.Id);
+            w.Write((byte)answer);
+        }
+        w.Write((float)p.DemandLimit);
+        w.Write((float)p.YieldLimit);
+        w.Write(p.Cedes);
+    }
 
     static void WriteEvent(BinaryWriter w, GalaxyEvent ev)
     {
@@ -503,6 +572,34 @@ public static partial class GalaxySnapshot
                 w.Write((byte)o.Kind);
                 w.Write(o.Amount);
                 w.Write(o.PerMinute);
+                WriteSide(w, o.Target);
+                w.Write7BitEncodedInt((o.Planet ?? -1) + 1);
+                w.Write((byte)o.Terms);
+                break;
+            case UltimatumEnded u:
+                w.Write((byte)Tag.UltimatumEnded);
+                w.Write7BitEncodedInt(u.From.Id);
+                w.Write7BitEncodedInt(u.To.Id);
+                w.Write(u.Accepted);
+                break;
+            case PlanetCeded c:
+                w.Write((byte)Tag.PlanetCeded);
+                w.Write7BitEncodedInt(c.PlanetId);
+                w.Write7BitEncodedInt(c.From.Id);
+                w.Write7BitEncodedInt(c.To.Id);
+                break;
+            case HelpAnswered h:
+                w.Write((byte)Tag.HelpAnswered);
+                w.Write7BitEncodedInt(h.Asker.Id);
+                w.Write7BitEncodedInt(h.Helper.Id);
+                w.Write7BitEncodedInt(h.PlanetId + 1);
+                w.Write(h.Kept);
+                break;
+            case AiSaid s:
+                w.Write((byte)Tag.AiSaid);
+                w.Write7BitEncodedInt(s.From.Id);
+                w.Write7BitEncodedInt(s.To.Id);
+                w.Write((byte)s.What);
                 break;
             case DealRefused o:
                 w.Write((byte)Tag.DealRefused);
@@ -516,6 +613,7 @@ public static partial class GalaxySnapshot
                 w.Write((byte)p.Kind);
                 w.Write7BitEncodedInt(p.A.Id);
                 w.Write7BitEncodedInt(p.B.Id);
+                WriteSide(w, p.Target);
                 break;
             case PactEnded p:
                 w.Write((byte)Tag.PactEnded);
@@ -523,6 +621,7 @@ public static partial class GalaxySnapshot
                 w.Write7BitEncodedInt(p.A.Id);
                 w.Write7BitEncodedInt(p.B.Id);
                 WriteSide(w, p.By);
+                WriteSide(w, p.Target);
                 break;
             case TributeSigned t:
                 w.Write((byte)Tag.TributeSigned);

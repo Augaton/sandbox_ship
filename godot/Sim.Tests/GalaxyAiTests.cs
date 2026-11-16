@@ -365,8 +365,12 @@ public class GalaxyAiTests
             AddShipsAt(g, Faction.Nairan, Id("Calyx"), new ShipCounts { [ShipClass.Battlecruiser] = 8 });
             g.Truces.Add(new Truce { A = Faction.Klaed, B = Faction.Nairan, Remaining = 300, Paid = paid });
             RunGalaxy(g, 3);
+            // A player is warned first: the truce holds a while longer.
+            Assert.True(AtPeace(g, Faction.Klaed, Faction.Nairan));
+            Assert.Equal(breaks, g.Chronicle.Exists(e => e.Kind == ChronicleKind.Said && e.Extra == (int)Remark.Warning));
+            RunGalaxy(g, 31);
             Assert.Equal(breaks, !AtPeace(g, Faction.Klaed, Faction.Nairan));
-            Assert.Equal(breaks, g.Events.Exists(e => e is TruceEnded { BrokenBy: var by } && by == Faction.Nairan));
+            Assert.Equal(breaks, g.Chronicle.Exists(e => e is { Kind: ChronicleKind.Broken, Deal: DealKind.Truce } && e.By == Faction.Nairan));
         }
         // Not as strong as that, with nothing it could take: it keeps it too.
         var h = Level(Difficulty.Hard, "Calyx");

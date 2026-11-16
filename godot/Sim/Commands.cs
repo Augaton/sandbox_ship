@@ -91,6 +91,12 @@ public abstract record GalaxyCommand
     public sealed record ProposeDeal(Side To, DealKind Kind, double Amount = 0, bool PerMinute = false) : GalaxyCommand;
     /// <summary>Accepts or refuses the deal of this kind `From` offered.</summary>
     public sealed record AnswerDeal(Side From, DealKind Kind, bool Accept) : GalaxyCommand;
+    /// <summary>
+    /// Offers `To` any deal, those of GalaxyAccords.cs included: a joint war on `Target`, an
+    /// ultimatum for credits or `Planet`, several `Terms` at once (Bundle), with a tribute's `Amount`.
+    /// </summary>
+    public sealed record ProposeAccord(Side To, DealKind Kind, double Amount = 0, bool PerMinute = false, Side? Target = null, int? Planet = null,
+        DealTerms Terms = DealTerms.None) : GalaxyCommand;
     /// <summary>Ends a deal with `Other`: breaks a truce or an alliance, gives up trade, stops or lets off a tribute.</summary>
     public sealed record EndDeal(Side Other, DealKind Kind) : GalaxyCommand;
     /// <summary>
@@ -384,6 +390,10 @@ public static partial class Commands
             case GalaxyCommand.ProposeDeal p:
                 if (!Defined(p.Kind) || !double.IsFinite(p.Amount)) return Invalid;
                 return Galaxies.ProposeDeal(g, issuer, p.To, p.Kind, p.Amount, p.PerMinute);
+            case GalaxyCommand.ProposeAccord p:
+                if (!Defined(p.Kind) || !double.IsFinite(p.Amount) || p.Planet is int at && !Planet(g, at) || (p.Terms & ~(DealTerms)15) != 0) return Invalid;
+                if (p.Target is Side aim && !g.Factions.ContainsKey(aim)) return Invalid;
+                return Galaxies.ProposeDeal(g, issuer, p.To, p.Kind, p.Amount, p.PerMinute, p.Target, p.Planet, p.Terms);
             case GalaxyCommand.AnswerDeal a:
                 if (!Defined(a.Kind)) return Invalid;
                 if (a.Accept) return Galaxies.AcceptDeal(g, issuer, a.From, a.Kind);

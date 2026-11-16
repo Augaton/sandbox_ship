@@ -101,6 +101,7 @@ public partial class GalaxyScreen : Node
         if (Dev.Deals && opts.Net is null) DevDeals();
     }
 
+
     /// <summary>
     /// Checking the diplomacy list (--deals): an alliance with the first AI, a truce and trade
     /// with the second, which demands a tribute besides; the list open.
@@ -121,7 +122,7 @@ public partial class GalaxyScreen : Node
             g.Offers.Add(new DealOffer { From = rivals[1], To = Player, Kind = DealKind.Demand, Amount = 60, PerMinute = true, Remaining = Galaxies.OfferTime });
             g.Events.Add(new DealOffered(rivals[1], Player, DealKind.Demand, 60, true));
         }
-        Hud.ToggleDrawer(GalaxyHud.Drawer.Diplomacy);
+        Hud.OpenDiplomacy();
     }
 
     /// <summary>A galaxy of its own: new, loaded from a save (the most recent one to continue), or played ahead (--skip).</summary>
@@ -400,10 +401,10 @@ public partial class GalaxyScreen : Node
         switch (ev.Keycode)
         {
             case Key.Escape:
-                // A lance's target or the rally point being picked first, then the drawer, then the selection.
+                // A lance's target or the rally point being picked first, then the diplomacy screen, the drawer, then the selection.
                 if (CancelLance()) Hud.Toast("Tir annulé");
                 else if (Rallying) Rallying = false;
-                else if (!Hud.CloseDrawer())
+                else if (!Hud.CloseDiplomacy() && !Hud.CloseDrawer())
                 {
                     Selected = null;
                     Selection.Clear();

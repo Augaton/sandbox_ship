@@ -400,6 +400,9 @@ public class CommandsTests
             new GalaxyCommand.ChooseBattle(13, BattleStatus.Tactical), new GalaxyCommand.DelegateBattle(14), new GalaxyCommand.Retreat(15),
             new GalaxyCommand.ProposeDeal(new Side(5), DealKind.Demand, 60, true), new GalaxyCommand.AnswerDeal(new Side(1), DealKind.Alliance, false),
             new GalaxyCommand.EndDeal(new Side(2), DealKind.Trade),
+            new GalaxyCommand.ProposeAccord(new Side(1), DealKind.JointWar, Target: new Side(2)),
+            new GalaxyCommand.ProposeAccord(new Side(2), DealKind.Ultimatum, Planet: 7),
+            new GalaxyCommand.ProposeAccord(new Side(4), DealKind.Bundle, 120, true, Terms: DealTerms.Truce | DealTerms.Trade | DealTerms.Tribute),
         ];
         foreach (var c in galaxy)
         {

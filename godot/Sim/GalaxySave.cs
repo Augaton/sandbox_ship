@@ -51,6 +51,9 @@ public static class GalaxySave
         public List<DealOffer> Offers = [];
         public List<Pact> Pacts = [];
         public List<Tribute> Tributes = [];
+        /// <summary>The chronicle and the promises of help (none in older saves).</summary>
+        public List<DiploEntry> Chronicle = [];
+        public List<HelpPromise> Promises = [];
         public bool Incidents = true;
         public double NextIncident;
         public long IncidentSeed;
@@ -82,7 +85,7 @@ public static class GalaxySave
                 return copy;
             }).ToList(),
             Factions = [.. g.Factions.Values], NextId = g.NextId, Seed = g.Seed, Winner = g.Winner, Sides = true,
-            Truces = g.Truces, Offers = g.Offers, Pacts = g.Pacts, Tributes = g.Tributes,
+            Truces = g.Truces, Offers = g.Offers, Pacts = g.Pacts, Tributes = g.Tributes, Chronicle = g.Chronicle, Promises = g.Promises,
             Incidents = g.Incidents, NextIncident = g.NextIncident, IncidentSeed = g.IncidentSeed, Ongoing = g.Ongoing,
             Humans = g.Humans, Name = name,
         };
@@ -162,7 +165,7 @@ public static class GalaxySave
         var g = new Galaxy
         {
             Time = s.Time, Player = s.Player, W = s.W, H = s.H, Planets = s.Planets, Lanes = s.Lanes, NextId = s.NextId, Seed = s.Seed, Winner = s.Winner,
-            Truces = s.Truces, Offers = s.Offers, Pacts = s.Pacts, Tributes = s.Tributes,
+            Truces = s.Truces, Offers = s.Offers, Pacts = s.Pacts, Tributes = s.Tributes, Chronicle = s.Chronicle, Promises = s.Promises,
             Incidents = s.Incidents, NextIncident = s.NextIncident, IncidentSeed = s.IncidentSeed, Ongoing = s.Ongoing,
             Humans = s.Humans,
         };

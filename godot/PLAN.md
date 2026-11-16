@@ -548,6 +548,41 @@ tests de `FixtureTests` et `CrossTests` les listent.
     au-delà de 85). Le tir concentré, les raids et le choix des capacités du Difficile se voient sans gain mesurable ;
     son avance vient du rappel des vagues et de la recherche. Les seuils de temps de `FuzzTests` (1 s par entrée)
     lâchent sous forte charge.
+- Diplomatie revue (2026-11-16) : un écran dédié (touche T, `GalaxyHud.DiplomacyScreen.cs`) remplace la liste du volet.
+  En solo, il arrête le temps. En haut, le tableau des relations de tous les camps, IA entre elles comprises : alliés,
+  trêve ou guerre, et commerce, vision, guerre commune, tribut, guerre jurée. À gauche, les camps. À droite, le camp
+  choisi : son attitude (confiance et ce qui l'a fait bouger, `TrustCause`), les accords en cours et de quoi les finir,
+  ses offres et demandes, une offre à composer (trêve, commerce, vision, tribut, en un bloc : `DealKind.Bundle`) avec la
+  réponse que donnerait l'IA, les accords à part (alliance, guerre commune contre chaque tiers, tribut exigé,
+  ultimatum), l'historique.
+  - Accords nouveaux (`Sim/GalaxyAccords.cs`) : vision partagée, en paix, finie par la guerre ; guerre commune contre un
+    tiers (10 min, les deux en paix et tous deux en guerre contre lui ; faire la paix avec la cible pendant ce temps la
+    trahit : −40 de confiance chez le partenaire, −20 de réputation) ; ultimatum d'un camp au moins 1,5 fois plus fort,
+    en paix : des crédits ou une planète frontalière (pas la dernière, gardée avec ses installations, les flottes de
+    l'ancien propriétaire rentrent), 90 s pour répondre, sinon la guerre, annoncée, sans trahison ; demande d'aide d'une
+    IA à un joueur (des crédits, ou défendre une planète : une flotte là sous 3 min, +20 de confiance si elle vient,
+    −25 sinon) ; offre combinée, acceptée ou refusée d'un bloc, le tribut pouvant acheter la trêve.
+  - Réputation de chaque camp (−100 à 100, vue de tous) : trahir une trêve −15, une alliance −30, une guerre commune −20,
+    cesser de payer −10, un ultimatum −5, une promesse d'aide manquée −10 ; une trêve tenue jusqu'au bout +2, un tribut
+    payé jusqu'au bout +3, une guerre commune menée à son terme +3, une aide venue +8. Elle revient vers 0 de 0,01 par
+    seconde ; une IA la pèse pour un quart dans son estime (`Galaxies.Regard`).
+  - IA : réponses expliquées (`DealWhy`, `GalaxyAi.Reason`) et prévues (`GalaxyAi.PreviewFor`, calculée par l'hôte et
+    envoyée au joueur en réseau) ; contre le camp qui domine (35 % de toute la puissance et 1,4 fois le suivant,
+    `GalaxyAi.Leader`), une IA cherche une guerre commune avant de demander la paix, et lui demande 1,5 fois plus pour une
+    trêve ; une IA jurée refuse la trêve de sa cible et la vise en priorité ; elle propose la vision à qui elle estime
+    (30) ; elle demande de l'aide à un joueur allié ou estimé quand une de ses planètes est attaquée et qu'une flotte de
+    ce joueur est à deux voies (une demande toutes les 4 min au plus) ; une IA difficile ou agressive bien plus forte
+    qu'un joueur en trêve lui adresse un ultimatum (un toutes les 15 min au plus) ; la difficile prévient un joueur 30 s
+    avant de rompre une trêve. Elle parle à un joueur selon sa personnalité (`AiSaid`, `Remarks`) : avertissement,
+    menace, remerciements, trahison, bienvenue, coalition, demande d'aide, gratitude, déception, défi.
+  - Historique (`Galaxy.Chronicle`, 400 lignes au plus, sauvegardé ; 120 envoyées par instantané : ce qui concerne le
+    joueur, et les trêves, alliances et guerres communes de tous). Commande `ProposeAccord` (galaxie, étiquette 20),
+    instantanés de galaxie 5, protocole 12 ; les anciennes sauvegardes se chargent. Tests : `AccordsTests`.
+  - Mesures entre IA (Release), après : campagnes 36 terminées sur 36, médiane 12 min (15,6 avant), victoires Nairan,
+    Kla'ed, Nautolan environ 16, 13, 7 (21, 8, 7 avant) ; personnalités en campagne 56, 63, 50, 25, 56 % (équilibrée,
+    agressive, défensive, économe, technologique), aucun nul, médiane 35 min ; niveaux à revenu égal : Difficile bat
+    Normale 45 à 3, Normale bat Facile 38 à 10, Difficile bat Facile 42 à 6. Ultimatums et demandes d'aide ne visent
+    que les joueurs : ces séries ne les voient pas, ni rien de ce qu'un humain fera de l'écran.
 - Sécurité (2026-11-03) : ce qu'un inconnu peut envoyer au serveur en ligne, à un hôte ou au jeu, et les fichiers du joueur.
   Chaque lecteur exposé passe un test de robustesse à graine fixe (`FuzzTests` : trames du relais, messages du jeu, ordres,
   instantanés de bataille entiers et en parties, galaxie, rediffusions, sauvegardes), et chaque correction a son test

@@ -63,7 +63,7 @@ public static partial class GalaxySnapshot
         replica.Truces = [];
         for (var n = Count(r); n > 0; n--) replica.Truces.Add(new Truce { A = SideOf(r), B = SideOf(r), Remaining = r.ReadSingle(), Renewed = r.ReadBoolean() });
         replica.Pacts = [];
-        for (var n = Count(r); n > 0; n--) replica.Pacts.Add(new Pact { Kind = Valid<DealKind>(r.ReadByte()), A = SideOf(r), B = SideOf(r) });
+        for (var n = Count(r); n > 0; n--) replica.Pacts.Add(new Pact { Kind = Valid<DealKind>(r.ReadByte()), A = SideOf(r), B = SideOf(r), Target = OptionalSide(r), Remaining = Amount(r) });
         replica.Tributes = [];
         for (var n = Count(r); n > 0; n--) replica.Tributes.Add(new Tribute { Payer = SideOf(r), Payee = SideOf(r), PerMinute = r.ReadSingle(), Remaining = r.ReadSingle() });
         replica.Offers = [];
@@ -72,8 +72,21 @@ public static partial class GalaxySnapshot
             replica.Offers.Add(new DealOffer
             {
                 From = SideOf(r), To = SideOf(r), Kind = Valid<DealKind>(r.ReadByte()), Amount = r.ReadSingle(), PerMinute = r.ReadBoolean(), Remaining = r.ReadSingle(),
+                Target = OptionalSide(r), Planet = OptionalPlanet(r, replica), Terms = Terms(r.ReadByte()),
             });
         }
+        replica.Chronicle = [];
+        for (var n = Count(r); n > 0; n--)
+        {
+            replica.Chronicle.Add(new DiploEntry
+            {
+                Time = Amount(r), Kind = Valid<ChronicleKind>(r.ReadByte()), Deal = Valid<DealKind>(r.ReadByte()), A = SideOf(r), B = SideOf(r),
+                By = OptionalSide(r), Amount = Amount(r), Extra = r.ReadVarint() - 1 is var x && x is >= -1 and < 1 << 16 ? x : throw new InvalidDataException($"Ligne {x}"),
+            });
+        }
+        replica.Promises = [];
+        for (var n = Count(r); n > 0; n--)
+            replica.Promises.Add(new HelpPromise { Asker = SideOf(r), Helper = SideOf(r), Planet = PlanetOf(r, replica), Remaining = Amount(r) });
         replica.Ongoing = [];
         for (var n = Count(r); n > 0; n--)
         {
@@ -120,6 +133,26 @@ public static partial class GalaxySnapshot
     }
 
     static Side SideOf(BinaryReader r) => r.ReadSide();
+
+    /// <summary>A planet as n + 1, 0 for none.</summary>
+    static int? OptionalPlanet(BinaryReader r, Galaxy g) => OtherOf(r, g) is var p && p >= 0 ? p : null;
+
+    static DealTerms Terms(byte b) => b <= 15 ? (DealTerms)b : throw new InvalidDataException($"Termes {b}");
+
+    /// <summary>An AI's mind towards the viewer (WriteMind): why it trusts it, kept in Why, and what it would answer it.</summary>
+    static DealPreview ReadMind(BinaryReader r, GalaxyAIState ai, Side viewer)
+    {
+        var why = new Dictionary<TrustCause, double>();
+        for (var n = Count(r); n > 0; n--) why[Valid<TrustCause>(r.ReadByte())] = r.ReadSingle();
+        ai.Why[viewer] = why;
+        var p = new DealPreview
+        {
+            Truce = Valid<DealWhy>(r.ReadByte()), Alliance = Valid<DealWhy>(r.ReadByte()), Trade = Valid<DealWhy>(r.ReadByte()), Vision = Valid<DealWhy>(r.ReadByte()),
+        };
+        for (var n = Count(r); n > 0; n--) p.JointWar[SideOf(r)] = Valid<DealWhy>(r.ReadByte());
+        (p.DemandLimit, p.YieldLimit, p.Cedes) = (Amount(r), Amount(r), r.ReadBoolean());
+        return p;
+    }
 
     /// <summary>A side as n + 1, 0 for none.</summary>
     static Side? OptionalSide(BinaryReader r)
@@ -251,12 +284,15 @@ public static partial class GalaxySnapshot
                 var grudge = r.ReadSingle();
                 if (f.AI is { } ai) ai.Grudges[viewer] = grudge;
             }
+            f.Reputation = r.ReadSingle() is var rep && rep is >= -100 and <= 100 ? rep : throw new InvalidDataException($"Réputation {rep}");
             if (f.AI is { } bot)
             {
                 bot.Personality = Valid<Personality>(r.ReadByte());
                 bot.Trust.Clear();
                 bot.Trust[viewer] = r.ReadSingle();
                 bot.Asked = Amount(r);
+                bot.Why.Clear();
+                bot.Preview = r.ReadBoolean() ? ReadMind(r, bot, viewer) : null;
             }
             // Only the viewer's own economy is known.
             f.Credits = 0;
@@ -348,10 +384,14 @@ public static partial class GalaxySnapshot
         Tag.TechResearched => new TechResearched(SideOf(r), Valid<TechId>(r.ReadByte())),
         Tag.BountyPaid => new BountyPaid(PlanetOf(r, g), SideOf(r), r.ReadDouble(), OptionalTech(r), ReadLane(r, g)),
         Tag.GalaxyVictory => new GalaxyVictory(SideOf(r), r.ReadVarint()),
-        Tag.DealOffered => new DealOffered(SideOf(r), SideOf(r), Valid<DealKind>(r.ReadByte()), r.ReadDouble(), r.ReadBoolean()),
+        Tag.DealOffered => new DealOffered(SideOf(r), SideOf(r), Valid<DealKind>(r.ReadByte()), r.ReadDouble(), r.ReadBoolean(), OptionalSide(r), OptionalPlanet(r, g), Terms(r.ReadByte())),
+        Tag.UltimatumEnded => new UltimatumEnded(SideOf(r), SideOf(r), r.ReadBoolean()),
+        Tag.PlanetCeded => new PlanetCeded(PlanetOf(r, g), SideOf(r), SideOf(r)),
+        Tag.HelpAnswered => new HelpAnswered(SideOf(r), SideOf(r), OtherOf(r, g), r.ReadBoolean()),
+        Tag.AiSaid => new AiSaid(SideOf(r), SideOf(r), Valid<Remark>(r.ReadByte())),
         Tag.DealRefused => new DealRefused(SideOf(r), SideOf(r), Valid<DealKind>(r.ReadByte()), r.ReadText()),
-        Tag.PactSigned => new PactSigned(Valid<DealKind>(r.ReadByte()), SideOf(r), SideOf(r)),
-        Tag.PactEnded => new PactEnded(Valid<DealKind>(r.ReadByte()), SideOf(r), SideOf(r), OptionalSide(r)),
+        Tag.PactSigned => new PactSigned(Valid<DealKind>(r.ReadByte()), SideOf(r), SideOf(r), OptionalSide(r)),
+        Tag.PactEnded => new PactEnded(Valid<DealKind>(r.ReadByte()), SideOf(r), SideOf(r), OptionalSide(r), OptionalSide(r)),
         Tag.TributeSigned => new TributeSigned(SideOf(r), SideOf(r), r.ReadDouble(), r.ReadBoolean()),
         Tag.TributeEnded => new TributeEnded(SideOf(r), SideOf(r), OptionalSide(r)),
         Tag.TruceSigned => new TruceSigned(SideOf(r), SideOf(r)),

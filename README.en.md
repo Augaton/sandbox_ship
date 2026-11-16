@@ -20,8 +20,13 @@ The screenshots show the game in French; it plays in English too (Options, Langu
 ## The game
 
 - **Galactic campaign**: planets linked by lanes, on a small, medium or large galaxy. Income,
-  stations, mines and platforms, research in tiers, truces between sides, fleets intercepting
-  each other on the lanes. Each encounter is commanded as a battle or resolves on its own.
+  stations, mines and platforms, research in tiers, fleets intercepting each other on the
+  lanes. Each encounter is commanded as a battle or resolves on its own.
+- **Diplomacy**: a screen of its own with the relations of every side. Truces, alliances,
+  trade, shared vision, joint wars, tributes, ultimatums and bundled offers. Before each offer,
+  the answer the AI would give; its trust explained, a reputation everyone sees, the history of
+  your accords. The AIs speak in their personality's words, ask for help and league against the
+  side that dominates.
 - **Skirmish**, and its variants: Survival (waves of Errants), Zone control (beacons to hold),
   Assault (a fortress to take in time), Regicide (each side has its flagship).
 - **Sandbox**: AI off, plenty of credits, place what you want where you want.

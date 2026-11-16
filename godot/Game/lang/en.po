@@ -6599,3 +6599,883 @@ msgstr "Defends everything it owns, answers what it sees and attacks when it fee
 #: Sim/Worlds.cs
 msgid "Concentre ses tirs, vise armes et moteurs, pille tes mines, se replie quand elle perd, adapte sa flotte et pousse ses recherches."
 msgstr "Focuses its fire, aims at guns and engines, raids your mines, falls back when losing, adapts its fleet and pushes its research."
+
+#: Game/scripts/Galaxy/GalaxyHud.Diplomacy.cs
+msgid "la vision partagée"
+msgstr "shared vision"
+
+#: Game/scripts/Galaxy/GalaxyHud.Diplomacy.cs
+msgid "la guerre commune"
+msgstr "the joint war"
+
+#: Game/scripts/Galaxy/GalaxyHud.Diplomacy.cs
+msgid "la demande d'aide"
+msgstr "the request for help"
+
+#: Game/scripts/Galaxy/GalaxyHud.Diplomacy.cs
+msgid "{0} propose de partager la vision"
+msgstr "{0} offers to share vision"
+
+#: Game/scripts/Galaxy/GalaxyHud.Diplomacy.cs
+msgid "{0} propose une guerre commune contre {1}"
+msgstr "{0} offers a joint war against {1}"
+
+#: Game/scripts/Galaxy/GalaxyHud.Diplomacy.cs
+msgid "Ultimatum de {0} : cède {1}"
+msgstr "Ultimatum from {0}: cede {1}"
+
+#: Game/scripts/Galaxy/GalaxyHud.Diplomacy.cs
+msgid "Ultimatum de {0} : {1}"
+msgstr "Ultimatum from {0}: {1}"
+
+#: Game/scripts/Galaxy/GalaxyHud.Diplomacy.cs
+msgid "{0} demande de l'aide pour {1}"
+msgstr "{0} asks for help at {1}"
+
+#: Game/scripts/Galaxy/GalaxyHud.Diplomacy.cs
+msgid "{0} demande {1}"
+msgstr "{0} asks for {1}"
+
+#: Game/scripts/Galaxy/GalaxyHud.Diplomacy.cs
+msgid "{0} propose un accord : {1}"
+msgstr "{0} offers a deal: {1}"
+
+#: Game/scripts/Galaxy/GalaxyHud.Diplomacy.cs
+msgid "trêve"
+msgstr "truce"
+
+#: Game/scripts/Galaxy/GalaxyHud.Diplomacy.cs
+msgid "vision partagée"
+msgstr "shared vision"
+
+#: Game/scripts/Galaxy/GalaxyHud.Diplomacy.cs
+msgid "tribut de {0}"
+msgstr "tribute of {0}"
+
+#: Game/scripts/Galaxy/GalaxyHud.Diplomacy.cs
+msgid "Chacun verrait ce que voit l'autre, sans alliance. La guerre y mettrait fin."
+msgstr "Each would see what the other sees, without an alliance. War would end it."
+
+#: Game/scripts/Galaxy/GalaxyHud.Diplomacy.cs
+msgid "{0} de guerre menée ensemble contre {1}. Faire la paix avec elle pendant ce temps serait une trahison."
+msgstr "{0} of war waged together against {1}. Making peace with it meanwhile would be a betrayal."
+
+#: Game/scripts/Galaxy/GalaxyHud.Diplomacy.cs
+msgid "Céder {0} avec ses installations, ou la guerre. Refuser, c'est la guerre."
+msgstr "Cede {0} with its works, or war. Refusing means war."
+
+#: Game/scripts/Galaxy/GalaxyHud.Diplomacy.cs
+msgid "Lui payer {0}, ou la guerre. Refuser, c'est la guerre."
+msgstr "Pay it {0}, or war. Refusing means war."
+
+#: Game/scripts/Galaxy/GalaxyHud.Diplomacy.cs
+msgid "Promettre d'envoyer une flotte à {0} sous {1}. Tenir sa promesse renforce sa confiance ; ne pas venir la ruine."
+msgstr "Promise to send a fleet to {0} within {1}. Keeping the promise strengthens its trust; not coming ruins it."
+
+#: Game/scripts/Galaxy/GalaxyHud.Diplomacy.cs
+msgid "Lui donner {0}. Refuser la décevra."
+msgstr "Give it {0}. Refusing will disappoint it."
+
+#: Game/scripts/Galaxy/GalaxyHud.Diplomacy.cs
+msgid "Tous ces termes ensemble, à accepter ou refuser d'un bloc."
+msgstr "All these terms together, to accept or refuse as one."
+
+#: Game/scripts/Galaxy/GalaxyHud.Diplomacy.cs
+msgid "Tu as {0} pour répondre."
+msgstr "You have {0} to answer."
+
+#: Game/scripts/Galaxy/GalaxyHud.Diplomacy.cs
+msgid "L'offre tient {0} ; l'écran Diplomatie (T) la garde jusque-là."
+msgstr "The offer stands for {0}; the Diplomacy screen (T) keeps it until then."
+
+#: Game/scripts/Galaxy/GalaxyHud.Diplomacy.cs
+msgid "Céder"
+msgstr "Give in"
+
+#: Game/scripts/Galaxy/GalaxyHud.Diplomacy.cs
+msgid "Refuser : la guerre"
+msgstr "Refuse: war"
+
+#: Game/scripts/Galaxy/GalaxyHud.Diplomacy.cs
+msgid "{0} défie ton ultimatum. {1}."
+msgstr "{0} defies your ultimatum. {1}."
+
+#: Game/scripts/Galaxy/GalaxyHud.Diplomacy.cs
+msgid "{0} défie ton ultimatum"
+msgstr "{0} defies your ultimatum"
+
+#: Game/scripts/Galaxy/GalaxyHud.Diplomacy.cs
+msgid "Tu as cédé à l'ultimatum de {0}"
+msgstr "You gave in to {0}'s ultimatum"
+
+#: Game/scripts/Galaxy/GalaxyHud.Diplomacy.cs
+msgid "Ultimatum de {0} rejeté : c'est la guerre"
+msgstr "Ultimatum from {0} rejected: it is war"
+
+#: Game/scripts/Galaxy/GalaxyHud.Diplomacy.cs
+msgid "{0} cède à ton ultimatum"
+msgstr "{0} gives in to your ultimatum"
+
+#: Game/scripts/Galaxy/GalaxyHud.Diplomacy.cs
+msgid "{0} rejette ton ultimatum : c'est la guerre"
+msgstr "{0} rejects your ultimatum: it is war"
+
+#: Game/scripts/Galaxy/GalaxyHud.Diplomacy.cs
+msgid "{0} t'est cédée par {1}"
+msgstr "{0} is ceded to you by {1}"
+
+#: Game/scripts/Galaxy/GalaxyHud.Diplomacy.cs
+msgid "{0} cédée à {1}"
+msgstr "{0} ceded to {1}"
+
+#: Game/scripts/Galaxy/GalaxyHud.Diplomacy.cs
+msgid "{0} cède {1} à {2}"
+msgstr "{0} cedes {1} to {2}"
+
+#: Game/scripts/Galaxy/GalaxyHud.Diplomacy.cs
+msgid "Aide envoyée à {0}"
+msgstr "Help sent to {0}"
+
+#: Game/scripts/Galaxy/GalaxyHud.Diplomacy.cs
+msgid "Promesse tenue : {0} t'en sait gré"
+msgstr "Promise kept: {0} is grateful"
+
+#: Game/scripts/Galaxy/GalaxyHud.Diplomacy.cs
+msgid "Promesse non tenue : {0} t'en veut"
+msgstr "Promise broken: {0} holds it against you"
+
+#: Game/scripts/Galaxy/GalaxyHud.Diplomacy.cs
+msgid "Vision partagée avec {0}"
+msgstr "Vision shared with {0}"
+
+#: Game/scripts/Galaxy/GalaxyHud.Diplomacy.cs
+msgid "Guerre commune avec {0} contre {1}"
+msgstr "Joint war with {0} against {1}"
+
+#: Game/scripts/Galaxy/GalaxyHud.Diplomacy.cs
+msgid "{0} et {1} se liguent contre toi !"
+msgstr "{0} and {1} league against you!"
+
+#: Game/scripts/Galaxy/GalaxyHud.Diplomacy.cs
+msgid "{0} et {1} font la guerre ensemble à {2}"
+msgstr "{0} and {1} wage war together on {2}"
+
+#: Game/scripts/Galaxy/GalaxyHud.Diplomacy.cs
+msgid "Accord entre {0} et {1}"
+msgstr "Deal between {0} and {1}"
+
+#: Game/scripts/Galaxy/GalaxyHud.Diplomacy.cs
+msgid "Tu cesses de partager la vision avec {0}"
+msgstr "You stop sharing vision with {0}"
+
+#: Game/scripts/Galaxy/GalaxyHud.Diplomacy.cs
+msgid "Fin de la vision partagée avec {0}"
+msgstr "Shared vision with {0} ends"
+
+#: Game/scripts/Galaxy/GalaxyHud.Diplomacy.cs
+msgid "{0} cesse de partager la vision"
+msgstr "{0} stops sharing vision"
+
+#: Game/scripts/Galaxy/GalaxyHud.Diplomacy.cs
+msgid "Fin de la guerre commune avec {0}"
+msgstr "The joint war with {0} ends"
+
+#: Game/scripts/Galaxy/GalaxyHud.Diplomacy.cs
+msgid "Tu quittes la guerre commune avec {0}"
+msgstr "You leave the joint war with {0}"
+
+#: Game/scripts/Galaxy/GalaxyHud.Diplomacy.cs
+msgid "{0} trahit votre guerre commune"
+msgstr "{0} betrays your joint war"
+
+#: Game/scripts/Galaxy/GalaxyHud.Diplomacy.cs
+msgid "Fin de la guerre commune entre {0} et {1}"
+msgstr "The joint war between {0} and {1} ends"
+
+#: Game/scripts/Galaxy/GalaxyHud.DiplomacyScreen.cs
+msgid "Relations entre les camps"
+msgstr "Relations between sides"
+
+#: Game/scripts/Galaxy/GalaxyHud.DiplomacyScreen.cs
+msgid "Ta réputation : {0} ({1})"
+msgstr "Your reputation: {0} ({1})"
+
+#: Game/scripts/Galaxy/GalaxyHud.DiplomacyScreen.cs
+msgid "Aucun autre camp."
+msgstr "No other side."
+
+#: Game/scripts/Galaxy/GalaxyHud.DiplomacyScreen.cs
+msgid "très fiable"
+msgstr "very reliable"
+
+#: Game/scripts/Galaxy/GalaxyHud.DiplomacyScreen.cs
+msgid "peu fiable"
+msgstr "unreliable"
+
+#: Game/scripts/Galaxy/GalaxyHud.DiplomacyScreen.cs
+msgid "alliés"
+msgstr "allies"
+
+#: Game/scripts/Galaxy/GalaxyHud.DiplomacyScreen.cs
+msgid "guerre commune contre {0}"
+msgstr "joint war against {0}"
+
+#: Game/scripts/Galaxy/GalaxyHud.DiplomacyScreen.cs
+msgid "guerre jurée"
+msgstr "sworn war"
+
+#: Game/scripts/Galaxy/GalaxyHud.DiplomacyScreen.cs
+msgid "éliminée"
+msgstr "eliminated"
+
+#: Game/scripts/Galaxy/GalaxyHud.DiplomacyScreen.cs
+msgid "{0} · joueur"
+msgstr "{0} · player"
+
+#: Game/scripts/Galaxy/GalaxyHud.DiplomacyScreen.cs
+#: Game/scripts/Galaxy/GalaxyHud.DiplomacyScreen.cs
+msgid "Ce camp a été éliminé."
+msgstr "This side was eliminated."
+
+#: Game/scripts/Galaxy/GalaxyHud.DiplomacyScreen.cs
+msgid "Accords en cours"
+msgstr "Accords in force"
+
+#: Game/scripts/Galaxy/GalaxyHud.DiplomacyScreen.cs
+msgid "Ses offres et demandes"
+msgstr "Its offers and demands"
+
+#: Game/scripts/Galaxy/GalaxyHud.DiplomacyScreen.cs
+msgid "Proposer"
+msgstr "Propose"
+
+#: Game/scripts/Galaxy/GalaxyHud.DiplomacyScreen.cs
+msgid "Accords à part"
+msgstr "Special accords"
+
+#: Game/scripts/Galaxy/GalaxyHud.DiplomacyScreen.cs
+msgid "Historique"
+msgstr "History"
+
+#: Game/scripts/Galaxy/GalaxyHud.DiplomacyScreen.cs
+msgid "{0} · réputation {1} ({2})"
+msgstr "{0} · reputation {1} ({2})"
+
+#: Game/scripts/Galaxy/GalaxyHud.DiplomacyScreen.cs
+msgid "Ce qui a compté :"
+msgstr "What counted:"
+
+#: Game/scripts/Galaxy/GalaxyHud.DiplomacyScreen.cs
+msgid "Confiance en toi : {0} sur 100"
+msgstr "Trust in you: {0} out of 100"
+
+#: Game/scripts/Galaxy/GalaxyHud.DiplomacyScreen.cs
+msgid "Ta réputation compte aussi : {0}"
+msgstr "Your reputation counts too: {0}"
+
+#: Game/scripts/Galaxy/GalaxyHud.DiplomacyScreen.cs
+msgid "La paix entre vous"
+msgstr "The peace between you"
+
+#: Game/scripts/Galaxy/GalaxyHud.DiplomacyScreen.cs
+msgid "Le commerce"
+msgstr "Trade"
+
+#: Game/scripts/Galaxy/GalaxyHud.DiplomacyScreen.cs
+msgid "L'alliance"
+msgstr "The alliance"
+
+#: Game/scripts/Galaxy/GalaxyHud.DiplomacyScreen.cs
+msgid "La guerre menée ensemble"
+msgstr "The war waged together"
+
+#: Game/scripts/Galaxy/GalaxyHud.DiplomacyScreen.cs
+msgid "Tes dons et tributs"
+msgstr "Your gifts and tributes"
+
+#: Game/scripts/Galaxy/GalaxyHud.DiplomacyScreen.cs
+msgid "Les tributs exigés"
+msgstr "Tributes demanded"
+
+#: Game/scripts/Galaxy/GalaxyHud.DiplomacyScreen.cs
+msgid "Les batailles que tu lui as ouvertes"
+msgstr "Battles you opened against it"
+
+#: Game/scripts/Galaxy/GalaxyHud.DiplomacyScreen.cs
+msgid "Tes trahisons"
+msgstr "Your betrayals"
+
+#: Game/scripts/Galaxy/GalaxyHud.DiplomacyScreen.cs
+msgid "Les trahisons qu'elle t'a vu commettre"
+msgstr "Betrayals it saw you commit"
+
+#: Game/scripts/Galaxy/GalaxyHud.DiplomacyScreen.cs
+msgid "L'aide donnée ou refusée"
+msgstr "Help given or refused"
+
+#: Game/scripts/Galaxy/GalaxyHud.DiplomacyScreen.cs
+msgid "Tes ultimatums"
+msgstr "Your ultimatums"
+
+#: Game/scripts/Galaxy/GalaxyHud.DiplomacyScreen.cs
+msgid "Alliance : vision partagée, aucun combat, victoire commune"
+msgstr "Alliance: shared vision, no fighting, common victory"
+
+#: Game/scripts/Galaxy/GalaxyHud.DiplomacyScreen.cs
+msgid "Arrêter"
+msgstr "Stop"
+
+#: Game/scripts/Galaxy/GalaxyHud.DiplomacyScreen.cs
+msgid "Vision partagée : chacun voit ce que voit l'autre"
+msgstr "Shared vision: each sees what the other sees"
+
+#: Game/scripts/Galaxy/GalaxyHud.DiplomacyScreen.cs
+msgid "Elle le prendra un peu mal"
+msgstr "It will take it a little badly"
+
+#: Game/scripts/Galaxy/GalaxyHud.DiplomacyScreen.cs
+msgid "Se retirer"
+msgstr "Withdraw"
+
+#: Game/scripts/Galaxy/GalaxyHud.DiplomacyScreen.cs
+msgid "La laisser seule contre {0} : elle t'en voudra"
+msgstr "Leave it alone against {0}: it will hold it against you"
+
+#: Game/scripts/Galaxy/GalaxyHud.DiplomacyScreen.cs
+msgid "Lever"
+msgstr "Lift"
+
+#: Game/scripts/Galaxy/GalaxyHud.DiplomacyScreen.cs
+msgid "Aucun : en guerre. Trahie, elle refuse trêve et alliance encore {0}"
+msgstr "None: at war. Betrayed, it refuses truce and alliance for another {0}"
+
+#: Game/scripts/Galaxy/GalaxyHud.DiplomacyScreen.cs
+msgid "Aucun : vous êtes en guerre"
+msgstr "None: you are at war"
+
+#: Game/scripts/Galaxy/GalaxyHud.DiplomacyScreen.cs
+#: Game/scripts/Galaxy/GalaxyHud.DiplomacyScreen.cs
+#: Game/scripts/Galaxy/GalaxyHud.DiplomacyScreen.cs
+msgid "Guerre commune contre {0} : encore {1}"
+msgstr "Joint war against {0}: {1} left"
+
+#: Game/scripts/Galaxy/GalaxyHud.DiplomacyScreen.cs
+msgid "Ta promesse : défendre {0}, une flotte là-bas sous {1}"
+msgstr "Your promise: defend {0}, a fleet there within {1}"
+
+#: Game/scripts/Galaxy/GalaxyHud.DiplomacyScreen.cs
+msgid "Réponds sous {0}, sinon la guerre"
+msgstr "Answer within {0}, or war"
+
+#: Game/scripts/Galaxy/GalaxyHud.DiplomacyScreen.cs
+msgid "Réponse sous {0}"
+msgstr "Answer within {0}"
+
+#: Game/scripts/Galaxy/GalaxyHud.DiplomacyScreen.cs
+msgid "Réponse prévue : elle accepterait"
+msgstr "Expected answer: it would accept"
+
+#: Game/scripts/Galaxy/GalaxyHud.DiplomacyScreen.cs
+msgid "Réponse prévue : elle refuserait. {0}"
+msgstr "Expected answer: it would refuse. {0}"
+
+#: Game/scripts/Galaxy/GalaxyHud.DiplomacyScreen.cs
+msgid "Coche ce que tu proposes : tout part en une seule offre, acceptée ou refusée d'un bloc."
+msgstr "Tick what you propose: it all goes as one offer, accepted or refused as one."
+
+#: Game/scripts/Galaxy/GalaxyHud.DiplomacyScreen.cs
+msgid "{0} sans aucun combat entre vous"
+msgstr "{0} without any fighting between you"
+
+#: Game/scripts/Galaxy/GalaxyHud.DiplomacyScreen.cs
+msgid "+{0}/s chacun tant que dure la paix"
+msgstr "+{0}/s each while the peace lasts"
+
+#: Game/scripts/Galaxy/GalaxyHud.DiplomacyScreen.cs
+msgid "Vision partagée"
+msgstr "Shared vision"
+
+#: Game/scripts/Galaxy/GalaxyHud.DiplomacyScreen.cs
+msgid "Chacun voit ce que voit l'autre, sans alliance"
+msgstr "Each sees what the other sees, without an alliance"
+
+#: Game/scripts/Galaxy/GalaxyHud.DiplomacyScreen.cs
+msgid "Tribut"
+msgstr "Tribute"
+
+#: Game/scripts/Galaxy/GalaxyHud.DiplomacyScreen.cs
+msgid "Des crédits pour elle, contre la paix ou sa confiance"
+msgstr "Credits for it, for peace or its trust"
+
+#: Game/scripts/Galaxy/GalaxyHud.DiplomacyScreen.cs
+msgid "Le prix qu'elle demande pour la paix"
+msgstr "The price it asks for peace"
+
+#: Game/scripts/Galaxy/GalaxyHud.DiplomacyScreen.cs
+msgid "par minute"
+msgstr "per minute"
+
+#: Game/scripts/Galaxy/GalaxyHud.DiplomacyScreen.cs
+msgid "en une fois"
+msgstr "at once"
+
+#: Game/scripts/Galaxy/GalaxyHud.DiplomacyScreen.cs
+msgid "Une somme en une fois, ou tant par minute pendant la trêve"
+msgstr "A sum at once, or so much a minute during the truce"
+
+#: Game/scripts/Galaxy/GalaxyHud.DiplomacyScreen.cs
+msgid "Elle demande {0} pour la paix."
+msgstr "It asks {0} for peace."
+
+#: Game/scripts/Galaxy/GalaxyHud.DiplomacyScreen.cs
+msgid "Envoyer l'offre"
+msgstr "Send the offer"
+
+#: Game/scripts/Galaxy/GalaxyHud.DiplomacyScreen.cs
+msgid "Coche au moins un terme"
+msgstr "Tick at least one term"
+
+#: Game/scripts/Galaxy/GalaxyHud.DiplomacyScreen.cs
+msgid "Un joueur répond lui-même, dans le temps d'une offre."
+msgstr "A player answers for themselves, within an offer's time."
+
+#: Game/scripts/Galaxy/GalaxyHud.DiplomacyScreen.cs
+msgid "Vision partagée, aucun combat, victoire commune ; la rompre est une trahison"
+msgstr "Shared vision, no fighting, common victory; breaking it is a betrayal"
+
+#: Game/scripts/Galaxy/GalaxyHud.DiplomacyScreen.cs
+msgid "Guerre commune contre {0}"
+msgstr "Joint war against {0}"
+
+#: Game/scripts/Galaxy/GalaxyHud.DiplomacyScreen.cs
+msgid "{0} de guerre menée ensemble ; faire la paix avec {1} pendant ce temps est une trahison"
+msgstr "{0} of war waged together; making peace with {1} meanwhile is a betrayal"
+
+#: Game/scripts/Galaxy/GalaxyHud.DiplomacyScreen.cs
+msgid "Exiger {0}"
+msgstr "Demand {0}"
+
+#: Game/scripts/Galaxy/GalaxyHud.DiplomacyScreen.cs
+msgid "Un tribut contre une trêve : elle paie si elle te craint"
+msgstr "A tribute for a truce: it pays if it fears you"
+
+#: Game/scripts/Galaxy/GalaxyHud.DiplomacyScreen.cs
+msgid "Ultimatum : {0}"
+msgstr "Ultimatum: {0}"
+
+#: Game/scripts/Galaxy/GalaxyHud.DiplomacyScreen.cs
+msgid "Payer, ou la guerre : elle a {0} pour répondre. Ta réputation en souffre"
+msgstr "Pay, or war: it has {0} to answer. Your reputation suffers"
+
+#: Game/scripts/Galaxy/GalaxyHud.DiplomacyScreen.cs
+msgid "Céder {0}, ou la guerre. Ta réputation en souffre"
+msgstr "Cede {0}, or war. Your reputation suffers"
+
+#: Game/scripts/Galaxy/GalaxyHud.DiplomacyScreen.cs
+msgid "Elle ne cède qu'une planète secondaire pour elle, sans grande station."
+msgstr "It cedes only a minor planet of its own, without a large station."
+
+#: Game/scripts/Galaxy/GalaxyHud.DiplomacyScreen.cs
+msgid "Rien encore entre vous."
+msgstr "Nothing between you yet."
+
+#: Game/scripts/Galaxy/GalaxyHud.DiplomacyScreen.cs
+msgid "Trêve signée"
+msgstr "Truce signed"
+
+#: Game/scripts/Galaxy/GalaxyHud.DiplomacyScreen.cs
+msgid "Alliance signée"
+msgstr "Alliance signed"
+
+#: Game/scripts/Galaxy/GalaxyHud.DiplomacyScreen.cs
+msgid "Accord commercial signé"
+msgstr "Trade agreement signed"
+
+#: Game/scripts/Galaxy/GalaxyHud.DiplomacyScreen.cs
+msgid "Guerre commune"
+msgstr "Joint war"
+
+#: Game/scripts/Galaxy/GalaxyHud.DiplomacyScreen.cs
+msgid "Tribut : {0} paie {1}"
+msgstr "Tribute: {0} pays {1}"
+
+#: Game/scripts/Galaxy/GalaxyHud.DiplomacyScreen.cs
+msgid "Fin de la trêve, tenue jusqu'au bout"
+msgstr "End of the truce, kept to the end"
+
+#: Game/scripts/Galaxy/GalaxyHud.DiplomacyScreen.cs
+msgid "{0} rompt l'alliance"
+msgstr "{0} breaks the alliance"
+
+#: Game/scripts/Galaxy/GalaxyHud.DiplomacyScreen.cs
+msgid "{0} trahit la guerre commune"
+msgstr "{0} betrays the joint war"
+
+#: Game/scripts/Galaxy/GalaxyHud.DiplomacyScreen.cs
+msgid "{0} rompt la trêve"
+msgstr "{0} breaks the truce"
+
+#: Game/scripts/Galaxy/GalaxyHud.DiplomacyScreen.cs
+msgid "Fin du commerce"
+msgstr "End of trade"
+
+#: Game/scripts/Galaxy/GalaxyHud.DiplomacyScreen.cs
+msgid "Fin de la vision partagée"
+msgstr "End of shared vision"
+
+#: Game/scripts/Galaxy/GalaxyHud.DiplomacyScreen.cs
+msgid "Fin de la guerre commune"
+msgstr "End of the joint war"
+
+#: Game/scripts/Galaxy/GalaxyHud.DiplomacyScreen.cs
+msgid "Fin du tribut"
+msgstr "End of the tribute"
+
+#: Game/scripts/Galaxy/GalaxyHud.DiplomacyScreen.cs
+msgid "{0} cesse de payer le tribut"
+msgstr "{0} stops paying the tribute"
+
+#: Game/scripts/Galaxy/GalaxyHud.DiplomacyScreen.cs
+msgid "{0} cède à l'ultimatum"
+msgstr "{0} gives in to the ultimatum"
+
+#: Game/scripts/Galaxy/GalaxyHud.DiplomacyScreen.cs
+msgid "{0} défie l'ultimatum"
+msgstr "{0} defies the ultimatum"
+
+#: Game/scripts/Galaxy/GalaxyHud.DiplomacyScreen.cs
+msgid "{0} cédée par {1}"
+msgstr "{0} ceded by {1}"
+
+#: Game/scripts/Galaxy/GalaxyHud.DiplomacyScreen.cs
+msgid "{0} est venu à l'aide"
+msgstr "{0} came to help"
+
+#: Game/scripts/Galaxy/GalaxyHud.DiplomacyScreen.cs
+msgid "{0} n'est pas venu à l'aide"
+msgstr "{0} did not come to help"
+
+#: Game/scripts/Galaxy/GalaxyHud.DiplomacyScreen.cs
+msgid "Ta faiblesse me tente. Prépare tes défenses."
+msgstr "Your weakness tempts me. Ready your defenses."
+
+#: Game/scripts/Galaxy/GalaxyHud.DiplomacyScreen.cs
+msgid "Obéis, ou je prendrai tout."
+msgstr "Obey, or I will take everything."
+
+#: Game/scripts/Galaxy/GalaxyHud.DiplomacyScreen.cs
+msgid "Un tribut bienvenu. Continue ainsi."
+msgstr "A welcome tribute. Keep it up."
+
+#: Game/scripts/Galaxy/GalaxyHud.DiplomacyScreen.cs
+msgid "Traître ! Tu paieras ce mépris."
+msgstr "Traitor! You will pay for this contempt."
+
+#: Game/scripts/Galaxy/GalaxyHud.DiplomacyScreen.cs
+msgid "Nos flottes réunies écraseront nos ennemis."
+msgstr "Our fleets together will crush our enemies."
+
+#: Game/scripts/Galaxy/GalaxyHud.DiplomacyScreen.cs
+msgid "Abattons ce géant avant qu'il ne nous dévore."
+msgstr "Let us bring down this giant before it devours us."
+
+#: Game/scripts/Galaxy/GalaxyHud.DiplomacyScreen.cs
+msgid "Viens te battre à nos côtés, si tu en as le courage."
+msgstr "Come and fight at our side, if you have the nerve."
+
+#: Game/scripts/Galaxy/GalaxyHud.DiplomacyScreen.cs
+msgid "Tu sais te battre. Je m'en souviendrai."
+msgstr "You know how to fight. I will remember it."
+
+#: Game/scripts/Galaxy/GalaxyHud.DiplomacyScreen.cs
+msgid "Lâche. Je n'oublierai pas."
+msgstr "Coward. I will not forget."
+
+#: Game/scripts/Galaxy/GalaxyHud.DiplomacyScreen.cs
+msgid "Viens donc prendre ce que tu exiges."
+msgstr "Come and take what you demand, then."
+
+#: Game/scripts/Galaxy/GalaxyHud.DiplomacyScreen.cs
+msgid "Nous ne pouvons plus garantir cette trêve. Retire tes flottes."
+msgstr "We can no longer guarantee this truce. Withdraw your fleets."
+
+#: Game/scripts/Galaxy/GalaxyHud.DiplomacyScreen.cs
+msgid "Notre patience a des limites. Accepte nos conditions."
+msgstr "Our patience has limits. Accept our terms."
+
+#: Game/scripts/Galaxy/GalaxyHud.DiplomacyScreen.cs
+msgid "Ta générosité nous rassure."
+msgstr "Your generosity reassures us."
+
+#: Game/scripts/Galaxy/GalaxyHud.DiplomacyScreen.cs
+msgid "Nous t'avions fait confiance. Plus jamais."
+msgstr "We trusted you. Never again."
+
+#: Game/scripts/Galaxy/GalaxyHud.DiplomacyScreen.cs
+msgid "Nos défenses sont désormais les tiennes."
+msgstr "Our defenses are now yours."
+
+#: Game/scripts/Galaxy/GalaxyHud.DiplomacyScreen.cs
+msgid "Seuls, nous tomberons. Ensemble, nous tiendrons."
+msgstr "Alone, we will fall. Together, we will hold."
+
+#: Game/scripts/Galaxy/GalaxyHud.DiplomacyScreen.cs
+msgid "Nos défenses cèdent. Viens vite, je t'en prie."
+msgstr "Our defenses are giving way. Come quickly, please."
+
+#: Game/scripts/Galaxy/GalaxyHud.DiplomacyScreen.cs
+msgid "Ton aide nous a sauvés."
+msgstr "Your help saved us."
+
+#: Game/scripts/Galaxy/GalaxyHud.DiplomacyScreen.cs
+msgid "Tu nous as laissés seuls face à l'ennemi."
+msgstr "You left us alone against the enemy."
+
+#: Game/scripts/Galaxy/GalaxyHud.DiplomacyScreen.cs
+msgid "Nos murs tiendront. Nous refusons."
+msgstr "Our walls will hold. We refuse."
+
+#: Game/scripts/Galaxy/GalaxyHud.DiplomacyScreen.cs
+msgid "Cette trêve ne nous rapporte plus rien. Elle prendra fin."
+msgstr "This truce no longer pays. It will end."
+
+#: Game/scripts/Galaxy/GalaxyHud.DiplomacyScreen.cs
+msgid "Payer coûte moins cher qu'une guerre. Réfléchis bien."
+msgstr "Paying costs less than a war. Think it over."
+
+#: Game/scripts/Galaxy/GalaxyHud.DiplomacyScreen.cs
+msgid "Excellent placement. Nos échanges n'en seront que meilleurs."
+msgstr "An excellent investment. Our dealings will only be the better for it."
+
+#: Game/scripts/Galaxy/GalaxyHud.DiplomacyScreen.cs
+msgid "Une trahison se paie toujours, avec les intérêts."
+msgstr "A betrayal is always paid for, with interest."
+
+#: Game/scripts/Galaxy/GalaxyHud.DiplomacyScreen.cs
+msgid "Une alliance profitable pour nous deux."
+msgstr "A profitable alliance for us both."
+
+#: Game/scripts/Galaxy/GalaxyHud.DiplomacyScreen.cs
+msgid "Ce monopole nous ruine tous. Brisons-le ensemble."
+msgstr "This monopoly ruins us all. Let us break it together."
+
+#: Game/scripts/Galaxy/GalaxyHud.DiplomacyScreen.cs
+msgid "Nos caisses sont menacées. M'aider serait rentable pour toi aussi."
+msgstr "Our coffers are threatened. Helping me would pay for you too."
+
+#: Game/scripts/Galaxy/GalaxyHud.DiplomacyScreen.cs
+msgid "Investissement remboursé. Merci."
+msgstr "Investment repaid. Thank you."
+
+#: Game/scripts/Galaxy/GalaxyHud.DiplomacyScreen.cs
+msgid "Un partenaire peu fiable. C'est noté."
+msgstr "An unreliable partner. Noted."
+
+#: Game/scripts/Galaxy/GalaxyHud.DiplomacyScreen.cs
+msgid "Ton prix est trop élevé. Refusé."
+msgstr "Your price is too high. Refused."
+
+#: Game/scripts/Galaxy/GalaxyHud.DiplomacyScreen.cs
+msgid "Nos calculs sont formels : cette trêve doit cesser."
+msgstr "Our calculations are clear: this truce must end."
+
+#: Game/scripts/Galaxy/GalaxyHud.DiplomacyScreen.cs
+msgid "Les probabilités sont contre toi. Accepte."
+msgstr "The odds are against you. Accept."
+
+#: Game/scripts/Galaxy/GalaxyHud.DiplomacyScreen.cs
+msgid "Contribution enregistrée. Merci."
+msgstr "Contribution recorded. Thank you."
+
+#: Game/scripts/Galaxy/GalaxyHud.DiplomacyScreen.cs
+msgid "Trahison consignée. Nos systèmes ne l'oublieront pas."
+msgstr "Betrayal logged. Our systems will not forget it."
+
+#: Game/scripts/Galaxy/GalaxyHud.DiplomacyScreen.cs
+msgid "Nos savoirs réunis feront la différence."
+msgstr "Our knowledge combined will make the difference."
+
+#: Game/scripts/Galaxy/GalaxyHud.DiplomacyScreen.cs
+msgid "Ce camp déséquilibre la galaxie. Corrigeons cette anomalie ensemble."
+msgstr "This side unbalances the galaxy. Let us correct this anomaly together."
+
+#: Game/scripts/Galaxy/GalaxyHud.DiplomacyScreen.cs
+msgid "Nos défenses sont insuffisantes. Ton intervention est requise."
+msgstr "Our defenses are insufficient. Your intervention is required."
+
+#: Game/scripts/Galaxy/GalaxyHud.DiplomacyScreen.cs
+msgid "Ton intervention a été décisive."
+msgstr "Your intervention was decisive."
+
+#: Game/scripts/Galaxy/GalaxyHud.DiplomacyScreen.cs
+msgid "Tu n'es pas venu. Fiabilité révisée à la baisse."
+msgstr "You did not come. Reliability revised downward."
+
+#: Game/scripts/Galaxy/GalaxyHud.DiplomacyScreen.cs
+msgid "Exigence rejetée. Nos modèles prévoient ta défaite."
+msgstr "Demand rejected. Our models predict your defeat."
+
+#: Game/scripts/Galaxy/GalaxyHud.DiplomacyScreen.cs
+msgid "Nos intérêts divergent. Bientôt, notre trêve n'existera plus."
+msgstr "Our interests diverge. Soon, our truce will be no more."
+
+#: Game/scripts/Galaxy/GalaxyHud.DiplomacyScreen.cs
+msgid "Cède à ma demande, et la paix tiendra."
+msgstr "Give in to my demand, and the peace will hold."
+
+#: Game/scripts/Galaxy/GalaxyHud.DiplomacyScreen.cs
+msgid "Ce geste ne sera pas oublié."
+msgstr "This gesture will not be forgotten."
+
+#: Game/scripts/Galaxy/GalaxyHud.DiplomacyScreen.cs
+msgid "Tu as trahi ta parole. Nous nous en souviendrons."
+msgstr "You broke your word. We will remember it."
+
+#: Game/scripts/Galaxy/GalaxyHud.DiplomacyScreen.cs
+msgid "Ensemble, nous serons plus forts."
+msgstr "Together, we will be stronger."
+
+#: Game/scripts/Galaxy/GalaxyHud.DiplomacyScreen.cs
+msgid "Ce camp devient trop puissant. Unissons-nous contre lui."
+msgstr "This side grows too powerful. Let us unite against it."
+
+#: Game/scripts/Galaxy/GalaxyHud.DiplomacyScreen.cs
+msgid "Nos planètes sont menacées. Ton aide serait précieuse."
+msgstr "Our planets are threatened. Your help would be precious."
+
+#: Game/scripts/Galaxy/GalaxyHud.DiplomacyScreen.cs
+msgid "Tu as tenu parole. Merci."
+msgstr "You kept your word. Thank you."
+
+#: Game/scripts/Galaxy/GalaxyHud.DiplomacyScreen.cs
+msgid "Nous comptions sur toi."
+msgstr "We were counting on you."
+
+#: Game/scripts/Galaxy/GalaxyHud.DiplomacyScreen.cs
+msgid "Nous ne plierons pas devant tes menaces."
+msgstr "We will not bow to your threats."
+
+#: Sim/GalaxyAccords.cs
+msgid "Ce n'est pas une de ses planètes"
+msgstr "That is not one of its planets"
+
+#: Sim/GalaxyAccords.cs
+msgid "C'est sa dernière planète"
+msgstr "It is its last planet"
+
+#: Sim/GalaxyAccords.cs
+msgid "Planète trop loin de tes frontières"
+msgstr "Planet too far from your borders"
+
+#: Sim/GalaxyAccords.cs
+msgid "On se bat déjà là-bas"
+msgstr "There is fighting there already"
+
+#: Sim/GalaxyAccords.cs
+msgid "Aucun terme"
+msgstr "No terms"
+
+#: Sim/GalaxyAccords.cs
+msgid "Vision déjà partagée"
+msgstr "Vision already shared"
+
+#: Sim/GalaxyAiDiplomacy.cs
+msgid "Elle a juré la guerre à ce camp"
+msgstr "It swore war against that side"
+
+#: Sim/GalaxyAiDiplomacy.cs
+msgid "Cette cible ne l'inquiète pas"
+msgstr "That target does not worry it"
+
+#: Sim/GalaxyAiDiplomacy.cs
+msgid "Elle tient trop à cette planète"
+msgstr "It values that planet too much"
+
+#: Sim/GalaxyDiplomacy.cs
+msgid "Choisis une cible"
+msgstr "Choose a target"
+
+#: Sim/GalaxyDiplomacy.cs
+msgid "Il faut être tous deux en guerre contre elle"
+msgstr "You must both be at war with it"
+
+#: Sim/GalaxyDiplomacy.cs
+msgid "Guerre commune déjà en cours"
+msgstr "Joint war already under way"
+
+#: Sim/GalaxyDiplomacy.cs
+msgid "Pas entre alliées"
+msgstr "Not between allies"
+
+#: Sim/GalaxyDiplomacy.cs
+msgid "Déjà en guerre : exige plutôt un tribut"
+msgstr "Already at war: demand a tribute instead"
+
+#: Sim/GalaxyDiplomacy.cs
+msgid "Pas assez forte pour l'exiger"
+msgstr "Not strong enough to demand it"
+
+#: Sim/GalaxyDiplomacy.cs
+msgid "Seule une IA demande de l'aide, et à un joueur"
+msgstr "Only an AI asks for help, and of a player"
+
+#: Sim/GalaxyDiplomacy.cs
+msgid "Demande invalide"
+msgstr "Invalid request"
+
+#: Sim/GalaxyDiplomacy.cs
+msgid "Aucune vision partagée"
+msgstr "No shared vision"
+
+#: Sim/GalaxyDiplomacy.cs
+msgid "Aucune guerre commune"
+msgstr "No joint war"
+
+#: Game/scripts/Galaxy/GalaxyHud.DiplomacyScreen.cs
+msgid " · {0} offres"
+msgstr " · {0} offers"
+
+#: Game/scripts/Galaxy/GalaxyHud.DiplomacyScreen.cs
+msgid " · une offre"
+msgstr " · one offer"
+
+#: Game/scripts/Galaxy/GalaxyHud.DiplomacyScreen.cs
+msgid "Trêve : encore {0}, déjà prolongée"
+msgstr "Truce: {0} left, already extended"
+
+#: Game/scripts/Galaxy/GalaxyHud.cs
+msgid "Une flotte seule prend une planète sans défense en {0} s ({1} s si elle est neutre). Quand deux camps se rencontrent, la bataille se commande dans la vue tactique ou se résout seule. Les flottes traversent les planètes neutres ou alliées et s'arrêtent aux planètes ennemies. Tu perds quand tu n'as plus de planète. Chaque planète a deux files : bâtiments et vaisseaux. Certaines planètes ont un bonus. À plus de {2} voies de tes stations, une flotte est hors ravitaillement : elle s'use de {3} par minute et ne se répare plus. L'écran Diplomatie (T) montre les relations de tous les camps et, avant chaque offre, la réponse d'une IA : trêves, alliances, commerce, vision partagée, guerres communes, tributs et ultimatums ; trahir abîme ta réputation auprès de tous. Toutes les quelques minutes, un événement survient : épave à récupérer, bande errante, tempête ionique, essor commercial. Les Errants, neutres, gardent la planète la plus isolée avec leur Colosse : ils n'en bougent jamais et ne comptent pas pour la victoire. Chaque vaisseau abattu rapporte {4} de sa valeur ; le Colosse, {5} crédits et un niveau de recherche. La campagne se sauvegarde toute seule ; « Continuer la campagne » la reprend depuis le menu."
+msgstr "A fleet alone takes an undefended planet in {0} s ({1} s if it is neutral). When two sides meet, the battle is commanded in the tactical view or resolves on its own. Fleets pass through neutral or allied planets and stop at enemy ones. You lose when you have no planet left. Each planet has two queues: buildings and ships. Some planets have a bonus. More than {2} lanes away from your stations, a fleet is out of supply: it wears down by {3} a minute and no longer mends. The Diplomacy screen (T) shows the relations of every side and, before each offer, an AI's answer: truces, alliances, trade, shared vision, joint wars, tributes and ultimatums; betraying damages your reputation with all. Every few minutes, something happens: a wreck to recover, a roaming band, an ion storm, a trade boom. The Errants, neutral, guard the most isolated planet with their Colossus: they never leave it and do not count toward victory. Each ship destroyed earns {4} of its value; the Colossus, {5} credits and a research level. The campaign saves by itself; \"Continue the campaign\" resumes it from the menu."
+
+msgid "guerre"
+msgstr "war"
+
+msgid "commerce"
+msgstr "trade"
+
+msgid "neutre"
+msgstr "neutral"
+
+msgid "vision"
+msgstr "vision"
+
+msgid "tribut"
+msgstr "tribute"
+
+msgid "fiable"
+msgstr "reliable"
+
+msgid "parjure"
+msgstr "oath-breaker"
+
+msgid "Ultimatum !"
+msgstr "Ultimatum!"
+
+msgid "{0} offres en attente"
+msgstr "{0} offers waiting"
+
+msgid "Une offre en attente"
+msgstr "One offer waiting"
+
+msgid "intacte"
+msgstr "intact"

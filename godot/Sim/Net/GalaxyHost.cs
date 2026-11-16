@@ -71,7 +71,7 @@ public sealed class GalaxyHost(Galaxy galaxy, Action<int, Message> send)
     public void Receive(int peer, GalaxyCommand c)
     {
         if (!remotes.TryGetValue(peer, out var r) || !r.Pace.Take(false, r.Sink.Pending)) return;
-        if (c is GalaxyCommand.OfferTruce or GalaxyCommand.ProposeDeal && !offers.Allow(peer, now))
+        if (c is GalaxyCommand.OfferTruce or GalaxyCommand.ProposeDeal or GalaxyCommand.ProposeAccord && !offers.Allow(peer, now))
         {
             send(peer, new Message.Refused(TooManyOffers));
             return;

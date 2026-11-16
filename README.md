@@ -18,9 +18,13 @@ seul contre l'IA ou jusqu'à six joueurs en réseau, par équipes.
 ## Le jeu
 
 - **Campagne galactique** : des planètes reliées par des routes, sur une galaxie petite, moyenne
-  ou grande. Revenus, stations, mines et plateformes, recherche par paliers, trêves entre
-  camps, flottes qui s'interceptent sur les routes. Chaque rencontre se commande en bataille ou
-  se résout seule.
+  ou grande. Revenus, stations, mines et plateformes, recherche par paliers, flottes qui
+  s'interceptent sur les routes. Chaque rencontre se commande en bataille ou se résout seule.
+- **Diplomatie** : un écran dédié avec les relations de tous les camps. Trêves, alliances,
+  commerce, vision partagée, guerres communes, tributs, ultimatums et offres combinées. Avant
+  chaque offre, la réponse que donnerait l'IA ; sa confiance expliquée, une réputation que tous
+  voient, l'historique de vos accords. Les IA parlent selon leur personnalité, demandent de
+  l'aide et se liguent contre le camp qui domine.
 - **Escarmouche**, et ses variantes : Survie (des vagues d'Errants), Contrôle de zone (des
   balises à tenir), Assaut (une forteresse à prendre à temps), Régicide (chacun son vaisseau
   amiral).

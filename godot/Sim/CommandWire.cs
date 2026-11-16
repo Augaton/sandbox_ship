@@ -135,6 +135,16 @@ public static partial class Commands
             case GalaxyCommand.ProposeDeal p: Tag(w, 17); w.Write7BitEncodedInt(p.To.Id); w.Write((byte)p.Kind); w.Write(p.Amount); w.Write(p.PerMinute); break;
             case GalaxyCommand.AnswerDeal a: Tag(w, 18); w.Write7BitEncodedInt(a.From.Id); w.Write((byte)a.Kind); w.Write(a.Accept); break;
             case GalaxyCommand.EndDeal e: Tag(w, 19); w.Write7BitEncodedInt(e.Other.Id); w.Write((byte)e.Kind); break;
+            case GalaxyCommand.ProposeAccord p:
+                Tag(w, 20);
+                w.Write7BitEncodedInt(p.To.Id);
+                w.Write((byte)p.Kind);
+                w.Write(p.Amount);
+                w.Write(p.PerMinute);
+                w.Write7BitEncodedInt(p.Target is Side aim ? aim.Id + 1 : 0);
+                w.Write7BitEncodedInt((p.Planet ?? -1) + 1);
+                w.Write((byte)p.Terms);
+                break;
             default: throw new ArgumentException($"Commande sans format : {c.GetType().Name}");
         }
     }
@@ -160,10 +170,20 @@ public static partial class Commands
         17 => new GalaxyCommand.ProposeDeal(r.ReadSide(), r.ReadEnum<DealKind>(), r.ReadDouble(), r.ReadBoolean()),
         18 => new GalaxyCommand.AnswerDeal(r.ReadSide(), r.ReadEnum<DealKind>(), r.ReadBoolean()),
         19 => new GalaxyCommand.EndDeal(r.ReadSide(), r.ReadEnum<DealKind>()),
+        20 => new GalaxyCommand.ProposeAccord(r.ReadSide(), r.ReadEnum<DealKind>(), r.ReadDouble(), r.ReadBoolean(), OptionalSide(r), OptionalPlanet(r), Terms(r.ReadByte())),
         var tag => throw new InvalidDataException($"Commande galactique inconnue : {tag}"),
     };
 
     static void Tag(BinaryWriter w, byte tag) => w.Write(tag);
+
+    /// <summary>A side as n + 1, 0 for none; checked as Wire.ReadSide checks one.</summary>
+    static Side? OptionalSide(BinaryReader r) => r.ReadVarint() is var n && n == 0 ? null
+        : n - 1 is var id && id is >= 0 and <= Lobby.MaxSeats ? new Side(id) : throw new InvalidDataException($"Camp inconnu : {n - 1}");
+
+    /// <summary>A planet as n + 1, 0 for none; its range is the galaxy's to check (Commands.Apply).</summary>
+    static int? OptionalPlanet(BinaryReader r) => r.ReadVarint() is var n && n == 0 ? null : n is > 0 and <= 1 << 16 ? n - 1 : throw new InvalidDataException($"Planète {n}");
+
+    static DealTerms Terms(byte b) => b <= 15 ? (DealTerms)b : throw new InvalidDataException($"Termes {b}");
 
     static void WriteIds(BinaryWriter w, int[] ids)
     {

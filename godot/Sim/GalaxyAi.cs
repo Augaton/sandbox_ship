@@ -451,7 +451,9 @@ public static partial class GalaxyAi
         bool Rival(Planet t) => t.Owner is Side o && g.Factions.ContainsKey(o) && AtWar(g, side, o);
         var held = ai.Staging is int s0 && ai.Target is int t0 && g.Planets[s0].Owner == side && Rival(g.Planets[t0]) && !StormOn(g, s0, t0) ? (s0, t0) : ((int, int)?)null;
         if (held is not null && !Cunning(ai)) return held;
-        double Score(Planet t) => Worth(t) / (Threat(g, t, side) + 1000) * (Cunning(ai) && BusyElsewhere(g, t.Owner!.Value, side) ? 2 : 1);
+        // A faction it swore a joint war against comes first: its partner counts on it.
+        double Score(Planet t) => Worth(t) / (Threat(g, t, side) + 1000) * (Cunning(ai) && BusyElsewhere(g, t.Owner!.Value, side) ? 2 : 1)
+            * (Sworn(g, side, t.Owner!.Value) ? 2.5 : 1);
         var best = own.SelectMany(s => Neighbours(g, s.Id).Where(id => !StormOn(g, s.Id, id)).Select(id => g.Planets[id]).Where(Rival).Select(t => (Staging: s, Target: t)))
             .OrderByDescending(x => Score(x.Target))
             .ThenByDescending(x => x.Staging.Station)
@@ -466,7 +468,8 @@ public static partial class GalaxyAi
     /// <summary>
     /// The hard AI breaks a truce when it pays, as the rules let anyone: nobody paid for it, the
     /// other is far weaker or busy elsewhere, and a fleet of its own stands next to a planet of
-    /// theirs it can take. The wronged AI bears the grudge, a player gets the warning.
+    /// theirs it can take. A player is warned first, BreakNotice seconds ahead (and nothing comes
+    /// of it if the occasion passes); another AI is not. The wronged AI bears the grudge.
     /// </summary>
     static void BreakTruces(Galaxy g, Side side, GalaxyAIState ai)
     {
@@ -474,10 +477,31 @@ public static partial class GalaxyAi
         {
             if ((t.A != side && t.B != side) || t.Paid) continue;
             var other = t.A == side ? t.B : t.A;
-            if (Might(g, side) < Might(g, other) * 1.3 && !BusyElsewhere(g, other, side)) continue;
-            var ready = g.Fleets.Values.Any(f => f.Side == side && f.At is int at && f.BattleId is null && f.Condition >= 0.5 && Neighbours(g, at).Exists(n =>
+            var wants = (Might(g, side) >= Might(g, other) * 1.3 || BusyElsewhere(g, other, side)) && g.Fleets.Values.Any(f => f.Side == side && f.At is int at
+                && f.BattleId is null && f.Condition >= 0.5 && Neighbours(g, at).Exists(n =>
                 g.Planets[n].Owner == other && !StormOn(g, at, n) && FleetStrength(f) >= DefenseValue(g, g.Planets[n]) * Edge(ai) + 300));
-            if (ready) BreakTruce(g, side, other);
+            if (ai.Breaking.TryGetValue(other, out var at))
+            {
+                if (!wants) ai.Breaking.Remove(other);
+                else if (g.Time >= at)
+                {
+                    ai.Breaking.Remove(other);
+                    BreakTruce(g, side, other);
+                }
+                continue;
+            }
+            if (!wants) continue;
+            if (g.Factions[other].AI is null)
+            {
+                ai.Breaking[other] = g.Time + BreakNotice;
+                Say(g, side, other, Remark.Warning);
+            }
+            else BreakTruce(g, side, other);
+        }
+        // A warning about a truce gone since (run out, or broken by the other) is void.
+        foreach (var o in ai.Breaking.Keys.ToList())
+        {
+            if (TruceOf(g, side, o) is null) ai.Breaking.Remove(o);
         }
     }
 

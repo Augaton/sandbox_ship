@@ -208,7 +208,7 @@ public partial class GalaxyScreen
         else if (Bindings.Pressed(ev, Bindings.Fleets)) Hud.ToggleDrawer(GalaxyHud.Drawer.Fleets);
         else if (Bindings.Pressed(ev, Bindings.Empire)) Hud.ToggleDrawer(GalaxyHud.Drawer.Empire);
         else if (Bindings.Pressed(ev, Bindings.Log)) Hud.ToggleDrawer(GalaxyHud.Drawer.Log);
-        else if (Bindings.Pressed(ev, Bindings.Diplomacy)) Hud.ToggleDrawer(GalaxyHud.Drawer.Diplomacy);
+        else if (Bindings.Pressed(ev, Bindings.Diplomacy)) Hud.ToggleDiplomacy();
         else if (Bindings.Pressed(ev, Bindings.LastAlert)) Hud.JumpToAlert();
         else return false;
         return true;

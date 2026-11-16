@@ -1,5 +1,6 @@
 // Diplomacy between galaxy factions (not in the web version): truces, alliances, trade and
-// tributes. Sides at peace (a truce) never meet in battle, at a planet or on a lane; neither
+// tributes; shared vision, joint wars, ultimatums, requests for help and bundles of terms are
+// GalaxyAccords.cs'. Sides at peace (a truce) never meet in battle, at a planet or on a lane; neither
 // sends fleets to the other's planets, nor takes them. Allies, of a team or of an alliance, never
 // fight, see together and win together. Trade brings both partners credits for as long as the
 // peace holds; a tribute buys it, paid once or by the minute. Never with the Errants, nor between
@@ -12,9 +13,11 @@ namespace SandboxShip.Sim;
 
 /// <summary>
 /// What one galaxy faction may offer another: a truce, an alliance, a trade agreement, a tribute
-/// it pays for peace, or one it demands for peace.
+/// it pays for peace, or one it demands for peace; its sight shared, a war on a third faction
+/// waged together, an ultimatum (credits or a planet, or war), an AI's request for help, or
+/// several terms at once (DealTerms). New kinds go last: their numbers travel and are saved.
 /// </summary>
-public enum DealKind { Truce, Alliance, Trade, Tribute, Demand }
+public enum DealKind { Truce, Alliance, Trade, Tribute, Demand, Vision, JointWar, Ultimatum, Help, Bundle }
 
 /// <summary>A non-aggression pact between two galaxy factions.</summary>
 public sealed class Truce
@@ -28,11 +31,16 @@ public sealed class Truce
     public bool Paid;
 }
 
-/// <summary>An alliance or a trade agreement between two galaxy factions, for as long as both keep it.</summary>
+/// <summary>
+/// An alliance, a trade agreement or shared vision between two galaxy factions, for as long as
+/// both keep it; or a joint war against `Target`, for `Remaining` galaxy seconds.
+/// </summary>
 public sealed class Pact
 {
     public DealKind Kind;
     public Side A, B;
+    public Side? Target;
+    public double Remaining;
 }
 
 /// <summary>Credits `Payer` pays `Payee` each minute, for peace, while `Remaining` lasts.</summary>
@@ -57,18 +65,24 @@ public sealed class DealOffer
     public bool PerMinute;
     /// <summary>Galaxy seconds before the offer lapses.</summary>
     public double Remaining;
+    /// <summary>A joint war's target.</summary>
+    public Side? Target;
+    /// <summary>The planet an ultimatum demands, or a request for help asks to defend.</summary>
+    public int? Planet;
+    /// <summary>A bundle's terms.</summary>
+    public DealTerms Terms;
 }
 
-public sealed record DealOffered(Side From, Side To, DealKind Kind, double Amount, bool PerMinute) : GalaxyEvent;
+public sealed record DealOffered(Side From, Side To, DealKind Kind, double Amount, bool PerMinute, Side? Target = null, int? Planet = null, DealTerms Terms = DealTerms.None) : GalaxyEvent;
 /// <summary>`To` turned down what `From` offered: an AI says why, a player does not.</summary>
 public sealed record DealRefused(Side From, Side To, DealKind Kind, string Reason) : GalaxyEvent;
 public sealed record TruceSigned(Side A, Side B) : GalaxyEvent;
 /// <summary>A truce ran out, or `BrokenBy` broke it.</summary>
 public sealed record TruceEnded(Side A, Side B, Side? BrokenBy) : GalaxyEvent;
-/// <summary>An alliance or a trade agreement signed.</summary>
-public sealed record PactSigned(DealKind Kind, Side A, Side B) : GalaxyEvent;
-/// <summary>An alliance or a trade agreement ended: `By` gave it up, or (null) the trade lost the peace it needs.</summary>
-public sealed record PactEnded(DealKind Kind, Side A, Side B, Side? By) : GalaxyEvent;
+/// <summary>An alliance, a trade agreement, shared vision or a joint war (against `Target`) signed.</summary>
+public sealed record PactSigned(DealKind Kind, Side A, Side B, Side? Target = null) : GalaxyEvent;
+/// <summary>A pact ended: `By` gave it up or broke it, or (null) it ran out or lost the peace it needs.</summary>
+public sealed record PactEnded(DealKind Kind, Side A, Side B, Side? By, Side? Target = null) : GalaxyEvent;
 /// <summary>`Payer` pays `Payee` for peace: `Amount` credits once, or each minute.</summary>
 public sealed record TributeSigned(Side Payer, Side Payee, double Amount, bool PerMinute) : GalaxyEvent;
 /// <summary>A tribute by the minute ended: run out (By null), let off by its payee, or stopped by its payer (who then broke the peace).</summary>
@@ -129,7 +143,8 @@ public static partial class Galaxies
     /// attacked in, a broken truce, a broken alliance and an unpaid tribute take off it; what a
     /// faction that broke an alliance loses with every other AI.
     /// </summary>
-    const double TrustTruce = 0.05, TrustTrade = 0.05, TrustAlliance = 0.08, TrustFade = 0.02;
+    const double TrustTruce = 0.05, TrustTrade = 0.05, TrustAlliance = 0.08;
+    public const double TrustFade = 0.02;
     const double TrustAttack = 5, TrustBrokenTruce = 40, TrustBrokenAlliance = 70, TrustDefault = 30, TrustWitness = 15;
     /// <summary>Attacks alone sink trust no lower than this: only betrayals go further.</summary>
     const double TrustAttackFloor = -60;
@@ -178,20 +193,30 @@ public static partial class Galaxies
         var gain = Math.Min(worth, TrustBuyable - bought);
         if (gain <= 0) return;
         state.BoughtTrust[from] = bought + gain;
-        Trusts(g, ai, from, gain);
+        Trusts(g, ai, from, gain, cause: TrustCause.Gifts);
     }
 
-    /// <summary>Moves `ai`'s trust in `other` by `delta`, within ±TrustMax (or no lower than `floor`, if it was above).</summary>
-    static void Trusts(Galaxy g, Side ai, Side other, double delta, double floor = -TrustMax)
+    /// <summary>Moves `ai`'s trust in `other` by `delta`, within ±TrustMax (or no lower than `floor`, if it was above); `cause` keeps what moved it.</summary>
+    static void Trusts(Galaxy g, Side ai, Side other, double delta, double floor = -TrustMax, TrustCause cause = TrustCause.Attacks)
     {
         if (!g.Factions.TryGetValue(ai, out var f) || f.AI is not { } state || ai == other) return;
         var now = state.Trust.GetValueOrDefault(other);
         var low = Math.Min(now, floor);
-        state.Trust[other] = Math.Clamp(now + delta, Math.Max(-TrustMax, low), TrustMax);
+        var next = Math.Clamp(now + delta, Math.Max(-TrustMax, low), TrustMax);
+        state.Trust[other] = next;
+        Credit(state, other, cause, next - now);
+    }
+
+    /// <summary>What `cause` did to an AI's trust in `other`, kept for the diplomacy screen.</summary>
+    static void Credit(GalaxyAIState ai, Side other, TrustCause cause, double delta)
+    {
+        if (delta == 0) return;
+        if (!ai.Why.TryGetValue(other, out var causes)) ai.Why[other] = causes = [];
+        causes[cause] = causes.GetValueOrDefault(cause) + delta;
     }
 
     /// <summary>`attacker` opened a battle against `defender`: the defender's AI trusts it less.</summary>
-    static void Attacked(Galaxy g, Side attacker, Side defender) => Trusts(g, defender, attacker, -TrustAttack, TrustAttackFloor);
+    static void Attacked(Galaxy g, Side attacker, Side defender) => Trusts(g, defender, attacker, -TrustAttack, TrustAttackFloor, TrustCause.Attacks);
 
     /// <summary>The credits a second that trade brings each of `a` and `b`: more with each lane between their planets.</summary>
     public static double TradeRate(Galaxy g, Side a, Side b)
@@ -217,7 +242,8 @@ public static partial class Galaxies
     }
 
     /// <summary>Whether `from` may offer `to` this deal now, and if not, why.</summary>
-    public static Result CanPropose(Galaxy g, Side from, Side to, DealKind kind, double amount = 0, bool perMinute = false)
+    public static Result CanPropose(Galaxy g, Side from, Side to, DealKind kind, double amount = 0, bool perMinute = false,
+        Side? target = null, int? planet = null, DealTerms terms = DealTerms.None)
     {
         if (!Enum.IsDefined(kind) || Teammates(g, from, to) || !g.Factions.TryGetValue(from, out var a) || !g.Factions.TryGetValue(to, out var b))
             return Result.Fail("Aucun accord possible");
@@ -236,6 +262,34 @@ public static partial class Galaxies
                 if (PactOf(g, DealKind.Trade, from, to) is not null) return Result.Fail("Accord commercial déjà en cours");
                 if (AtWar(g, from, to)) return Result.Fail("Il faut d'abord la paix");
                 break;
+            case DealKind.Vision:
+                if (Allied(g, from, to) || PactOf(g, DealKind.Vision, from, to) is not null) return Result.Fail("Vision déjà partagée");
+                if (AtWar(g, from, to)) return Result.Fail("Il faut d'abord la paix");
+                break;
+            case DealKind.JointWar:
+                if (target is not Side t || t == from || t == to || !g.Factions.TryGetValue(t, out var aim) || aim.Eliminated) return Result.Fail("Choisis une cible");
+                if (AtWar(g, from, to)) return Result.Fail("Il faut d'abord la paix");
+                if (!AtWar(g, from, t) || !AtWar(g, to, t)) return Result.Fail("Il faut être tous deux en guerre contre elle");
+                if (JointWarOf(g, from, to) is not null) return Result.Fail("Guerre commune déjà en cours");
+                break;
+            case DealKind.Ultimatum:
+                if (Allied(g, from, to)) return Result.Fail("Pas entre alliées");
+                if (AtWar(g, from, to)) return Result.Fail("Déjà en guerre : exige plutôt un tribut");
+                if (GalaxyAi.Might(g, from) < GalaxyAi.Might(g, to) * UltimatumEdge) return Result.Fail("Pas assez forte pour l'exiger");
+                if (planet is int p)
+                {
+                    var r = CanDemandPlanet(g, from, to, p);
+                    if (!r.Ok) return r;
+                }
+                else if (!double.IsFinite(amount) || amount <= 0 || amount > MaxTribute) return Result.Fail("Montant invalide");
+                break;
+            case DealKind.Help:
+                if (a.AI is null || b.AI is not null) return Result.Fail("Seule une IA demande de l'aide, et à un joueur");
+                if (planet is int asked ? (uint)asked >= (uint)g.Planets.Count || g.Planets[asked].Owner != from
+                    : !double.IsFinite(amount) || amount <= 0 || amount > MaxTribute) return Result.Fail("Demande invalide");
+                break;
+            case DealKind.Bundle:
+                return CanBundle(g, from, to, terms, amount, perMinute, a);
             default:
                 if (!double.IsFinite(amount) || amount <= 0 || amount > (perMinute ? MaxTributePerMinute : MaxTribute)) return Result.Fail("Montant invalide");
                 if (TributeOf(g, from, to) is not null) return Result.Fail("Tribut déjà en cours");
@@ -253,21 +307,29 @@ public static partial class Galaxies
     /// else (a player) is left an offer to accept or refuse; the same offer they made already is
     /// accepted.
     /// </summary>
-    public static Result ProposeDeal(Galaxy g, Side from, Side to, DealKind kind, double amount = 0, bool perMinute = false)
+    public static Result ProposeDeal(Galaxy g, Side from, Side to, DealKind kind, double amount = 0, bool perMinute = false,
+        Side? target = null, int? planet = null, DealTerms terms = DealTerms.None)
     {
-        var r = CanPropose(g, from, to, kind, amount, perMinute);
+        var r = CanPropose(g, from, to, kind, amount, perMinute, target, planet, terms);
         if (!r.Ok) return r;
-        if (kind is DealKind.Truce or DealKind.Alliance or DealKind.Trade && g.Offers.Exists(o => o.From == to && o.To == from && o.Kind == kind))
+        if (kind is DealKind.Truce or DealKind.Alliance or DealKind.Trade or DealKind.Vision && g.Offers.Exists(o => o.From == to && o.To == from && o.Kind == kind))
             return AcceptDeal(g, from, to, kind);
+        // A threat is held against its maker, whatever comes of it.
+        if (kind == DealKind.Ultimatum) Repute(g, from, -5);
         if (g.Factions[to].AI is not null)
         {
-            var answer = GalaxyAi.AnswerDeal(g, to, from, kind, amount, perMinute);
-            if (answer.Ok) answer = Conclude(g, from, to, kind, amount, perMinute);
-            if (!answer.Ok) g.Events.Add(new DealRefused(from, to, kind, answer.Reason));
+            var answer = GalaxyAi.AnswerDeal(g, to, from, kind, amount, perMinute, target, planet, terms);
+            if (answer.Ok) answer = Conclude(g, from, to, kind, amount, perMinute, target, planet, terms);
+            if (!answer.Ok)
+            {
+                Note(g, new DealRefused(from, to, kind, answer.Reason));
+                if (kind == DealKind.Ultimatum) Defied(g, from, to);
+            }
             return answer;
         }
-        g.Offers.Add(new DealOffer { From = from, To = to, Kind = kind, Amount = amount, PerMinute = perMinute, Remaining = OfferTime });
-        g.Events.Add(new DealOffered(from, to, kind, amount, perMinute));
+        var remaining = kind == DealKind.Ultimatum ? UltimatumTime : OfferTime;
+        g.Offers.Add(new DealOffer { From = from, To = to, Kind = kind, Amount = amount, PerMinute = perMinute, Remaining = remaining, Target = target, Planet = planet, Terms = terms });
+        Note(g, new DealOffered(from, to, kind, amount, perMinute, target, planet, terms));
         return Result.OK;
     }
 
@@ -280,8 +342,8 @@ public static partial class Galaxies
         if (offer is null) return Result.Fail("Aucune offre");
         g.Offers.Remove(offer);
         // What changed since it was made may have undone it: a tribute nobody can pay, a trade without peace.
-        var still = CanPropose(g, from, side, kind, offer.Amount, offer.PerMinute);
-        return still.Ok ? Conclude(g, from, side, kind, offer.Amount, offer.PerMinute) : Result.Fail("L'offre n'est plus valable");
+        var still = CanPropose(g, from, side, kind, offer.Amount, offer.PerMinute, offer.Target, offer.Planet, offer.Terms);
+        return still.Ok ? Conclude(g, from, side, kind, offer.Amount, offer.PerMinute, offer.Target, offer.Planet, offer.Terms) : Result.Fail("L'offre n'est plus valable");
     }
 
     public static Result AcceptTruce(Galaxy g, Side side, Side from) => AcceptDeal(g, side, from, DealKind.Truce);
@@ -289,13 +351,27 @@ public static partial class Galaxies
     /// <summary>`side` turns down the deal of this kind `from` offered it.</summary>
     public static void RefuseDeal(Galaxy g, Side side, Side from, DealKind kind)
     {
-        if (g.Offers.RemoveAll(o => o.From == from && o.To == side && o.Kind == kind) > 0) g.Events.Add(new DealRefused(from, side, kind, ""));
+        if (g.Offers.Find(o => o.From == from && o.To == side && o.Kind == kind) is not { } offer) return;
+        g.Offers.Remove(offer);
+        Note(g, new DealRefused(from, side, kind, ""));
+        Turned(g, offer);
+    }
+
+    /// <summary>What a refusal, or an offer let lapse, brings: war after an ultimatum, an AI disappointed after a request for help.</summary>
+    static void Turned(Galaxy g, DealOffer o)
+    {
+        if (o.Kind == DealKind.Ultimatum) Defied(g, o.From, o.To);
+        else if (o.Kind == DealKind.Help)
+        {
+            Trusts(g, o.From, o.To, -8, cause: TrustCause.Help);
+            Say(g, o.From, o.To, Remark.Disappointed);
+        }
     }
 
     public static void RefuseTruce(Galaxy g, Side side, Side from) => RefuseDeal(g, side, from, DealKind.Truce);
 
     /// <summary>The deal `from` offered `to` takes effect, both having agreed.</summary>
-    static Result Conclude(Galaxy g, Side from, Side to, DealKind kind, double amount, bool perMinute)
+    static Result Conclude(Galaxy g, Side from, Side to, DealKind kind, double amount, bool perMinute, Side? target, int? planet, DealTerms terms = DealTerms.None)
     {
         switch (kind)
         {
@@ -303,17 +379,32 @@ public static partial class Galaxies
                 Sign(g, from, to);
                 break;
             case DealKind.Alliance:
-                // The alliance takes over from a truce; whatever else they agreed stands.
-                g.Offers.RemoveAll(o => o.Kind is DealKind.Alliance or DealKind.Truce && Pair(o.From, o.To, from, to));
+                // The alliance takes over from a truce and shared vision; whatever else they agreed stands.
+                g.Offers.RemoveAll(o => o.Kind is DealKind.Alliance or DealKind.Truce or DealKind.Vision && Pair(o.From, o.To, from, to));
                 if (TruceOf(g, from, to) is { } truce) g.Truces.Remove(truce);
+                if (PactOf(g, DealKind.Vision, from, to) is { } sight) g.Pacts.Remove(sight);
+                PeaceWithTarget(g, from, to);
                 g.Pacts.Add(new Pact { Kind = DealKind.Alliance, A = from, B = to });
-                g.Events.Add(new PactSigned(DealKind.Alliance, from, to));
+                Note(g, new PactSigned(DealKind.Alliance, from, to));
+                Say(g, to, from, Remark.Welcome);
+                Say(g, from, to, Remark.Welcome);
                 break;
-            case DealKind.Trade:
-                g.Offers.RemoveAll(o => o.Kind == DealKind.Trade && Pair(o.From, o.To, from, to));
-                g.Pacts.Add(new Pact { Kind = DealKind.Trade, A = from, B = to });
-                g.Events.Add(new PactSigned(DealKind.Trade, from, to));
+            case DealKind.Trade or DealKind.Vision:
+                g.Offers.RemoveAll(o => o.Kind == kind && Pair(o.From, o.To, from, to));
+                g.Pacts.Add(new Pact { Kind = kind, A = from, B = to });
+                Note(g, new PactSigned(kind, from, to));
                 break;
+            case DealKind.JointWar:
+                g.Offers.RemoveAll(o => o.Kind == DealKind.JointWar && Pair(o.From, o.To, from, to));
+                g.Pacts.Add(new Pact { Kind = DealKind.JointWar, A = from, B = to, Target = target, Remaining = JointWarTime });
+                Note(g, new PactSigned(DealKind.JointWar, from, to, target));
+                break;
+            case DealKind.Ultimatum:
+                return Yield(g, from, to, amount, planet);
+            case DealKind.Help:
+                return Help(g, from, to, amount, planet);
+            case DealKind.Bundle:
+                return ConcludeBundle(g, from, to, terms, amount, perMinute);
             default:
             {
                 var (payer, payee) = kind == DealKind.Tribute ? (from, to) : (to, from);
@@ -343,8 +434,9 @@ public static partial class Galaxies
                 }
                 // An AI paid warms to the payer; one made to pay resents it.
                 BuyTrust(g, payee, payer, (perMinute ? amount * TributeTime / 60 : amount) / 40);
-                if (kind == DealKind.Demand) Trusts(g, payer, payee, -10);
-                g.Events.Add(new TributeSigned(payer, payee, amount, perMinute));
+                if (kind == DealKind.Demand) Trusts(g, payer, payee, -10, cause: TrustCause.Demands);
+                else Say(g, payee, payer, Remark.Thanks);
+                Note(g, new TributeSigned(payer, payee, amount, perMinute));
                 break;
             }
         }
@@ -360,8 +452,10 @@ public static partial class Galaxies
         if (truce is null) return Result.Fail("Aucune trêve");
         g.Truces.Remove(truce);
         if (g.Factions.TryGetValue(other, out var o) && o.AI is not null) o.AI.Grudges[by] = Math.Max(o.AI.Grudges.GetValueOrDefault(by), GrudgeTime);
-        Trusts(g, other, by, -TrustBrokenTruce);
-        g.Events.Add(new TruceEnded(by, other, by));
+        Trusts(g, other, by, -TrustBrokenTruce, cause: TrustCause.Betrayal);
+        Repute(g, by, -15);
+        Note(g, new TruceEnded(by, other, by));
+        Say(g, other, by, Remark.Betrayed);
         PeaceLost(g, by, other, by);
         return Result.OK;
     }
@@ -383,16 +477,34 @@ public static partial class Galaxies
             {
                 if (PactOf(g, DealKind.Trade, by, other) is not { } trade) return Result.Fail("Aucun accord commercial");
                 g.Pacts.Remove(trade);
-                Trusts(g, other, by, -5);
-                g.Events.Add(new PactEnded(DealKind.Trade, by, other, by));
+                Trusts(g, other, by, -5, cause: TrustCause.Trade);
+                Note(g, new PactEnded(DealKind.Trade, by, other, by));
+                return Result.OK;
+            }
+            case DealKind.Vision:
+            {
+                if (PactOf(g, DealKind.Vision, by, other) is not { } sight) return Result.Fail("Aucune vision partagée");
+                g.Pacts.Remove(sight);
+                Trusts(g, other, by, -5, cause: TrustCause.Betrayal);
+                Note(g, new PactEnded(DealKind.Vision, by, other, by));
+                return Result.OK;
+            }
+            case DealKind.JointWar:
+            {
+                // Left alone in the war: less than a betrayal, more than nothing.
+                if (JointWarOf(g, by, other) is not { } war) return Result.Fail("Aucune guerre commune");
+                g.Pacts.Remove(war);
+                Trusts(g, other, by, -15, cause: TrustCause.Betrayal);
+                Repute(g, by, -5);
+                Note(g, new PactEnded(DealKind.JointWar, by, other, by, war.Target));
                 return Result.OK;
             }
             case DealKind.Tribute or DealKind.Demand:
             {
                 if (TributeOf(g, by, other) is not { } t) return Result.Fail("Aucun tribut");
                 g.Tributes.Remove(t);
-                g.Events.Add(new TributeEnded(t.Payer, t.Payee, by));
-                if (by == t.Payee) Trusts(g, t.Payer, by, 10);
+                Note(g, new TributeEnded(t.Payer, t.Payee, by));
+                if (by == t.Payee) Trusts(g, t.Payer, by, 10, cause: TrustCause.Gifts);
                 else Defaulted(g, t);
                 return Result.OK;
             }
@@ -410,20 +522,23 @@ public static partial class Galaxies
         if (PactOf(g, DealKind.Alliance, by, other) is not { } alliance) return Result.Fail("Aucune alliance");
         g.Pacts.Remove(alliance);
         if (g.Factions.TryGetValue(other, out var o) && o.AI is not null) o.AI.Grudges[by] = 2 * GrudgeTime;
-        Trusts(g, other, by, -TrustBrokenAlliance);
+        Trusts(g, other, by, -TrustBrokenAlliance, cause: TrustCause.Betrayal);
         foreach (var f in g.Factions.Values)
         {
-            if (f.Id != by && f.Id != other) Trusts(g, f.Id, by, -TrustWitness);
+            if (f.Id != by && f.Id != other) Trusts(g, f.Id, by, -TrustWitness, cause: TrustCause.Witness);
         }
+        Repute(g, by, -30);
         g.Truces.Add(new Truce { A = by, B = other, Remaining = NoticeTime });
-        g.Events.Add(new PactEnded(DealKind.Alliance, by, other, by));
+        Note(g, new PactEnded(DealKind.Alliance, by, other, by));
+        Say(g, other, by, Remark.Betrayed);
         return Result.OK;
     }
 
     /// <summary>A payer that stopped paying broke the peace it paid for: an AI paid holds it against it.</summary>
     static void Defaulted(Galaxy g, Tribute t)
     {
-        Trusts(g, t.Payee, t.Payer, -TrustDefault);
+        Trusts(g, t.Payee, t.Payer, -TrustDefault, cause: TrustCause.Betrayal);
+        Repute(g, t.Payer, -10);
         if (TruceOf(g, t.Payer, t.Payee) is not null) BreakTruce(g, t.Payer, t.Payee);
     }
 
@@ -431,23 +546,25 @@ public static partial class Galaxies
     static void PeaceLost(Galaxy g, Side a, Side b, Side? by)
     {
         if (!AtWar(g, a, b)) return;
-        if (PactOf(g, DealKind.Trade, a, b) is { } trade)
+        foreach (var kind in (ReadOnlySpan<DealKind>)[DealKind.Trade, DealKind.Vision, DealKind.JointWar])
         {
-            g.Pacts.Remove(trade);
-            g.Events.Add(new PactEnded(DealKind.Trade, a, b, null));
+            if (PactOf(g, kind, a, b) is not { } pact) continue;
+            g.Pacts.Remove(pact);
+            Note(g, new PactEnded(kind, a, b, null, pact.Target));
         }
         if (TributeOf(g, a, b) is { } t)
         {
             g.Tributes.Remove(t);
-            g.Events.Add(new TributeEnded(t.Payer, t.Payee, by));
+            Note(g, new TributeEnded(t.Payer, t.Payee, by));
         }
     }
 
     static void Sign(Galaxy g, Side a, Side b)
     {
         g.Offers.RemoveAll(o => o.Kind == DealKind.Truce && Pair(o.From, o.To, a, b));
+        PeaceWithTarget(g, a, b);
         g.Truces.Add(new Truce { A = a, B = b, Remaining = TruceTime });
-        g.Events.Add(new TruceSigned(a, b));
+        Note(g, new TruceSigned(a, b));
     }
 
     /// <summary>
@@ -464,8 +581,11 @@ public static partial class Galaxies
             if (Gone(t.A) || Gone(t.B)) g.Truces.Remove(t);
             else if (t.Remaining <= 0)
             {
+                // Kept to its end: both sides' word is worth a little more.
                 g.Truces.Remove(t);
-                g.Events.Add(new TruceEnded(t.A, t.B, null));
+                Repute(g, t.A, 2);
+                Repute(g, t.B, 2);
+                Note(g, new TruceEnded(t.A, t.B, null));
                 PeaceLost(g, t.A, t.B, null);
                 if (g.Factions[t.A].AI is { } a && g.Factions[t.B].AI is { } b)
                 {
@@ -474,8 +594,16 @@ public static partial class Galaxies
                 }
             }
         }
-        foreach (var o in g.Offers) o.Remaining -= dt;
-        g.Offers.RemoveAll(o => o.Remaining <= 0 || Gone(o.From) || Gone(o.To));
+        foreach (var o in g.Offers.ToList())
+        {
+            o.Remaining -= dt;
+            if (Gone(o.From) || Gone(o.To)) g.Offers.Remove(o);
+            else if (o.Remaining <= 0)
+            {
+                g.Offers.Remove(o);
+                Turned(g, o);
+            }
+        }
         g.Pacts.RemoveAll(p => Gone(p.A) || Gone(p.B));
         foreach (var t in g.Tributes.ToList())
         {
@@ -489,7 +617,7 @@ public static partial class Galaxies
             if (payer.Credits < due)
             {
                 g.Tributes.Remove(t);
-                g.Events.Add(new TributeEnded(t.Payer, t.Payee, t.Payer));
+                Note(g, new TributeEnded(t.Payer, t.Payee, t.Payer));
                 Defaulted(g, t);
                 continue;
             }
@@ -498,7 +626,8 @@ public static partial class Galaxies
             if ((t.Remaining -= dt) <= 0)
             {
                 g.Tributes.Remove(t);
-                g.Events.Add(new TributeEnded(t.Payer, t.Payee, null));
+                Repute(g, t.Payer, 3);
+                Note(g, new TributeEnded(t.Payer, t.Payee, null));
             }
         }
         foreach (var f in g.Factions.Values)
@@ -512,13 +641,25 @@ public static partial class Galaxies
             foreach (var other in g.Factions.Values)
             {
                 if (other.Id == f.Id || other.Eliminated) continue;
-                var gain = (AtPeace(g, f.Id, other.Id) ? TrustTruce : 0) + (Allied(g, f.Id, other.Id) ? TrustAlliance : 0)
-                    + (g.Pacts.Count > 0 && PactOf(g, DealKind.Trade, f.Id, other.Id) is not null ? TrustTrade : 0);
+                var peace = AtPeace(g, f.Id, other.Id) ? TrustTruce : 0;
+                var alliance = Allied(g, f.Id, other.Id) ? TrustAlliance : 0;
+                var trade = g.Pacts.Count > 0 && PactOf(g, DealKind.Trade, f.Id, other.Id) is not null ? TrustTrade : 0;
+                var joint = g.Pacts.Count > 0 && JointWarOf(g, f.Id, other.Id) is not null ? TrustJointWar : 0;
+                var gain = peace + alliance + trade + joint;
                 var now = ai.Trust.GetValueOrDefault(other.Id);
-                if (gain > 0) ai.Trust[other.Id] = Math.Min(TrustMax, now + gain * dt);
+                if (gain > 0)
+                {
+                    if (now >= TrustMax) continue;
+                    ai.Trust[other.Id] = Math.Min(TrustMax, now + gain * dt);
+                    Credit(ai, other.Id, TrustCause.Peace, peace * dt);
+                    Credit(ai, other.Id, TrustCause.Alliance, alliance * dt);
+                    Credit(ai, other.Id, TrustCause.Trade, trade * dt);
+                    Credit(ai, other.Id, TrustCause.JointWar, joint * dt);
+                }
                 else if (now != 0) ai.Trust[other.Id] = now > 0 ? Math.Max(0, now - TrustFade * dt) : Math.Min(0, now + TrustFade * dt);
             }
         }
+        UpdateAccords(g, dt);
     }
 
     /// <summary>What each faction still counts for wears off; at nothing, it is forgotten.</summary>

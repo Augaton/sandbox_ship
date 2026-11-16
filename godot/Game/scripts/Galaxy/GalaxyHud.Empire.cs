@@ -50,7 +50,12 @@ public partial class GalaxyHud
         var row = HudKit.Row(4);
         foreach (var (id, label, title, key) in Drawers)
         {
-            var b = Btn(label, () => ToggleDrawer(id));
+            // Diplomacy has a screen of its own.
+            var b = Btn(label, () =>
+            {
+                if (id == Drawer.Diplomacy) ToggleDiplomacy();
+                else ToggleDrawer(id);
+            });
             b.TooltipText = $"{title} ({key})";
             drawerButtons.Add((b, id));
             row.AddChild(b);
@@ -83,6 +88,7 @@ public partial class GalaxyHud
     /// <summary>Opens the drawer on a list, or closes it if that list is open already.</summary>
     public void ToggleDrawer(Drawer id)
     {
+        if (id != Drawer.None) CloseDiplomacy();
         drawer = drawer == id ? Drawer.None : id;
         drawerPanel.Visible = drawer != Drawer.None;
         drawerTitle.Text = Drawers.FirstOrDefault(d => d.Id == drawer).Title ?? "";
@@ -107,7 +113,7 @@ public partial class GalaxyHud
     void RefreshDrawer()
     {
         if (drawer == Drawer.None) return;
-        HudKit.Sync(drawerBody, drawer switch { Drawer.Fleets => FleetParts(), Drawer.Empire => EmpireParts(), Drawer.Diplomacy => DiplomacyParts(), _ => LogParts() });
+        HudKit.Sync(drawerBody, drawer switch { Drawer.Fleets => FleetParts(), Drawer.Empire => EmpireParts(), _ => LogParts() });
         // Its title, margins and gaps take about 70 pixels.
         HudKit.Fit(drawerScroll, root.Size.Y - 64 - 8 - 70);
         drawerPanel.ResetSize();
@@ -350,5 +356,6 @@ public partial class GalaxyHud
             HudKit.Outline(rallySet!, scene.Rallying ? Palette.Ok : null);
         }
         RefreshDrawer();
+        RefreshDiplomacy();
     }
 }

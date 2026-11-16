@@ -141,7 +141,7 @@ public sealed partial class GalaxyAIState
 }
 
 /// <summary>A side in the campaign: its race, team, color, treasury and research.</summary>
-public sealed class GalaxyFaction : IResearcher
+public sealed partial class GalaxyFaction : IResearcher
 {
     public Side Id;
     /// <summary>Its race: traits, ship prices, heroes, looks.</summary>
@@ -394,13 +394,14 @@ public static partial class Galaxies
         }
         foreach (var p in g.Planets)
         {
-            if (p.Owner is not Side o || !Allies(g, o, side)) continue;
+            // Allies see together, and so do sides that agreed to share their sight (GalaxyAccords.cs).
+            if (p.Owner is not Side o || !SharesSight(g, o, side)) continue;
             out_.Add(p.Id);
             foreach (var n in Neighbours(g, p.Id)) out_.Add(n);
         }
         foreach (var f in g.Fleets.Values)
         {
-            if (!Allies(g, f.Side, side)) continue;
+            if (!SharesSight(g, f.Side, side)) continue;
             if (f.At is int at) out_.Add(at);
             out_.Add(f.From);
             if (f.To is int to) out_.Add(to);
