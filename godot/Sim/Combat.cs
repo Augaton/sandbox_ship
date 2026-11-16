@@ -54,7 +54,7 @@ public static class Combat
     }
 
     /// <summary>Damage a weapon keeps up in a second: a burst's rounds over the burst and its reload.</summary>
-    static double Rate(WeaponDef w) =>
+    internal static double Rate(WeaponDef w) =>
         w.Kind == WeaponKind.Beam ? w.Damage : w.Damage * w.Burst / Math.Max(0.05, w.Cooldown + (w.Burst - 1) * w.BurstGap);
 
     /// <summary>How well weapons hit a size class, against how well they hit on average: above 1, what they are made for.</summary>
@@ -76,6 +76,38 @@ public static class Combat
         .Select(c => Ships.Defs[c].Weapons.Concat(Ships.Defs[c].Hardpoints?.SelectMany(h => h.Weapons ?? []) ?? []).ToList())
         .Select(ws => Enum.GetValues<SizeClass>().Select(s => Effect(ws, s)).ToArray())
         .ToArray();
+
+    /// <summary>Share of its fire a ship wants in reach of what it fights ("most of its guns"), and the room it leaves at the edge of that reach.</summary>
+    const double FireShare = 0.75, StopMargin = 0.92;
+
+    /// <summary>
+    /// How far from what it fights a ship of this class stops, by the target's size: as close as
+    /// FireShare of what its guns do to that size reaches, the guns' places on the hull counted,
+    /// the ship facing its target. It used to be 85 % of its longest gun: a leviathan then stood
+    /// where only half of its fire reached.
+    /// </summary>
+    static readonly double[][] StopRanges = Ships.All
+        .Select(c => Enum.GetValues<SizeClass>().Select(size => StopFor(Ships.Defs[c], size)).ToArray())
+        .ToArray();
+
+    static double StopFor(ShipDef def, SizeClass size)
+    {
+        var guns = def.Weapons.Select(w => (Reach: w.Range, Fire: Rate(w) * w.Multipliers.Of(size)))
+            .Concat((def.Hardpoints ?? []).SelectMany(h => (h.Weapons ?? []).Select(w =>
+                (Reach: h.X + Math.Sqrt(Math.Max(0, w.Range * w.Range - h.Y * h.Y)), Fire: Rate(w) * w.Multipliers.Of(size)))))
+            .OrderByDescending(g => g.Reach).ToList();
+        var total = guns.Sum(g => g.Fire);
+        var sum = 0.0;
+        foreach (var g in guns)
+        {
+            sum += g.Fire;
+            if (sum >= total * FireShare) return g.Reach * StopMargin;
+        }
+        return 0;
+    }
+
+    /// <summary>How far from `t` a ship stops to fight it. Not to chase small craft: they come to it, and circle.</summary>
+    public static double StopRange(Entity e, Entity t) => t.Size == SizeClass.Small ? e.Range * 0.85 : StopRanges[(int)e.Cls][(int)t.Size];
 
     /// <summary>
     /// How much `t` is worth shooting for `e`, `d` away out of `range` (not in the web version,
@@ -104,10 +136,20 @@ public static class Combat
     /// Then, on the Promise: little for a target the shots in flight will destroy anyway; for a
     /// ship, the ship or structure its neighbours fight and the one that fights it, by what its
     /// hull aims at (a part counts as what it belongs to; `current` is what e's target belongs to);
-    /// and an edge to the target e already has, so that it does not flicker between two.
+    /// and an edge to the target e already has, so that it does not flicker between two. A hard
+    /// AI's fleet shoots the ship it singled out as soon as it can reach it (further, it would
+    /// dive at it through the rest) and, on big ships whose shield is down, their guns and engines:
+    /// aimed at while it holds, they drew fire the hulls needed (85 % of games won against Normal
+    /// without them, 76 % with them all the time, 85 % with them once the shield is down).
     /// </summary>
-    static double Score(World world, Entity e, Entity t, double s, Entity owner, double left, Pressure p, Entity? current)
+    static double Score(World world, Entity e, Entity t, double s, Entity owner, double left, Pressure p, Entity? current, AIState? sharp)
     {
+        if (sharp is not null)
+        {
+            if (owner.Id == sharp.FocusId && Reach(e, t) <= e.Range) s *= FocusEdge;
+            if (t.Kind == EntityKind.Hardpoint && owner.Kind == EntityKind.Ship && owner.Size == SizeClass.Large && owner.Shield <= 0)
+                s *= t.Weapons.Count > 0 ? GunEdge : t.Type == "engine" ? EngineEdge : 1;
+        }
         if (p.Incoming.TryGetValue(t.Id, out var coming) && coming >= left) s *= 0.15;
         if (e.Kind == EntityKind.Ship)
         {
@@ -119,8 +161,11 @@ public static class Combat
         return s;
     }
 
-    /// <summary>The most Score raises a Promise by, for a ship (neighbours on it, it fighting the ship, it already the target), and for the rest.</summary>
-    const double ShipEdge = 1.9 * 1.25 * 1.15, OtherEdge = 1.15;
+    /// <summary>What a hard AI's aim adds to a target: the ship its fleet singled out, a big ship's gun, its engine.</summary>
+    const double FocusEdge = 2.5, GunEdge = 1.5, EngineEdge = 1.25;
+
+    /// <summary>The most Score raises a Promise by, for a ship (neighbours on it, it fighting the ship, it already the target), for the rest, and what a hard AI's aim adds.</summary>
+    const double ShipEdge = 1.9 * 1.25 * 1.15, OtherEdge = 1.15, SharpEdge = FocusEdge * GunEdge;
 
     /// <summary>
     /// The foe most worth shooting within `range` of `e`; ties go to the lowest id. Once one is
@@ -148,7 +193,8 @@ public static class Combat
             }
             for (var size = 0; size < 4; size++) effect[size] = all > 0 ? effect[size] / all : 1;
         }
-        var edge = e.Kind == EntityKind.Ship ? ShipEdge : OtherEdge;
+        var sharp = world.Factions.TryGetValue(e.Side, out var f) && f.AI is { } ai && Difficulties[ai.Difficulty].Sharp ? ai : null;
+        var edge = (e.Kind == EntityKind.Ship ? ShipEdge : OtherEdge) * (sharp is not null ? SharpEdge : 1);
         Entity? best = null;
         var bestScore = 0.0;
         Pressure? p = null;
@@ -169,7 +215,7 @@ public static class Combat
             var foe = side < foes.Length ? (foes[side] != 0 ? foes[side] > 0 : (foes[side] = Foes(world, e.Side, t.Side) ? (sbyte)1 : (sbyte)-1) > 0)
                 : Foes(world, e.Side, t.Side);
             if (!foe || Vision.Cloaked(t) || (world.Fog && seen?.Contains(t.Id) != true)) continue;
-            s = Score(world, e, t, s, owner, left, p ??= Gather(world), current);
+            s = Score(world, e, t, s, owner, left, p ??= Gather(world), current, sharp);
             if (best is null || s > bestScore || (s == bestScore && t.Id < best.Id))
             {
                 bestScore = s;
@@ -205,7 +251,10 @@ public static class Combat
             // Craft fly for their carrier: they go for what it fights (not in the web version).
             if (Movement.CarrierOf(world, e) is { } carrier && Movement.FocusOf(world, carrier) is { } focus) e.TargetId = focus.Id;
             // Taunted: only the bulwark that did it, while it can be seen (not in the web version).
-            if (e.Effects.Taunted > 0 && world.Entities.Get(e.Effects.TauntedBy) is { } taunter && Vision.IsVisible(world, e.Side, taunter))
+            // The guns on a taunted ship turn with it, those that can reach; a structure's stay on their own.
+            var fx = e.Kind == EntityKind.Hardpoint && OwnerOf(world, e) is { Kind: EntityKind.Ship } ship ? ship.Effects : e.Effects;
+            if (fx.Taunted > 0 && world.Entities.Get(fx.TauntedBy) is { } taunter && Vision.IsVisible(world, e.Side, taunter)
+                && (e.Kind != EntityKind.Hardpoint || Reach(e, taunter) <= e.Range))
                 e.TargetId = taunter.Id;
         }
     }

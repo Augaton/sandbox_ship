@@ -538,7 +538,13 @@ public static partial class Snapshot
             e.Xp = (has & Has.Range) != 0 ? Finite(r) : 0;
         }
         else (e.Rank, e.Xp) = (0, 0);
-        e.Stance = (has & Has.Stance) != 0 ? r.ReadEnum<Stance>() : Stance.Defensive;
+        if ((has & Has.Stance) != 0)
+        {
+            var stance = r.ReadByte();
+            e.Mending = (stance & MendingBit) != 0;
+            e.Stance = Wire.Known<Stance>(stance & ~MendingBit);
+        }
+        else (e.Stance, e.Mending) = (Stance.Defensive, false);
         if ((has & Has.Plan) != 0) ReadPlan(r, e);
         else e.Queue?.Clear();
     }

@@ -24,10 +24,11 @@ public static class Assault
         [(ShipClass.Frigate, 4), (ShipClass.Torpedo, 2), (ShipClass.Battlecruiser, 2), (ShipClass.Bulwark, 1)];
     // The opening clash mostly decides an assault between AIs, and it tips sharply: with 6
     // frigates here (12 700 credits), the defense won 79 games of 108; with 8 (14 000), 58; with
-    // 6 frigates and a third battlecruiser, 42; with a fourth, 14.
+    // 6 frigates and a third battlecruiser, 42; with a fourth, 14. Then taunts and strikes changed:
+    // with 8 the defense won 72 of 108, with 9, 58; with 10, 38.
     static readonly (ShipClass Cls, int Count)[] Armada =
     [
-        (ShipClass.Frigate, 8), (ShipClass.Torpedo, 4), (ShipClass.Bomber, 4), (ShipClass.Support, 2),
+        (ShipClass.Frigate, 9), (ShipClass.Torpedo, 4), (ShipClass.Bomber, 4), (ShipClass.Support, 2),
         (ShipClass.Battlecruiser, 2),
     ];
 
@@ -106,11 +107,8 @@ public static class Assault
     public static void Think(World world, FactionState f)
     {
         if (f.Team != Attackers) return;
-        // Ready: every warship at home, idle or still on its way to the rally point, as for the
-        // all-in past Ai.AllInTime, which an assault never reaches. Big hulls jostling there may
-        // never quite get to their spot: waited for as idle, they could sit at home for the rest
-        // of the battle, clock and all. Not one holding a spot for a mine.
-        var ready = Ai.Warships(world, f).Where(e => e.Order?.Type != OrderType.AttackMove && e.Stance != Stance.Hold && !Modes.Kept(world, e)).ToList();
+        // Not one holding a spot for a mine.
+        var ready = Ai.Warships(world, f).Where(e => Ai.Ready(world, e) && e.Stance != Stance.Hold).ToList();
         if (ready.Count == 0) return;
         if (ready.Sum(e => Ships.UnitValue(e.Cls)) < WaveSize && world.Mode.Deadline - world.Time > AllIn) return;
         var fortress = world.Factions.Values.Where(d => d.Team == Defenders).Select(d => StationOf(world, d.Id)).OfType<Entity>().MinBy(s => Dist(s, ready[0]));

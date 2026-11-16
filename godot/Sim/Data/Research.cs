@@ -37,12 +37,12 @@ public static class Techs
         [TechId.Logistics] = new(TechId.Logistics, "Logistique", "Vaisseaux construits 7 % plus vite par niveau", [500, 1000, 1600, 2800], [25, 35, 50, 65]),
         [TechId.Repair] = new(TechId.Repair, "Réparation", "+25 % de réparation par niveau : soutiens, docks, flottes au repos", [400, 800, 1400, 2400], [25, 35, 50, 65]),
         [TechId.Fortification] = new(TechId.Fortification, "Défenses", "+10 % de dégâts des stations et plateformes par niveau", [500, 1000, 1600, 2800], [25, 35, 50, 65]),
-        [TechId.Energy] = new(TechId.Energy, "Énergie", "Capacités rechargées 6 % plus vite par niveau", [600, 1200, 2000, 3500], [30, 45, 60, 80]),
+        [TechId.Energy] = new(TechId.Energy, "Énergie", "Capacités des vaisseaux rechargées 12 % plus vite par niveau", [600, 1200, 2000, 3500], [30, 45, 60, 80]),
     };
 
     /// <summary>Bonus per level of the techs that scale a stat.</summary>
     public const double WeaponsBonus = 0.1, ShieldsBonus = 0.15, ArmorBonus = 0.1, EnginesBonus = 0.1, MiningBonus = 0.2,
-        LogisticsBonus = 0.07, RepairBonus = 0.25, FortificationBonus = 0.1, EnergyBonus = 0.06;
+        LogisticsBonus = 0.07, RepairBonus = 0.25, FortificationBonus = 0.1, EnergyBonus = 0.12;
 
     /// <summary>The station level a research level needs: its own, up to the last station level.</summary>
     public static int StationFor(int level) => Math.Min(level, Station.Levels.Count);

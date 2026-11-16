@@ -24,7 +24,9 @@ public static class Heroes
 {
     static readonly IReadOnlyDictionary<HeroRole, HeroDef> Roles = new Dictionary<HeroRole, HeroDef>
     {
-        [HeroRole.Admiral] = Role(HeroRole.Admiral, ShipClass.Dreadnought, hull: 1.6, shield: 1.5, damage: 1.4, speed: 1.1, cost: 5000, buildTime: 60, minLevel: 3, respawn: 180),
+        // 8000 credits (5000 in the web version, when a dreadnought cost 3000; it costs 4800 here):
+        // alone it beats one dreadnought and loses to two, before its aura and its power.
+        [HeroRole.Admiral] = Role(HeroRole.Admiral, ShipClass.Dreadnought, hull: 1.6, shield: 1.5, damage: 1.4, speed: 1.1, cost: 8000, buildTime: 60, minLevel: 3, respawn: 180),
         [HeroRole.Ace] = Role(HeroRole.Ace, ShipClass.Scout, hull: 12, shield: 15, damage: 5, speed: 1.3, cost: 1500, buildTime: 25, minLevel: 1, respawn: 90),
         [HeroRole.Engineer] = Role(HeroRole.Engineer, ShipClass.Support, hull: 3.5, shield: 4, damage: 2, speed: 1.2, cost: 1800, buildTime: 30, minLevel: 2, respawn: 120),
     };

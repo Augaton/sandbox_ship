@@ -33,8 +33,11 @@ seul contre l'IA ou jusqu'à six joueurs en réseau, par équipes.
   torpilles, rayons, faisceaux continus, rafales à recharge, essaims de missiles et canons à
   ions ; la flak abat les missiles en vol. En fin de partie, la Lance stellaire frappe n'importe
   où sur la carte.
-- **Une IA** qui s'adapte à ce qu'elle voit, et des vaisseaux qui choisissent leurs cibles,
-  tiennent leurs distances, esquivent les frappes annoncées et se replient pour se faire réparer.
+- **Une IA en trois niveaux** qui diffèrent par leur jeu, pas seulement par leur revenu : la
+  Facile réagit tard et ne défend que sa station, la Normale défend tout ce qu'elle tient, la
+  Difficile concentre ses tirs, pille les mines et rappelle une vague qui perd. Des vaisseaux qui
+  choisissent leurs cibles, tiennent leurs distances, esquivent les frappes annoncées et se
+  replient pour se faire réparer.
 - **En réseau**, jusqu'à six joueurs, campagne comprise : en réseau local (les parties
   s'affichent d'elles-mêmes), par le serveur en ligne (rien à ouvrir chez soi) ou sur un
   serveur dédié.
@@ -72,7 +75,8 @@ Les commandes principales en bataille ; toutes sont dans le jeu, Options, onglet
 | Touche | Effet |
 |---|---|
 | Clic gauche, glisser | Sélectionner |
-| Clic droit | Déplacer, ou attaquer la cible visée |
+| Clic droit | Déplacer, ou attaquer la cible visée (Maj : en file) |
+| Clic droit sur la minicarte | Envoyer la sélection là, ou y poser le ralliement de la station |
 | F puis clic | Attaque-mouvement : engage tout ce qui croise la route |
 | E | Capacité des vaisseaux sélectionnés |
 | P | Piloter le vaisseau sélectionné |

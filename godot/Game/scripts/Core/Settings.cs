@@ -15,6 +15,8 @@ public sealed class Settings
     public bool AlwaysBars { get; set; }
     /// <summary>The player's ships use their abilities by themselves when it is worth it.</summary>
     public bool AutoAbilities { get; set; } = true;
+    /// <summary>In the campaign, a battle the player is almost sure to win resolves on its own, without asking.</summary>
+    public bool AutoResolveWon { get; set; } = true;
     /// <summary>Sound effects volume, 0 to 1.</summary>
     public double Volume { get; set; } = 0.5;
     /// <summary>Music volume, 0 to 1.</summary>

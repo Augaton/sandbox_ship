@@ -282,7 +282,37 @@ public class FuzzTests
         Survives("GalaxySnapshot.ReadChart", [chart], bytes => GalaxySnapshot.ReadChart(new BinaryReader(new MemoryStream(bytes)), new Galaxy()));
         var replica = new Galaxy();
         GalaxySnapshot.ReadChart(new BinaryReader(new MemoryStream(chart)), replica);
-        Survives("GalaxySnapshot.Read", [snapshot], bytes => GalaxySnapshot.Read(new BinaryReader(new MemoryStream(bytes)), replica));
+        Survives("GalaxySnapshot.Read", [snapshot, WithEvents(g)], bytes => GalaxySnapshot.Read(new BinaryReader(new MemoryStream(bytes)), replica));
+    }
+
+    /// <summary>A snapshot carrying the events of this version: a battle's toll, an occupation, a rally cancelled, a ship built.</summary>
+    static byte[] WithEvents(Galaxy g)
+    {
+        var mine = g.Planets.First(p => p.Owner == Faction.Klaed).Id;
+        var losses = new BattleLosses(new ShipCounts { [ShipClass.Frigate] = 2, [ShipClass.Battlecruiser] = 1 }, [new HeroId(Faction.Klaed, HeroRole.Admiral)]);
+        var defense = new PlanetDefense { Station = 2, Mines = 3, Platforms = 2, PlatformTier = 2, RepairDock = 1 };
+        GalaxyEvent[] events =
+        [
+            new BattleEnded(mine, Faction.Nairan, Faction.Klaed, BattleResult.Defender, null, new BattleToll(losses, losses, defense, new PlanetDefense { Mines = 1 })),
+            new OccupationBegun(mine, Faction.Nairan, Faction.Klaed), new RallyCancelled(mine, mine, Faction.Klaed),
+            new PlanetBuilt(mine, Faction.Klaed, "frigate", true),
+        ];
+        using var ms = new MemoryStream();
+        using (var w = new BinaryWriter(ms, Encoding.UTF8, true)) GalaxySnapshot.Write(g, Faction.Klaed, w, events, null, default);
+        return ms.ToArray();
+    }
+
+    [Fact]
+    public void A_galaxy_snapshot_with_a_forged_planet_level_is_refused()
+    {
+        var g = Diplomatic(5);
+        var replica = new Galaxy();
+        GalaxySnapshot.ReadChart(new BinaryReader(new MemoryStream(GalaxySnapshot.Chart(g))), replica);
+        var mine = g.Planets.First(p => p.Owner == Faction.Klaed);
+        mine.Station = int.MaxValue;
+        using var ms = new MemoryStream();
+        using (var w = new BinaryWriter(ms, Encoding.UTF8, true)) GalaxySnapshot.Write(g, Faction.Klaed, w, [], null, default);
+        Assert.Throws<InvalidDataException>(() => GalaxySnapshot.Read(new BinaryReader(new MemoryStream(ms.ToArray())), replica));
     }
 
     [Fact]

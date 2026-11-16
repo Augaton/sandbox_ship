@@ -23,7 +23,7 @@ public partial class GalaxyHud
         return s < 60 ? $"{s} s" : s % 60 == 0 ? $"{s / 60} min" : $"{s / 60} min {s % 60:00} s";
     }
 
-    /// <summary>", hors ravitaillement" for a fleet too far from its planets; nothing otherwise.</summary>
+    /// <summary>", hors ravitaillement" for a fleet too far from its stations; nothing otherwise.</summary>
     string Supply(Fleet f) => Galaxies.Supplied(G, f) ? "" : ", hors ravitaillement";
 
     /// <summary>Every other side but the player's teammates, who need no deal.</summary>
@@ -261,6 +261,18 @@ public partial class GalaxyHud
         box.AddChild(HudKit.Para(offer
             ? $"Des crédits contre une trêve de {Minutes(Galaxies.TruceTime)}. Plus une faction se sent forte, plus elle demande ; par minute, tu paies tant que dure la trêve, et cesser de payer la rompt."
             : $"Elle paie si elle te craint et en a les moyens, contre une trêve de {Minutes(Galaxies.TruceTime)}. Elle te le reprochera."));
+        // An AI's price comes first, in both forms: at war, what falls short of it would only be refused.
+        var truce = Galaxies.TruceOf(G, Player, rival);
+        var asked = offer && G.Factions[rival].AI is { } ai ? ai.Asked ?? GalaxyAi.PeacePrice(G, rival, Player) : 0;
+        var askedOnce = asked * Galaxies.TruceTime / 60;
+        if (offer && G.Factions[rival].AI is not null)
+        {
+            box.AddChild(HudKit.Para(truce is { Renewed: true } ? "La trêve a déjà été prolongée : un tribut n'achète plus qu'un peu de confiance."
+                : truce is not null && asked > 0 ? $"Un tribut d'au moins {Credits(asked, true)} prolonge la trêve, une seule fois ; plus petit, il n'achète qu'un peu de confiance."
+                : truce is not null ? "Un tribut, même petit, prolonge la trêve, une seule fois."
+                : asked > 0 ? $"Elle demande {Credits(asked, true)}, ou {Credits(askedOnce, false)} en une fois."
+                : "Elle signerait une trêve sans tribut : un don ne ferait que la réchauffer.", Palette.Accent));
+        }
         var choices = HudKit.Flow(6);
         void Choice(double amount, bool perMinute)
         {
@@ -269,11 +281,17 @@ public partial class GalaxyHud
                 CloseModal();
                 Propose(rival, kind, amount, perMinute);
             });
-            b.Disabled = offer && !perMinute && G.Factions[Player].Credits < amount;
+            var worth = perMinute ? amount : amount * 60 / Galaxies.TruceTime;
+            b.Disabled = offer && ((!perMinute && G.Factions[Player].Credits < amount) || (truce is null && worth < asked));
             choices.AddChild(b);
         }
-        foreach (var a in Once) Choice(a, false);
-        foreach (var a in ByMinute) Choice(a, true);
+        if (asked > 0)
+        {
+            Choice(askedOnce, false);
+            Choice(asked, true);
+        }
+        foreach (var a in Once.Where(a => a != askedOnce)) Choice(a, false);
+        foreach (var a in ByMinute.Where(a => a != asked)) Choice(a, true);
         box.AddChild(choices);
         box.AddChild(Actions(Btn("Annuler", CloseModal)));
         OpenModal(p);
@@ -374,6 +392,7 @@ public partial class GalaxyHud
                 var other = e.A == player ? e.B : e.A;
                 Notify(e.BrokenBy == player
                     ? $"Trêve rompue avec {NameOf(other)} : plus de trêve avec elle avant {Minutes(Galaxies.GrudgeTime)}"
+                    : e.BrokenBy is not null ? $"{NameOf(other)} rompt la trêve !"
                     : $"Fin de la trêve avec {NameOf(other)}");
                 Sfx.Play(Sound.Alert);
                 break;
@@ -405,15 +424,15 @@ public partial class GalaxyHud
                 Notify($"Une flotte abandonnée dérive à {PlanetName(i.Planet)} : à la première flotte qui s'y arrête", i.Planet);
                 break;
             case IncidentKind.WarBand when i.Side == Player:
-                Notify($"Une bande errante se rassemble à {PlanetName(i.Planet)} : elle frappera {PlanetName(i.Other)} dans {N(Galaxies.WarBandWarning)} s", i.Other);
-                Sfx.Play(Sound.Alert);
+                Alert(G.Planets[i.Planet].Owner is null
+                    ? $"Une bande errante se rassemble à {PlanetName(i.Planet)} : elle frappera {PlanetName(i.Other)} dans {N(Galaxies.WarBandWarning)} s"
+                    : $"Une bande errante sort de l'ombre près de {PlanetName(i.Planet)} : elle frappera {PlanetName(i.Other)} dans {N(Galaxies.WarBandWarning)} s", i.Other);
                 break;
             case IncidentKind.WarBand:
                 Notify($"Une bande errante menace {PlanetName(i.Other)} ({Holder(i.Side)})", i.Other);
                 break;
             case IncidentKind.IonStorm:
-                Notify($"Tempête ionique entre {PlanetName(i.Planet)} et {PlanetName(i.Other)} : vitesse divisée par deux pendant "
-                    + Minutes(Galaxies.StormTime), i.Planet);
+                Notify($"Tempête ionique à {PlanetName(i.Planet)} : aucune flotte n'y entre ni n'en sort pendant " + Minutes(Galaxies.StormTime), i.Planet);
                 break;
             case IncidentKind.TradeBoom:
                 Notify($"Essor commercial à {PlanetName(i.Planet)}{(i.Side == Player ? "" : $" ({Holder(i.Side)})")} : revenu doublé pendant "
@@ -440,7 +459,7 @@ public partial class GalaxyHud
                 if (mine) Sfx.Play(Sound.Alert);
                 break;
             case IncidentKind.IonStorm:
-                Notify($"La tempête ionique entre {PlanetName(i.Planet)} et {PlanetName(i.Other)} se dissipe", i.Planet);
+                Notify($"La tempête ionique de {PlanetName(i.Planet)} se dissipe", i.Planet);
                 break;
             case IncidentKind.TradeBoom when G.Planets[i.Planet].Owner == Player:
                 Notify($"L'essor commercial de {PlanetName(i.Planet)} retombe", i.Planet);
@@ -461,13 +480,15 @@ public partial class GalaxyHud
                     notes.Add(("Flotte abandonnée", $"{DescribeShips(i.Ships)}, abîmés : à la première flotte qui s'arrête ici.", Palette.Accent));
                     break;
                 case IncidentKind.WarBand when i.Planet == p.Id:
-                    notes.Add(("Bande errante", $"Elle se rassemble ici et frappera {PlanetName(i.Other)}. Elle pille, ne prend rien.", Palette.Of(Faction.Errant)));
+                    notes.Add(("Bande errante", Sim.Battle.CountShips(i.Ships) > 0 ? $"Elle sort de l'ombre sur la voie vers {PlanetName(i.Other)}. Elle pille, ne prend rien."
+                        : $"Elle se rassemble ici et frappera {PlanetName(i.Other)}. Elle pille, ne prend rien.", Palette.Of(Faction.Errant)));
                     break;
                 case IncidentKind.WarBand when i.Other == p.Id:
-                    notes.Add(("Bande errante en approche", $"Elle se rassemble à {PlanetName(i.Planet)} : sans défense, la planète perdra ses mines.", Palette.Danger));
+                    notes.Add(("Bande errante en approche", Sim.Battle.CountShips(i.Ships) > 0 ? $"Elle arrive par la voie de {PlanetName(i.Planet)} : sans défense, la planète perdra ses mines."
+                        : $"Elle se rassemble à {PlanetName(i.Planet)} : sans défense, la planète perdra ses mines.", Palette.Danger));
                     break;
-                case IncidentKind.IonStorm when i.Planet == p.Id || i.Other == p.Id:
-                    notes.Add(("Tempête ionique", $"Vers {PlanetName(i.Planet == p.Id ? i.Other : i.Planet)} : vitesse divisée par deux.", StormNote));
+                case IncidentKind.IonStorm when i.Planet == p.Id:
+                    notes.Add(("Tempête ionique", $"Aucune flotte n'y entre ni n'en sort encore {Left(i.Remaining)} : les routes la contournent.", StormNote));
                     break;
                 case IncidentKind.TradeBoom when i.Planet == p.Id:
                     notes.Add(("Essor commercial", "Revenu de la planète doublé.", Palette.Accent));

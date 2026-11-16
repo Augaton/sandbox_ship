@@ -12,10 +12,11 @@ public enum OrderType { Move, AttackMove, Attack, Patrol, Guard }
 /// An order; `Group` is set when several ships got it together, to move as one fleet. A patrol
 /// goes round its `Route` for good, fighting what it meets, (X, Y) the point `Leg` it heads for;
 /// a guard keeps by entity TargetId, at (X, Y) in its frame (x forward). Patrols and guards are
-/// not in the web version.
+/// not in the web version. `Slack`: how much further from the point the ship counts as arrived,
+/// for a spot in a crowd rather than one to reach exactly (the rally point).
 /// </summary>
 public sealed record Order(OrderType Type, double X = 0, double Y = 0, int TargetId = 0, MoveGroup? Group = null,
-    IReadOnlyList<Point>? Route = null, int Leg = 0)
+    IReadOnlyList<Point>? Route = null, int Leg = 0, double Slack = 0)
 {
     public static Order Move(double x, double y, MoveGroup? group = null) => new(OrderType.Move, x, y, Group: group);
     public static Order AttackMove(double x, double y, MoveGroup? group = null) => new(OrderType.AttackMove, x, y, Group: group);
@@ -233,6 +234,9 @@ public sealed class Entity : IPoint
     public int? MenderId;
     /// <summary>World time before which a wounded ship that found nothing to repair it does not look again.</summary>
     public double MendLook;
+    /// <summary>A support ship in a fight: the ally it stays by (Movement.Attend), and when it looks again.</summary>
+    public int? WardId;
+    public double WardLook;
     public Effects Effects = new();
     /// <summary>Seconds before a shield knocked down to nothing starts to come back (not in the web version).</summary>
     public double ShieldDown;
@@ -307,14 +311,28 @@ public sealed class QueueItem
     public double Remaining, Total, Cost;
 }
 
-public enum GoalKind { Mine, Outpost, Upgrade, Platform, Structure, Research, Hero, Ship }
+public enum GoalKind { Mine, Outpost, Upgrade, Platform, Structure, Research, Hero, Ship, Tier }
 
-/// <summary>What the AI is saving up for.</summary>
-public sealed record AIGoal(GoalKind Kind, BuildableType Structure = default, TechId Tech = default, HeroId Hero = default, ShipClass Cls = default);
+/// <summary>What the AI is after. `Target`: the structure to take a level up.</summary>
+public sealed record AIGoal(GoalKind Kind, BuildableType Structure = default, TechId Tech = default, HeroId Hero = default, ShipClass Cls = default, int Target = 0);
 
 public enum Difficulty { Easy, Normal, Hard }
 
-public sealed record DifficultyDef(string Name, double Income, double Think);
+/// <summary>
+/// What a difficulty changes (Worlds.Difficulties). `Description`: one line for the lobby.
+/// `Income`: the AI's income in the campaign, whose AI decides alike at every level;
+/// `BattleIncome` in battle, where the levels differ by what they decide. `Think`: seconds between
+/// two of its thoughts. In battle: `Reaction`, seconds before it answers a threat; `AbilityUse`,
+/// the odds it takes a chance to use an ability; `Research`, how much more readily than its
+/// personality's odds it starts a research; `HomeOnly`, it defends only around its station;
+/// `Adapts`, its fleet answers what it saw of the enemy; `WeighsOdds`, it weighs its strength
+/// against what it saw before sending a wave or digging in; `Sharp`, focus fire, raids, a losing
+/// wave called back, parts of big ships aimed at, abilities chosen with care (Ai.cs, Combat.cs,
+/// AbilitySystem.cs).
+/// </summary>
+public sealed record DifficultyDef(
+    string Name, string Description, double Income, double Think, double BattleIncome,
+    double Reaction, double AbilityUse, double Research, bool HomeOnly, bool Adapts, bool WeighsOdds, bool Sharp);
 
 /// <summary>What an AI remembers of its enemies' forces, fading over time.</summary>
 public sealed class Intel
@@ -340,6 +358,18 @@ public sealed class AIState(Difficulty difficulty, Personality personality = Per
     /// <summary>When it last saw its home threatened, for a defensive AI's counter-attack (-1: never).</summary>
     public double LastThreat = -1;
     public Intel Intel = new();
+    /// <summary>A purchase too dear for now, saved up for while the rest goes on being bought, and the credits put aside for it.</summary>
+    public AIGoal? Big;
+    public double BigSaved;
+    /// <summary>When it started on its goal, and until when it leaves alone a kind of goal that could not be reached.</summary>
+    public double GoalAt;
+    public readonly Dictionary<GoalKind, double> GaveUp = [];
+    /// <summary>When it first saw the threat it has not answered yet (-1: none).</summary>
+    public double ThreatSeen = -1;
+    /// <summary>Hard: the ship its whole fleet shoots first, for as long as it stands.</summary>
+    public int? FocusId;
+    /// <summary>Hard: no new wave before this time (one was just called back), no new raid, no new look around.</summary>
+    public double NextWave, NextRaid, NextScout;
 }
 
 /// <summary>A faction's record over a battle, for the end screen.</summary>

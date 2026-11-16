@@ -39,7 +39,7 @@ public partial class Hud
                 if (i >= 0) counts[i] = counts[i] with { N = counts[i].N + 1 };
                 else counts.Add((e.Type, 1, e));
             }
-            parts = [Title($"{ents.Count} unités"), Chips(counts)];
+            parts = [Title($"{ents.Count} unités"), Chips(counts), States(ents)];
         }
         parts.AddRange(OrderParts(ents));
         parts.AddRange(AbilityParts(ents));
@@ -94,10 +94,10 @@ public partial class Hud
 
     static string StanceTip(Stance s) => s switch
     {
-        Stance.Aggressive => "Va chercher l'ennemi de loin et le poursuit",
-        Stance.Hold => "Ne bouge pas : tire sur ce qui passe à portée",
-        Stance.Passive => "Ne tire pas, sauf ordre d'attaque : pour les éclaireurs",
-        _ => "Riposte, puis revient à son poste",
+        Stance.Aggressive => "Va chercher l'ennemi de loin et le poursuit. Part se faire réparer sous 30 % de coque",
+        Stance.Hold => "Ne bouge pas : tire sur ce qui passe à portée, même très abîmé",
+        Stance.Passive => "Ne tire pas, sauf ordre d'attaque : pour les éclaireurs. Part se faire réparer sous 30 % de coque",
+        _ => "Riposte, puis revient à son poste. Part se faire réparer sous 30 % de coque",
     };
 
     static Part Title(string text) => new("title", () =>
@@ -121,6 +121,32 @@ public partial class Hud
     }, n =>
     {
         for (var i = 0; i < counts.Count; i++) n.GetChild<Button>(i).Text = $"{counts[i].N}× {Names.EntityName(counts[i].E)}";
+    });
+
+    /// <summary>What an own ship is doing, in its panel and its tip: falling back to be repaired comes first, whatever its order.</summary>
+    static string Doing(Entity e) => e.Mending ? "Repli pour réparation" : e.Order is { } o ? OrderName(o.Type) : e.TargetId is not null ? "Au combat" : "Inactif";
+
+    /// <summary>Several ships selected: how many are on their way, fighting, falling back and idle. Each its own label, none when zero.</summary>
+    Part States(List<Entity> ents) => new("states", () =>
+    {
+        var flow = Flow(12);
+        for (var i = 0; i < 4; i++) flow.AddChild(Text("", Palette.Muted, 13));
+        return flow;
+    }, n =>
+    {
+        var ships = ents.Where(e => e.Side == Player && e.Kind == EntityKind.Ship && !e.Launched).ToList();
+        var (back, fight) = (ships.Count(e => e.Mending), ships.Count(e => !e.Mending && (e.TargetId is not null || e.Order?.Type == OrderType.Attack)));
+        var way = ships.Count(e => !e.Mending && e.TargetId is null && e.Order is { Type: not OrderType.Attack });
+        void Show(int i, string text, int count)
+        {
+            var label = n.GetChild<Label>(i);
+            label.Visible = count > 0;
+            label.Text = text;
+        }
+        Show(0, $"En route : {way}", way);
+        Show(1, $"Au combat : {fight}", fight);
+        Show(2, $"En repli : {back}", back);
+        Show(3, $"Inactifs : {ships.Count - way - fight - back}", ships.Count - way - fight - back);
     });
 
     /// <summary>A button of the panel, as wide as its text; wrapped when the panel is narrower.</summary>
@@ -210,8 +236,8 @@ public partial class Hud
         }
         if (e.Kind == EntityKind.Ship && own)
         {
-            lines.Add(TextPart(e.Pilot is not null ? "Piloté" : e.Order is { } o ? OrderName(o.Type) : "En position", Palette.Muted));
-            lines.Add(ActionPart("pilot", "Piloter (P)", scene.Controls.TogglePilot));
+            lines.Add(TextPart(e.Pilot is not null ? "Piloté" : Doing(e), Palette.Muted));
+            lines.Add(ActionPart("pilot", $"Piloter le vaisseau ({Bindings.Label(Bindings.Pilot)})", scene.Controls.TogglePilot));
         }
         return lines;
     }
@@ -269,10 +295,12 @@ public partial class Hud
                 {
                     var a = byId[i];
                     var def = Abilities.Defs[a.Id];
-                    var aim = def.Target == AbilityTarget.Point ? ", puis clic où viser" : def.Target == AbilityTarget.Enemy ? ", puis clic sur un ennemi" : "";
+                    var key = Bindings.Label(Bindings.Ability);
                     var state = a.Active > 0 ? $"active encore {N(Math.Ceiling(a.Active))} s"
-                        : a.Ready > 0 ? $"prête : E{aim}"
-                        : $"recharge {N(Math.Ceiling(a.Wait))} s";
+                        : a.Ready == 0 ? $"recharge {N(Math.Ceiling(a.Wait))} s"
+                        : def.Target == AbilityTarget.Point ? $"prête : {key}, puis clic où viser"
+                        : def.Target == AbilityTarget.Enemy ? $"prête : {key}, puis clic sur un ennemi"
+                        : $"prête : {key}";
                     var aiming = mode is AbilityMode m && m.Id == a.Id;
                     var b = n.GetChild<LabelButton>(i);
                     b.Line(1).Text = aiming ? "clique pour viser, Échap pour annuler" : state;

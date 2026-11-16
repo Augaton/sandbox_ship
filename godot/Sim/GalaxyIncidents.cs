@@ -1,8 +1,8 @@
 // Random galactic events (not in the web version). Every few minutes something happens: a
-// derelict fleet waits at a neutral planet for whoever reaches it first, an Errant war band
-// gathers next to a border planet and strikes it, an ion storm slows a lane, a trade boom
-// doubles a planet's income. They draw from a random stream of their own, so that the battles
-// and the AI keep theirs.
+// derelict fleet waits at a neutral planet, or once there are none at a border planet, for
+// whoever reaches it first; an Errant war band gathers next to a border planet and strikes it; an
+// ion storm shuts a border planet off; a trade boom doubles a planet's income. They draw from a
+// random stream of their own, so that the battles and the AI keep theirs.
 using SandboxShip.Sim.Data;
 
 namespace SandboxShip.Sim;
@@ -13,13 +13,13 @@ public enum IncidentKind { Derelict, WarBand, IonStorm, TradeBoom }
 public sealed class Incident
 {
     public IncidentKind Kind;
-    /// <summary>Where it happens: for a storm, one end of its lane; for a war band, where it gathers.</summary>
+    /// <summary>Where it happens: for a war band, where it gathers or the lane it comes by starts.</summary>
     public int Planet;
-    /// <summary>A storm's other lane end, or the planet a war band strikes.</summary>
+    /// <summary>The planet a war band strikes.</summary>
     public int Other = -1;
     /// <summary>Galaxy seconds left: before a war band strikes, before the others are over.</summary>
     public double Remaining;
-    /// <summary>A derelict fleet's ships.</summary>
+    /// <summary>A derelict fleet's ships, or those of a war band still in the dark, out on no planet until it strikes.</summary>
     public ShipCounts Ships = [];
 }
 
@@ -48,7 +48,7 @@ public static partial class Galaxies
     public const double FirstIncident = 240, IncidentGap = 180, IncidentSpread = 120;
     /// <summary>How long a derelict waits, a war band gathers, a storm and a boom last, in galaxy seconds.</summary>
     public const double DerelictTime = 240, WarBandWarning = 30, StormTime = 180, BoomTime = 240;
-    /// <summary>Speed factor in an ion storm, income factor of a booming planet, condition of a derelict's hulls.</summary>
+    /// <summary>Speed factor of a fleet an ion storm catches on its lane, income factor of a booming planet, condition of a derelict's hulls.</summary>
     public const double StormSpeed = 0.5, BoomIncome = 2, DerelictCondition = 0.6;
 
     /// <summary>Deterministic random number in [0, 1) for random events and ruins (Park-Miller, its own stream).</summary>
@@ -60,8 +60,12 @@ public static partial class Galaxies
 
     static int Draw(Galaxy g, int n) => Math.Min(n - 1, (int)Math.Floor(IncidentRand(g) * n));
 
+    /// <summary>
+    /// Whether an ion storm closes the lane between two planets: it closes all those of its
+    /// planet. Lanes are short and many: closing one alone costs a fleet a second of detour.
+    /// </summary>
     public static bool StormOn(Galaxy g, int a, int b) =>
-        g.Ongoing.Count > 0 && g.Ongoing.Exists(i => i.Kind == IncidentKind.IonStorm && ((i.Planet == a && i.Other == b) || (i.Planet == b && i.Other == a)));
+        g.Ongoing.Count > 0 && g.Ongoing.Exists(i => i.Kind == IncidentKind.IonStorm && (i.Planet == a || i.Planet == b));
 
     public static bool Booming(Galaxy g, int planetId) =>
         g.Ongoing.Count > 0 && g.Ongoing.Exists(i => i.Kind == IncidentKind.TradeBoom && i.Planet == planetId);
@@ -95,7 +99,8 @@ public static partial class Galaxies
             g.Ongoing.Remove(i);
             if (i.Kind == IncidentKind.WarBand)
             {
-                if (FleetsAt(g, i.Planet, Faction.Errant).FirstOrDefault() is { } band) SendFleet(g, band.Id, i.Other);
+                if (Battle.CountShips(i.Ships) > 0) OutOfTheDark(g, i);
+                else if (FleetsAt(g, i.Planet, Faction.Errant).FirstOrDefault() is { } band) SendFleet(g, band.Id, i.Other);
             }
             else g.Events.Add(new IncidentEnded(i.Kind, i.Planet, i.Other));
         }
@@ -107,16 +112,35 @@ public static partial class Galaxies
         StartIncident(g);
     }
 
-    /// <summary>One of the events the galaxy has room for, at random: each needs its own kind of place.</summary>
+    /// <summary>A galaxy faction's planets next to one held by a side it is not allied with, with the planets beyond them.</summary>
+    static List<(Planet Border, int Beyond)> Borders(Galaxy g) =>
+        (from p in g.Planets where Held(g, p.Id)
+         from n in Neighbours(g, p.Id) where g.Planets[n].Owner is Side o && !Allies(g, o, p.Owner!.Value)
+         select (p, n)).ToList();
+
+    /// <summary>A war band that waited in the dark comes out on its lane, on its way to strike.</summary>
+    static void OutOfTheDark(Galaxy g, Incident band)
+    {
+        var f = new Fleet { Id = g.NextId++, Side = Faction.Errant, Ships = band.Ships.Clone(), From = band.Planet, To = band.Other, Came = band.Planet, ArrivedAt = g.Time };
+        g.Fleets[f.Id] = f;
+    }
+
+    /// <summary>
+    /// One of the events the galaxy has room for, at random. Neutral planets go fast, and with
+    /// them went most derelicts and war bands: once none is left, a derelict comes to rest at a
+    /// border planet without a fleet, and a war band comes out of the dark on a lane to one.
+    /// </summary>
     static void StartIncident(Galaxy g)
     {
         var options = new List<Action>();
         var neutral = g.Planets.Where(p => p.Owner is null && Empty(g, p.Id)).Select(p => p.Id).ToList();
-        if (neutral.Count > 0)
+        var borders = Borders(g);
+        var wrecks = neutral.Count > 0 ? neutral : borders.Select(b => b.Border.Id).Where(id => Empty(g, id)).Distinct().ToList();
+        if (wrecks.Count > 0)
         {
             options.Add(() =>
             {
-                var at = neutral[Draw(g, neutral.Count)];
+                var at = wrecks[Draw(g, wrecks.Count)];
                 g.Ongoing.Add(new Incident { Kind = IncidentKind.Derelict, Planet = at, Remaining = DerelictTime, Ships = Spoils(g.Time, false) });
                 g.Events.Add(new IncidentStarted(IncidentKind.Derelict, at));
             });
@@ -135,14 +159,26 @@ public static partial class Galaxies
                 g.Events.Add(new IncidentStarted(IncidentKind.WarBand, from, target.Id, target.Owner));
             });
         }
-        var lanes = g.Lanes.Where(l => (Held(g, l.A) || Held(g, l.B)) && !StormOn(g, l.A, l.B)).ToList();
-        if (lanes.Count > 0)
+        else if (borders.Where(b => !StormOn(g, b.Border.Id, b.Beyond) && !g.Ongoing.Exists(i => i.Kind == IncidentKind.WarBand && i.Other == b.Border.Id)).ToList() is { Count: > 0 } ways)
         {
             options.Add(() =>
             {
-                var l = lanes[Draw(g, lanes.Count)];
-                g.Ongoing.Add(new Incident { Kind = IncidentKind.IonStorm, Planet = l.A, Other = l.B, Remaining = StormTime });
-                g.Events.Add(new IncidentStarted(IncidentKind.IonStorm, l.A, l.B));
+                var (target, from) = ways[Draw(g, ways.Count)];
+                g.Ongoing.Add(new Incident { Kind = IncidentKind.WarBand, Planet = from, Other = target.Id, Remaining = WarBandWarning, Ships = Spoils(g.Time, true) });
+                g.Events.Add(new IncidentStarted(IncidentKind.WarBand, from, target.Id, target.Owner));
+            });
+        }
+        // A storm over a border planet, where the fleets are and go: behind the front it changes little.
+        bool Calm(int id) => !g.Ongoing.Exists(i => i.Kind == IncidentKind.IonStorm && i.Planet == id);
+        var stormy = borders.Select(b => b.Border.Id).Where(Calm).Distinct().ToList();
+        if (stormy.Count == 0) stormy = g.Planets.Where(p => Held(g, p.Id) && Calm(p.Id)).Select(p => p.Id).ToList();
+        if (stormy.Count > 0)
+        {
+            options.Add(() =>
+            {
+                var at = stormy[Draw(g, stormy.Count)];
+                g.Ongoing.Add(new Incident { Kind = IncidentKind.IonStorm, Planet = at, Remaining = StormTime });
+                g.Events.Add(new IncidentStarted(IncidentKind.IonStorm, at));
             });
         }
         var held = g.Planets.Where(p => Held(g, p.Id) && !Booming(g, p.Id)).ToList();
@@ -180,7 +216,9 @@ public static partial class Galaxies
         {
             var at = g.Planets[band.At!.Value];
             if (at.Owner == Faction.Errant || g.Ongoing.Exists(i => i.Kind == IncidentKind.WarBand && i.Planet == at.Id) || BattleAt(g, at.Id)) continue;
-            if (Held(g, at.Id) && Clash(g, FleetsAt(g, at.Id), Fortified(at) ? at.Owner : null) is not null) continue;
+            // What stands in orbit without a station holds nothing (Battle.Outcome): a battle there
+            // would end at once, again and again, the band never leaving.
+            if (Held(g, at.Id) && Clash(g, FleetsAt(g, at.Id), at.Station > 0 ? at.Owner : null) is not null) continue;
             g.Fleets.Remove(band.Id);
             if (!Held(g, at.Id)) continue;
             at.Mines = 0;

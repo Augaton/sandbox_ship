@@ -244,15 +244,25 @@ public partial class Hud
         OpenModal(Dialog(EndTitle(won), Para(EndText(won), max: 672), EndTable(), Actions(again, reroll, menu, close)));
     }
 
-    /// <summary>End of a campaign battle: the only way on is back to the galaxy map. `watched`: who won, for one who only watched it.</summary>
-    public void ShowBattleEnd(bool won, Action onBack, string? watched = null)
+    /// <summary>
+    /// End of a campaign battle: the only way on is back to the galaxy map. `watched`: who won, for
+    /// one who only watched it. `toll`: what it costs the side and the planet, when known by now.
+    /// </summary>
+    public void ShowBattleEnd(bool won, Action onBack, string? watched = null, IReadOnlyList<string>? toll = null)
     {
         if (watched is null) PlayerProfile.BattleEnded(scene, won);
         if (scene.Opts.Net is null) World.History?.Close(World);
         var back = Primary(Button("Retour à la carte", onBack));
-        OpenModal(Dialog(watched is not null ? "Bataille terminée" : won ? "Victoire" : "Défaite",
-            Para($"{watched ?? (won ? "La bataille est gagnée." : "La bataille est perdue.")} Les survivants regagnent la carte galactique.", max: 672),
-            WithCharts(StatsTable()), Actions(back)));
+        var parts = new List<Control> { Para($"{watched ?? (won ? "La bataille est gagnée." : "La bataille est perdue.")} Les survivants regagnent la carte galactique.", max: 672) };
+        if (toll is { Count: > 0 })
+        {
+            var lines = Column(0);
+            foreach (var line in toll) lines.AddChild(Para(line, max: 672));
+            parts.Add(lines);
+        }
+        parts.Add(WithCharts(StatsTable()));
+        parts.Add(Actions(back));
+        OpenModal(Dialog(watched is not null ? "Bataille terminée" : won ? "Victoire" : "Défaite", [.. parts]));
     }
 
     /// <summary>Asks before an action that loses progress; `back` runs if the player changes their mind.</summary>

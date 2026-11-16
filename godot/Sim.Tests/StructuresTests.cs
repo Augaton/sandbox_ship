@@ -20,7 +20,44 @@ public class StructuresTests
     static List<Entity> ShipsOf(World w, Faction faction, string? type = null) =>
         w.Entities.Where(e => e.Kind == EntityKind.Ship && e.Side == faction && (type is null || e.Type == type)).ToList();
 
+    [Fact]
+    public void An_ion_cannon_tears_shields_down_three_times_as_fast_as_it_harms_a_hull()
+    {
+        var w = NewWorld();
+        SpawnStructure(w, Faction.Klaed, BuildableType.IonCannon, 1000, 2000);
+        // No parts: every bolt lands on it.
+        var target = SpawnShip(w, Faction.Nairan, ShipClass.Bulwark, 1600, 2000, Math.PI);
+        target.Pilot = new Pilot();
+        target.MaxShield = target.Shield = 10000;
+        target.ShieldRegen = 0;
+        var damage = 90 * Factions.Trait(Faction.Klaed).Damage;
+        while (target.Shield == target.MaxShield && w.Time < 10) StepWorld(w);
+        Assert.Equal(target.MaxShield - 3 * damage, target.Shield, 3);
+        Assert.Equal(target.MaxHull, target.Hull);
+        target.MaxShield = target.Shield = 0;
+        var hull = target.Hull;
+        while (target.Hull == hull && w.Time < 20) StepWorld(w);
+        Assert.Equal(hull - damage, target.Hull, 3);
+    }
+
     // Production.
+
+    [Fact]
+    public void A_new_ship_gets_to_a_rally_point_on_a_platform_and_is_free_again()
+    {
+        var w = NewWorld(5000);
+        var f = w.Factions[Faction.Klaed];
+        SpawnStation(w, Faction.Klaed, 700, 2000, 2);
+        var platform = SpawnStructure(w, Faction.Klaed, BuildableType.Platform, 1100, 2000);
+        (f.RallyX, f.RallyY) = (platform.X, platform.Y);
+        // A big hull sitting beside it too.
+        SpawnShip(w, Faction.Klaed, ShipClass.Dreadnought, 1100, 2100).Stance = Stance.Hold;
+        Assert.True(EnqueueShip(w, Faction.Klaed, ShipClass.Battlecruiser).Ok);
+        Run(w, Ships.Defs[ShipClass.Battlecruiser].BuildTime + 25);
+        var ship = ShipsOf(w, Faction.Klaed, "battlecruiser").Single();
+        // A point inside a platform could never be reached: it kept its order, and fought nothing.
+        Assert.Null(ship.Order);
+    }
 
     [Fact]
     public void Debits_credits_refuses_when_short_and_delivers_the_ship()

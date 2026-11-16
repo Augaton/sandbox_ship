@@ -88,6 +88,87 @@ public class AbilitiesTests
         Assert.Equal(offLine.MaxHull, offLine.Hull);
     }
 
+    /// <summary>A blow from the sky coming down at once on a spot.</summary>
+    static void Blow(World w, double x, double y, double damage = 650, StrikeKind kind = StrikeKind.Orbital, double radius = 220)
+    {
+        w.Strikes.Add(new Strike { Kind = kind, Side = Faction.Klaed, X = x, Y = y, X2 = kind == StrikeKind.Beam ? x + 500 : x, Y2 = y, Radius = radius, Damage = damage, Delay = 0.01, Total = 0.01 });
+        Run(w, 0.05);
+    }
+
+    [Theory]
+    [InlineData(StrikeKind.Orbital)]
+    [InlineData(StrikeKind.Beam)]
+    [InlineData(StrikeKind.Stellar)]
+    public void A_blow_from_the_sky_takes_a_ship_s_shield_once_and_leaves_its_parts_alone_while_it_holds(StrikeKind kind)
+    {
+        var w = NewWorld();
+        var ship = Disarm(w, SpawnShip(w, Faction.Nairan, ShipClass.Dreadnought, 2000, 2000));
+        ship.Pilot = new Pilot();
+        var parts = ChildrenOf(w, ship.Id);
+        var (shield, hull) = (ship.Shield, ship.Hull);
+        Blow(w, 1900, 2000, kind: kind);
+        // Blow by part, the 650 came off its shield ten times over.
+        Assert.InRange(shield - ship.Shield, 640, 650);
+        Assert.Equal(hull, ship.Hull);
+        Assert.All(parts, p => Assert.Equal(p.MaxHull, p.Hull));
+    }
+
+    [Fact]
+    public void Its_shield_down_a_ship_takes_the_blow_once_and_each_part_a_share_of_it()
+    {
+        var w = NewWorld();
+        var ship = Disarm(w, SpawnShip(w, Faction.Nairan, ShipClass.Dreadnought, 2000, 2000));
+        ship.Pilot = new Pilot();
+        ship.Shield = 0;
+        ship.MaxShield = 0;
+        var parts = ChildrenOf(w, ship.Id);
+        var hull = ship.Hull;
+        Blow(w, 2000, 2000);
+        Expect.Close(hull - 650, ship.Hull, 0);
+        Assert.All(parts, p => Expect.Close(p.MaxHull - 650 * Abilities.PartShare, p.Hull, 0));
+    }
+
+    [Fact]
+    public void A_blow_on_a_station_leaves_its_turrets_and_its_generator_standing()
+    {
+        var w = NewWorld();
+        var station = SpawnStation(w, Faction.Nairan, 2000, 2000, 2);
+        var parts = ChildrenOf(w, station.Id);
+        var shield = station.Shield;
+        Blow(w, 2000, 2000);
+        Run(w, 0.1);
+        // It used to take all four turrets off, and the generator with the shield of the whole station.
+        Assert.Equal(parts.Count, ChildrenOf(w, station.Id).Count);
+        Assert.InRange(shield - station.Shield, 640, 650);
+        Assert.All(parts, p => Expect.Close(p.MaxHull - 650 * Abilities.PartShare, p.Hull, 0));
+    }
+
+    [Fact]
+    public void A_ship_only_grazed_by_a_blow_takes_it_on_its_shield_once()
+    {
+        var w = NewWorld();
+        var ship = Disarm(w, SpawnShip(w, Faction.Nairan, ShipClass.Dreadnought, 2000, 2000));
+        ship.Pilot = new Pilot();
+        var (shield, nose) = (ship.Shield, ChildrenOf(w, ship.Id).MaxBy(p => p.X)!);
+        // Its forward turret is in the blast, its centre beyond it.
+        Blow(w, nose.X + 200, nose.Y, radius: 200 + nose.Radius - 1);
+        Assert.InRange(shield - ship.Shield, 640, 650);
+    }
+
+    [Fact]
+    public void Energy_research_speeds_up_ships_abilities_not_the_star_lance()
+    {
+        var w = NewWorld();
+        w.Factions[Faction.Klaed].Research[TechId.Energy] = 2;
+        var ship = SpawnShip(w, Faction.Klaed, ShipClass.Frigate, 1000, 1000);
+        Assert.True(UseAbility(w, ship).Ok);
+        Expect.Close(Abilities.Defs[AbilityId.Overcharge].Cooldown * (1 - 2 * Techs.EnergyBonus), ship.Abilities[0].Cooldown);
+        var lance = SpawnStructure(w, Faction.Klaed, BuildableType.StarLance, 3000, 3000);
+        lance.Abilities[0].Cooldown = 0;
+        Assert.True(UseAbility(w, lance, new Aim(5000, 3000)).Ok);
+        Assert.Equal(Abilities.Defs[AbilityId.StarLance].Cooldown, lance.Abilities[0].Cooldown);
+    }
+
     // Hero powers.
 
     [Fact]

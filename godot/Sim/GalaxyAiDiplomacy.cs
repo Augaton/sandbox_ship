@@ -1,7 +1,8 @@
 // The galaxy AI as a diplomat (not in the web version): how it answers what it is offered, and
 // what it offers itself. It weighs its strength against the other's, a third faction it fights,
 // its personality, and what the other did to it: its trust, and the grudge a betrayal leaves.
-// It keeps its word: an AI never breaks a truce, an alliance or a tribute itself.
+// It keeps its word: it never breaks an alliance or a tribute itself, and only the hard AI a
+// truce, one nobody paid for, when it pays (GalaxyAi.BreakTruces).
 using SandboxShip.Sim.Data;
 using static SandboxShip.Sim.Galaxies;
 
@@ -35,11 +36,13 @@ public static partial class GalaxyAi
     /// <summary>
     /// An AI's answer to a truce: yes when it is the weaker (its personality has it feel so sooner
     /// or later), or busy with a third faction; never while it bears a grudge against one that
-    /// betrayed it. Trust has no say: grown over a truce, it had two AIs sign the next one forever.
+    /// betrayed it, nor from an AI it just came out of a truce with. Trust has no say: grown over
+    /// a truce, it had two AIs sign the next one forever.
     /// </summary>
     public static Result AnswerTruce(Galaxy g, Side side, Side from)
     {
         if (Grudge(g, side, from)) return Result.Fail("Elle n'a pas oublié la trêve rompue");
+        if (g.Factions[side].AI!.TruceRest.ContainsKey(from)) return Result.Fail("Elle sort à peine d'une trêve avec toi");
         if (Might(g, side) < Might(g, from) * DefOf(g, side).Peace || BusyElsewhere(g, side, from)) return Result.OK;
         return Result.Fail("Elle se croit la plus forte");
     }
@@ -86,22 +89,36 @@ public static partial class GalaxyAi
     /// <summary>
     /// What peace with `from` is worth to the AI, in credits a minute, rounded up to ten: nothing
     /// when it is the weaker (by its personality's measure), more the stronger it is, up to a
-    /// third of its own income; half as much when it fights a third faction besides.
+    /// third of its own income; half as much when it fights a third faction besides. Never more
+    /// than a tribute can be, or nothing could ever buy it.
     /// </summary>
     public static double PeacePrice(Galaxy g, Side side, Side from)
     {
         var ratio = Might(g, side) / Math.Max(1, Might(g, from));
         var price = Math.Clamp(ratio - DefOf(g, side).Peace, 0, 1) * IncomeOf(g, side) * 60 / 3;
         if (BusyElsewhere(g, side, from)) price /= 2;
-        return Math.Ceiling(price / 10) * 10;
+        return Math.Min(MaxTributePerMinute, Math.Ceiling(price / 10) * 10);
     }
 
-    /// <summary>A tribute it is offered, `perMinute` (a sum paid once spread over a truce): worth its peace price. In peace, a gift: always welcome.</summary>
+    /// <summary>Whether a tribute `from` pays `side` is worth a truce: at the AI's price, a sum paid once spread over a truce. Between people, whatever they agreed.</summary>
+    internal static bool WorthPeace(Galaxy g, Side side, Side from, double amount, bool perMinute) =>
+        g.Factions[side].AI is null || (perMinute ? amount : amount * 60 / TruceTime) >= PeacePrice(g, side, from);
+
+    /// <summary>
+    /// A tribute it is offered, `perMinute` (a sum paid once spread over a truce): worth its peace
+    /// price. During a truce, a gift: welcome as long as it can still buy something, trust or a
+    /// truce prolonged. Between allies, always.
+    /// </summary>
     static Result AnswerTribute(Galaxy g, Side side, Side from, double perMinute)
     {
         if (Grudge(g, side, from)) return Result.Fail("Elle n'a pas oublié ta trahison");
-        if (!AtWar(g, side, from)) return Result.OK;
         var price = PeacePrice(g, side, from);
+        if (TruceOf(g, side, from) is { } truce)
+        {
+            var spent = g.Factions[side].AI!.BoughtTrust.GetValueOrDefault(from) >= TrustBuyable;
+            return spent && (truce.Renewed || perMinute < price) ? Result.Fail("Elle n'attend plus rien de toi pour l'instant") : Result.OK;
+        }
+        if (!AtWar(g, side, from)) return Result.OK;
         return perMinute >= price ? Result.OK : Result.Fail($"Elle en veut au moins {(int)price} crédits par minute de trêve");
     }
 
@@ -133,7 +150,7 @@ public static partial class GalaxyAi
         }
         foreach (var r in rivals)
         {
-            if (ai.Grudges.ContainsKey(r.Id) || !CanOfferTruce(g, side, r.Id).Ok || !Contact(g, side, r.Id)
+            if (ai.Grudges.ContainsKey(r.Id) || ai.TruceRest.ContainsKey(r.Id) || !CanOfferTruce(g, side, r.Id).Ok || !Contact(g, side, r.Id)
                 || (mine >= Might(g, r.Id) * 0.7 * def.Peace && !BusyElsewhere(g, side, r.Id))) continue;
             Offer(DealKind.Truce, r.Id);
             return;

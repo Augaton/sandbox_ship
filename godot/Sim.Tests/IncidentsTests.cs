@@ -118,6 +118,20 @@ public class IncidentsTests
     }
 
     [Fact]
+    public void A_war_band_leaves_a_planet_with_nothing_but_platforms_in_orbit()
+    {
+        var g = WarBand(new ShipCounts { [ShipClass.Frigate] = 3 });
+        var orin = g.Planets[Id("Orin")];
+        orin.Platforms = 1;
+        orin.RepairDock = 1;
+        RunGalaxy(g, WarBandWarning + 20);
+        // Without a station, they hold nothing: a battle over at once, over and over, had the band stay for good.
+        Assert.DoesNotContain(g.Fleets.Values, f => f.Side == Faction.Errant);
+        Assert.Equal((Faction.Klaed, 0), (orin.Owner!.Value, orin.Mines));
+        Expect.Less(g.Events.Count(e => e is BattleStarted), 3);
+    }
+
+    [Fact]
     public void A_war_band_beaten_on_its_way_strikes_nobody()
     {
         var g = WarBand(new ShipCounts { [ShipClass.Scout] = 1 });
@@ -130,16 +144,114 @@ public class IncidentsTests
     }
 
     [Fact]
-    public void An_ion_storm_halves_speed_on_its_lane_for_a_while()
+    public void A_war_band_comes_out_of_the_dark_on_its_lane_when_no_neutral_planet_is_left()
+    {
+        var g = Quiet();
+        var (orin, kaldra) = (g.Planets[Id("Orin")], g.Planets[Id("Kaldra")]);
+        orin.Owner = Faction.Klaed;
+        orin.Mines = 2;
+        kaldra.Owner = Faction.Nairan;
+        g.Ongoing.Add(new Incident
+        {
+            Kind = IncidentKind.WarBand, Planet = kaldra.Id, Other = orin.Id, Remaining = WarBandWarning, Ships = new ShipCounts { [ShipClass.Frigate] = 3 },
+        });
+        // Nothing stands anywhere for now: nobody can strike it, and it strikes nobody on the way.
+        RunGalaxy(g, WarBandWarning - 1);
+        Assert.DoesNotContain(g.Fleets.Values, f => f.Side == Faction.Errant);
+        RunGalaxy(g, 1.5);
+        var band = Assert.Single(g.Fleets.Values, f => f.Side == Faction.Errant);
+        Assert.Equal((kaldra.Id, orin.Id), (band.From, band.To!.Value));
+        RunGalaxy(g, 20);
+        Assert.Equal((Faction.Klaed, 0), (orin.Owner!.Value, orin.Mines));
+        Assert.DoesNotContain(g.Fleets.Values, f => f.Side == Faction.Errant);
+        Assert.Contains(g.Events, e => e is IncidentEnded { Kind: IncidentKind.WarBand } ended && ended.Side == Faction.Klaed && ended.Planet == orin.Id);
+    }
+
+    [Fact]
+    public void With_no_neutral_planet_left_derelicts_and_war_bands_keep_coming_at_the_borders()
+    {
+        var kinds = new HashSet<IncidentKind>();
+        foreach (var seed in new[] { 1, 2, 3, 4 })
+        {
+            var g = Passive(seed);
+            foreach (var p in g.Planets) p.Owner ??= p.Id % 2 == 0 ? Faction.Klaed : Faction.Nairan;
+            foreach (var (_, e) in Watch(g, 1500))
+            {
+                kinds.Add(e.Kind);
+                if (e.Kind == IncidentKind.Derelict) Assert.Contains(Neighbours(g, e.Planet), n => g.Planets[n].Owner != g.Planets[e.Planet].Owner);
+                if (e.Kind == IncidentKind.WarBand) Assert.Contains(e.Other, Neighbours(g, e.Planet));
+            }
+        }
+        Assert.Contains(IncidentKind.Derelict, kinds);
+        Assert.Contains(IncidentKind.WarBand, kinds);
+    }
+
+    [Fact]
+    public void An_ion_storm_shuts_its_planet_off_fleets_go_around_it_or_stay()
+    {
+        var g = Quiet();
+        var (vesper, orin, maru, kaldra, nadir) = (Id("Vesper"), Id("Orin"), Id("Maru"), Id("Kaldra"), Id("Nadir"));
+        void Storm(int at) => g.Ongoing.Add(new Incident { Kind = IncidentKind.IonStorm, Planet = at, Remaining = StormTime });
+        Assert.Equal(orin, FindPath(g, vesper, kaldra)![0]);
+        Storm(orin);
+        Assert.Equal(maru, FindPath(g, vesper, kaldra)![0]);
+        Assert.Equal(orin, FindPath(g, vesper, kaldra, true)![0]);
+        g.Ongoing.Clear();
+        // A fleet that set out before it goes around once it gets there.
+        var fleet = AddShipsAt(g, Faction.Klaed, vesper, new ShipCounts { [ShipClass.Scout] = 1 })!;
+        Assert.True(SendFleet(g, fleet.Id, nadir).Ok);
+        Assert.Equal(orin, fleet.To);
+        var next = fleet.Path[0];
+        Storm(next);
+        for (var t = 0; t < 200 && fleet.To == orin; t++) StepGalaxy(g);
+        Assert.Equal(orin, fleet.From);
+        Assert.NotEqual(next, fleet.To);
+        Assert.Equal(nadir, fleet.Path[^1]);
+        g.Ongoing.Clear();
+        // With no way around, it stays where it got to.
+        var stays = AddShipsAt(g, Faction.Klaed, vesper, new ShipCounts { [ShipClass.Scout] = 1 })!;
+        Assert.True(SendFleet(g, stays.Id, nadir).Ok);
+        Storm(nadir);
+        for (var t = 0; t < 400 && stays.At is null; t++) StepGalaxy(g);
+        var there = stays.At!.Value;
+        Assert.Contains(nadir, Neighbours(g, there));
+        // A planet shut off says why, from outside as from inside; once the storm is over, the way is open again.
+        Assert.Equal("Tempête ionique : voie fermée", SendFleet(g, stays.Id, nadir).Reason);
+        g.Ongoing[0].Planet = there;
+        Assert.Equal("Tempête ionique : voie fermée", SendFleet(g, stays.Id, vesper).Reason);
+        g.Ongoing[0].Remaining = 0.05;
+        StepGalaxy(g);
+        Assert.Empty(g.Ongoing);
+        Assert.True(SendFleet(g, stays.Id, vesper).Ok);
+    }
+
+    [Fact]
+    public void A_fleet_falling_back_goes_through_the_storm()
+    {
+        var g = Quiet();
+        var (orin, kaldra) = (Id("Orin"), g.Planets[Id("Kaldra")]);
+        kaldra.Owner = Faction.Nairan;
+        kaldra.Station = 1;
+        var fleet = AddShipsAt(g, Faction.Klaed, orin, new ShipCounts { [ShipClass.Frigate] = 3 })!;
+        Assert.True(SendFleet(g, fleet.Id, kaldra.Id).Ok);
+        for (var t = 0; t < 200 && g.Battles.Count == 0; t++) StepGalaxy(g);
+        g.Ongoing.Add(new Incident { Kind = IncidentKind.IonStorm, Planet = kaldra.Id, Remaining = StormTime });
+        ConcludeBattle(g, g.Battles[0].Id, BattleResult.Retreat);
+        var back = Assert.Single(g.Fleets.Values, f => f.Side == Faction.Klaed && f.Ships.Of(ShipClass.Frigate) > 0 && f.From == kaldra.Id);
+        Assert.Equal((null, orin), (back.At, back.To!.Value));
+    }
+
+    [Fact]
+    public void An_ion_storm_slows_the_fleets_it_catches_on_its_lane_for_a_while()
     {
         var g = Quiet();
         var (orin, kaldra, maru) = (Id("Orin"), Id("Kaldra"), Id("Maru"));
         var ships = new ShipCounts { [ShipClass.Frigate] = 1 };
         var slow = AddShipsAt(g, Faction.Klaed, orin, ships)!;
         var fast = AddShipsAt(g, Faction.Nairan, maru, ships)!;
-        g.Ongoing.Add(new Incident { Kind = IncidentKind.IonStorm, Planet = kaldra, Other = orin, Remaining = StormTime });
         Assert.True(SendFleet(g, slow.Id, kaldra).Ok);
         Assert.True(SendFleet(g, fast.Id, kaldra).Ok);
+        g.Ongoing.Add(new Incident { Kind = IncidentKind.IonStorm, Planet = orin, Remaining = StormTime });
         StepGalaxy(g);
         var step = FleetSpeed(ships) * Step;
         Expect.Close(step * StormSpeed / Worlds.Dist(g.Planets[orin], g.Planets[kaldra]), slow.Progress, 9);

@@ -166,6 +166,107 @@ public class ShipAiTests
         Expect.Greater(Math.Abs(frigate.Y - 1000), 40 + frigate.Radius);
     }
 
+    // How close they fight.
+
+    /// <summary>Damage a ship's guns do to a big ship in a second, those in reach of `t` as it stands now, and all of them.</summary>
+    static (double InReach, double All) Fire(World w, Entity s, Entity t)
+    {
+        double all = 0, reach = 0;
+        foreach (var part in ChildrenOf(w, s.Id).Prepend(s))
+        {
+            foreach (var g in part.Weapons)
+            {
+                var rate = g.Def.Kind == WeaponKind.Beam ? g.Def.Damage : g.Def.Damage * g.Def.Burst / Math.Max(0.05, g.Def.Cooldown + (g.Def.Burst - 1) * g.Def.BurstGap);
+                rate *= g.Def.Multipliers.Of(t.Size);
+                all += rate;
+                if (Dist(part, t) - t.Radius <= g.Def.Range) reach += rate;
+            }
+        }
+        return (reach, all);
+    }
+
+    [Theory]
+    [InlineData(ShipClass.Frigate)]
+    [InlineData(ShipClass.Battlecruiser)]
+    [InlineData(ShipClass.Dreadnought)]
+    [InlineData(ShipClass.Titan)]
+    [InlineData(ShipClass.Leviathan)]
+    [InlineData(ShipClass.Colossus)]
+    public void A_ship_told_to_attack_stops_where_most_of_its_fire_reaches(ShipClass cls)
+    {
+        var w = NewWorld();
+        var s = SpawnShip(w, Faction.Klaed, cls, 500, 2000);
+        s.Abilities = [];
+        var t = SpawnShip(w, Faction.Nairan, ShipClass.Dreadnought, 2200, 2000, Math.PI);
+        t.Stance = Stance.Passive;
+        foreach (var p in ChildrenOf(w, t.Id).Prepend(t)) p.Hull = p.MaxHull = 1e9;
+        t.Shield = t.MaxShield = 1e9;
+        Movement.IssueAttack(w, [s.Id], t.Id);
+        Run(w, 200, 1.0 / 30);
+        var (reach, all) = Fire(w, s, t);
+        // It used to be half of it for a leviathan, two thirds for a colossus, at 85 % of their longest gun.
+        Expect.GreaterOrEqual(reach / all, 0.75);
+        // Not by parking against it.
+        Expect.Greater(Dist(s, t) - t.Radius, s.Radius);
+    }
+
+    [Fact]
+    public void Support_ships_keep_behind_the_warships_in_a_fight_by_those_they_repair()
+    {
+        var w = NewWorld();
+        var fleet = Enumerable.Range(0, 4).Select(i => SpawnShip(w, Faction.Klaed, ShipClass.Frigate, 800, 1700 + i * 150)).ToList();
+        var supports = Enumerable.Range(0, 2).Select(i => SpawnShip(w, Faction.Klaed, ShipClass.Support, 700, 1900 + i * 150)).ToList();
+        var foes = Enumerable.Range(0, 4).Select(i => SpawnShip(w, Faction.Nairan, ShipClass.Frigate, 2000, 1700 + i * 150, Math.PI)).ToList();
+        Movement.IssueMove(w, fleet.Concat(supports).Select(e => e.Id), 2000, 1900, true);
+        Movement.IssueMove(w, foes.Select(e => e.Id), 800, 1900, true);
+        Run(w, 14);
+        double Nearest(Entity e) => foes.Where(f => w.Entities.Has(f.Id)).Min(f => Dist(e, f));
+        // They used to come up level with the frigates.
+        Expect.Greater(supports.Min(Nearest), fleet.Where(e => w.Entities.Has(e.Id)).Average(Nearest) + 60);
+        foreach (var s in supports)
+            Expect.Less(fleet.Where(e => w.Entities.Has(e.Id)).Min(e => Dist(e, s) - e.Radius), Ships.Defs[ShipClass.Support].Repair!.Range);
+    }
+
+    [Fact]
+    public void A_support_ship_goes_to_the_most_damaged_ally_around_it()
+    {
+        var w = NewWorld();
+        var support = SpawnShip(w, Faction.Klaed, ShipClass.Support, 1000, 1000);
+        var healthy = Unarmed(w, SpawnShip(w, Faction.Klaed, ShipClass.Frigate, 1000, 1200));
+        var hurt = Unarmed(w, SpawnShip(w, Faction.Klaed, ShipClass.Frigate, 1000, 500));
+        healthy.Pilot = new Pilot();
+        hurt.Pilot = new Pilot();
+        hurt.Hull = hurt.MaxHull * 0.5;
+        var foe = Unarmed(w, SpawnShip(w, Faction.Nairan, ShipClass.Scout, 1300, 1000));
+        foe.Pilot = new Pilot();
+        Run(w, 10);
+        Expect.Less(Dist(support, hurt), Ships.Defs[ShipClass.Support].Repair!.Range + hurt.Radius);
+        Expect.Greater(hurt.Hull, hurt.MaxHull * 0.5);
+    }
+
+    [Fact]
+    public void A_wounded_ship_does_not_fly_to_the_front_for_a_support_ship()
+    {
+        var w = NewWorld();
+        var wounded = SpawnShip(w, Faction.Klaed, ShipClass.Frigate, 1000, 1000);
+        // The support ship is nearer the foe it is fighting than itself.
+        var support = SpawnShip(w, Faction.Klaed, ShipClass.Support, 1300, 1000);
+        support.Pilot = new Pilot();
+        var foe = Unarmed(w, SpawnShip(w, Faction.Nairan, ShipClass.Frigate, 1500, 1000, Math.PI));
+        foe.Pilot = new Pilot();
+        Run(w, 1);
+        Assert.NotNull(w.Entities.Get(wounded.TargetId));
+        wounded.Hull = wounded.MaxHull * 0.2;
+        Run(w, 1);
+        Assert.False(wounded.Mending);
+        // A support ship behind it is another matter.
+        var behind = SpawnShip(w, Faction.Klaed, ShipClass.Support, wounded.X - 200, 1000);
+        behind.Pilot = new Pilot();
+        Run(w, 1);
+        Assert.True(wounded.Mending);
+        Assert.Equal(behind.Id, wounded.MenderId);
+    }
+
     // Falling back.
 
     [Fact]

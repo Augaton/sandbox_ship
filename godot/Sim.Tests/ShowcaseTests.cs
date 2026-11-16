@@ -20,8 +20,9 @@ public class ShowcaseTests
         Assert.False(w.Fog);
         var start = w.Entities.Count(e => e.Kind == EntityKind.Ship);
         Expect.Greater(start, 10);
-        // As the menu does: steps, and the idle sent back into the fight every two seconds.
-        while (w.Time < 240 && Showcase.Standing(w) > 1)
+        // As the menu does: steps, and the idle sent back into the fight every two seconds. Five
+        // minutes at most: since blows from the sky spare parts and taunts turn guns, seed 1 takes 248 s.
+        while (w.Time < 300 && Showcase.Standing(w) > 1)
         {
             Steps.Run(w, 2);
             Showcase.Steer(w);

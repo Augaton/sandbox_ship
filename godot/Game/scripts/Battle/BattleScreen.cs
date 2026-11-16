@@ -466,7 +466,7 @@ public partial class BattleScreen : Node
         if (Opts.Net is not null || Sim.Battle.Outcome(World, c.Attacker, c.Defender) is not BattleResult r) return;
         result = r;
         var winner = r == BattleResult.Attacker ? c.Attacker : c.Defender;
-        Hud.ShowBattleEnd(winner == Opts.Player, ReturnToGalaxy);
+        Hud.ShowBattleEnd(winner == Opts.Player, ReturnToGalaxy, toll: Main.Instance.CampaignToll(c.BattleId, r));
     }
 
     /// <summary>Leaves a campaign battle to play on by itself, back on the galaxy map.</summary>
@@ -542,7 +542,9 @@ public partial class BattleScreen : Node
                 case Destroyed d:
                     Explode(d.Id, d.X, d.Y, d.Radius);
                     Play(d.Radius >= 50 ? Sound.BigExplosion : Sound.Explosion, d.X, d.Y, Math.Min(1, 0.4 + d.Radius / 60));
-                    if (d.Side == Opts.Player && d.Kind != EntityKind.Ship) Alert($"Perte : {Names.TypeName(d.EntityType)}", d.X, d.Y, true);
+                    // A part lost is no news of its own: a ship's would raise nine alerts as it dies, and a
+                    // station under fire already says so (UnderFire).
+                    if (d.Side == Opts.Player && d.Kind == EntityKind.Structure) Alert($"Perte : {Names.TypeName(d.EntityType)}", d.X, d.Y, true);
                     // Out of a free-for-all before it ends, with no ally left holding a station (or in
                     // regicide, a flagship): say so now, the others may fight on for long.
                     if (d.EntityType == "station" && d.Side == Opts.Player && Opts.Campaign is null && Replay is null && w.Winner is null && !defeated && Modes.Out(w, Opts.Player))
@@ -550,7 +552,7 @@ public partial class BattleScreen : Node
                         defeated = true;
                         Hud.ShowEnd(false);
                     }
-                    else if (d.Side == Opts.Player && !OnScreen(d.X, d.Y)) Alert($"Perte : {Names.TypeName(d.EntityType)}", d.X, d.Y);
+                    else if (d.Side == Opts.Player && d.Kind != EntityKind.Hardpoint && !OnScreen(d.X, d.Y)) Alert($"Perte : {Names.TypeName(d.EntityType)}", d.X, d.Y);
                     break;
                 case Hit h:
                     Spark(h.X, h.Y);

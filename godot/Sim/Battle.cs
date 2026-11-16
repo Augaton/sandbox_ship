@@ -50,6 +50,9 @@ public sealed class BattleSide
 /// <summary>The attacker took the planet, the defender held it, or the attacker fell back.</summary>
 public enum BattleResult { Attacker, Defender, Retreat }
 
+/// <summary>How a battle looks likely to end for one side (Battle.Outlook).</summary>
+public enum BattleOutlook { CertainDefeat, Unfavorable, Even, Favorable, CertainVictory }
+
 public static class Battle
 {
     public const double Width = 4000;
@@ -200,12 +203,75 @@ public static class Battle
         return left;
     }
 
-    /// <summary>Hull and shields a side still has in the battle: what the battle prompt compares.</summary>
-    public static double SideStrength(World world, Side side)
+    /// <summary>
+    /// What a side opposes to `foe` in a fight to the end, by Lanchester's square law: the damage it
+    /// keeps up against what the foe is made of, times the hull and shields that stand in the way.
+    /// As Outcome judges a battle, mines and docks neither fight nor have to fall, and do not count.
+    /// What stands still counts for less (FixedHull, FixedRate): a fleet fights it last, out of reach
+    /// of most of it. Measured against the automatic resolution in OutlookTests.
+    /// </summary>
+    public static double Power(World world, Side side, Side foe)
     {
-        double total = 0;
-        foreach (var e in world.Entities) if (e.Side == side) total += e.Hull + e.Shield;
-        return Js.Round(total);
+        double hull = 0, foeTotal = 0;
+        var foeBySize = new Dictionary<SizeClass, double>();
+        foreach (var e in world.Entities)
+        {
+            if (!Stands(e) || (e.Side != side && e.Side != foe)) continue;
+            var body = e.Hull + e.Shield;
+            if (e.Side == side) hull += body * (Moves(world, e) ? 1 : FixedHull);
+            else
+            {
+                foeBySize[e.Size] = foeBySize.GetValueOrDefault(e.Size) + body;
+                foeTotal += body;
+            }
+        }
+        double Against(WeaponDef w)
+        {
+            if (foeTotal <= 0) return Combat.Rate(w);
+            double hit = 0;
+            foreach (var (size, body) in foeBySize) hit += body / foeTotal * w.Multipliers.Of(size);
+            return Combat.Rate(w) * hit;
+        }
+        double rate = 0;
+        foreach (var e in world.Entities)
+        {
+            if (e.Side != side || e.Launched) continue;
+            var mult = Combat.DamageMult(world, e) * (Moves(world, e) ? 1 : FixedRate);
+            foreach (var w in e.Weapons) rate += Against(w.Def) * mult;
+            if (e.Hangar is not { } hangar) continue;
+            // A hangar keeps its craft up to its cap: the average of what it launches, that many times.
+            rate += hangar.Def.Squadrons.Average(q => Data.Ships.Defs[q.Cls].Weapons.Sum(Against)) * hangar.Def.Cap * mult;
+        }
+        return rate * hull;
+    }
+
+    /// <summary>Whether fire must go through it: a ship, the station, or what carries guns.</summary>
+    static bool Stands(Entity e) => e.Kind == EntityKind.Ship || e.Type == "station" || e.Weapons.Count > 0;
+
+    /// <summary>A ship or a part of one, against a station, a platform and their parts.</summary>
+    static bool Moves(World world, Entity e) =>
+        e.Kind == EntityKind.Ship || (e.Kind == EntityKind.Hardpoint && world.Entities.Get(e.ParentId)?.Kind == EntityKind.Ship);
+
+    /// <summary>What a structure's hull and guns count for against a ship's, fitted on 2 211 battles (OutlookTests).</summary>
+    const double FixedHull = 0.3, FixedRate = 0.5;
+
+    /// <summary>
+    /// The attacker's power over the defender's from which a battle looks unfavorable to it, even,
+    /// favorable, almost won; under Doomed, almost lost. At equal power a defender wins more often
+    /// than not. Measured against the automatic resolution in OutlookTests.
+    /// </summary>
+    const double Doomed = 0.25, Unfavorable = 2.0 / 3, Favorable = 2, Crushing = 6;
+
+    /// <summary>A battle in words for its attacker, from each side's Power; sides that cannot hurt each other are even.</summary>
+    public static BattleOutlook Outlook(double attacker, double defender)
+    {
+        if (attacker <= 0 && defender <= 0) return BattleOutlook.Even;
+        var edge = defender > 0 ? attacker / defender : double.PositiveInfinity;
+        return edge >= Crushing ? BattleOutlook.CertainVictory
+            : edge >= Favorable ? BattleOutlook.Favorable
+            : edge >= Unfavorable ? BattleOutlook.Even
+            : edge >= Doomed ? BattleOutlook.Unfavorable
+            : BattleOutlook.CertainDefeat;
     }
 
     /// <summary>

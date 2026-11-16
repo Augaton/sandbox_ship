@@ -91,7 +91,7 @@ public class ResearchTiersTests
         var ship = SpawnShip(w, Faction.Klaed, ShipClass.Battlecruiser, 1000, 1000);
         Assert.True(UseAbility(w, ship).Ok);
         var a = ship.Abilities[0];
-        Expect.Close(Abilities.Defs[a.Id].Cooldown * 0.88, a.Cooldown, 6);
+        Expect.Close(Abilities.Defs[a.Id].Cooldown * (1 - 2 * Techs.EnergyBonus), a.Cooldown, 6);
     }
 
     [Fact]

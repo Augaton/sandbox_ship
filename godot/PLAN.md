@@ -487,6 +487,67 @@ tests de `FixtureTests` et `CrossTests` les listent.
     vagues normales ou plus fortes. Protocole 10 (les deux règles dans `LobbySettings`) ; rediffusions au format 4, qui
     garde la force des vagues ; les formats 1 à 3 se lisent toujours, aux vagues normales. Le serveur en ligne n'a pas à
     changer : le relais compare la version de l'hôte à celle du joueur, sans en figer aucune.
+- Systèmes revus (2026-11-16), d'après un audit en trois parts (commandes, bataille, campagne) ; mesures entre IA,
+  aucune face à un humain.
+  - Commandes : la Lance stellaire du joueur se vise enfin (la visée s'annulait à l'image suivante : seuls les
+    vaisseaux comptaient comme lanceurs). Une pièce détruite ne lève plus d'alerte (un cuirassé en levait neuf en
+    mourant). F puis Maj + clic, et Maj + clic droit sur la minicarte, mettent en file. Zoom arrière par la touche à
+    côté de celle du zoom avant (`)` en AZERTY, où `-` est la touche du groupe 6). Un ordre sonne, laisse un anneau
+    sur la minicarte et la route d'une sélection hors de la vue reste tracée ; Stop a son son et ses anneaux. Sur
+    la minicarte, un clic gauche vise pour l'attaque-mouvement, la patrouille, la garde ou une capacité en attente,
+    et un clic droit pose le ralliement de la station sélectionnée. Le repli pour réparation se voit (croix claire,
+    « Repli pour réparation », hors des inactifs ; instantanés de bataille 9, dans le bit haut de la posture).
+    Plusieurs vaisseaux sélectionnés : combien en route, au combat, en repli, inactifs.
+  - IA de bataille : un objectif inatteignable cède sa place (blocage des perdants : 142 s → 2 s en médiane) ; une
+    épargne à part pour héros, capitaux et grosses dépenses, le chantier produisant pendant ce temps ; un héros compte
+    pour son coût. Une menace près de toute structure appelle la flotte sur l'ennemi, si elle vaut au moins 60 % de ce
+    qu'elle voit là. Plafond de mines par personnalité (Économe 6, Agressive 3), niveaux de plateforme achetés, coques
+    moyennes contrées. Personnalités : 31 / 38 / 50 / 56 / 50 % (équilibrée, agressive, défensive, économe,
+    technologique ; 34 points d'écart avant, 25 après).
+  - Règles de bataille : une frappe de zone touche un vaisseau une fois, bouclier compris, ses pièces à 25 % et
+    seulement bouclier tombé (une station de niveau 2 se dépouillait en une frappe, il en faut trois). Les tourelles
+    d'un vaisseau suivent sa provocation si elles portent. Chaque classe s'arrête là où 75 % de son feu porte
+    (`Combat.StopRange` : Léviathan 51 → 92 %). Soutiens près des blessés, ralliement par `Reachable`. Amiral 8 000
+    cr, Énergie 12 % par niveau (sans la Lance), canon ionique ×3 sur les boucliers, armada d'assaut à 9 frégates
+    (défense 54 % sur 108 parties).
+  - Niveaux d'IA (`DifficultyDef`) : ils diffèrent par leurs décisions. Facile : réagit en 15 s, défend sa seule
+    station, n'adapte rien, attaque sans peser les forces, emploie 40 % de ses capacités. Difficile : tir concentré,
+    pièces visées bouclier tombé, raids sur les mines non gardées, rappel d'une vague qui perd, flotte adaptée,
+    recherche ×1,75. Revenu en bataille 0,75 / 1 / 1. À revenu égal (`AiLevelsBalanceTests`) : Difficile bat
+    Normale 80 % (96 parties), Normale et Difficile battent Facile 97 %. En campagne, revenu 0,75 / 1 / 1,15 (1,35
+    avant) : Difficile bat Normale 85 % à revenu égal, Normale bat Facile 75 % (`DifficultyBalanceTests`).
+  - Campagne, confort : la galaxie en solo démarre en pause, et le menu, l'aide et les options arrêtent le temps
+    (`Dev.RunsClock` le lance pour les vérifications). Maintenir V puis clic droit envoie un seul vaisseau. Avis à
+    gauche partagés avec la bataille (`ToastStack`), alertes « Voir » (occupation, attaque, perte), vaisseaux terminés
+    regroupés hors du journal, défaite annoncée dès l'élimination (un camp éliminé voit toute la carte). Chaque
+    bataille porte son bilan (`BattleToll`). L'invite donne une issue en mots (`Battle.Power`, `Battle.Outlook`, calibrée
+    sur 2 211 batailles, remesurée après les règles de bataille : « Victoire presque certaine » 97,6 %, « Indécise » 48 %) ; les victoires écrasantes se
+    résolvent seules (Options, réglage `AutoResolveWon`). Un ralliement ne vise jamais une planète tenue par un
+    non-allié, et s'annule si elle tombe.
+  - Campagne, règles : prix de paix plafonné et proposé, confiance achetable 15 points par 10 min, trêve prolongée une
+    fois, deux IA attendent 10 min avant de resigner (nuls des parties de l'audit : 14/40 → 1/40 ; ils venaient des
+    miroirs Défensive contre Défensive, que la série des personnalités ne joue pas). L'IA épargne pour la Lance en
+    station 4 (Lance de campagne 20 000 cr, 120 s, charge 240 s), achète les niveaux de plateforme et suit les
+    spécialités. Épaves et bandes aux frontières une fois les neutres pris ; une tempête coupe une planète frontalière
+    3 min ; le ravitaillement se compte depuis les stations, à 2 voies, avec usure et sans réparation au-delà.
+  - Protocole 11, instantanés de galaxie 4 (bilan, puissance, occupations, ralliements annulés, prix de paix).
+  - Sécurité : un instantané de galaxie borne désormais les niveaux et les nombres d'une planète (64 au plus) ; un hôte
+    malveillant pouvait figer la carte d'un joueur avec une station de niveau deux milliards, un repère étant dessiné par
+    niveau (défaut antérieur à ce chantier). Les défenses du bilan sont bornées de même, la puissance d'un camp et le prix
+    de paix demandé sont lus finis et positifs. Le fuzz couvre les nouveaux événements (bilan, occupation, ralliement
+    annulé, vaisseau construit).
+  - Performances, banc console en Release, ancien code contre nouveau (temps bruités par une machine chargée, allocations
+    exactes) : l'IA de bataille allouait 2,5 Kio par pas au lieu de 1,05 (chaque vaisseau ennemi testé contre chaque
+    structure, avec une fermeture par vaisseau) ; ses menaces se cherchent maintenant par la grille autour de chaque
+    structure : 1,1 Kio, et 4,3 Kio pour le pas entier (4,4 avant). Un soutien cherche son protégé deux fois par seconde
+    au plus, comme un blessé son réparateur. La bataille de mesure est 18 % plus serrée (433 → 512 ennemis à 500 par
+    entité armée), ce que le ciblage paie. Campagne : 18 à 33 Kio et 0,25 à 0,9 ms par pas (21 à 30 Kio et 0,5 à 1,3 ms
+    avant).
+  - Ouvert : le régicide se déséquilibre (Kla'ed 39 → 26 %, Nairan 30 → 45 % sur 108 parties ; la moitié vient de la
+    frappe corrigée, dont l'amiral kla'ed profitait). 7 escarmouches sur 72 vont au-delà de 60 min entre IA (aucune
+    au-delà de 85). Le tir concentré, les raids et le choix des capacités du Difficile se voient sans gain mesurable ;
+    son avance vient du rappel des vagues et de la recherche. Les seuils de temps de `FuzzTests` (1 s par entrée)
+    lâchent sous forte charge.
 - Sécurité (2026-11-03) : ce qu'un inconnu peut envoyer au serveur en ligne, à un hôte ou au jeu, et les fichiers du joueur.
   Chaque lecteur exposé passe un test de robustesse à graine fixe (`FuzzTests` : trames du relais, messages du jeu, ordres,
   instantanés de bataille entiers et en parties, galaxie, rediffusions, sauvegardes), et chaque correction a son test

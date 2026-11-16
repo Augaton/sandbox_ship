@@ -151,7 +151,9 @@ public static class Buildables
             Cost: 600, BuildTime: 20, MinStationLevel: 1, Weapons: [], Repair: new(280, 15), NearMines: true),
         [BuildableType.IonCannon] = new(BuildableType.IonCannon, "Canon ionique", Hull: 1400, Shield: 400, ShieldRegen: 8, Radius: 26,
             Cost: 1500, BuildTime: 35, MinStationLevel: 3,
-            Weapons: [new(WeaponKind.Ray, 900, 90, 5, 1200, Mult: new SizeMult(Small: 0.1, Medium: 0.8))]),
+            // Its bolts tear down shields, three times their damage: at 18 damage a second on hulls
+            // and nothing else, it was a dear and weaker platform of a longer reach.
+            Weapons: [new(WeaponKind.Ray, 900, 90, 5, 1200, Mult: new SizeMult(Small: 0.1, Medium: 0.8), ShieldMult: 3)]),
         // Research goes on only while one stands; a skirmish gives one beside each station.
         [BuildableType.Lab] = new(BuildableType.Lab, "Laboratoire", Hull: 1200, Shield: 400, ShieldRegen: 5, Radius: 34,
             Cost: 800, BuildTime: 30, MinStationLevel: 1, Weapons: []),

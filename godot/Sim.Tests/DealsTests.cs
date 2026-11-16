@@ -260,6 +260,108 @@ public class DealsTests
     }
 
     [Fact]
+    public void An_AI_never_asks_more_than_a_tribute_can_be()
+    {
+        var g = StrongAi();
+        g.Factions[Nairan].AI!.Personality = Personality.Aggressive;
+        foreach (var p in g.Planets.Where(p => p.Owner is null)) p.Owner = Nairan;
+        g.Planets[Id("Kaldra")].Income += 100;
+        // Uncapped, a third of its income: far beyond the largest tribute.
+        Expect.Greater(IncomeOf(g, Nairan) * 60 / 3, MaxTributePerMinute);
+        Assert.Equal(MaxTributePerMinute, GalaxyAi.PeacePrice(g, Nairan, Klaed));
+        g.Factions[Klaed].Credits = MaxTribute;
+        Assert.True(ProposeDeal(g, Klaed, Nairan, DealKind.Tribute, MaxTribute).Ok);
+        Assert.True(AtPeace(g, Klaed, Nairan));
+    }
+
+    [Fact]
+    public void Gifts_buy_only_so_much_trust_at_a_time_and_no_alliance_at_the_start()
+    {
+        foreach (var personality in Personalities.All)
+        {
+            var g = Three(personality);
+            g.Factions[Klaed].Credits = 100000;
+            g.Truces.Add(new Truce { A = Klaed, B = Nairan, Remaining = TruceTime });
+            for (var gift = 0; gift < 5; gift++) ProposeDeal(g, Klaed, Nairan, DealKind.Tribute, 1000);
+            Assert.Equal(TrustBuyable, TrustOf(g, Nairan, Klaed));
+            Assert.Equal(Result.Fail("Elle ne te fait pas encore assez confiance"), ProposeDeal(g, Klaed, Nairan, DealKind.Alliance));
+        }
+        // Spent, a gift that would buy nothing is turned down, and the credits stay.
+        var h = Three();
+        h.Factions[Klaed].Credits = 100000;
+        h.Truces.Add(new Truce { A = Klaed, B = Nairan, Remaining = TruceTime, Renewed = true });
+        Assert.True(ProposeDeal(h, Klaed, Nairan, DealKind.Tribute, 1000).Ok);
+        var credits = h.Factions[Klaed].Credits;
+        Assert.Equal(Result.Fail("Elle n'attend plus rien de toi pour l'instant"), ProposeDeal(h, Klaed, Nairan, DealKind.Tribute, 1000));
+        Assert.Equal(credits, h.Factions[Klaed].Credits);
+        // Half a truce later, half of it can be bought again.
+        h.Factions[Nairan].AI!.Timer = 1e9;
+        h.Factions[Nautolan].AI!.Timer = 1e9;
+        var before = TrustOf(h, Nairan, Klaed);
+        RunGalaxy(h, TruceTime / 2);
+        var peace = TrustOf(h, Nairan, Klaed);
+        Assert.True(ProposeDeal(h, Klaed, Nairan, DealKind.Tribute, 1000).Ok);
+        Assert.InRange(TrustOf(h, Nairan, Klaed) - peace, TrustBuyable / 2 - 0.1, TrustBuyable / 2 + 0.1);
+        Expect.Greater(peace, before);
+    }
+
+    [Fact]
+    public void A_truce_is_prolonged_once_only_and_only_at_the_AI_s_price()
+    {
+        var g = StrongAi();
+        g.Factions[Klaed].Credits = 100000;
+        var price = GalaxyAi.PeacePrice(g, Nairan, Klaed);
+        Expect.Greater(price, 30);
+        g.Truces.Add(new Truce { A = Klaed, B = Nairan, Remaining = 100 });
+        var truce = TruceOf(g, Klaed, Nairan)!;
+        // A small gift warms it, and leaves the truce as it is.
+        Assert.True(ProposeDeal(g, Klaed, Nairan, DealKind.Tribute, 200).Ok);
+        Assert.Equal(100, truce.Remaining);
+        Assert.False(truce.Renewed);
+        Expect.Greater(TrustOf(g, Nairan, Klaed), 0);
+        // At its price, spread over a truce: back to a full one.
+        Assert.True(ProposeDeal(g, Klaed, Nairan, DealKind.Tribute, price * TruceTime / 60).Ok);
+        Assert.Equal(TruceTime, truce.Remaining);
+        Assert.True(truce.Renewed);
+        // Never twice.
+        truce.Remaining = 100;
+        ProposeDeal(g, Klaed, Nairan, DealKind.Tribute, price * TruceTime / 60);
+        Assert.Equal(100, truce.Remaining);
+    }
+
+    [Fact]
+    public void Two_AIs_wait_before_signing_again_a_player_does_not()
+    {
+        var g = Three(Personality.Defensive);
+        g.Factions[Nautolan].AI!.Personality = Personality.Defensive;
+        // Both left to think no more: only the rule at work.
+        g.Factions[Nairan].AI!.Timer = g.Factions[Nautolan].AI!.Timer = 1e9;
+        g.Truces.Add(new Truce { A = Nairan, B = Nautolan, Remaining = 1 });
+        g.Truces.Add(new Truce { A = Klaed, B = Nairan, Remaining = 1 });
+        RunGalaxy(g, 2);
+        Assert.Empty(g.Truces);
+        Assert.Equal(Result.Fail("Elle sort à peine d'une trêve avec toi"), ProposeDeal(g, Nautolan, Nairan, DealKind.Truce));
+        Assert.True(ProposeDeal(g, Klaed, Nairan, DealKind.Truce).Ok);
+        RunGalaxy(g, RetruceTime);
+        Assert.True(ProposeDeal(g, Nautolan, Nairan, DealKind.Truce).Ok);
+    }
+
+    [Fact]
+    public void An_AI_does_not_offer_a_truce_it_would_itself_refuse_after_one()
+    {
+        var g = CreateGalaxy([new Slot(Klaed, Faction.Klaed, 0, Difficulty.Normal, null, Personality.Defensive), new Slot(Nairan, Faction.Nairan, 0, Difficulty.Normal, null, Personality.Defensive)],
+            5, GalaxyGen.GenerateLayout(5, 2, MapSize.Small), errants: false, incidents: false);
+        g.Player = (Faction)99;
+        foreach (var n in Neighbours(g, Capital(g, Klaed))) if (g.Planets[n].Owner is null) g.Planets[n].Owner = Nairan;
+        g.Truces.Add(new Truce { A = Klaed, B = Nairan, Remaining = 1 });
+        for (var t = 0; t < 30; t++)
+        {
+            RunGalaxy(g, 1);
+            Assert.DoesNotContain(g.Events, e => e is TruceSigned);
+        }
+    }
+
+    [Fact]
     public void A_player_answers_an_offer_in_its_own_time()
     {
         var g = Three();
@@ -329,6 +431,25 @@ public class DealsTests
     }
 
     [Fact]
+    public void A_replica_knows_what_an_AI_asks_its_viewer_for_peace_and_a_truce_prolonged()
+    {
+        var g = Three();
+        Arm(g, Nairan, 12);
+        g.Truces.Add(new Truce { A = Klaed, B = Nautolan, Remaining = 300, Renewed = true });
+        var price = GalaxyAi.PeacePrice(g, Nairan, Klaed);
+        Expect.Greater(price, 0);
+        using var ms = new MemoryStream();
+        using (var w = new BinaryWriter(ms)) GalaxySnapshot.Write(g, Klaed, w);
+        var replica = new Galaxy();
+        GalaxySnapshot.ReadChart(new BinaryReader(new MemoryStream(GalaxySnapshot.Chart(g))), replica);
+        Assert.NotNull(GalaxySnapshot.Read(new BinaryReader(new MemoryStream(ms.ToArray())), replica));
+        // Its fleets out of the viewer's sight: worked out there, the price would be wrong.
+        Assert.Equal(price, replica.Factions[Nairan].AI!.Asked!.Value, 3);
+        Assert.True(Assert.Single(replica.Truces).Renewed);
+        Assert.Null(g.Factions[Nairan].AI!.Asked);
+    }
+
+    [Fact]
     public void Deals_and_trust_survive_a_save_and_older_saves_have_none()
     {
         var g = Three();
@@ -350,9 +471,11 @@ public class DealsTests
         foreach (var o in old["offers"]!.AsArray()) Assert.True(o!.AsObject().Remove("kind") && o.AsObject().Remove("amount") && o.AsObject().Remove("perMinute"));
         foreach (var f in old["factions"]!.AsArray())
         {
-            if (f!["ai"] is JsonObject ai) Assert.True(ai.Remove("trust") && ai.Remove("personality"));
+            if (f!["ai"] is JsonObject ai) Assert.True(ai.Remove("trust") && ai.Remove("personality") && ai.Remove("boughtTrust") && ai.Remove("truceRest") && ai.Remove("fund"));
         }
         var loaded = GalaxySave.Deserialize(old.ToJsonString())!;
+        Assert.Empty(loaded.Factions[Nairan].AI!.BoughtTrust);
+        Assert.Empty(loaded.Factions[Nairan].AI!.TruceRest);
         Assert.Empty(loaded.Pacts);
         Assert.Empty(loaded.Tributes);
         Assert.Equal(DealKind.Truce, Assert.Single(loaded.Offers).Kind);

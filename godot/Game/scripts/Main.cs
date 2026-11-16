@@ -303,6 +303,9 @@ public partial class Main : Node
         galaxy = next;
     }
 
+    /// <summary>What a campaign battle decided here costs, for its end screen: nothing has changed on the galaxy map yet.</summary>
+    public IReadOnlyList<string>? CampaignToll(int battleId, BattleResult result) => galaxy?.TollLines(battleId, result);
+
     /// <summary>A campaign battle is decided: back to the galaxy with its result.</summary>
     public void FinishCampaignBattle(int battleId, BattleResult result)
     {

@@ -63,9 +63,7 @@ public partial class Hud : CanvasLayer
     /// <summary>The station level the upgrade button pictures, 0 for none.</summary>
     int upgradeLevel;
     Minimap minimap = null!;
-    VBoxContainer toasts = null!;
-    /// <summary>When each toast fades out and when it goes, in milliseconds; its message, and how many times it came.</summary>
-    readonly Dictionary<Control, (double Fade, double End, string Text, int Count)> toastTimes = [];
+    readonly ToastStack toasts = new();
     PanelContainer? sandboxPanel;
     OptionButton? spawnFaction, spawnWhat;
     Button? spawnButton;
@@ -470,9 +468,8 @@ public partial class Hud : CanvasLayer
     /// <summary>Toasts on the left, the piloting banner centered, the tooltip by the pointer: above the panels.</summary>
     void BuildOverlays()
     {
-        toasts = Ignore(Column(4));
-        toasts.Position = new Vector2(8, ToastTop);
-        root.AddChild(toasts);
+        toasts.Box.Position = new Vector2(8, ToastTop);
+        root.AddChild(toasts.Box);
 
         var bannerArea = Column(0);
         bannerArea.SetAnchorsPreset(Control.LayoutPreset.TopWide);
@@ -499,60 +496,15 @@ public partial class Hud : CanvasLayer
         if (!r.Ok) Toast(r.Reason);
     }
 
-    public void Toast(string text) => AddToast(text, null);
+    public void Toast(string text)
+    {
+        if (root is not null) toasts.Add(text);
+    }
 
     /// <summary>An attack or a loss, with a button to go and see.</summary>
-    public void Alert(string text, Action see) => AddToast(text, see);
-
-    /// <summary>
-    /// Short messages that fade out on their own; an alert stays longer and offers to go and see.
-    /// A message already showing is counted again (×2) and starts its time over, rather than stacked.
-    /// </summary>
-    void AddToast(string text, Action? see)
+    public void Alert(string text, Action see)
     {
-        if (root is null) return;
-        var life = see is not null ? 4500 : 2200;
-        var now = BattleScreen.Now;
-        if (see is null && toasts.GetChildren().OfType<Control>().FirstOrDefault(c => toastTimes.TryGetValue(c, out var shown) && shown.Text == text) is { } same)
-        {
-            var count = toastTimes[same].Count + 1;
-            same.GetChild(0).GetChild<Label>(0).Text = $"{text} ×{count}";
-            same.Modulate = Colors.White;
-            toastTimes[same] = (now + life, now + life + 400, text, count);
-            toasts.MoveChild(same, -1);
-            return;
-        }
-        var t = see is null ? Panel(12, 6) : Panel(12, 6, Palette.Danger);
-        t.SizeFlagsHorizontal = Control.SizeFlags.ShrinkBegin;
-        var row = Row(12);
-        t.AddChild(row);
-        var label = Text(text);
-        label.SizeFlagsVertical = Control.SizeFlags.ShrinkCenter;
-        row.AddChild(label);
-        if (see is not null) row.AddChild(Button("Voir", see, "Retour arrière : aller à la dernière alerte", 32));
-        else t.MouseFilter = Control.MouseFilterEnum.Ignore;
-        toasts.AddChild(t);
-        while (toasts.GetChildCount() > 4) RemoveToast(toasts.GetChild<Control>(0));
-        toastTimes[t] = (now + life, now + life + 400, text, 1);
-    }
-
-    void RemoveToast(Control t)
-    {
-        toastTimes.Remove(t);
-        toasts.RemoveChild(t);
-        t.QueueFree();
-        // Back to the width of what is left.
-        toasts.Size = Vector2.Zero;
-    }
-
-    void FadeToasts()
-    {
-        var now = BattleScreen.Now;
-        foreach (var (t, (fade, end, _, _)) in toastTimes.ToList())
-        {
-            if (now >= end) RemoveToast(t);
-            else if (now >= fade) t.Modulate = new Color(1, 1, 1, (float)Math.Max(0, 1 - (now - fade) / 300));
-        }
+        if (root is not null) toasts.Add(text, see);
     }
 
     /// <summary>Reflects speed, pause, sandbox and mode states in the buttons.</summary>
@@ -585,7 +537,7 @@ public partial class Hud : CanvasLayer
     {
         if (root is null) return;
         PlaceTip();
-        FadeToasts();
+        toasts.Tick();
         FadeObjective();
         Layout();
         TickModes(delta);
@@ -609,7 +561,7 @@ public partial class Hud : CanvasLayer
         var h = Screen.Y;
         // The tutorial's card holds the top left corner: the toasts come under it.
         var top = scene.TutorialBottom is float card ? card + 8 : ToastTop;
-        if (toasts.Position.Y != top) toasts.Position = new Vector2(8, top);
+        if (toasts.Box.Position.Y != top) toasts.Box.Position = new Vector2(8, top);
         Fit(selectionScroll, h * 0.42);
         foreach (var s in buildScrolls) Fit(s, Math.Max(104, h * 0.4 - 112));
         foreach (var g in grids)
@@ -661,7 +613,7 @@ public partial class Hud : CanvasLayer
         }
         if (e.Side == Player && e.Kind == EntityKind.Ship)
         {
-            var doing = e.Order is { } o ? OrderName(o.Type) : e.TargetId is not null ? "Au combat" : "Inactif";
+            var doing = Doing(e);
             lines.Add(TextPart($"{doing}, posture : {Selection.StanceName(e.Stance)}", Palette.Muted, size, wrap: false));
         }
         Sync(tipLines, lines);

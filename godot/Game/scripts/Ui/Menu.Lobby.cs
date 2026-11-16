@@ -391,6 +391,9 @@ public partial class Menu
             if (choices[i].Ask is null || !Leads && !(claim && i == 0) || kept) drop.SetItemDisabled(i, !choices[i].On);
         }
         if (net is null) drop.SetItemTooltip(far, "Pour jouer à plusieurs : « Multijoueur », au menu principal.");
+        // Each level says how it plays, in the list and on the seat a bot holds.
+        foreach (var d in Enum.GetValues<Difficulty>()) drop.SetItemTooltip(1 + (int)d, Worlds.Difficulties[d].Description);
+        if (seat.Kind == SeatKind.Bot) drop.TooltipText = Worlds.Difficulties[seat.Difficulty].Description;
         drop.Disabled = !Leads && !claim;
         if (claim) drop.TooltipText = "Choisis « Toi » pour prendre cette place.";
         return drop;

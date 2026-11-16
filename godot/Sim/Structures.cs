@@ -82,7 +82,7 @@ public static class Structures
     }
 
     /// <summary>The AI's difficulty scales its income.</summary>
-    static double IncomeMult(FactionState f) => f.AI is not null ? Difficulties[f.AI.Difficulty].Income : 1;
+    static double IncomeMult(FactionState f) => f.AI is not null ? Difficulties[f.AI.Difficulty].BattleIncome : 1;
 
     static void Earn(FactionState f, double amount)
     {
@@ -175,7 +175,7 @@ public static class Structures
                     : SpawnShip(world, f.Id, item.Cls, p.X + i * 6, p.Y, angle);
                 var x = f.RallyX + (Rand(world) - 0.5) * 160;
                 var y = f.RallyY + (Rand(world) - 0.5) * 160;
-                s.Order = Order.Move(x, y);
+                s.Order = Movement.RallyOrder(world, s, x, y);
                 world.Events.Add(new Delivered(s.Id));
             }
         }
@@ -440,7 +440,10 @@ public static class Structures
 
     /// <summary>Platforms the side may still build, over all its build areas.</summary>
     public static int PlatformRoom(World world, Side side) =>
-        BuildZones(world, side, BuildableType.Platform).Sum(z => Math.Max(0, PlatformCap(z.Area) - PlatformsIn(world, side, z)));
+        BuildZones(world, side, BuildableType.Platform).Sum(z => RoomIn(world, side, z));
+
+    /// <summary>Platforms the side may still build in this build area.</summary>
+    public static int RoomIn(World world, Side side, Circle z) => Math.Max(0, PlatformCap(z.Area) - PlatformsIn(world, side, z));
 
     /// <summary>Whether a research building stands and works.</summary>
     public static bool HasLab(World world, Side side)

@@ -29,7 +29,7 @@ public static class Bindings
         SelectAll = "select_all", AttackMove = "attack_move", Patrol = "patrol", Guard = "guard", Stance = "stance",
         Ability = "ability", Pilot = "pilot", CenterSelection = "center_selection",
         CenterStation = "center_station", LastAlert = "last_alert", Idle = "idle", Build = "build", Mute = "mute",
-        Overview = "overview", Fleets = "fleets", Empire = "empire", Log = "log", Diplomacy = "diplomacy";
+        Overview = "overview", Fleets = "fleets", Empire = "empire", Log = "log", Diplomacy = "diplomacy", SendOne = "send_one";
 
     static Combo Phys(Key k) => new(k, Physical: true);
 
@@ -41,7 +41,8 @@ public static class Bindings
         new(PanDown, "Vue vers le bas ; en pilotant, reculer", Where.Both, Phys(Key.S), new Combo(Key.Down)),
         new(PanRight, "Vue vers la droite ; en pilotant, tourner", Where.Both, Phys(Key.D), new Combo(Key.Right)),
         new(ZoomIn, "Zoom avant", Where.Both, new Combo(Key.Equal), new Combo(Key.Plus), new Combo(Key.KpAdd)),
-        new(ZoomOut, "Zoom arrière", Where.Both, new Combo(Key.Minus), new Combo(Key.KpSubtract)),
+        // By its place, beside the zoom in key: on AZERTY, the key printed - is the sixth group's.
+        new(ZoomOut, "Zoom arrière", Where.Both, Phys(Key.Minus), new Combo(Key.Minus), new Combo(Key.KpSubtract)),
         new(Pause, "Pause", Where.Both, new Combo(Key.Space)),
         new(Stop, "Stop ; sur la carte, arrêter la flotte en route", Where.Both, new Combo(Key.X)),
         new(SelectAll, "Tous tes vaisseaux", Where.Battle, new Combo(Key.A, Ctrl: true)),
@@ -53,7 +54,7 @@ public static class Bindings
         new(Pilot, "Piloter le vaisseau sélectionné", Where.Battle, new Combo(Key.P)),
         new(CenterSelection, "Centrer la vue sur la sélection", Where.Battle, new Combo(Key.C)),
         new(CenterStation, "Centrer la vue sur la station", Where.Battle, new Combo(Key.H)),
-        new(LastAlert, "Aller à la dernière alerte", Where.Battle, new Combo(Key.Backspace)),
+        new(LastAlert, "Aller à la dernière alerte", Where.Both, new Combo(Key.Backspace)),
         new(Idle, "Vaisseau inactif suivant (Maj : tous)", Where.Battle, new Combo(Key.I)),
         new(Build, "Ouvrir ou replier la production", Where.Battle, new Combo(Key.B)),
         new(Mute, "Couper ou rétablir le son", Where.Battle, new Combo(Key.M)),
@@ -62,6 +63,7 @@ public static class Bindings
         new(Empire, "Vue d'ensemble de l'empire", Where.Galaxy, new Combo(Key.E)),
         new(Log, "Journal", Where.Galaxy, new Combo(Key.J)),
         new(Diplomacy, "Diplomatie", Where.Galaxy, new Combo(Key.T)),
+        new(SendOne, "Envoyer un seul vaisseau (maintenir, puis clic droit)", Where.Galaxy, new Combo(Key.V)),
     ];
 
     static readonly Dictionary<string, Binding> byId = All.ToDictionary(b => b.Id);
@@ -131,7 +133,7 @@ public static class Bindings
         [Key.Space] = "Espace", [Key.Backspace] = "Retour arrière", [Key.Escape] = "Échap", [Key.Enter] = "Entrée",
         [Key.KpEnter] = "Entrée du pavé", [Key.Tab] = "Tab", [Key.Home] = "Début", [Key.End] = "Fin", [Key.Delete] = "Suppr",
         [Key.Insert] = "Inser", [Key.Pageup] = "Page préc.", [Key.Pagedown] = "Page suiv.", [Key.Up] = "Haut", [Key.Down] = "Bas",
-        [Key.Left] = "Gauche", [Key.Right] = "Droite", [Key.Equal] = "+", [Key.Plus] = "+", [Key.Minus] = "-",
+        [Key.Left] = "Gauche", [Key.Right] = "Droite", [Key.Equal] = "+", [Key.Plus] = "+", [Key.Minus] = "-", [Key.Parenright] = ")",
         [Key.KpAdd] = "+ du pavé", [Key.KpSubtract] = "- du pavé", [Key.Capslock] = "Verr. maj.",
     };
 

@@ -32,8 +32,10 @@ The screenshots show the game in French; it plays in English too (Options, Langu
   parts: turrets, engines, shield generators, hangars. Bullets, lasers, torpedoes, rays,
   continuous beams, bursts that reload, missile swarms and ion cannons; flak shoots missiles down
   in flight. In the endgame, the Star lance strikes anywhere on the map.
-- **An AI** that adapts to what it sees, and ships that pick their targets, keep their distance,
-  dodge announced strikes and fall back to get repaired.
+- **An AI in three levels** that differ in how they play, not only in what they earn: the Easy
+  one reacts late and defends only its station, the Normal one defends everything it holds, the
+  Hard one focuses its fire, raids mines and calls back a losing wave. Ships that pick their
+  targets, keep their distance, dodge announced strikes and fall back to get repaired.
 - **Over the network**, up to six players, campaign included: on the local network (games show
   up by themselves), through the online server (nothing to open at home) or on a dedicated
   server.
@@ -70,7 +72,8 @@ The main battle controls; all of them are in the game, Options, "Controls" tab:
 | Key | Effect |
 |---|---|
 | Left click, drag | Select |
-| Right click | Move, or attack the target under the pointer |
+| Right click | Move, or attack the target under the pointer (Shift: queued) |
+| Right click on the minimap | Send the selection there, or set the station's rally point there |
 | F then click | Attack-move: engages everything on the way |
 | E | Ability of the selected ships |
 | P | Fly the selected ship |

@@ -20,7 +20,9 @@ Depuis la racine du dépôt :
 godot --path godot/Game                     # lance le jeu
 godot -e --path godot/Game                  # ouvre l'éditeur (F5 lance le jeu)
 dotnet test godot/SandboxShip.slnx          # tests de la simulation, sans Godot
-# mesures longues, à la demande : BALANCE=1 (escarmouches) ou CAMPAIGN=1 (campagnes entre IA)
+# mesures longues, à la demande : BALANCE=1 (escarmouches ; --filter AiLevelsBalance : les niveaux de l'IA
+# de bataille), CAMPAIGN=1 (campagnes entre IA), PERSONALITIES=1, DIFFICULTY=1 (niveaux de l'IA de
+# galaxie), OUTLOOK=1 (calibration de l'issue probable des invites ; -c Release --filter Measures_the_outlook)
 # dotnet test godot/Sim.Tests --filter Balance --logger "console;verbosity=detailed"
 npm run fixtures                            # références et apparences tirées de la version web
 ```

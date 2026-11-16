@@ -33,6 +33,53 @@ public class TierTests
         foreach (var e in enemies) Assert.Equal(0, e.Effects.Taunted);
     }
 
+    [Fact]
+    public void The_guns_on_a_taunted_ship_turn_on_the_bulwark_when_they_can_reach_it()
+    {
+        var w = Open();
+        w.Factions[Faction.Klaed].AutoAbilities = false;
+        var bulwark = SpawnShip(w, Faction.Klaed, ShipClass.Bulwark, 1000, 2000);
+        bulwark.Stance = Stance.Passive;
+        // Something frailer nearer the cruiser: what its guns would shoot without the taunt.
+        var bait = SpawnShip(w, Faction.Klaed, ShipClass.Support, 1300, 2000);
+        bait.Stance = Stance.Passive;
+        bait.Pilot = new Pilot();
+        var cruiser = SpawnShip(w, Faction.Nairan, ShipClass.Battlecruiser, 1420, 2000, Math.PI);
+        cruiser.Stance = Stance.Hold;
+        Run(w, 1);
+        var guns = ChildrenOf(w, cruiser.Id).Where(p => p.Weapons.Count > 0).ToList();
+        Assert.DoesNotContain(guns, p => AbilitySystem.OwnerOf(w, w.Entities.Get(p.TargetId) ?? p) == bulwark);
+        Assert.True(AbilitySystem.UseAbility(w, bulwark).Ok);
+        Run(w, 0.6);
+        // Reach 450 and 380 from 400 away less its radius: on it. The flak reaches no further than 260: on what it had.
+        foreach (var p in guns)
+        {
+            var reaches = Dist(p, bulwark) - bulwark.Radius <= p.Range;
+            var on = w.Entities.Get(p.TargetId) is { } t && AbilitySystem.OwnerOf(w, t) == bulwark;
+            Assert.Equal(reaches, on);
+        }
+        Assert.Contains(guns, p => Dist(p, bulwark) - bulwark.Radius <= p.Range);
+        Assert.Contains(guns, p => Dist(p, bulwark) - bulwark.Radius > p.Range);
+    }
+
+    [Fact]
+    public void A_taunt_leaves_the_turrets_of_a_structure_on_their_own_targets()
+    {
+        var w = Open();
+        var station = SpawnStation(w, Faction.Nairan, 1000, 2000);
+        var bulwark = SpawnShip(w, Faction.Klaed, ShipClass.Bulwark, 1000, 1600);
+        bulwark.Stance = Stance.Passive;
+        // A support ship right by the turrets: what they would rather shoot.
+        var bait = SpawnShip(w, Faction.Klaed, ShipClass.Support, 1120, 1780);
+        bait.Pilot = new Pilot();
+        Run(w, 1);
+        Assert.True(AbilitySystem.UseAbility(w, bulwark).Ok);
+        Assert.Equal(Abilities.Taunted, station.Effects.Taunted);
+        Run(w, 0.6);
+        var turrets = ChildrenOf(w, station.Id).Where(p => p.Weapons.Count > 0).ToList();
+        Assert.Contains(turrets, p => p.TargetId == bait.Id);
+    }
+
     static int Craft(World w, Entity carrier) => w.Entities.Count(e => e.CarrierId == carrier.Id);
 
     [Fact]

@@ -21,12 +21,12 @@ public static class Controls
         Same("Clic gauche", "Sélectionner (glisser : rectangle, Maj : ajouter)"),
         Same("Double clic, Ctrl + clic", "Tous les vaisseaux de la même classe à l'écran"),
         new(Label(SelectAll), "Tous tes vaisseaux", null),
-        Same("Clic droit", "Déplacer, ou attaquer la cible visée"),
+        Same("Clic droit", "Déplacer, ou attaquer la cible visée ; station sélectionnée : point de ralliement"),
         new($"{Label(AttackMove)} puis clic, Ctrl + clic droit", "Attaque-mouvement : engage tout ce qui croise la route", "Ctrl + clic droit"),
         Same("Maj + clic droit", "Ordre en file : après ceux déjà donnés"),
         new($"{Label(Patrol)} puis clic", "Patrouille aller-retour, en combattant (Maj + clics : plusieurs points)", null),
         new($"{Label(Guard)} puis clic, clic droit sur un allié", "Garder ou escorter un vaisseau ou un bâtiment allié", "Clic droit sur un allié"),
-        new(Label(Stance), "Posture suivante : agressive (poursuit loin), défensive (riposte et revient), tenir la position, passive (ne tire pas)", null),
+        new(Label(Stance), "Posture suivante : agressive (poursuit loin), défensive (riposte et revient), tenir la position, passive (ne tire pas). Sous 30 % de coque, un vaisseau sans ordre direct part seul se faire réparer, s'il a un réparateur", null),
         new(Label(Stop), "Stop", null),
         new(Label(Ability), "Capacité des vaisseaux sélectionnés (puis clic pour viser si elle se vise)", null),
         new(Label(Pilot), $"Piloter le vaisseau sélectionné : {Movement()} ou flèches, clic gauche pour tirer", null),
@@ -39,13 +39,14 @@ public static class Controls
         new(Label(LastAlert), "Aller à la dernière alerte (encore : la précédente)", null),
         new($"{Label(Idle)}, Maj + {Label(Idle)}", "Vaisseau inactif suivant, tous les inactifs", null),
         new(Label(Build), "Ouvrir ou replier la production", null),
-        Same("Clic droit sur la minicarte", "Envoyer la sélection (Ctrl : attaque-mouvement)"),
+        Same("Clic gauche sur la minicarte", "Regarder là ; pour une attaque-mouvement, une patrouille, une garde ou une capacité en attente : viser là"),
+        Same("Clic droit sur la minicarte", "Envoyer la sélection (Ctrl : attaque-mouvement, Maj : en file) ; station sélectionnée : point de ralliement"),
         Same("Maj + clic sur un vaisseau à produire", "En commander 5 ; clic droit : production en boucle"),
         Same("Clic droit sur la file", "Annuler un élément"),
         Same("Maj + clic en posant", "Poser plusieurs bâtiments de suite"),
         new(Label(Mute), "Couper ou rétablir le son", null),
         new(Label(Pause), "Pause", null),
-        Same("Échap", "Annuler le mode en cours, puis la sélection"),
+        Same("Échap", "Annuler le mode en cours, puis la sélection, puis ouvrir le menu"),
     ];
 
     static IEnumerable<Row> GalaxyRows() =>
@@ -53,6 +54,7 @@ public static class Controls
         Same("Clic", "Sélectionner une planète ou ta flotte en route"),
         Same("Maj + clic, glisser sur la carte", "Sélectionner plusieurs de tes planètes (rectangle ; Maj : ajouter)"),
         Same("Clic droit", "Envoyer la flotte de la planète sélectionnée (les vaisseaux choisis dans l'onglet Planète) ; de plusieurs planètes, toutes leurs flottes"),
+        new($"{Label(SendOne)} + clic droit", "Envoyer un seul vaisseau, le moins cher, sans toucher aux quantités choisies", null),
         new($"Clic droit, {Label(Stop)}", "Flotte en route : changer sa destination (demi-tour si plus court) ; l'arrêter à la prochaine planète", "Clic droit"),
         Same("Ctrl + clic droit", "Ralliement des planètes sélectionnées (sur elle-même : le retirer)"),
         Same("Clic sur un vaisseau à produire", "Un sur chaque planète sélectionnée ; clic droit : production en boucle"),
@@ -61,8 +63,9 @@ public static class Controls
         new($"{Movement()}, flèches, bords, clic molette", "Déplacer la vue (Maj : plus vite)", "Flèches, bords, clic molette"),
         new($"{Label(Overview)}, Début", "Revoir toute la galaxie", "Début"),
         new($"{Label(Fleets)}, {Label(Empire)}, {Label(Log)}, {Label(Diplomacy)}", "Flottes, vue d'ensemble, journal, diplomatie", null),
+        new(Label(LastAlert), "Aller à la dernière alerte (encore : la précédente)", null),
         new(Label(Pause), "Pause", null),
-        Same("Échap", "Annuler, fermer le volet, désélectionner"),
+        Same("Échap", "Fermer la fenêtre, annuler, fermer le volet, désélectionner"),
     ];
 
     /// <summary>The battle's commands, with the keys they have now: for the help and the menu.</summary>

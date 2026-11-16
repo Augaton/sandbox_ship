@@ -36,6 +36,21 @@ public class EndgameTests
     }
 
     [Fact]
+    public void A_player_s_lance_fires_on_the_player_s_command_and_never_by_itself()
+    {
+        var w = NewWorld();
+        var lance = Lance(w);
+        lance.Abilities[0].Cooldown = 0;
+        w.Factions[Faction.Klaed].AutoAbilities = true;
+        SpawnShip(w, Faction.Nairan, ShipClass.Frigate, 5000, 2000);
+        Run(w, 20);
+        Assert.Empty(w.Strikes);
+        Assert.Equal(0, lance.Abilities[0].Cooldown);
+        Assert.True(Commands.Apply(w, Faction.Klaed, new Command.UseAbility(lance.Id, AbilityId.StarLance, new Aim(5000, 2000))).Ok);
+        Assert.Equal(StrikeKind.Stellar, Assert.Single(w.Strikes).Kind);
+    }
+
+    [Fact]
     public void It_charges_only_once_built_then_strikes_anywhere_after_a_warning()
     {
         var w = NewWorld();

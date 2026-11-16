@@ -34,6 +34,8 @@ public partial class Selection : Node
     const double DoubleTapMs = 350;
     /// <summary>Time constant of the eased zoom, in milliseconds.</summary>
     const double ZoomEaseMs = 70;
+    /// <summary>A stopped fleet's rings: enough to see it, not one a ship of a big fleet.</summary>
+    const int StopRings = 24;
 
     readonly BattleScreen scene;
     public Mode Mode { get; private set; } = new SelectMode();
@@ -87,7 +89,7 @@ public partial class Selection : Node
     }
 
     /// <summary>What may use an ability among the selection: own ships, and own structures that have one (a star lance).</summary>
-    List<Entity> Casters()
+    public List<Entity> Casters()
     {
         var out_ = OwnShips();
         foreach (var id in scene.Selected)
@@ -188,7 +190,12 @@ public partial class Selection : Node
             return;
         }
         if (p.ButtonIndex != MouseButton.Left) return;
-        var shift = p.ShiftPressed;
+        if (!ModeClick(w, p.ShiftPressed, Slop)) Box = new Rect2(w, Vector2.Zero);
+    }
+
+    /// <summary>A left click at this world point for the mode under way; false when the mode takes no click.</summary>
+    bool ModeClick(Vector2 w, bool shift, double slop)
+    {
         switch (Mode)
         {
             case PatrolMode m:
@@ -198,7 +205,9 @@ public partial class Selection : Node
                 break;
             case GuardMode:
             {
-                var ward = PickAt(World, w.X, w.Y, Slop, Player);
+                // A part of a ship stands for the ship, as for a right click.
+                var picked = PickAt(World, w.X, w.Y, slop, Player);
+                var ward = picked is null ? null : AbilitySystem.OwnerOf(World, picked);
                 if (ward is null || !Worlds.Allies(World, ward.Side, Player))
                 {
                     scene.Hud.Toast("Choisis un allié");
@@ -216,12 +225,12 @@ public partial class Selection : Node
                 break;
             }
             case AttackMoveMode:
-                AttackMove(w.X, w.Y);
+                AttackMove(w.X, w.Y, shift);
                 if (!shift) SetMode(new SelectMode());
                 break;
             case AbilityMode m:
             {
-                var t = PickAt(World, w.X, w.Y, Slop, Player);
+                var t = PickAt(World, w.X, w.Y, slop, Player);
                 var used = AimAbility(m.Id, new Aim(w.X, w.Y, t is not null && Worlds.Foes(World, t.Side, Player) ? t.Id : null));
                 if (used && !shift) SetMode(new SelectMode());
                 break;
@@ -233,9 +242,9 @@ public partial class Selection : Node
                 break;
             }
             default:
-                Box = new Rect2(w, Vector2.Zero);
-                break;
+                return false;
         }
+        return true;
     }
 
     void AttackMove(double x, double y, bool queued = false)
@@ -308,23 +317,57 @@ public partial class Selection : Node
         return r.Ok;
     }
 
-    /// <summary>Sends the selected ships to a point, from the minimap: a plain move or an attack-move.</summary>
-    public void MoveSelection(double x, double y, bool attack)
+    /// <summary>
+    /// A left click on the minimap: an order waiting for its point goes there, `slop` wide as a
+    /// pixel of the minimap is many of the world's. False otherwise, and the click looks there:
+    /// placing a building takes the battlefield's precision, so the view comes to it first.
+    /// </summary>
+    public bool MinimapAim(Vector2 w, bool shift, double slop) =>
+        Mode is AttackMoveMode or PatrolMode or GuardMode or AbilityMode && ModeClick(w, shift, slop);
+
+    /// <summary>
+    /// A right click on the minimap, as on the battlefield: it drops a mode under way; else the
+    /// selected ships go there, by a plain move or an attack move, `queued` after their orders;
+    /// or, with the station selected, it sets the rally point.
+    /// </summary>
+    public void MinimapOrder(double x, double y, bool attack, bool queued)
     {
-        if (attack)
+        if (Mode is not SelectMode)
         {
-            AttackMove(x, y);
+            SetMode(new SelectMode());
             return;
         }
         var ids = OwnShips().Select(s => s.Id).ToArray();
-        if (ids.Length == 0) return;
-        Sink.Send(new Command.Move(ids, x, y));
+        if (ids.Length == 0) Rally(x, y);
+        else if (attack) AttackMove(x, y, queued);
+        else
+        {
+            Sink.Send(new Command.Move(ids, x, y, Queued: queued));
+            scene.Marker(x, y, Palette.Hex(0x6fd08c));
+        }
+    }
+
+    /// <summary>With the station selected, its rally point goes here.</summary>
+    void Rally(double x, double y)
+    {
+        var station = Worlds.StationOf(World, Player);
+        if (station is null || !scene.Selected.Contains(station.Id)) return;
+        Sink.Send(new Command.SetRally(x, y));
         scene.Marker(x, y, Palette.Hex(0x6fd08c));
+    }
+
+    /// <summary>Stops the selected ships: a ring on each and a sound say it was taken.</summary>
+    void StopSelection()
+    {
+        var ships = OwnShips();
+        if (ships.Count == 0 || !Report(Sink.Send(new Command.Stop([.. ships.Select(s => s.Id)])))) return;
+        foreach (var s in ships.Take(StopRings)) scene.Ring(s.X, s.Y, Palette.Muted);
+        Sfx.Play(Sound.ToggleOff);
     }
 
     /// <summary>Warships with nothing to do: no order, no target, not flown. Hangar craft do not count.</summary>
     public List<Entity> IdleShips() =>
-        World.Entities.Where(e => e.Kind == EntityKind.Ship && e.Side == Player && !e.Launched && e.Order is null && e.TargetId is null && e.Pilot is null).ToList();
+        World.Entities.Where(e => e.Kind == EntityKind.Ship && e.Side == Player && !e.Launched && e.Order is null && e.TargetId is null && e.Pilot is null && !e.Mending).ToList();
 
     /// <summary>Selects the next idle ship and centers on it; with `all`, selects every idle ship.</summary>
     public void SelectIdle(bool all)
@@ -441,12 +484,7 @@ public partial class Selection : Node
             }
             return;
         }
-        var station = Worlds.StationOf(World, Player);
-        if (station is not null && scene.Selected.Contains(station.Id))
-        {
-            Sink.Send(new Command.SetRally(x, y));
-            scene.Marker(x, y, Palette.Hex(0x6fd08c));
-        }
+        Rally(x, y);
     }
 
     /// <summary>Aims for the next zoom level in or out; the world point under `at` stays put.</summary>
@@ -527,7 +565,7 @@ public partial class Selection : Node
         else if (Bindings.Pressed(ev, Bindings.Patrol)) ArmPatrol();
         else if (Bindings.Pressed(ev, Bindings.Guard)) ArmGuard();
         else if (Bindings.Pressed(ev, Bindings.Stance)) CycleStance();
-        else if (Bindings.Pressed(ev, Bindings.Stop)) Sink.Send(new Command.Stop([.. OwnShips().Select(s => s.Id)]));
+        else if (Bindings.Pressed(ev, Bindings.Stop)) StopSelection();
         else if (Bindings.Pressed(ev, Bindings.CenterSelection)) CenterOnSelection();
         else if (Bindings.Pressed(ev, Bindings.LastAlert)) scene.JumpToAlert();
         else if (Bindings.Pressed(ev, Bindings.Idle)) SelectIdle(ev.ShiftPressed);
@@ -668,7 +706,7 @@ public partial class Selection : Node
     {
         EaseZoom(delta);
         // Its casters gone (destroyed, deselected), an ability has nothing left to aim with.
-        if (Mode is AbilityMode m && !OwnShips().Exists(s => s.Abilities.Exists(a => a.Id == m.Id))) SetMode(new SelectMode());
+        if (Mode is AbilityMode m && !Casters().Exists(s => s.Abilities.Exists(a => a.Id == m.Id))) SetMode(new SelectMode());
         if (PilotId is not null)
         {
             UpdatePilot();

@@ -44,11 +44,7 @@ public partial class GalaxyHud
         var target = g.Planets[lf.Target];
         var by = NameOf(lf.Side);
         if (lf.Side == Player) Notify($"Lance stellaire : {target.Name} frappée", target.Id);
-        else if (target.Owner == Player)
-        {
-            Notify($"{target.Name} frappée par la Lance stellaire des {by}", target.Id);
-            Sfx.Play(Sound.Alert);
-        }
+        else if (target.Owner == Player) Alert($"{target.Name} frappée par la Lance stellaire des {by}", target.Id);
         else if (Galaxies.Known(g, Player, target)) Notify($"Les {by} frappent {target.Name} de leur Lance stellaire", target.Id);
         Sfx.Play(Sound.Horn);
         scene.LanceShot(lf.From, lf.Target);

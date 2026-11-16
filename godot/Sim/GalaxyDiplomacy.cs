@@ -5,6 +5,7 @@
 // peace holds; a tribute buys it, paid once or by the minute. Never with the Errants, nor between
 // the members of a team, who need none of it. An AI keeps count of what each faction did to it
 // (Trust), and bears a grudge against one that betrayed it.
+using System.Text.Json.Serialization;
 using SandboxShip.Sim.Data;
 
 namespace SandboxShip.Sim;
@@ -21,6 +22,10 @@ public sealed class Truce
     public Side A, B;
     /// <summary>Galaxy seconds left.</summary>
     public double Remaining;
+    /// <summary>A tribute prolonged it already: that happens once only, or peace could be bought for ever.</summary>
+    public bool Renewed;
+    /// <summary>A tribute bought or prolonged it: even an AI that breaks truces keeps this one.</summary>
+    public bool Paid;
 }
 
 /// <summary>An alliance or a trade agreement between two galaxy factions, for as long as both keep it.</summary>
@@ -85,6 +90,13 @@ public sealed partial class GalaxyAIState
     public double OfferWait;
     /// <summary>How far the AI trusts each faction, -100 to 100: peace and trade raise it, attacks and betrayals sink it.</summary>
     public Dictionary<Side, double> Trust = [];
+    /// <summary>The trust each faction's gifts bought it lately, up to TrustBuyable: it wears off over TruceTime.</summary>
+    public Dictionary<Side, double> BoughtTrust = [];
+    /// <summary>Galaxy seconds before the AI signs a truce again with each AI it just came out of one with.</summary>
+    public Dictionary<Side, double> TruceRest = [];
+    /// <summary>On a replica, what the snapshot told it asks the viewer for peace, in credits a minute; null on the host, who works it out (GalaxyAi.PeacePrice).</summary>
+    [JsonIgnore]
+    public double? Asked;
 }
 
 public static partial class Galaxies
@@ -94,6 +106,11 @@ public static partial class Galaxies
     /// player waits for an answer, and an AI waits between two offers.
     /// </summary>
     public const double TruceTime = 600, GrudgeTime = 900, OfferTime = 60, OfferPause = 300;
+    /// <summary>
+    /// Galaxy seconds two AIs wait, once a truce between them ran out, before signing another:
+    /// signed again at once, two AIs left alone kept a peace that never ended the campaign.
+    /// </summary>
+    public const double RetruceTime = 600;
     /// <summary>Galaxy seconds of truce a broken alliance leaves, for the fleets to part; a tribute by the minute lasts.</summary>
     public const double NoticeTime = 120, TributeTime = 600;
     /// <summary>Credits a second that trade brings each partner: so much, and so much more per lane between their planets, up to TradeMax.</summary>
@@ -101,6 +118,11 @@ public static partial class Galaxies
     /// <summary>The largest tribute, once and by the minute: a bigger one is refused as it is read.</summary>
     public const double MaxTribute = 10000, MaxTributePerMinute = 1000;
     public const double TrustMax = 100;
+    /// <summary>
+    /// The trust gifts can buy an AI over TruceTime, one point for 40 credits: an alliance stays
+    /// a matter of time, gifts only shortening the wait. Below what any personality's alliance needs.
+    /// </summary>
+    public const double TrustBuyable = 15;
     /// <summary>
     /// What a second adds to an AI's trust in a faction it has a truce, a trade agreement or an
     /// alliance with; how fast trust drifts back to nothing without any; what a battle it is
@@ -147,6 +169,17 @@ public static partial class Galaxies
 
     /// <summary>How far `ai`'s AI trusts `other`: 0 for a side with no AI.</summary>
     public static double TrustOf(Galaxy g, Side ai, Side other) => g.Factions.TryGetValue(ai, out var f) ? f.AI?.Trust.GetValueOrDefault(other) ?? 0 : 0;
+
+    /// <summary>A gift worth `worth` warms `ai` to `from`, as far as what it bought lately leaves room for.</summary>
+    static void BuyTrust(Galaxy g, Side ai, Side from, double worth)
+    {
+        if (!g.Factions.TryGetValue(ai, out var f) || f.AI is not { } state) return;
+        var bought = state.BoughtTrust.GetValueOrDefault(from);
+        var gain = Math.Min(worth, TrustBuyable - bought);
+        if (gain <= 0) return;
+        state.BoughtTrust[from] = bought + gain;
+        Trusts(g, ai, from, gain);
+    }
 
     /// <summary>Moves `ai`'s trust in `other` by `delta`, within ±TrustMax (or no lower than `floor`, if it was above).</summary>
     static void Trusts(Galaxy g, Side ai, Side other, double delta, double floor = -TrustMax)
@@ -293,11 +326,23 @@ public static partial class Galaxies
                     p.Credits -= amount;
                     g.Factions[payee].Credits += amount;
                 }
-                // Paid for peace: a truce if there was none, a longer one if there was.
-                if (TruceOf(g, payer, payee) is { } bought) bought.Remaining = Math.Max(bought.Remaining, TruceTime);
-                else if (AtWar(g, payer, payee)) Sign(g, payer, payee);
+                // Paid for peace: a truce if there was none; one under way is prolonged once, if
+                // the tribute is worth what the AI paid asks for it. A smaller gift only warms it.
+                if (TruceOf(g, payer, payee) is { } bought)
+                {
+                    if (!bought.Renewed && GalaxyAi.WorthPeace(g, payee, payer, amount, perMinute))
+                    {
+                        bought.Remaining = Math.Max(bought.Remaining, TruceTime);
+                        bought.Renewed = bought.Paid = true;
+                    }
+                }
+                else if (AtWar(g, payer, payee))
+                {
+                    Sign(g, payer, payee);
+                    TruceOf(g, payer, payee)!.Paid = true;
+                }
                 // An AI paid warms to the payer; one made to pay resents it.
-                Trusts(g, payee, payer, Math.Min(25, (perMinute ? amount * TributeTime / 60 : amount) / 40));
+                BuyTrust(g, payee, payer, (perMinute ? amount * TributeTime / 60 : amount) / 40);
                 if (kind == DealKind.Demand) Trusts(g, payer, payee, -10);
                 g.Events.Add(new TributeSigned(payer, payee, amount, perMinute));
                 break;
@@ -422,6 +467,11 @@ public static partial class Galaxies
                 g.Truces.Remove(t);
                 g.Events.Add(new TruceEnded(t.A, t.B, null));
                 PeaceLost(g, t.A, t.B, null);
+                if (g.Factions[t.A].AI is { } a && g.Factions[t.B].AI is { } b)
+                {
+                    a.TruceRest[t.B] = RetruceTime;
+                    b.TruceRest[t.A] = RetruceTime;
+                }
             }
         }
         foreach (var o in g.Offers) o.Remaining -= dt;
@@ -455,10 +505,9 @@ public static partial class Galaxies
         {
             if (f.AI is not { } ai) continue;
             ai.OfferWait = Math.Max(0, ai.OfferWait - dt);
-            foreach (var k in ai.Grudges.Keys.ToList())
-            {
-                if ((ai.Grudges[k] -= dt) <= 0) ai.Grudges.Remove(k);
-            }
+            Fade(ai.Grudges, dt);
+            Fade(ai.TruceRest, dt);
+            Fade(ai.BoughtTrust, dt * TrustBuyable / TruceTime);
             if (f.Eliminated) continue;
             foreach (var other in g.Factions.Values)
             {
@@ -469,6 +518,16 @@ public static partial class Galaxies
                 if (gain > 0) ai.Trust[other.Id] = Math.Min(TrustMax, now + gain * dt);
                 else if (now != 0) ai.Trust[other.Id] = now > 0 ? Math.Max(0, now - TrustFade * dt) : Math.Min(0, now + TrustFade * dt);
             }
+        }
+    }
+
+    /// <summary>What each faction still counts for wears off; at nothing, it is forgotten.</summary>
+    static void Fade(Dictionary<Side, double> left, double by)
+    {
+        if (left.Count == 0) return;
+        foreach (var k in left.Keys.ToList())
+        {
+            if ((left[k] -= by) <= 0) left.Remove(k);
         }
     }
 

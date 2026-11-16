@@ -60,7 +60,7 @@ public partial class GalaxyScreen : Node
     Rect2? box;
     int? hover;
     double acc;
-    bool ended;
+    bool ended, knockedOut;
     /// <summary>Milliseconds since the last autosave.</summary>
     double saveTimer;
     bool pointerInside = true;
@@ -88,7 +88,13 @@ public partial class GalaxyScreen : Node
             net.Screen = this;
             NetReady();
         }
-        else Begin(opts);
+        else
+        {
+            Begin(opts);
+            // Alone, the galaxy waits for the player's first orders.
+            Paused = !Dev.RunsClock;
+            if (Dev.Speed > 0) Speed = Dev.Speed;
+        }
         var home = Galaxy.Planets.FindIndex(p => p.Owner == Galaxy.Player);
         Click(home >= 0 ? home : null, false);
         Build();
@@ -277,7 +283,7 @@ public partial class GalaxyScreen : Node
                     else if (Pick(mb.Position) is int dest)
                     {
                         if (mb.CtrlPressed) RallyTo(dest);
-                        else Order(dest);
+                        else Order(dest, Bindings.Held(Bindings.SendOne));
                     }
                 }
                 // A click, or a selection rectangle if the pointer moves: told apart on release.
@@ -372,6 +378,14 @@ public partial class GalaxyScreen : Node
 
     void OnKey(InputEventKey ev)
     {
+        // A dialog has the keys: Échap closes it, Enter presses its first button, the map's keys wait.
+        if (Hud.DialogOpen)
+        {
+            if (ev.Keycode == Key.Escape) Hud.Escape();
+            else if (ev.Keycode is not (Key.Enter or Key.KpEnter) || !Hud.Accept()) return;
+            GetViewport().SetInputAsHandled();
+            return;
+        }
         if (ViewKey(ev))
         {
             GetViewport().SetInputAsHandled();
@@ -404,8 +418,11 @@ public partial class GalaxyScreen : Node
         }
     }
 
-    /// <summary>Sends the ships picked in the panel from the selected planet to `dest`; from several planets, every fleet there.</summary>
-    void Order(int dest)
+    /// <summary>
+    /// Sends the ships picked in the panel from the selected planet to `dest`; from several planets,
+    /// every fleet there. With `one`, a single ship (Galaxies.OneShip), whatever the panel says.
+    /// </summary>
+    void Order(int dest, bool one)
     {
         if (SelectedFleet is int moving)
         {
@@ -414,7 +431,7 @@ public partial class GalaxyScreen : Node
         }
         if (Selection.Count > 1)
         {
-            SendAll(dest);
+            SendAll(dest, one);
             return;
         }
         if (Selected is not int from || from == dest) return;
@@ -424,15 +441,20 @@ public partial class GalaxyScreen : Node
             Hud.Toast("Aucune flotte à toi sur cette planète");
             return;
         }
-        var (ships, heroes) = Hud.SendCounts();
+        var (ships, heroes) = one ? Galaxies.OneShip(fleet) : Hud.SendCounts();
         var r = Sink.Send(new GalaxyCommand.SendFleet(fleet.Id, dest, ships, [.. heroes]));
-        if (!r.Ok) Hud.Toast(r.Reason);
+        if (!r.Ok)
+        {
+            Hud.Toast(r.Reason);
+            return;
+        }
+        if (one) Hud.Toast($"Vers {Galaxy.Planets[dest].Name} : {GalaxyHud.DescribeShips(ships, heroes)}");
         // The fleet left: show what stays, with fresh quantities, before the next order.
-        else Hud.Refresh();
+        Hud.Refresh();
     }
 
-    /// <summary>Sends every fleet of the player waiting at the selected planets to `dest`, each one whole.</summary>
-    void SendAll(int dest)
+    /// <summary>Sends every fleet of the player waiting at the selected planets to `dest`, each one whole; with `one`, a single ship of each.</summary>
+    void SendAll(int dest, bool one)
     {
         var g = Galaxy;
         var fleets = Selection.Where(id => id != dest).SelectMany(id => Galaxies.FleetsAt(g, id, Player)).ToList();
@@ -446,7 +468,8 @@ public partial class GalaxyScreen : Node
         foreach (var f in fleets)
         {
             var at = g.Planets[f.At!.Value].Name;
-            var r = Sink.Send(new GalaxyCommand.SendFleet(f.Id, dest));
+            var (ships, heroes) = Galaxies.OneShip(f);
+            var r = Sink.Send(one ? new GalaxyCommand.SendFleet(f.Id, dest, ships, [.. heroes]) : new GalaxyCommand.SendFleet(f.Id, dest));
             if (r.Ok) sent++;
             else stayed.Add($"{at} ({GalaxyHud.Lower(r.Reason)})");
         }
@@ -490,10 +513,13 @@ public partial class GalaxyScreen : Node
         : Opts.Net is not null ? Dev.Shot is null || Dev.SavePath is not null ? NetSavePath : null
         : Dev.Shot is null ? SaveSlots.PathOf(SaveDir, SaveSlots.Auto) : null;
 
+    /// <summary>Alone and out of the game: the campaign is over for the player, whoever fights on.</summary>
+    bool OverAlone => Opts.Net is null && Galaxy.Factions[Player].Eliminated;
+
     /// <summary>Saves the campaign, unless it is over.</summary>
     public void Save()
     {
-        if (SaveFile is string file && Galaxy.Winner is null && !(Opts.Net is null ? SaveSlots.SaveAuto(Galaxy, SaveDir) : GalaxySave.Save(Galaxy, file)))
+        if (SaveFile is string file && Galaxy.Winner is null && !OverAlone && !(Opts.Net is null ? SaveSlots.SaveAuto(Galaxy, SaveDir) : GalaxySave.Save(Galaxy, file)))
             Hud.Toast("Sauvegarde impossible");
         saveTimer = 0;
     }
@@ -507,7 +533,7 @@ public partial class GalaxyScreen : Node
     /// </summary>
     public bool SaveAs(string name)
     {
-        if (Opts.Net is not null || Dev.Shot is not null || Galaxy.Winner is not null) return false;
+        if (Opts.Net is not null || Dev.Shot is not null || Galaxy.Winner is not null || OverAlone) return false;
         return SaveSlots.SaveAs(Galaxy, SaveDir, name.Trim().Length > 0 ? name : DefaultSaveName()) is not null;
     }
 
@@ -567,6 +593,11 @@ public partial class GalaxyScreen : Node
         Save();
     }
 
+    /// <summary>What a battle waiting for its conclusion costs the player, a line each, for its end screen.</summary>
+    public IReadOnlyList<string>? TollLines(int battleId, BattleResult result) => Galaxy.Battles.Find(b => b.Id == battleId) is { } b
+        ? GalaxyHud.TollLines(Galaxy, Galaxies.TollOf(Galaxy, b, result), b.Attacker == Player, b.PlanetId, b.Defender == Player && result != BattleResult.Attacker)
+        : null;
+
     /// <summary>Called when a tactical battle ends in the battle view; over the network, the host concluded it already.</summary>
     public void FinishBattle(int battleId, BattleResult result)
     {
@@ -582,8 +613,10 @@ public partial class GalaxyScreen : Node
         var g = Galaxy;
         // Over the network, the session steps the host's galaxy, and a player's replica follows snapshots.
         if (Opts.Net is not null) NetFrame(delta);
-        else if (!Paused)
+        else if (Paused) Hud.Banner($"En pause : {Bindings.Label(Bindings.Pause)} lance le temps");
+        else
         {
+            Hud.Banner(null);
             acc += Math.Min(delta, 0.25) * Speed;
             // A big battle resolving on its own can make a step slow: past the budget, the rest
             // carries over to the next frames rather than freezing this one.
@@ -614,12 +647,23 @@ public partial class GalaxyScreen : Node
         // than leaving the galaxy waiting forever. Over the network, until the player has chosen.
         var pending = g.Battles.Find(b => b.Status == BattleStatus.Pending && Galaxies.HumansIn(g, b).Contains(Player) && !b.Choices.ContainsKey(Player)
             && !answered.Contains(b.Id));
-        if (pending is not null && g.Winner is null && !Hud.DialogOpen) Prompt(pending);
+        if (pending is not null && g.Winner is null && !Hud.DialogOpen)
+        {
+            if (ResolvesAlone(pending)) ResolveAlone(pending);
+            else Prompt(pending);
+        }
         if (g.Winner is not null && !ended)
         {
             ended = true;
             Hud.ShowEnd(Galaxies.Won(g, Player));
             if (SaveFile is string file) GalaxySave.Clear(file);
+        }
+        // Out with others still fighting: no waiting minutes for a winner to hear of it.
+        else if (g.Winner is null && !knockedOut && g.Factions[Player].Eliminated)
+        {
+            knockedOut = true;
+            Hud.ShowKnockedOut(g.Factions.Values.Any(f => f.Id != Player && !f.Eliminated && Galaxies.Allies(g, f.Id, Player)));
+            if (Opts.Net is null && SaveFile is string lost) GalaxySave.Clear(lost);
         }
         saveTimer += delta * 1000;
         if (saveTimer >= AutosaveMs) Save();

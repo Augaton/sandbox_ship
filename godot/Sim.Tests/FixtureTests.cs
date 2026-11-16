@@ -300,9 +300,12 @@ public class FixtureTests
             Assert.Equal(j.GetProperty("description").GetString(), h.Description);
             SameName(j.GetProperty("base"), h.Base);
             SameName(j.GetProperty("ability"), h.Ability);
+            // Admirals are dearer here, as the dreadnought they fly (Dearer).
+            if (h.Id.Role != HeroRole.Admiral) Assert.Equal(j.GetProperty("cost").GetDouble(), h.Cost);
+            else Assert.True(h.Cost > j.GetProperty("cost").GetDouble());
             foreach (var (name, value) in new[] {
                 ("hull", h.Hull), ("shield", h.Shield), ("damage", h.Damage), ("speed", h.Speed),
-                ("cost", h.Cost), ("buildTime", h.BuildTime), ("respawn", h.Respawn) })
+                ("buildTime", h.BuildTime), ("respawn", h.Respawn) })
             {
                 Assert.Equal(j.GetProperty(name).GetDouble(), value);
             }

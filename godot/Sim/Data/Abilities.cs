@@ -46,6 +46,11 @@ public static class Abilities
     public const double SpinalCharge = 2, OrbitalDelay = 2.5;
     /// <summary>The star lance's blow: seconds of warning, seen by all, then its damage over its whole radius.</summary>
     public const double StarLanceDelay = 5, StarLanceDamage = 9000;
+    /// <summary>
+    /// Share of a blow from the sky (orbital strike, spinal beam, star lance) that each part caught
+    /// in it takes, the ship or structure it is on taking the whole of it once.
+    /// </summary>
+    public const double PartShare = 0.25;
 
     public static readonly IReadOnlyDictionary<AbilityId, AbilityDef> Defs = new Dictionary<AbilityId, AbilityDef>
     {

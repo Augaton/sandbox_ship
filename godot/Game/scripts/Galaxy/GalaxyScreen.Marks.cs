@@ -28,13 +28,16 @@ public partial class GalaxyScreen
         foreach (var i in g.Ongoing)
         {
             if (i.Kind is not (IncidentKind.IonStorm or IncidentKind.WarBand)) continue;
-            var (a, b) = (g.Planets[i.Planet], g.Planets[i.Other]);
-            var (x0, y0, x1, y1) = (Sx(a.X), Sy(a.Y), Sx(b.X), Sy(b.Y));
+            var a = g.Planets[i.Planet];
             if (i.Kind == IncidentKind.IonStorm)
             {
-                Draw.Line(u, x0, y0, x1, y1, StormColor with { A = (float)(0.45 + 0.25 * Math.Sin(t * 4)) }, 6);
+                // Every lane of its planet is closed.
+                var storm = StormColor with { A = (float)(0.45 + 0.25 * Math.Sin(t * 4)) };
+                foreach (var n in Galaxies.Neighbours(g, i.Planet)) Draw.Line(u, Sx(a.X), Sy(a.Y), Sx(g.Planets[n].X), Sy(g.Planets[n].Y), storm, 6);
                 continue;
             }
+            var b = g.Planets[i.Other];
+            var (x0, y0, x1, y1) = (Sx(a.X), Sy(a.Y), Sx(b.X), Sy(b.Y));
             // A war band's way: dashes that run towards the planet it strikes.
             var len = Math.Max(1, Worlds.Hypot(x1 - x0, y1 - y0));
             var errant = Palette.Of(Faction.Errant);

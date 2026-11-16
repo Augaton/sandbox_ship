@@ -115,9 +115,11 @@ public static class Protocol
     /// 7: the battle over time at its end (Record). 8: with commands 2 (stances, patrols, guards,
     /// orders queued) and battle snapshots 8 (veterans). 9: a bot's personality (Ask's
     /// SetPersonality), the deals of the campaign (galaxy commands and snapshot). 10: the lobby's
-    /// start credits and survival waves' strength (Settings).
+    /// start credits and survival waves' strength (Settings). 11: galaxy snapshots 4 (a battle's toll
+    /// and each side's power, occupations begun, rally points cancelled, what an AI asks for peace, a
+    /// truce prolonged).
     /// </summary>
-    public const int Version = 10;
+    public const int Version = 11;
     /// <summary>Where a host listens for players, unless told otherwise.</summary>
     public const int DefaultPort = 24680;
     /// <summary>Where hosts call out to the local network, and the join screen listens.</summary>

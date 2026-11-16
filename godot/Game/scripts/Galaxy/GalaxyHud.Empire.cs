@@ -29,9 +29,14 @@ public partial class GalaxyHud
     VBoxContainer drawerBody = null!;
     ScrollContainer drawerScroll = null!;
     readonly List<(Button B, Drawer Id)> drawerButtons = [];
-    /// <summary>Newest first: galaxy time, text, the planet it is about, and a number that keys its entry.</summary>
-    readonly List<(double Time, string Text, int? Planet, int N)> log = [];
+    /// <summary>Newest first: galaxy time, text and the lines under it, the planet it is about, and a number that keys its entry.</summary>
+    readonly List<(double Time, string Text, IReadOnlyList<string> More, int? Planet, int N)> log = [];
     int logged;
+    /// <summary>The planets of the last alerts, oldest first; which one the alert key went to last, -1 for none yet.</summary>
+    readonly List<int> alerts = [];
+    int alertCursor = -1;
+    /// <summary>How long a battle's toll stays, in milliseconds: it has more to read than other messages.</summary>
+    const double TollLife = 8000;
     /// <summary>Parts of the panel updated in place: arrival of a fleet on the move, rally point of the planet.</summary>
     Label? eta, rallyLabel;
     Button? rallySet, rallyClear;
@@ -219,13 +224,14 @@ public partial class GalaxyHud
     {
         if (log.Count == 0) return [HudKit.TextPart("Rien à signaler pour l'instant.", Palette.Muted)];
         var parts = new List<Part> { HudKit.TextPart("Clic : centrer la vue sur la planète.", Palette.Muted, 13) };
-        foreach (var (time, text, planet, n) in log)
+        foreach (var (time, text, more, planet, n) in log)
         {
             var where = planet is int p ? $"{Clock(time)}, {G.Planets[p].Name}" : Clock(time);
-            parts.Add(new Part($"log:{n}", () => Entry(2, () =>
+            (string, Color)[] lines = [(text, Palette.Text), .. more.Select(m => (m, Palette.Muted)), (where, Palette.Muted)];
+            parts.Add(new Part($"log:{n}", () => Entry(lines.Length, () =>
             {
                 if (planet is int id) scene.ShowPlanet(id);
-            }), b => SetEntry((LabelButton)b, false, (text, Palette.Text), (where, Palette.Muted))));
+            }), b => SetEntry((LabelButton)b, false, lines)));
         }
         return parts;
     }
@@ -234,8 +240,43 @@ public partial class GalaxyHud
     void Notify(string text, int? planet = null)
     {
         Toast(text);
-        log.Insert(0, (G.Time, text, planet, ++logged));
+        Log(text, [], planet);
+    }
+
+    void Log(string text, IReadOnlyList<string> more, int? planet)
+    {
+        log.Insert(0, (G.Time, text, more, planet, ++logged));
         if (log.Count > LogSize) log.RemoveAt(log.Count - 1);
+    }
+
+    /// <summary>A planet of the player's in danger: an alert with a button to go and see, in the log too; the alert key finds it again.</summary>
+    void Alert(string text, int planet)
+    {
+        alerts.Add(planet);
+        if (alerts.Count > 12) alerts.RemoveAt(0);
+        alertCursor = -1;
+        Sfx.Play(Sound.Alert);
+        toasts.Add(text, () => scene.ShowPlanet(planet));
+        Log(text, [], planet);
+    }
+
+    /// <summary>The end of a battle and what it cost, framed by how it went, in the log with the lines under it.</summary>
+    void Report(string text, IReadOnlyList<string> more, int planet, bool good)
+    {
+        toasts.Add(text, () => scene.ShowPlanet(planet), good ? Palette.Ok : Palette.Danger, more, TollLife);
+        Log(text, more, planet);
+    }
+
+    /// <summary>The view goes to the latest alert's planet; again, to the one before, and so on.</summary>
+    public void JumpToAlert()
+    {
+        if (alerts.Count == 0)
+        {
+            Toast("Aucune alerte");
+            return;
+        }
+        alertCursor = alertCursor <= 0 ? alerts.Count - 1 : alertCursor - 1;
+        scene.ShowPlanet(alerts[alertCursor]);
     }
 
     /// <summary>The player's fleet on the move shown in the panel, if any.</summary>

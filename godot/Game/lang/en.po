@@ -519,9 +519,6 @@ msgid "Une bande errante menace {0} ({1})"
 msgstr "A roaming band threatens {0} ({1})"
 
 #: Game/scripts/Galaxy/GalaxyHud.Diplomacy.cs
-msgid "Tempête ionique entre {0} et {1} : vitesse divisée par deux pendant {2}"
-msgstr "Ion storm between {0} and {1}: speed halved for {2}"
-
 #: Game/scripts/Galaxy/GalaxyHud.Diplomacy.cs
 msgid "Essor commercial à {0}{1} : revenu doublé pendant {2}"
 msgstr "Trade boom at {0}{1}: income doubled for {2}"
@@ -1075,9 +1072,6 @@ msgid "En face"
 msgstr "Facing you"
 
 #: Game/scripts/Galaxy/GalaxyHud.cs
-msgid "Coque et boucliers"
-msgstr "Hull and shields"
-
 #: Game/scripts/Galaxy/GalaxyHud.cs
 msgid "Commander la bataille"
 msgstr "Command the battle"
@@ -1543,9 +1537,6 @@ msgid "Flottes, vue d'ensemble, journal, diplomatie"
 msgstr "Fleets, overview, log, diplomacy"
 
 #: Game/scripts/Ui/Controls.cs
-msgid "Annuler, fermer le volet, désélectionner"
-msgstr "Cancel, close the panel, deselect"
-
 #: Game/scripts/Ui/Hud.Dialogs.cs
 msgid "La bataille repart du début, sur la même carte."
 msgstr "The battle starts over, on the same map."
@@ -1807,9 +1798,6 @@ msgid "Piloté"
 msgstr "Hand-flown"
 
 #: Game/scripts/Ui/Hud.Selection.cs
-msgid "En position"
-msgstr "Holding position"
-
 #: Game/scripts/Ui/Hud.Selection.cs
 msgid "Tes vaisseaux utilisent leurs capacités seuls quand c'est utile"
 msgstr "Your ships use their abilities by themselves when it helps"
@@ -1827,9 +1815,6 @@ msgid "active encore {0} s"
 msgstr "active for {0} s more"
 
 #: Game/scripts/Ui/Hud.Selection.cs
-msgid "prête : E{0}"
-msgstr "ready: E{0}"
-
 #: Game/scripts/Ui/Hud.Selection.cs
 msgid "clique pour viser, Échap pour annuler"
 msgstr "click to aim, Esc to cancel"
@@ -1907,9 +1892,6 @@ msgid "Détruire la sélection"
 msgstr "Destroy the selection"
 
 #: Game/scripts/Ui/Hud.cs
-msgid "Retour arrière : aller à la dernière alerte"
-msgstr "Backspace: go to the last alert"
-
 #: Game/scripts/Ui/Hud.cs
 msgid "[b]Pilotage : {0}[/b] [color=#949eb0]{1} ou flèches : piloter. Clic gauche maintenu : tirer sur la cible marquée. {2} ou Échap : rendre la main.[/color]"
 msgstr "[b]Flying: {0}[/b] [color=#949eb0]{1} or arrows: fly. Hold left click: fire at the marked target. {2} or Esc: let go.[/color]"
@@ -6336,3 +6318,284 @@ msgstr "seed {0}"
 #: Game/scripts/Ui/Menu.Lobby.cs
 msgid "Plus de réglages"
 msgstr "More settings"
+
+#: Game/scripts/Ui/Controls.cs
+msgid "Déplacer, ou attaquer la cible visée ; station sélectionnée : point de ralliement"
+msgstr "Move, or attack the target under the cursor; station selected: rally point"
+
+#: Game/scripts/Ui/Controls.cs
+msgid "Posture suivante : agressive (poursuit loin), défensive (riposte et revient), tenir la position, passive (ne tire pas). Sous 30 % de coque, un vaisseau sans ordre direct part seul se faire réparer, s'il a un réparateur"
+msgstr "Next stance: aggressive (chases far), defensive (fights back and returns), hold position, passive (holds fire). Under 30 % hull, a ship with no direct order goes off to be repaired by itself, if anything can repair it"
+
+#: Game/scripts/Ui/Controls.cs
+msgid "Clic gauche sur la minicarte"
+msgstr "Left click on the minimap"
+
+#: Game/scripts/Ui/Controls.cs
+msgid "Regarder là ; pour une attaque-mouvement, une patrouille, une garde ou une capacité en attente : viser là"
+msgstr "Look there; with an attack move, a patrol, a guard or an ability waiting: aim there"
+
+#: Game/scripts/Ui/Controls.cs
+msgid "Envoyer la sélection (Ctrl : attaque-mouvement, Maj : en file) ; station sélectionnée : point de ralliement"
+msgstr "Send the selection (Ctrl: attack move, Shift: queued); station selected: rally point"
+
+#: Game/scripts/Ui/Controls.cs
+msgid "Annuler le mode en cours, puis la sélection, puis ouvrir le menu"
+msgstr "Cancel the current mode, then the selection, then open the menu"
+
+#: Game/scripts/Ui/Hud.Selection.cs
+msgid "Va chercher l'ennemi de loin et le poursuit. Part se faire réparer sous 30 % de coque"
+msgstr "Seeks the enemy from afar and chases it. Goes off to be repaired under 30 % hull"
+
+#: Game/scripts/Ui/Hud.Selection.cs
+msgid "Ne bouge pas : tire sur ce qui passe à portée, même très abîmé"
+msgstr "Stays put: fires at what comes in range, even badly damaged"
+
+#: Game/scripts/Ui/Hud.Selection.cs
+msgid "Ne tire pas, sauf ordre d'attaque : pour les éclaireurs. Part se faire réparer sous 30 % de coque"
+msgstr "Holds fire unless ordered to attack: for scouts. Goes off to be repaired under 30 % hull"
+
+#: Game/scripts/Ui/Hud.Selection.cs
+msgid "Riposte, puis revient à son poste. Part se faire réparer sous 30 % de coque"
+msgstr "Fights back, then returns to its post. Goes off to be repaired under 30 % hull"
+
+#: Game/scripts/Ui/Hud.Selection.cs
+msgid "Repli pour réparation"
+msgstr "Falling back for repairs"
+
+#: Game/scripts/Ui/Hud.Selection.cs
+msgid "En route : {0}"
+msgstr "Under way: {0}"
+
+#: Game/scripts/Ui/Hud.Selection.cs
+msgid "Au combat : {0}"
+msgstr "In combat: {0}"
+
+#: Game/scripts/Ui/Hud.Selection.cs
+msgid "En repli : {0}"
+msgstr "Falling back: {0}"
+
+#: Game/scripts/Ui/Hud.Selection.cs
+msgid "Inactifs : {0}"
+msgstr "Idle: {0}"
+
+#: Game/scripts/Ui/Hud.Selection.cs
+msgid "Piloter le vaisseau ({0})"
+msgstr "Fly the ship ({0})"
+
+#: Game/scripts/Ui/Hud.Selection.cs
+msgid "prête : {0}, puis clic où viser"
+msgstr "ready: {0}, then click where to aim"
+
+#: Game/scripts/Ui/Hud.Selection.cs
+msgid "prête : {0}, puis clic sur un ennemi"
+msgstr "ready: {0}, then click an enemy"
+
+#: Game/scripts/Ui/Hud.Selection.cs
+msgid "prête : {0}"
+msgstr "ready: {0}"
+
+#: Game/scripts/Ui/Hud.cs
+msgid "{0} : aller à la dernière alerte"
+msgstr "{0}: go to the last alert"
+
+msgid "Envoyer un seul vaisseau (maintenir, puis clic droit)"
+msgstr "Send a single ship (hold, then right click)"
+
+msgid "{0} + clic droit : un seul vaisseau."
+msgstr "{0} + right click: a single ship."
+
+msgid "{0} attaquée"
+msgstr "{0} under attack"
+
+msgid "{0} occupée par {1} : prise dans {2} s"
+msgstr "{0} occupied by {1}: taken in {2} s"
+
+msgid "Ralliement de {0} vers {1} annulé : planète perdue"
+msgstr "Rally from {0} to {1} cancelled: planet lost"
+
+msgid "Vaisseau terminé : {0}"
+msgstr "Ship complete: {0}"
+
+msgid "Pertes : {0}"
+msgstr "Losses: {0}"
+
+msgid "Héros tombés"
+msgstr "Heroes fallen"
+
+msgid "Héros tombé"
+msgstr "Hero fallen"
+
+msgid "Aucune perte"
+msgstr "No losses"
+
+msgid "Abattus : {0}"
+msgstr "Shot down: {0}"
+
+msgid "Station {0} → {1}"
+msgstr "Station {0} → {1}"
+
+msgid "Plateformes {0} → {1}"
+msgstr "Platforms {0} → {1}"
+
+msgid "Mines {0} → {1}"
+msgstr "Mines {0} → {1}"
+
+msgid "Dock de réparation perdu"
+msgstr "Repair dock lost"
+
+msgid "Canon ionique perdu"
+msgstr "Ion cannon lost"
+
+msgid "Revenu −{0}/s"
+msgstr "Income −{0}/s"
+
+msgid "Victoire presque certaine"
+msgstr "Almost certain victory"
+
+msgid "Favorable"
+msgstr "Favorable"
+
+msgid "Défavorable"
+msgstr "Unfavorable"
+
+msgid "Défaite presque certaine"
+msgstr "Almost certain defeat"
+
+msgid "Indécise"
+msgstr "Uncertain"
+
+msgid "{0} : résolue seule, victoire presque certaine"
+msgstr "{0}: resolved on its own, almost certain victory"
+
+msgid "Issue probable"
+msgstr "Likely outcome"
+
+msgid "Fin de la campagne"
+msgstr "End of the campaign"
+
+msgid "Éliminé"
+msgstr "Eliminated"
+
+msgid "Tu n'as plus ni planète ni flotte, mais tes alliés se battent encore : leur victoire sera la tienne."
+msgstr "You have no planet or fleet left, but your allies fight on: their victory will be yours."
+
+msgid "Tu n'as plus ni planète ni flotte. La galaxie continue sans toi."
+msgstr "You have no planet or fleet left. The galaxy goes on without you."
+
+msgid "Regarder la suite"
+msgstr "Watch what comes next"
+
+msgid "La galaxie démarre en pause : donne tes premiers ordres, puis lance le temps ({0}). Le menu et l'aide l'arrêtent aussi."
+msgstr "The galaxy starts paused: give your first orders, then start the clock ({0}). The menu and the help stop it too."
+
+msgid "Vers {0} : {1}"
+msgstr "To {0}: {1}"
+
+msgid "En pause : {0} lance le temps"
+msgstr "Paused: {0} starts the clock"
+
+msgid "{0} + clic droit"
+msgstr "{0} + right click"
+
+msgid "Envoyer un seul vaisseau, le moins cher, sans toucher aux quantités choisies"
+msgstr "Send a single ship, the cheapest, leaving the chosen quantities as they are"
+
+msgid "Fermer la fenêtre, annuler, fermer le volet, désélectionner"
+msgstr "Close the window, cancel, close the drawer, deselect"
+
+msgid "Résoudre seules les batailles écrasantes en ma faveur"
+msgstr "Resolve battles overwhelmingly in my favor on their own"
+
+msgid "Planète ennemie"
+msgstr "Enemy planet"
+
+msgid "victoire"
+msgstr "victory"
+
+msgid "retraite"
+msgstr "retreat"
+
+#: Game/scripts/Galaxy/GalaxyHud.Diplomacy.cs
+msgid "La trêve a déjà été prolongée : un tribut n'achète plus qu'un peu de confiance."
+msgstr "The truce has already been extended: a tribute now buys only a little trust."
+
+#: Game/scripts/Galaxy/GalaxyHud.Diplomacy.cs
+msgid "Un tribut d'au moins {0} prolonge la trêve, une seule fois ; plus petit, il n'achète qu'un peu de confiance."
+msgstr "A tribute of at least {0} extends the truce, once only; a smaller one buys only a little trust."
+
+#: Game/scripts/Galaxy/GalaxyHud.Diplomacy.cs
+msgid "Un tribut, même petit, prolonge la trêve, une seule fois."
+msgstr "A tribute, even a small one, extends the truce, once only."
+
+#: Game/scripts/Galaxy/GalaxyHud.Diplomacy.cs
+msgid "Elle demande {0}, ou {1} en une fois."
+msgstr "It asks {0}, or {1} at once."
+
+#: Game/scripts/Galaxy/GalaxyHud.Diplomacy.cs
+msgid "Elle signerait une trêve sans tribut : un don ne ferait que la réchauffer."
+msgstr "It would sign a truce without a tribute: a gift would only warm it to you."
+
+#: Game/scripts/Galaxy/GalaxyHud.Diplomacy.cs
+msgid "{0} rompt la trêve !"
+msgstr "{0} breaks the truce!"
+
+#: Game/scripts/Galaxy/GalaxyHud.Diplomacy.cs
+msgid "Une bande errante sort de l'ombre près de {0} : elle frappera {1} dans {2} s"
+msgstr "A roaming band comes out of the dark near {0}: it will strike {1} in {2} s"
+
+#: Game/scripts/Galaxy/GalaxyHud.Diplomacy.cs
+msgid "Tempête ionique à {0} : aucune flotte n'y entre ni n'en sort pendant {1}"
+msgstr "Ion storm at {0}: no fleet goes in or out for {1}"
+
+#: Game/scripts/Galaxy/GalaxyHud.Diplomacy.cs
+msgid "La tempête ionique de {0} se dissipe"
+msgstr "The ion storm at {0} clears"
+
+#: Game/scripts/Galaxy/GalaxyHud.Diplomacy.cs
+msgid "Elle sort de l'ombre sur la voie vers {0}. Elle pille, ne prend rien."
+msgstr "It comes out of the dark on the lane to {0}. It pillages, takes nothing."
+
+#: Game/scripts/Galaxy/GalaxyHud.Diplomacy.cs
+msgid "Elle arrive par la voie de {0} : sans défense, la planète perdra ses mines."
+msgstr "It comes by the lane from {0}: undefended, the planet will lose its mines."
+
+#: Game/scripts/Galaxy/GalaxyHud.Diplomacy.cs
+msgid "Aucune flotte n'y entre ni n'en sort encore {0} : les routes la contournent."
+msgstr "No fleet goes in or out for another {0}: routes go around it."
+
+#: Game/scripts/Galaxy/GalaxyHud.cs
+msgid "Une flotte seule prend une planète sans défense en {0} s ({1} s si elle est neutre). Quand deux camps se rencontrent, la bataille se commande dans la vue tactique ou se résout seule. Les flottes traversent les planètes neutres ou alliées et s'arrêtent aux planètes ennemies. Tu perds quand tu n'as plus de planète. Chaque planète a deux files : bâtiments et vaisseaux. Certaines planètes ont un bonus. À plus de {2} voies de tes stations, une flotte est hors ravitaillement : elle s'use de {3} par minute et ne se répare plus. La liste Diplomatie (T) propose et rompt les trêves. Toutes les quelques minutes, un événement survient : épave à récupérer, bande errante, tempête ionique, essor commercial. Les Errants, neutres, gardent la planète la plus isolée avec leur Colosse : ils n'en bougent jamais et ne comptent pas pour la victoire. Chaque vaisseau abattu rapporte {4} de sa valeur ; le Colosse, {5} crédits et un niveau de recherche. La campagne se sauvegarde toute seule ; « Continuer la campagne » la reprend depuis le menu."
+msgstr "A fleet alone takes an undefended planet in {0} s ({1} s if it is neutral). When two sides meet, the battle is commanded in the tactical view or resolves on its own. Fleets pass through neutral or allied planets and stop at enemy ones. You lose when you have no planet left. Each planet has two queues: buildings and ships. Some planets have a bonus. More than {2} lanes away from your stations, a fleet is out of supply: it wears down by {3} a minute and no longer mends. The Diplomacy list (T) offers and breaks truces. Every few minutes, something happens: a wreck to recover, a roaming band, an ion storm, a trade boom. The Errants, neutral, guard the most isolated planet with their Colossus: they never leave it and do not count toward victory. Each ship destroyed earns {4} of its value; the Colossus, {5} credits and a research level. The campaign saves by itself; \"Continue the campaign\" resumes it from the menu."
+
+#: Sim/Galaxy.cs
+msgid "Tempête ionique : voie fermée"
+msgstr "Ion storm: lane closed"
+
+#: Sim/GalaxyAiDiplomacy.cs
+msgid "Elle sort à peine d'une trêve avec toi"
+msgstr "It has only just come out of a truce with you"
+
+#: Sim/GalaxyAiDiplomacy.cs
+msgid "Elle n'attend plus rien de toi pour l'instant"
+msgstr "It expects nothing more from you for now"
+
+#: Sim/Ai.cs
+msgid "Chantier occupé"
+msgstr "Shipyard busy"
+
+#: Sim/Data/Research.cs
+msgid "Capacités des vaisseaux rechargées 12 % plus vite par niveau"
+msgstr "Ship abilities recharge 12% faster per level"
+
+#: Sim/Worlds.cs
+msgid "Réagit tard, défend sa seule station, attaque sans compter, cherche peu et oublie souvent ses capacités."
+msgstr "Reacts late, defends only its station, attacks without weighing the odds, researches little and often forgets its abilities."
+
+#: Sim/Worlds.cs
+msgid "Défend tout ce qu'elle possède, répond à ce qu'elle voit et attaque quand elle se sent la plus forte."
+msgstr "Defends everything it owns, answers what it sees and attacks when it feels the stronger."
+
+#: Sim/Worlds.cs
+msgid "Concentre ses tirs, vise armes et moteurs, pille tes mines, se replie quand elle perd, adapte sa flotte et pousse ses recherches."
+msgstr "Focuses its fire, aims at guns and engines, raids your mines, falls back when losing, adapts its fleet and pushes its research."

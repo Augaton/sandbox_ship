@@ -40,7 +40,7 @@ public static partial class Galaxies
     public static bool InNebula(Galaxy g, Fleet fleet) =>
         fleet.At is int at && g.Planets[at].Special == PlanetSpecial.Nebula && fleet.Side != Faction.Errant;
 
-    /// <summary>Speed factor of a fleet on its lane: faster from a relay its faction holds, slower in an ion storm.</summary>
+    /// <summary>Speed factor of a fleet on its lane: faster from a relay its faction holds, slower if an ion storm caught it there.</summary>
     public static double LaneSpeed(Galaxy g, Fleet f)
     {
         var from = g.Planets[f.From];

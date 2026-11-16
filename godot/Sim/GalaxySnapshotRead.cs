@@ -25,7 +25,7 @@ public static partial class GalaxySnapshot
         {
             planets.Add(new Planet
             {
-                Id = planets.Count, Name = r.ReadText(), X = r.ReadSingle(), Y = r.ReadSingle(), Income = r.ReadSingle(), MineSlots = r.ReadVarint(),
+                Id = planets.Count, Name = r.ReadText(), X = r.ReadSingle(), Y = r.ReadSingle(), Income = r.ReadSingle(), MineSlots = Level(r),
             });
         }
         if (lanes.Exists(l => (uint)l.A >= (uint)planets.Count || (uint)l.B >= (uint)planets.Count)) throw new InvalidDataException("Voie vers une planète inconnue");
@@ -61,7 +61,7 @@ public static partial class GalaxySnapshot
         ReadSides(r, replica, viewer);
         ReadBattles(r, replica);
         replica.Truces = [];
-        for (var n = Count(r); n > 0; n--) replica.Truces.Add(new Truce { A = SideOf(r), B = SideOf(r), Remaining = r.ReadSingle() });
+        for (var n = Count(r); n > 0; n--) replica.Truces.Add(new Truce { A = SideOf(r), B = SideOf(r), Remaining = r.ReadSingle(), Renewed = r.ReadBoolean() });
         replica.Pacts = [];
         for (var n = Count(r); n > 0; n--) replica.Pacts.Add(new Pact { Kind = Valid<DealKind>(r.ReadByte()), A = SideOf(r), B = SideOf(r) });
         replica.Tributes = [];
@@ -97,6 +97,26 @@ public static partial class GalaxySnapshot
     {
         var n = r.ReadVarint();
         return n is >= 0 and <= 1 << 16 ? n : throw new InvalidDataException($"Liste de {n} éléments");
+    }
+
+    /// <summary>
+    /// A planet's level or count of something (station, mines, platforms…), checked: the map draws
+    /// one mark a station level, and a forged two billion froze the player's screen.
+    /// </summary>
+    static int Level(BinaryReader r)
+    {
+        var n = r.ReadVarint();
+        return n is >= 0 and <= MaxLevel ? n : throw new InvalidDataException($"Niveau {n}");
+    }
+
+    /// <summary>Far above any level or count a planet reaches (its platforms: 2 a station level, 2 more on a fortress).</summary>
+    const int MaxLevel = 64;
+
+    /// <summary>A sum the view divides or prints (a side's power, a price asked): finite and not negative.</summary>
+    static float Amount(BinaryReader r)
+    {
+        var v = r.ReadSingle();
+        return float.IsFinite(v) && v >= 0 ? v : throw new InvalidDataException($"Valeur {v}");
     }
 
     static Side SideOf(BinaryReader r) => r.ReadSide();
@@ -150,14 +170,14 @@ public static partial class GalaxySnapshot
         p.Occupation = null;
         if ((flags & Seen) != 0)
         {
-            p.Station = r.ReadVarint();
-            p.Mines = r.ReadVarint();
-            p.Platforms = r.ReadVarint();
-            p.PlatformTier = r.ReadVarint();
-            p.Lab = r.ReadVarint();
-            p.RepairDock = r.ReadVarint();
-            p.IonCannon = r.ReadVarint();
-            p.StarLance = r.ReadVarint();
+            p.Station = Level(r);
+            p.Mines = Level(r);
+            p.Platforms = Level(r);
+            p.PlatformTier = Level(r);
+            p.Lab = Level(r);
+            p.RepairDock = Level(r);
+            p.IonCannon = Level(r);
+            p.StarLance = Level(r);
             if (p.StarLance > 0) p.LanceCharge = r.ReadSingle();
             if ((flags & Occupied) != 0) p.Occupation = new Occupation { Side = SideOf(r), Remaining = r.ReadSingle() };
         }
@@ -236,6 +256,7 @@ public static partial class GalaxySnapshot
                 bot.Personality = Valid<Personality>(r.ReadByte());
                 bot.Trust.Clear();
                 bot.Trust[viewer] = r.ReadSingle();
+                bot.Asked = Amount(r);
             }
             // Only the viewer's own economy is known.
             f.Credits = 0;
@@ -291,13 +312,8 @@ public static partial class GalaxySnapshot
                 {
                     var ships = ReadShips(r);
                     var heroes = ReadHeroes(r);
-                    var strength = r.ReadSingle();
-                    var d = new PlanetDefense
-                    {
-                        Station = r.ReadVarint(), Platforms = r.ReadVarint(), Mines = r.ReadVarint(),
-                        RepairDock = r.ReadVarint(), IonCannon = r.ReadVarint(), PlatformTier = r.ReadVarint(),
-                    };
-                    b.Forces[side] = new BattleForce(ships, heroes, strength, d);
+                    var power = Amount(r);
+                    b.Forces[side] = new BattleForce(ships, heroes, power, ReadDefense(r));
                 }
             }
             battles.Add(b);
@@ -305,14 +321,30 @@ public static partial class GalaxySnapshot
         g.Battles = battles;
     }
 
+    static PlanetDefense ReadDefense(BinaryReader r) => new()
+    {
+        Station = Level(r), Platforms = Level(r), Mines = Level(r),
+        RepairDock = Level(r), IonCannon = Level(r), PlatformTier = Level(r),
+    };
+
+    static BattleLosses ReadLosses(BinaryReader r) => new(ReadShips(r), ReadHeroes(r));
+
+    static BattleToll ReadToll(BinaryReader r)
+    {
+        var (att, def) = (ReadLosses(r), ReadLosses(r));
+        return r.ReadBoolean() ? new BattleToll(att, def, ReadDefense(r), ReadDefense(r)) : new BattleToll(att, def, null, null);
+    }
+
     static LaneSpot? ReadLane(BinaryReader r, Galaxy g) => r.ReadBoolean() ? new LaneSpot(PlanetOf(r, g), PlanetOf(r, g), r.ReadSingle()) : null;
 
     static GalaxyEvent ReadEvent(BinaryReader r, Galaxy g) => (Tag)r.ReadByte() switch
     {
         Tag.BattleStarted => new BattleStarted(r.ReadVarint()),
-        Tag.BattleEnded => new BattleEnded(PlanetOf(r, g), SideOf(r), SideOf(r), Valid<BattleResult>(r.ReadByte()), ReadLane(r, g)),
+        Tag.BattleEnded => new BattleEnded(PlanetOf(r, g), SideOf(r), SideOf(r), Valid<BattleResult>(r.ReadByte()), ReadLane(r, g), ReadToll(r)),
+        Tag.OccupationBegun => new OccupationBegun(PlanetOf(r, g), SideOf(r), SideOf(r)),
+        Tag.RallyCancelled => new RallyCancelled(PlanetOf(r, g), PlanetOf(r, g), SideOf(r)),
         Tag.Captured => new Captured(PlanetOf(r, g), SideOf(r), OptionalSide(r)),
-        Tag.PlanetBuilt => new PlanetBuilt(PlanetOf(r, g), SideOf(r), r.ReadText()),
+        Tag.PlanetBuilt => new PlanetBuilt(PlanetOf(r, g), SideOf(r), r.ReadText(), r.ReadBoolean()),
         Tag.TechResearched => new TechResearched(SideOf(r), Valid<TechId>(r.ReadByte())),
         Tag.BountyPaid => new BountyPaid(PlanetOf(r, g), SideOf(r), r.ReadDouble(), OptionalTech(r), ReadLane(r, g)),
         Tag.GalaxyVictory => new GalaxyVictory(SideOf(r), r.ReadVarint()),

@@ -34,6 +34,19 @@ public class AiTests
     }
 
     [Fact]
+    public void Ships_jammed_on_their_way_to_the_rally_point_leave_with_the_wave()
+    {
+        var w = Skirmish(5);
+        var f = w.Factions[Faction.Nairan];
+        var station = StationOf(w, Faction.Nairan)!;
+        f.AI!.WaveValue = 1000;
+        var ships = Enumerable.Range(0, 3).Select(i => SpawnShip(w, Faction.Nairan, ShipClass.Frigate, station.X - 300 - i * 70, station.Y)).ToList();
+        foreach (var e in ships) e.Order = Order.Move(0, 0);
+        Run(w, 3, 1.0 / 30);
+        Assert.All(ships, e => Assert.Equal(OrderType.AttackMove, e.Order?.Type));
+    }
+
+    [Fact]
     public void Builds_an_economy_and_a_fleet()
     {
         var w = Skirmish(7);

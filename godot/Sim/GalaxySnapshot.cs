@@ -39,9 +39,11 @@ public static partial class GalaxySnapshot
     /// <summary>
     /// Bumped with any change to the layout, the chart's included: a reader refuses any other
     /// version. 2: the chart apart. 3: alliances, trade and tributes, offers of every kind, an
-    /// AI's personality and trust.
+    /// AI's personality and trust. 4: a battle's toll (BattleEnded), occupations begun, rally points
+    /// cancelled, ships told from other builds, each side's power in a battle in place of its hull and
+    /// shields, what an AI asks the viewer for peace, a truce prolonged.
     /// </summary>
-    public const ushort Version = 3;
+    public const ushort Version = 4;
     const uint Magic = 0x504E5347, ChartMagic = 0x54484347;
 
     /// <summary>What never changes in a campaign (see the layout above): sent once to each player, before its first snapshot.</summary>
@@ -77,6 +79,7 @@ public static partial class GalaxySnapshot
     {
         BattleStarted = 1, BattleEnded, Captured, PlanetBuilt, TechResearched, BountyPaid, GalaxyVictory, DealOffered, TruceSigned,
         TruceEnded, IncidentStarted, IncidentEnded, RuinsExplored, LanceFired, DealRefused, PactSigned, PactEnded, TributeSigned, TributeEnded,
+        OccupationBegun, RallyCancelled,
     }
 
     /// <summary>
@@ -123,6 +126,7 @@ public static partial class GalaxySnapshot
             w.Write7BitEncodedInt(t.A.Id);
             w.Write7BitEncodedInt(t.B.Id);
             w.Write((float)t.Remaining);
+            w.Write(t.Renewed);
         }
         w.Write7BitEncodedInt(g.Pacts.Count);
         foreach (var p in g.Pacts)
@@ -276,6 +280,8 @@ public static partial class GalaxySnapshot
             {
                 w.Write((byte)ai.Personality);
                 w.Write((float)ai.Trust.GetValueOrDefault(viewer));
+                // Worked out here: a replica sees only part of the AI's fleets and income.
+                w.Write((float)(!own && g.Factions.ContainsKey(viewer) ? GalaxyAi.PeacePrice(g, f.Id, viewer) : 0));
             }
             if (!own) continue;
             w.Write(f.Credits);
@@ -317,8 +323,7 @@ public static partial class GalaxySnapshot
     /// <summary>
     /// n id, n planet, u8 flags, [n lane a, b, f32 t], n attacker, n defender, u8 status, n choices
     /// (each n side, u8 status), n commanders (each n side), f32 elapsed; for the viewer's own, what
-    /// each side brings, attacker first: ships, heroes, f32 strength, then its defenses (n station,
-    /// platforms, mines, repair dock, ion cannon, platform tier).
+    /// each side brings, attacker first: ships, heroes, f32 power, then its defenses (see WriteDefense).
     /// </summary>
     static void WriteBattle(BinaryWriter w, GalaxyBattle b, Side viewer)
     {
@@ -351,10 +356,30 @@ public static partial class GalaxySnapshot
             WriteShips(w, force.Ships);
             w.Write7BitEncodedInt(force.Heroes.Count);
             foreach (var h in force.Heroes) WriteHero(w, h);
-            w.Write((float)force.Strength);
-            var d = force.Defense;
-            foreach (var n in new[] { d.Station, d.Platforms, d.Mines, d.RepairDock, d.IonCannon, d.PlatformTier }) w.Write7BitEncodedInt(n);
+            w.Write((float)force.Power);
+            WriteDefense(w, force.Defense);
         }
+    }
+
+    /// <summary>n station, platforms, mines, repair dock, ion cannon, platform tier.</summary>
+    static void WriteDefense(BinaryWriter w, PlanetDefense d)
+    {
+        foreach (var n in new[] { d.Station, d.Platforms, d.Mines, d.RepairDock, d.IonCannon, d.PlatformTier }) w.Write7BitEncodedInt(n);
+    }
+
+    /// <summary>Each side's losses, attacker first: ships, n heroes (each a hero); u8 whether the planet's defenses follow, then those before and after.</summary>
+    static void WriteToll(BinaryWriter w, BattleToll t)
+    {
+        foreach (var lost in new[] { t.Attacker, t.Defender })
+        {
+            WriteShips(w, lost.Ships);
+            w.Write7BitEncodedInt(lost.Heroes.Count);
+            foreach (var h in lost.Heroes) WriteHero(w, h);
+        }
+        w.Write(t.Before is not null && t.After is not null);
+        if (t.Before is not { } before || t.After is not { } after) return;
+        WriteDefense(w, before);
+        WriteDefense(w, after);
     }
 
     /// <summary>n classes, each: u8 class, n count. Classes with none are left out.</summary>
@@ -379,7 +404,7 @@ public static partial class GalaxySnapshot
     /// Whether the viewer may hear of an event, as the map would tell it: what befalls its team,
     /// planets changing hands (known everywhere), truces, pacts and tributes, random events, ruins,
     /// star lances and the end of the campaign; a battle ending where its team has eyes; offers
-    /// it made or got, and their refusals.
+    /// it made or got, and their refusals; an occupation of its team's planets; its own rally points cancelled.
     /// </summary>
     static bool Tells(Galaxy g, Side viewer, GalaxyEvent ev, HashSet<int> seen) => ev switch
     {
@@ -388,6 +413,8 @@ public static partial class GalaxySnapshot
         PlanetBuilt b => Allies(g, b.Side, viewer),
         TechResearched t => Allies(g, t.Side, viewer),
         BountyPaid b => Allies(g, b.Side, viewer),
+        OccupationBegun o => Allies(g, o.From, viewer),
+        RallyCancelled r => r.Side == viewer,
         DealOffered o => o.From == viewer || o.To == viewer,
         DealRefused o => o.From == viewer || o.To == viewer,
         Captured or GalaxyVictory or TruceSigned or TruceEnded or PactSigned or PactEnded or TributeSigned or TributeEnded
@@ -424,6 +451,19 @@ public static partial class GalaxySnapshot
                 w.Write7BitEncodedInt(e.Defender.Id);
                 w.Write((byte)e.Result);
                 WriteLane(w, e.Lane);
+                WriteToll(w, e.Toll);
+                break;
+            case OccupationBegun o:
+                w.Write((byte)Tag.OccupationBegun);
+                w.Write7BitEncodedInt(o.PlanetId);
+                w.Write7BitEncodedInt(o.Side.Id);
+                w.Write7BitEncodedInt(o.From.Id);
+                break;
+            case RallyCancelled r:
+                w.Write((byte)Tag.RallyCancelled);
+                w.Write7BitEncodedInt(r.PlanetId);
+                w.Write7BitEncodedInt(r.Target);
+                w.Write7BitEncodedInt(r.Side.Id);
                 break;
             case Captured c:
                 w.Write((byte)Tag.Captured);
@@ -436,6 +476,7 @@ public static partial class GalaxySnapshot
                 w.Write7BitEncodedInt(b.PlanetId);
                 w.Write7BitEncodedInt(b.Side.Id);
                 w.Write(b.What);
+                w.Write(b.Ship);
                 break;
             case TechResearched t:
                 w.Write((byte)Tag.TechResearched);

@@ -41,9 +41,12 @@ public static partial class Snapshot
     /// records in segments, the parts of a ship placed by the reader. 4: beams, and torpedoes and
     /// missiles shot down. 5: sent in parts, one a packet (SnapshotParts.cs). 6: endless survival,
     /// each seat's score and the time held, and how far ahead a wave was beaten. 7: the terrain.
-    /// 8: veterans (rank, experience, Promoted), stances, patrols and orders queued.
+    /// 8: veterans (rank, experience, Promoted), stances, patrols and orders queued. 9: a ship of the
+    /// viewer's falling back to be repaired, in the top bit of its stance.
     /// </summary>
-    public const ushort Version = 8;
+    public const ushort Version = 9;
+    /// <summary>In a stance's byte: the ship is falling back to be repaired (Mending). The flags have no bit left, and few ships are.</summary>
+    const byte MendingBit = 0x80;
     const uint Magic = 0x504E5353;
 
     /// <summary>Room around the team's sight within which shots and blows still show: they fly in from the dark.</summary>
@@ -76,7 +79,8 @@ public static partial class Snapshot
         Engines = 1 << 7, ShieldGens = 1 << 8, Launched = 1 << 9,
         // Only for the viewer's own entities.
         Pilot = 1 << 10, Order = 1 << 11, Range = 1 << 12,
-        // A veteran's rank, for everyone; and only for the viewer's own, a stance but the default, and a patrol or orders queued.
+        // A veteran's rank, for everyone; and only for the viewer's own, a stance but the default (or a
+        // ship falling back, MendingBit), and a patrol or orders queued.
         Rank = 1 << 13, Stance = 1 << 14, Plan = 1 << 15,
     }
 
@@ -520,7 +524,7 @@ public static partial class Snapshot
             | (e.Income > 0 ? Has.Income : 0) | (e.Engines is not null ? Has.Engines : 0) | (e.ShieldGens is not null ? Has.ShieldGens : 0)
             | (e.Launched ? Has.Launched : 0)
             | (own && e.Pilot is not null ? Has.Pilot : 0) | (own && e.Order is not null ? Has.Order : 0) | (own ? Has.Range : 0)
-            | (e.Rank > 0 || own && e.Xp > 0 ? Has.Rank : 0) | (own && e.Stance != Stance.Defensive ? Has.Stance : 0)
+            | (e.Rank > 0 || own && e.Xp > 0 ? Has.Rank : 0) | (own && (e.Stance != Stance.Defensive || e.Mending) ? Has.Stance : 0)
             | (own && (e.Order?.Route is not null || e.Queue is { Count: > 0 }) ? Has.Plan : 0);
         w.Write((ushort)has);
         if ((has & Has.Weapons) != 0) w.Write7BitEncodedInt(e.Weapons.Count);
@@ -573,7 +577,7 @@ public static partial class Snapshot
             w.Write((byte)e.Rank);
             if (own) w.Write((float)e.Xp);
         }
-        if ((has & Has.Stance) != 0) w.Write((byte)e.Stance);
+        if ((has & Has.Stance) != 0) w.Write((byte)((byte)e.Stance | (e.Mending ? MendingBit : 0)));
         if ((has & Has.Plan) != 0)
         {
             var route = e.Order?.Route ?? [];

@@ -1,5 +1,6 @@
-// Supply (not in the web version): a fleet far from its side's planets and its allies' wears
-// out slowly, and biomechanical hulls stop mending on the way. The Errants live off their own.
+// Supply (not in the web version): a fleet too far from a station of its side or its allies wears
+// out slowly and mends no more, at home neither: an offensive that outruns its stations pays for
+// it, until one stands nearer. The Errants live off their own.
 using SandboxShip.Sim.Data;
 
 namespace SandboxShip.Sim;
@@ -8,11 +9,17 @@ public static partial class Galaxies
 {
     /// <summary>Share of its hull a fleet out of supply loses per second (10 % a minute), down to this floor.</summary>
     public const double SupplyWear = 0.1 / 60, SupplyFloor = 0.3;
+    /// <summary>
+    /// How many lanes from a station a fleet stays supplied. Counted from any planet, fleets
+    /// were out of supply 1 % of the time, and it changed nothing; so, 9 %.
+    /// </summary>
+    public const int SupplyLanes = 2;
 
     /// <summary>
-    /// Whether a fleet is supplied: its planet, or either end of its lane, is one of its side's or
-    /// its allies', or next to one. Fleets of no galaxy faction, the Errants', always are. Asked of
-    /// every fleet each step: the lanes are walked rather than a set of planets made each time.
+    /// Whether a fleet is supplied: its planet, or either end of its lane, is within SupplyLanes
+    /// of a station of its side or its allies. Fleets of no galaxy faction, the Errants', always
+    /// are. Asked of every fleet each step: the lanes are walked rather than a set of planets
+    /// made each time.
     /// </summary>
     public static bool Supplied(Galaxy g, Fleet fleet)
     {
@@ -23,15 +30,22 @@ public static partial class Galaxies
 
     static bool InSupply(Galaxy g, Side side, int planet)
     {
-        if (Held(g, side, planet)) return true;
+        if (Base(g, side, planet)) return true;
         foreach (var (a, b) in g.Lanes)
         {
-            if ((a == planet && Held(g, side, b)) || (b == planet && Held(g, side, a))) return true;
+            var next = a == planet ? b : b == planet ? a : -1;
+            if (next < 0) continue;
+            if (Base(g, side, next)) return true;
+            foreach (var (c, d) in g.Lanes)
+            {
+                if ((c == next && Base(g, side, d)) || (d == next && Base(g, side, c))) return true;
+            }
         }
         return false;
     }
 
-    static bool Held(Galaxy g, Side side, int planet) => g.Planets[planet].Owner is Side o && Allies(g, o, side);
+    /// <summary>A station of the side or its allies stands there. One being built does not count yet.</summary>
+    static bool Base(Galaxy g, Side side, int planet) => g.Planets[planet].Station > 0 && g.Planets[planet].Owner is Side o && Allies(g, o, side);
 
     /// <summary>Fleets out of supply wear out, down to the floor; fighting ones are left to their battle.</summary>
     static void WearUnsupplied(Galaxy g, double dt)

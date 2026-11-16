@@ -103,13 +103,17 @@ public static class Movement
         var dist = Dist(e, t);
         var safe = foe.Range + e.Radius + KiteMargin;
         var hit = e.Range * 0.9 + t.Radius;
-        if (foe.Range > 0 && hit > safe + KiteRoom && dist < safe && dist > 0
-            && (foe.Kind != EntityKind.Ship || def.Speed >= CruiseSpeed(world, foe) * 0.8))
+        var kites = foe.Range > 0 && hit > safe + KiteRoom && (foe.Kind != EntityKind.Ship || def.Speed >= CruiseSpeed(world, foe) * 0.8);
+        // Otherwise it closes in until most of its guns reach, not only the longest (Combat.StopRange);
+        // no further than it keeps away from what it outranges.
+        var stop = Combat.StopRange(e, t);
+        if (kites) stop = Math.Max(stop, safe + KiteRoom - t.Radius);
+        if (kites && dist < safe && dist > 0)
         {
             var away = (safe + hit) / 2;
             SteerTo(world, e, def, t.X + (e.X - t.X) / dist * away, t.Y + (e.Y - t.Y) / dist * away, dt, 0);
         }
-        else if (dist - t.Radius > e.Range * 0.85)
+        else if (dist - t.Radius > stop)
         {
             SteerTo(world, e, def, t.X, t.Y, dt, 0);
         }
@@ -253,10 +257,12 @@ public static class Movement
         Entity? best = null;
         var bestD = double.PositiveInfinity;
         var heals = Factions.Trait(e.Race).HullRegen > 0;
+        // A support ship nearer what it flees than itself is no refuge: it would fly to the front.
+        var foe = HostileTarget(world, e);
         foreach (var t in world.Entities)
         {
             if (t == e || t.Build < 1 || !Allies(world, t.Side, e.Side)) continue;
-            var mends = t.Kind == EntityKind.Ship ? Ships.Defs[t.Cls].Repair is not null && !t.Mending
+            var mends = t.Kind == EntityKind.Ship ? Ships.Defs[t.Cls].Repair is not null && !t.Mending && (foe is null || Dist(t, foe) >= Dist(e, foe))
                 : t.Type == "repairDock" || (heals && t.Type == "station" && t.Side == e.Side);
             if (!mends) continue;
             var d = Dist(e, t);
@@ -310,6 +316,58 @@ public static class Movement
         return true;
     }
 
+    /// <summary>How far around it a support ship in a fight looks for whom to stay by.</summary>
+    const double AttendReach = 800;
+
+    /// <summary>
+    /// A support ship in a fight does not close in on the foe, its guns are not what it is for: it
+    /// stays by the ally that most needs it, or else the nearest, within reach of its repairs.
+    /// Returns false with no ally around: it fights as any ship does.
+    /// </summary>
+    static bool Attend(World world, Entity e, Motion def, double dt)
+    {
+        var ward = world.Entities.Get(e.WardId);
+        // Looking walks everything around, hundreds of ships in a big fight: twice a second at most,
+        // as for a mender (Mend), the ward kept meanwhile while it is there to keep.
+        if (world.Time >= e.WardLook || ward is null || ward.Launched || Dist(e, ward) > AttendReach)
+        {
+            e.WardLook = world.Time + 0.5;
+            ward = Ward(world, e);
+            e.WardId = ward?.Id;
+        }
+        if (ward is null) return false;
+        if (Dist(e, ward) - ward.Radius > Ships.Defs[e.Cls].Repair!.Range * 0.7) SteerTo(world, e, def, ward.X, ward.Y, dt, 0);
+        else Brake(e, def, dt);
+        return true;
+    }
+
+    /// <summary>The ally a support ship stays by: the most damaged around, or else the nearest; none of them a repairer itself.</summary>
+    static Entity? Ward(World world, Entity e)
+    {
+        Entity? ward = null;
+        var worst = double.PositiveInfinity;
+        foreach (var t in world.Grid.Near(e.X, e.Y, AttendReach))
+        {
+            if (t == e || t.Kind != EntityKind.Ship || t.Launched || !Allies(world, t.Side, e.Side) || Ships.Defs[t.Cls].Repair is not null) continue;
+            var d = Dist(e, t);
+            if (d > AttendReach) continue;
+            // The most damaged first; among those untouched, the nearest.
+            var need = t.Hull < t.MaxHull ? t.Hull / t.MaxHull : 1 + d;
+            if (need < worst)
+            {
+                worst = need;
+                ward = t;
+            }
+        }
+        return ward;
+    }
+
+    /// <summary>Fights this foe: as it may, a support ship by staying with those it repairs.</summary>
+    static void Fight(World world, Entity e, Motion def, Entity t, double dt)
+    {
+        if (Ships.Defs[e.Cls].Repair is null || !Attend(world, e, def, dt)) Engage(world, e, def, t, dt);
+    }
+
     static void UpdateShip(World world, Entity e, double dt)
     {
         var def = EffectiveDef(world, e);
@@ -319,7 +377,7 @@ public static class Movement
             return;
         }
         var o = e.Order;
-        var arrive = Math.Max(6, e.Radius * 0.3);
+        var arrive = Math.Max(6, e.Radius * 0.3) + (o?.Slack ?? 0);
         // Holding the line: no stepping aside, no falling back, no chase.
         var hold = e.Stance == Stance.Hold;
         // Out of a blow coming down first, unless the player said where to go.
@@ -357,7 +415,7 @@ public static class Movement
             var t = o.Type != OrderType.Move && !hold ? HostileTarget(world, e) : null;
             if (t is not null)
             {
-                Engage(world, e, def, t, dt);
+                Fight(world, e, def, t, dt);
                 return;
             }
             if (SteerTo(world, e, Pace(world, e, def, o), o.X, o.Y, dt, arrive))
@@ -367,6 +425,8 @@ public static class Movement
                     var leg = (o.Leg + 1) % route.Count;
                     e.Order = o with { Leg = leg, X = route[leg].X, Y = route[leg].Y };
                 }
+                // Arrived short of its spot in a crowd, it holds where it is.
+                else if (o.Slack > 0) Done(e, e.X, e.Y);
                 else Done(e, o.X, o.Y);
             }
             return;
@@ -381,7 +441,7 @@ public static class Movement
         var aggressive = e.Stance == Stance.Aggressive;
         if (hostile is not null && (aggressive || Dist(hostile, new Point(e.GuardX, e.GuardY)) < Leash))
         {
-            Engage(world, e, def, hostile, dt);
+            Fight(world, e, def, hostile, dt);
             // It stays where the fight took it.
             if (aggressive)
             {
@@ -749,6 +809,16 @@ public static class Movement
     public static void SetStance(World world, IEnumerable<int> ids, Stance stance)
     {
         foreach (var s in OwnShips(world, ids)) s.Stance = stance;
+    }
+
+    /// <summary>
+    /// A new ship's way to the rally point: a spot it can reach, clear of what stands there, and it
+    /// need not reach it exactly: where ships gather, another one may well sit on it.
+    /// </summary>
+    public static Order RallyOrder(World world, Entity s, double x, double y)
+    {
+        var p = Reachable(world, Structures(world), s, x, y);
+        return Order.Move(p.X, p.Y) with { Slack = s.Radius * 2 + 40 };
     }
 
     /// <summary>

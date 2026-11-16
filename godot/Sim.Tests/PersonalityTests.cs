@@ -186,9 +186,28 @@ public class PersonalityTests(ITestOutputHelper output)
         // The thrifty one expands the most.
         Expect.Greater(Mean(Personality.Economic, r => r.Outposts), Mean(Personality.Balanced, r => r.Outposts));
         Expect.Greater(Mean(Personality.Economic, r => r.Outposts), Mean(Personality.Aggressive, r => r.Outposts));
-        // The technological one researches the most, with the biggest share of large hulls.
+        // The technological one researches the most, and leans the most to large hulls: its
+        // wave has done for a player who does nothing before many get built.
         foreach (var other in Personalities.All.Where(p => p != Personality.Technological))
             Expect.Greater(Mean(Personality.Technological, r => r.Research), Mean(other, r => r.Research));
-        Expect.Greater(Mean(Personality.Technological, r => r.LargeShare), Mean(Personality.Aggressive, r => r.LargeShare));
+        Expect.Greater(LargeOdds(Personality.Technological), LargeOdds(Personality.Aggressive) + 0.05);
+    }
+
+    /// <summary>The odds that a ship an AI of this personality picks at a level 3 station is a large one.</summary>
+    static double LargeOdds(Personality personality)
+    {
+        var w = Scenario.CreateSkirmish(new SkirmishOptions
+        {
+            Slots = [new(Faction.Klaed, Faction.Klaed), new(Faction.Nairan, Faction.Nairan, 0, Difficulty.Normal, null, personality)],
+            Seed = 4,
+        });
+        var station = StationOf(w, Faction.Nairan)!;
+        station.Level = 3;
+        var large = 0;
+        for (var i = 0; i < 2000; i++)
+        {
+            if (Ai.PickShip(w, w.Factions[Faction.Nairan], station) is ShipClass c && Ships.Defs[c].Size == SizeClass.Large) large++;
+        }
+        return large / 2000.0;
     }
 }

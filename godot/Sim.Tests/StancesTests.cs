@@ -356,6 +356,36 @@ public class StancesTests
     }
 
     [Fact]
+    public void A_replica_knows_its_own_ship_falls_back_whatever_its_stance_and_not_a_foe_s()
+    {
+        var w = NewWorld();
+        var own = SpawnShip(w, Klaed, ShipClass.Frigate, 500, 500);
+        var foe = SpawnShip(w, Nairan, ShipClass.Frigate, 900, 500);
+        own.Mending = foe.Mending = true;
+        var replica = new World();
+        void Sync()
+        {
+            using var ms = new MemoryStream();
+            using (var bw = new BinaryWriter(ms, System.Text.Encoding.UTF8, true)) Snapshot.Write(w, Klaed, bw, []);
+            ms.Position = 0;
+            Snapshot.Read(new BinaryReader(ms), replica);
+        }
+        Sync();
+        Assert.True(replica.Entities.Get(own.Id)!.Mending);
+        Assert.Equal(Stance.Defensive, replica.Entities.Get(own.Id)!.Stance);
+        Assert.False(replica.Entities.Get(foe.Id)!.Mending);
+        own.Stance = Stance.Aggressive;
+        Sync();
+        Assert.True(replica.Entities.Get(own.Id)!.Mending);
+        Assert.Equal(Stance.Aggressive, replica.Entities.Get(own.Id)!.Stance);
+        // Back in the fight: the same replica hears of it.
+        own.Mending = false;
+        Sync();
+        Assert.False(replica.Entities.Get(own.Id)!.Mending);
+        Assert.Equal(Stance.Aggressive, replica.Entities.Get(own.Id)!.Stance);
+    }
+
+    [Fact]
     public void A_replica_sees_its_own_ships_stance_patrol_and_queue_and_only_the_rank_of_others()
     {
         var w = NewWorld();

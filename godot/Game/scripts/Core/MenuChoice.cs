@@ -70,6 +70,7 @@ public sealed record MenuChoice
 /// with --shot; and what --resume reads), --resume (with --host: the saved campaign's lobby), --snap=DIR (captures at the key
 /// moments: prompts, battles, their end, offers, the lobby; numbered in turn), --watch (a battle others command is watched when
 /// offered), --leave=SECONDS (at that age of a campaign battle it commands, the player leaves it to the AI), --build=SECONDS,... (at those galaxy ages, frigates queued at every planet of the player, as credits allow), --pause=SECONDS (in the galaxy: at that galaxy age, the player pauses it for everyone, and sets it going 4 s later).
+/// A galaxy played alone starts paused; these flags, which act at set galaxy ages or give a speed, set its clock going at once (RunsClock).
 /// </summary>
 public static class Dev
 {
@@ -133,6 +134,9 @@ public static class Dev
     public static bool Spectate;
     /// <summary>--direct: through the online server, a dev run's game offers the direct link, and a dev run that joins accepts it.</summary>
     public static bool Direct;
+
+    /// <summary>This run sets a campaign played alone going by itself: its flags act at galaxy ages that a paused galaxy would never reach.</summary>
+    public static bool RunsClock => Speed > 0 || Pause > 0 || Truce > 0 || Attack.Length + Raid.Length + Build.Length + Choose.Length > 0;
 
     static double[] Ages(string value) => [.. value.Split(',').Select(v => double.Parse(v, System.Globalization.CultureInfo.InvariantCulture))];
 

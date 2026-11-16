@@ -105,6 +105,19 @@ public partial class GalaxyScreen
         devPrompt = (b.Id, Godot.Time.GetTicksMsec());
     }
 
+    /// <summary>
+    /// A battle the player is almost sure to win, with the option on, asks nothing. Never one the
+    /// player might fall back from, nor in a dev run that answers its prompts (--choose).
+    /// </summary>
+    bool ResolvesAlone(GalaxyBattle b) => Settings.Current.AutoResolveWon && Dev.Choose.Length == 0 && Galaxies.OutlookOf(b, Player) == BattleOutlook.CertainVictory;
+
+    /// <summary>The choice goes out for the player alone: over the network, another side in the battle still chooses for itself.</summary>
+    void ResolveAlone(GalaxyBattle b)
+    {
+        Hud.ResolvedAlone(b);
+        AutoResolve(b.Id);
+    }
+
     /// <summary>The player's answer to a battle's prompt: remembered over the network until the host's snapshot says it.</summary>
     void Answered(int battleId)
     {

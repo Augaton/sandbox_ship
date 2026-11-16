@@ -1,6 +1,7 @@
 // The battle's minimap: asteroid fields, units and structures the player sees (structures
 // once seen stay), the view rectangle, and recent alerts pinging where they happened. Left
-// click or drag: look there; right click: send the selection there (Ctrl: attack-move). Port
+// click or drag: look there, or aim there with an order waiting for its point; right click: send
+// the selection there (Ctrl: attack-move, Shift: queued), or set the station's rally point. Port
 // of the minimap of src/ui/hud.ts.
 using Godot;
 using SandboxShip.Battle;
@@ -15,10 +16,14 @@ public partial class Minimap : Control
 {
     /// <summary>How long an alert pings on the minimap.</summary>
     const double PingMs = 4000;
+    /// <summary>How near the pointer a target counts, aiming from the minimap, in its pixels.</summary>
+    const double AimSlop = 5;
 
     readonly BattleScreen scene = null!;
     /// <summary>The units' squares, a thousand or more in a big battle, go to the renderer in one call.</summary>
     readonly ShapeBatch squares = new();
+    /// <summary>The press began a look, not an aim: the drag that follows moves the view.</summary>
+    bool looking;
 
     public Minimap() { }
 
@@ -40,16 +45,17 @@ public partial class Minimap : Control
             case InputEventMouseButton { Pressed: true, ButtonIndex: MouseButton.Right } mb:
             {
                 var p = ToWorld(mb.Position);
-                scene.Controls.MoveSelection(p.X, p.Y, mb.CtrlPressed);
+                scene.Controls.MinimapOrder(p.X, p.Y, mb.CtrlPressed, mb.ShiftPressed);
                 AcceptEvent();
                 break;
             }
             case InputEventMouseButton { Pressed: true, ButtonIndex: MouseButton.Left } mb:
-                Jump(mb.Position);
+                looking = !scene.Controls.MinimapAim(ToWorld(mb.Position), mb.ShiftPressed, AimSlop / Size.X * scene.World.Width);
+                if (looking) Jump(mb.Position);
                 AcceptEvent();
                 break;
             // A press keeps the pointer: the drag follows it out of the minimap too.
-            case InputEventMouseMotion mm when mm.ButtonMask.HasFlag(MouseButtonMask.Left):
+            case InputEventMouseMotion mm when looking && mm.ButtonMask.HasFlag(MouseButtonMask.Left):
                 Jump(mm.Position);
                 AcceptEvent();
                 break;
@@ -98,6 +104,12 @@ public partial class Minimap : Control
             DrawCircle(at, 2, Palette.Of(w, e.Side));
         }
         scene.DrawModeMarks(this, sx, sy);
+        // Orders just given ring where they went, often out of view.
+        foreach (var o in scene.OrderPings)
+        {
+            var age = (now - o.Time) / BattleScreen.OrderPingMs;
+            if (age < 1) DrawArc(new Vector2((float)(o.X * sx), (float)(o.Y * sy)), (float)(9 - age * 6), 0, Mathf.Tau, 24, o.Color with { A = (float)(1 - age) }, 2);
+        }
         // Recent alerts ping where they happened.
         foreach (var a in scene.Alerts)
         {

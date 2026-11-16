@@ -41,12 +41,12 @@ public class GalaxyLanceTests
         Assert.Equal("Station niveau 4 requise", CanBuild(g, Faction.Klaed, home.Id, Lance).Reason);
         home.Station = 4;
         Assert.True(EnqueueBuild(g, Faction.Klaed, home.Id, Lance).Ok);
-        Assert.Equal(100000 - Buildables.Defs[BuildableType.StarLance].Cost, g.Factions[Faction.Klaed].Credits);
+        Assert.Equal(100000 - LanceCost, g.Factions[Faction.Klaed].Credits);
         var other = g.Planets.First(p => p.Owner is null);
         other.Owner = Faction.Klaed;
         other.Station = 4;
         Assert.Equal("Une seule Lance stellaire", CanBuild(g, Faction.Klaed, other.Id, Lance).Reason);
-        RunGalaxy(g, Buildables.Defs[BuildableType.StarLance].BuildTime + 1);
+        RunGalaxy(g, LanceBuildTime + 1);
         Assert.Equal(1, home.StarLance);
         Assert.InRange(home.LanceCharge, LanceRecharge - 2, LanceRecharge);
     }
@@ -112,6 +112,69 @@ public class GalaxyLanceTests
         Assert.Equal(Faction.Nairan, shot.Side);
         Assert.Equal(Faction.Klaed, g.Planets[shot.Target].Owner);
         Assert.InRange(LanesBetween(g, theirs.Id, shot.Target), 1, LanceReach);
+    }
+
+    /// <summary>An AI with a level 4 station and a large income, no credits, and a rival far away.</summary>
+    static (Galaxy G, Planet Home, GalaxyAIState AI) Saver(Difficulty difficulty = Difficulty.Normal)
+    {
+        var g = CreateGalaxy(Faction.Klaed, [Faction.Nairan], true, errants: false, incidents: false, difficulty: difficulty);
+        g.Player = Faction.Nautolan;
+        var home = g.Planets.First(p => p.Owner == Faction.Nairan);
+        home.Station = Station.Levels.Count;
+        home.Income = 400;
+        g.Factions[Faction.Nairan].Credits = 0;
+        // No fleet of the rival's to put a planet in danger.
+        foreach (var f in g.Fleets.Values.Where(f => f.Side == Faction.Klaed).ToList()) g.Fleets.Remove(f.Id);
+        return (g, home, g.Factions[Faction.Nairan].AI!);
+    }
+
+    [Fact]
+    public void An_ai_at_the_top_station_level_saves_a_share_of_its_income_for_a_lance()
+    {
+        var (g, home, ai) = Saver();
+        var f = g.Factions[Faction.Nairan];
+        var cost = BuildPrice(g, home, Lance);
+        var bought = false;
+        for (var t = 0; t < 2400 && !bought; t++)
+        {
+            StepGalaxy(g, 0.5);
+            // What it saves stays out of reach of everything else it buys.
+            if (!home.Buildings.Exists(q => q.Kind == GalaxyBuildKind.StarLance)) Expect.GreaterOrEqual(f.Credits + 1e-6, ai.Fund);
+            bought = home.Buildings.Exists(q => q.Kind == GalaxyBuildKind.StarLance);
+        }
+        Assert.True(bought);
+        Assert.Equal(0, ai.Fund);
+        // It spent the rest meanwhile: it never sat on the whole price as it used to wait for.
+        Expect.Less(f.Credits, cost * 0.5);
+        Assert.Contains(home.Units.Concat(g.Planets.Where(p => p.Owner == Faction.Nairan).SelectMany(p => p.Units)), q => q.Kind == GalaxyBuildKind.Ship);
+    }
+
+    [Fact]
+    public void A_planet_in_danger_may_spend_what_was_saved()
+    {
+        foreach (var danger in new[] { false, true })
+        {
+            var (g, home, ai) = Saver();
+            home.Income = 0;
+            home.Mines = home.MineSlots;
+            var f = g.Factions[Faction.Nairan];
+            f.Credits = ai.Fund = 1000;
+            var next = Neighbours(g, home.Id)[0];
+            if (danger) AddShipsAt(g, Faction.Klaed, next, new ShipCounts { [ShipClass.Titan] = 3 });
+            ai.Timer = 0;
+            StepGalaxy(g);
+            Assert.Equal(danger, home.Buildings.Exists(q => q.Kind == GalaxyBuildKind.Platform));
+        }
+    }
+
+    [Fact]
+    public void The_easy_ai_builds_no_lance_however_rich()
+    {
+        var (g, home, _) = Saver(Difficulty.Easy);
+        g.Factions[Faction.Nairan].Credits = 200000;
+        RunGalaxy(g, 30);
+        Assert.DoesNotContain(g.Planets.SelectMany(p => p.Buildings), q => q.Kind == GalaxyBuildKind.StarLance);
+        Assert.Equal(0, home.StarLance);
     }
 
     [Fact]

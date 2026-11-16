@@ -26,22 +26,26 @@ public partial class GalaxyHud : CanvasLayer
 
     static readonly (Tab Id, string Label)[] Tabs = [(Tab.Planet, "Planète"), (Tab.Buildings, "Bâtiments"), (Tab.Ships, "Vaisseaux"), (Tab.Research, "Recherche")];
 
-    /// <summary>Toasts live this long (ms), then fade out.</summary>
-    const double ToastLife = 2200, ToastFade = 400;
-
     readonly GalaxyScreen scene;
     Control root = null!;
     Label credits = null!, income = null!, owned = null!, researching = null!;
     readonly List<(Button B, int Speed)> speedButtons = [];
     VBoxContainer body = null!;
-    VBoxContainer toasts = null!;
-    readonly List<(Control Toast, double Born)> toastList = [];
+    readonly ToastStack toasts = new();
     Control? modal;
     /// <summary>The dialog's first button, which the web version focuses: Enter presses it.</summary>
     Button? modalFirst;
+    /// <summary>What Échap does in the open dialog when it does not just close it: back to the dialog it came from.</summary>
+    Action? modalBack;
+    /// <summary>The open dialog waits for its answer: Échap leaves it.</summary>
+    bool modalStays;
+    /// <summary>The menu or the help stopped time, and starts it again when they close.</summary>
+    bool heldByDialog;
+    /// <summary>The player was told of a defeat when they fell: the campaign's end only says who won.</summary>
+    bool defeatTold;
     PanelContainer tip = null!;
     VBoxContainer tipBox = null!;
-    /// <summary>Over the network, what holds the galaxy for everyone, under the top bar.</summary>
+    /// <summary>Under the top bar: alone, that time stands still; over the network, what holds the galaxy for everyone.</summary>
     PanelContainer banner = null!;
     Label bannerText = null!;
     Tab tab = Tab.Planet;
@@ -71,7 +75,7 @@ public partial class GalaxyHud : CanvasLayer
         return side != Player && G.Humans.TryGetValue(side, out var name) ? $"{name} ({race})" : race;
     }
 
-    static string DescribeShips(ShipCounts ships, IEnumerable<HeroId>? heroes = null)
+    public static string DescribeShips(ShipCounts ships, IEnumerable<HeroId>? heroes = null)
     {
         var parts = (heroes ?? []).Select(h => $"{Heroes.Defs[h].Name} ({Heroes.Defs[h].Title.ToLowerInvariant()})")
             .Concat(ShipyardClasses.Where(c => ships.Of(c) > 0).Select(c => $"{ships.Of(c)}× {Ships.Defs[c].Name}"))
@@ -325,11 +329,7 @@ public partial class GalaxyHud : CanvasLayer
         banner.Visible = false;
         root.AddChild(banner);
 
-        toasts = HudKit.Column(4);
-        toasts.SetAnchorsPreset(Control.LayoutPreset.CenterTop);
-        toasts.GrowHorizontal = Control.GrowDirection.Both;
-        toasts.OffsetTop = 112;
-        root.AddChild(toasts);
+        root.AddChild(toasts.Box);
 
         tip = HudKit.Ignore(HudKit.Panel(10, 8));
         tip.Visible = false;
@@ -341,20 +341,7 @@ public partial class GalaxyHud : CanvasLayer
         Refresh();
     }
 
-    public void Toast(string text)
-    {
-        var t = HudKit.Ignore(HudKit.Panel(12, 6));
-        t.SizeFlagsHorizontal = Control.SizeFlags.ShrinkCenter;
-        // A long message (an order to several planets) wraps rather than run under the planet panel.
-        t.AddChild(HudKit.Para(text, max: 520));
-        toasts.AddChild(t);
-        toastList.Add((t, Godot.Time.GetTicksMsec()));
-        while (toastList.Count > 4)
-        {
-            toastList[0].Toast.QueueFree();
-            toastList.RemoveAt(0);
-        }
-    }
+    public void Toast(string text) => toasts.Add(text);
 
     public void RefreshModes()
     {
@@ -369,7 +356,7 @@ public partial class GalaxyHud : CanvasLayer
         }
     }
 
-    /// <summary>Over the network, a line under the top bar while something holds the galaxy for everyone; none hides it.</summary>
+    /// <summary>A line under the top bar while time stands still, or something holds the galaxy for everyone; none hides it.</summary>
     public void Banner(string? text)
     {
         banner.Visible = text is not null;
@@ -378,18 +365,10 @@ public partial class GalaxyHud : CanvasLayer
 
     public void Tick(double delta)
     {
-        var now = Godot.Time.GetTicksMsec();
-        for (var i = toastList.Count - 1; i >= 0; i--)
-        {
-            var (t, born) = toastList[i];
-            var age = now - born;
-            if (age >= ToastLife + ToastFade)
-            {
-                t.QueueFree();
-                toastList.RemoveAt(i);
-            }
-            else if (age > ToastLife) t.Modulate = new Color(1, 1, 1, (float)Math.Max(0, 1 - (age - ToastLife) / 300));
-        }
+        toasts.Tick();
+        // As in battle, under the top bar on the left: beside the open drawer, under a banner.
+        var toastsAt = new Vector2(8 + DrawerRight, banner.Visible ? banner.Position.Y + banner.Size.Y + 8 : 64);
+        if (toasts.Box.Position != toastsAt) toasts.Box.Position = toastsAt;
         timer -= delta;
         if (timer > 0) return;
         timer = RefreshMs;
@@ -717,6 +696,7 @@ public partial class GalaxyHud : CanvasLayer
                 sendHeroes.Add((h, box));
             }
             body.AddChild(Text("Clic droit sur une planète : envoyer ces vaisseaux.", Palette.Muted, wrap: true));
+            body.AddChild(Text($"{Bindings.Label(Bindings.SendOne)} + clic droit : un seul vaisseau.", Palette.Muted, wrap: true));
         }
     }
 
@@ -945,6 +925,7 @@ public partial class GalaxyHud : CanvasLayer
         var net = scene.Opts.Net;
         if (net is null)
         {
+            HoldTime();
             box.AddChild(Heading("Menu", null, 22));
             box.AddChild(HudKit.Para("La campagne se sauvegarde seule ; « Continuer la campagne » reprend la sauvegarde la plus récente. "
                 + "Tu peux aussi en garder une sous le nom de ton choix.", Palette.Muted, max: 460));
@@ -960,7 +941,7 @@ public partial class GalaxyHud : CanvasLayer
             row.AddChild(name);
             row.AddChild(Btn("Sauvegarder", SaveNamed));
             box.AddChild(row);
-            box.AddChild(Actions(Btn("Options", () => OpenModal(Options.Panel(ConfirmMenu))), Btn("Annuler", CloseModal), Btn("Menu principal", scene.ToMenu, primary: true)));
+            box.AddChild(Actions(Btn("Options", () => OpenModal(Options.Panel(ConfirmMenu), ConfirmMenu)), Btn("Annuler", CloseModal), Btn("Menu principal", scene.ToMenu, primary: true)));
             OpenModal(p);
             return;
         }
@@ -983,6 +964,17 @@ public partial class GalaxyHud : CanvasLayer
                 LanceFiredShown(lf);
                 if (lf.Side == player) PlayerProfile.Moment(Profiles.Moment.Lance);
                 break;
+            case BattleStarted s when g.Battles.Find(x => x.Id == s.BattleId) is { Lane: null } attacked && attacked.Defender == player && g.Planets[attacked.PlanetId].Owner == player:
+                Alert($"{g.Planets[attacked.PlanetId].Name} attaquée", attacked.PlanetId);
+                break;
+            case OccupationBegun o when o.From == player:
+                // In the seconds the player lives them, at the speed of the moment.
+                Alert($"{g.Planets[o.PlanetId].Name} occupée par {NameOf(o.Side)} : prise dans {N(Math.Ceiling(GalaxyRules.CaptureTime / scene.Speed))} s", o.PlanetId);
+                break;
+            case RallyCancelled r when r.Side == player:
+                Notify($"Ralliement de {g.Planets[r.PlanetId].Name} vers {g.Planets[r.Target].Name} annulé : planète perdue", r.PlanetId);
+                Sfx.Play(Sound.Alert);
+                break;
             case Captured c:
                 var planet = g.Planets[c.PlanetId];
                 if (c.Side == player)
@@ -990,12 +982,13 @@ public partial class GalaxyHud : CanvasLayer
                     Notify($"{planet.Name} est à toi", planet.Id);
                     Sfx.Play(Sound.Built);
                 }
-                else if (c.From == player)
-                {
-                    Notify($"{planet.Name} perdue", planet.Id);
-                    Sfx.Play(Sound.Alert);
-                }
+                else if (c.From == player) Alert($"{planet.Name} perdue", planet.Id);
                 else if (c.From == Faction.Errant) Notify($"{planet.Name} : les Errants tombent devant {NameOf(c.Side)}", planet.Id);
+                break;
+            // Production loops make ships all the time: counted together, and left out of the log.
+            case PlanetBuilt b when b.Side == player && b.Ship:
+                Toast($"Vaisseau terminé : {b.What}");
+                Sfx.Play(Sound.Built);
                 break;
             case PlanetBuilt b when b.Side == player:
                 Notify($"{g.Planets[b.PlanetId].Name} : {b.What} terminé", b.PlanetId);
@@ -1011,17 +1004,80 @@ public partial class GalaxyHud : CanvasLayer
                 Notify($"Primes {of} : +{N(Js.Round(bp.Credits))} crédits{taught}", bp.PlanetId);
                 break;
             case BattleEnded e when e.Attacker == player || e.Defender == player:
-                var winner = e.Result == BattleResult.Attacker ? e.Attacker : e.Defender;
+                // A defender whose foe falls back holds: that is its victory, as Outcome judges it.
+                var good = (e.Result == BattleResult.Attacker ? e.Attacker : e.Defender) == player;
                 var what = e.Result == BattleResult.Retreat
                     ? (e.Attacker == player ? "retraite" : "l'ennemi se replie")
-                    : winner == player ? "victoire" : "défaite";
-                Notify($"{Galaxies.BattleName(g, e.PlanetId, e.Lane)} : {what}", e.PlanetId);
-                Sfx.Play(winner == player && e.Result != BattleResult.Retreat ? Sound.Built : Sound.Alert);
+                    : good ? "victoire" : "défaite";
+                Report($"{Galaxies.BattleName(g, e.PlanetId, e.Lane)} : {what}", TollLines(g, e.Toll, e.Attacker == player, e.PlanetId, e.Defender == player && good), e.PlanetId, good);
+                Sfx.Play(good ? Sound.Built : Sound.Alert);
                 break;
         }
     }
 
+    /// <summary>
+    /// A battle's toll for a side, a line each, as its notice, the log and its end screen give it:
+    /// what it lost, its fallen heroes, what it shot down, and what changed at the planet.
+    /// `kept`: the side holds the planet still, and what it lost there costs it income.
+    /// </summary>
+    public static List<string> TollLines(Galaxy g, BattleToll toll, bool attacking, int planetId, bool kept)
+    {
+        var (mine, theirs) = attacking ? (toll.Attacker, toll.Defender) : (toll.Defender, toll.Attacker);
+        var lost = Sim.Battle.CountShips(mine.Ships) > 0;
+        var lines = new List<string>();
+        if (lost) lines.Add($"Pertes : {DescribeShips(mine.Ships)}");
+        if (mine.Heroes.Count > 0) lines.Add($"{(mine.Heroes.Count > 1 ? "Héros tombés" : "Héros tombé")} : {DescribeShips(new ShipCounts(), mine.Heroes)}");
+        if (!lost && mine.Heroes.Count == 0) lines.Add("Aucune perte");
+        if (Sim.Battle.CountShips(theirs.Ships) + theirs.Heroes.Count > 0) lines.Add($"Abattus : {DescribeShips(theirs.Ships, theirs.Heroes)}");
+        if (toll.Before is { } before && toll.After is { } after && DefenseChanges(g, before, after, planetId, kept) is { Length: > 0 } changes) lines.Add(changes);
+        return lines;
+    }
+
+    /// <summary>What a battle changed at a planet, each part apart so that it translates alone: "Station 2 → 1, Mines 3 → 0, Revenu −14/s".</summary>
+    static string DefenseChanges(Galaxy g, PlanetDefense before, PlanetDefense after, int planetId, bool kept)
+    {
+        var parts = new List<string>();
+        if (before.Station != after.Station) parts.Add($"Station {before.Station} → {after.Station}");
+        if (before.Platforms != after.Platforms) parts.Add($"Plateformes {before.Platforms} → {after.Platforms}");
+        if (before.Mines != after.Mines) parts.Add($"Mines {before.Mines} → {after.Mines}");
+        if (before.RepairDock > after.RepairDock) parts.Add("Dock de réparation perdu");
+        if (before.IonCannon > after.IonCannon) parts.Add("Canon ionique perdu");
+        var income = (before.Mines - after.Mines) * Galaxies.MineYield(g, g.Planets[planetId]) + (before.Station - after.Station) * GalaxyRules.StationIncome;
+        if (kept && income > 0) parts.Add($"Revenu −{N(Math.Round(income, 1))}/s");
+        return string.Join(", ", parts);
+    }
+
+    /// <summary>A likely outcome in words, and its color.</summary>
+    public static (string Word, Color Color) OutlookWord(BattleOutlook outlook) => outlook switch
+    {
+        BattleOutlook.CertainVictory => ("Victoire presque certaine", Palette.Ok),
+        BattleOutlook.Favorable => ("Favorable", Palette.Ok),
+        BattleOutlook.Unfavorable => ("Défavorable", Palette.Danger),
+        BattleOutlook.CertainDefeat => ("Défaite presque certaine", Palette.Danger),
+        _ => ("Indécise", Palette.Text),
+    };
+
+    /// <summary>A battle too one-sided to ask about: a line says so, and its toll comes when it ends.</summary>
+    public void ResolvedAlone(GalaxyBattle b) =>
+        Notify($"{Galaxies.BattleName(G, b.PlanetId, b.Lane)} : résolue seule, victoire presque certaine", b.PlanetId);
+
     public bool DialogOpen => modal is not null;
+
+    /// <summary>Échap in a dialog: it closes, or gives way to the one it came from; one that waits for an answer stays.</summary>
+    public void Escape()
+    {
+        if (modal is null || modalStays) return;
+        if (modalBack is { } back) back();
+        else CloseModal();
+    }
+
+    /// <summary>Alone, time stops behind the menu, the options and the help, unless the player had stopped it already: then it stays so when they close.</summary>
+    void HoldTime()
+    {
+        if (scene.Opts.Net is not null || scene.Paused) return;
+        scene.TogglePause();
+        heldByDialog = true;
+    }
 
     /// <summary>Presses the open dialog's first button; false without a dialog.</summary>
     public bool Accept()
@@ -1047,7 +1103,8 @@ public partial class GalaxyHud : CanvasLayer
         return row;
     }
 
-    void OpenModal(PanelContainer content)
+    /// <summary>Opens a dialog in place of the open one. `back`: what Échap does in it, if not close it. `stays`: it waits for an answer, Échap leaves it.</summary>
+    void OpenModal(PanelContainer content, Action? back = null, bool stays = false)
     {
         // From one dialog to the next, the shade stays: only the panel changes.
         var shaded = modal is not null;
@@ -1072,6 +1129,8 @@ public partial class GalaxyHud : CanvasLayer
         HudKit.FadeIn(center);
         modal = m;
         modalFirst = FirstButton(content);
+        modalBack = back;
+        modalStays = stays;
         tip.Visible = false;
     }
 
@@ -1091,6 +1150,11 @@ public partial class GalaxyHud : CanvasLayer
         modal?.QueueFree();
         modal = null;
         modalFirst = null;
+        modalBack = null;
+        modalStays = false;
+        if (!heldByDialog) return;
+        heldByDialog = false;
+        if (scene.Paused) scene.TogglePause();
     }
 
     /// <summary>Closes the dialog open, if any: a dev run answering it.</summary>
@@ -1140,14 +1204,15 @@ public partial class GalaxyHud : CanvasLayer
         var dl = HudKit.Ignore(new GridContainer { Columns = 2 });
         dl.AddThemeConstantOverride("h_separation", 16);
         dl.AddThemeConstantOverride("v_separation", 4);
-        void Item(string term, string value)
+        void Item(string term, string value, Color? color = null)
         {
             dl.AddChild(Text(term, Palette.Accent));
-            dl.AddChild(HudKit.Para(value, max: 340));
+            dl.AddChild(HudKit.Para(value, color, max: 340));
         }
         Item("Tes forces", DescribeShips(mine.Ships, mine.Heroes));
         Item("En face", string.Join(", ", theirs));
-        Item("Coque et boucliers", $"{N(mine.Strength)} contre {N(foe.Strength)}");
+        var (word, hue) = OutlookWord(Galaxies.OutlookOf(b, player));
+        Item("Issue probable", word, hue);
         box.AddChild(dl);
         box.AddChild(Actions(
             Btn("Commander la bataille", () =>
@@ -1160,11 +1225,21 @@ public partial class GalaxyHud : CanvasLayer
                 CloseModal();
                 scene.AutoResolve(b.Id);
             })));
-        OpenModal(p);
+        // Closed unanswered, it would only come back at once: the galaxy waits for this answer.
+        OpenModal(p, stays: true);
     }
 
     public void ShowEnd(bool won)
     {
+        if (defeatTold)
+        {
+            var (done, lines) = Dialog();
+            lines.AddChild(Heading("Fin de la campagne", null, 22));
+            lines.AddChild(HudKit.Para($"Les {Factions.Defs[Galaxies.RaceOf(G, G.Winner!.Value)].Name} l'emportent."));
+            lines.AddChild(Actions(Btn("Menu", scene.ToMenu, primary: true)));
+            OpenModal(done);
+            return;
+        }
         Music.Sting(won);
         PlayerProfile.CampaignEnded(won);
         var (p, box) = Dialog();
@@ -1175,8 +1250,30 @@ public partial class GalaxyHud : CanvasLayer
         OpenModal(p);
     }
 
+    /// <summary>
+    /// The player is out while others fight on: defeat now, unless allies may still win it for them.
+    /// They may watch what comes next, nothing hidden any more, or leave.
+    /// </summary>
+    public void ShowKnockedOut(bool allies)
+    {
+        if (!allies)
+        {
+            defeatTold = true;
+            Music.Sting(false);
+            PlayerProfile.CampaignEnded(false);
+        }
+        var (p, box) = Dialog();
+        box.AddChild(Heading(allies ? "Éliminé" : "Défaite", Player, 22));
+        box.AddChild(HudKit.Para(allies ? "Tu n'as plus ni planète ni flotte, mais tes alliés se battent encore : leur victoire sera la tienne."
+            : "Tu n'as plus ni planète ni flotte. La galaxie continue sans toi."));
+        if (scene.Opts.Net is { Replica: false }) box.AddChild(HudKit.Para("Retourner au menu termine la partie pour tous les joueurs.", Palette.Muted));
+        box.AddChild(Actions(Btn("Regarder la suite", CloseModal, primary: true), Btn("Quitter", scene.ToMenu)));
+        OpenModal(p);
+    }
+
     void ShowHelp()
     {
+        HoldTime();
         var (p, box) = Dialog();
         box.AddChild(Heading("Carte galactique", null, 22));
         // The keys and the rules scroll on a small window, so that the dialog and its button stay on screen.
@@ -1188,11 +1285,12 @@ public partial class GalaxyHud : CanvasLayer
         var scroll = HudKit.Scroll(pad);
         box.AddChild(scroll);
         content.AddChild(Controls.List(Controls.Galaxy));
+        if (scene.Opts.Net is null) content.AddChild(HudKit.Para($"La galaxie démarre en pause : donne tes premiers ordres, puis lance le temps ({Bindings.Label(Bindings.Pause)}). Le menu et l'aide l'arrêtent aussi.", Palette.Muted));
         content.AddChild(HudKit.Para($"Une flotte seule prend une planète sans défense en {N(GalaxyRules.CaptureTime)} s ({N(GalaxyRules.NeutralCaptureTime)} s si elle est neutre). "
             + "Quand deux camps se rencontrent, la bataille se commande dans la vue tactique ou se résout seule. "
             + "Les flottes traversent les planètes neutres ou alliées et s'arrêtent aux planètes ennemies. Tu perds quand tu n'as plus de planète. "
             + "Chaque planète a deux files : bâtiments et vaisseaux. Certaines planètes ont un bonus. "
-            + $"À plus d'une voie de tes planètes, une flotte est hors ravitaillement : elle s'use de {HudKit.Percent(Galaxies.SupplyWear * 60)} par minute. "
+            + $"À plus de {N(Galaxies.SupplyLanes)} voies de tes stations, une flotte est hors ravitaillement : elle s'use de {HudKit.Percent(Galaxies.SupplyWear * 60)} par minute et ne se répare plus. "
             + "La liste Diplomatie (T) propose et rompt les trêves. Toutes les quelques minutes, un événement survient : épave à récupérer, bande errante, tempête ionique, essor commercial. "
             + "Les Errants, neutres, gardent la planète la plus isolée avec leur Colosse : ils n'en bougent jamais et ne comptent pas pour la victoire. "
             + $"Chaque vaisseau abattu rapporte {HudKit.Percent(Worlds.KillShare)} de sa valeur ; le Colosse, {N(Raids.Bounty)} crédits et un niveau de recherche. "

@@ -1,5 +1,5 @@
 // The star lance in the campaign (not in the web version): a planet building at the price of a
-// fleet, one per faction, on a level 4 station. Every five minutes it can strike an enemy
+// fleet, one per faction, on a level 4 station. Every four minutes it can strike an enemy
 // planet up to three lanes away: its platforms, ion cannon and repair dock go, its station
 // loses a level, a mine is lost, and the fleets docked there lose half their ships.
 using SandboxShip.Sim.Data;
@@ -12,12 +12,17 @@ public sealed record LanceFired(int From, int Target, Side Side) : GalaxyEvent;
 public static partial class Galaxies
 {
     /// <summary>Seconds of galaxy time to charge, once built and after each shot.</summary>
-    public const double LanceRecharge = 300;
+    public const double LanceRecharge = 240;
+    /// <summary>
+    /// Price and build time of a lance in the campaign, apart from the battle's: at 30 000 and
+    /// three minutes, with a charge of five, 40 campaigns between AIs saw 2 shots; as they are, 6.
+    /// </summary>
+    public const double LanceCost = 20000, LanceBuildTime = 120;
     /// <summary>How many lanes away it reaches.</summary>
     public const int LanceReach = 3;
 
     /// <summary>Whether the faction has a star lance, built or under construction.</summary>
-    static bool HasLance(Galaxy g, Side side) =>
+    internal static bool HasLance(Galaxy g, Side side) =>
         g.Planets.Exists(p => p.Owner == side && (p.StarLance > 0 || p.Buildings.Exists(q => q.Kind == GalaxyBuildKind.StarLance)));
 
     /// <summary>Lanes between two planets, whoever holds those on the way.</summary>
@@ -77,16 +82,21 @@ public static partial class Galaxies
         return Result.OK;
     }
 
-    /// <summary>The rival planet worth striking the most within reach, for the AI: its defenses and docked fleets.</summary>
-    static int? LanceTarget(Galaxy g, Side side, int from) => g.Planets
-        .Where(p => p.Owner != Faction.Errant && CanFireLance(g, side, from, p.Id).Ok)
-        .OrderByDescending(p => DefenseValue(g, p))
-        .Select(p => (int?)p.Id).FirstOrDefault();
-
     /// <summary>
-    /// Lances charge. An AI fires as soon as one is ready, and builds one once it has a level 4
-    /// station and money well beyond the price.
+    /// The rival planet worth striking the most within reach, for the AI: its defenses and docked
+    /// fleets. The hard AI opens the way for its offensive first.
     /// </summary>
+    static int? LanceTarget(Galaxy g, Side side, int from)
+    {
+        var ai = g.Factions[side].AI!;
+        return g.Planets
+            .Where(p => p.Owner != Faction.Errant && CanFireLance(g, side, from, p.Id).Ok)
+            .OrderByDescending(p => ai.Difficulty == Difficulty.Hard && p.Id == ai.Target)
+            .ThenByDescending(p => DefenseValue(g, p))
+            .Select(p => (int?)p.Id).FirstOrDefault();
+    }
+
+    /// <summary>Lances charge. An AI fires as soon as one is ready; it saves up for one as a project (GalaxyAi.Project).</summary>
     static void UpdateLances(Galaxy g, double dt)
     {
         foreach (var p in g.Planets)
@@ -95,14 +105,6 @@ public static partial class Galaxies
             p.LanceCharge = Math.Max(0, p.LanceCharge - dt);
             if (p.LanceCharge > 0 || g.Factions.GetValueOrDefault(owner)?.AI is null) continue;
             if (LanceTarget(g, owner, p.Id) is int target) FireLance(g, owner, p.Id, target);
-        }
-        foreach (var f in g.Factions.Values)
-        {
-            if (f.AI is null || f.Eliminated || HasLance(g, f.Id)) continue;
-            var cost = Buildables.Defs[BuildableType.StarLance].Cost;
-            if (f.Credits < cost * 1.5) continue;
-            var site = g.Planets.Where(p => p.Owner == f.Id && p.Station >= Station.Levels.Count).OrderBy(p => p.Id).FirstOrDefault();
-            if (site is not null) EnqueueBuild(g, f.Id, site.Id, GalaxyBuild.Of(GalaxyBuildKind.StarLance));
         }
     }
 }

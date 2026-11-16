@@ -1,7 +1,9 @@
 // Galaxy AI: what to build where, and where to send its fleets. Port of src/sim/galaxyAI.ts.
 // Beyond the web version: it gathers its fleets at a staging planet to strike together, sends
 // help to planets an enemy fleet draws near, keeps to its truces and offers some, claims
-// derelicts, and brings worn fleets home from beyond its supply lines.
+// derelicts, and brings worn fleets home from beyond its supply lines. Its difficulty changes
+// what it decides as well as its income: the easy AI strikes before it is ready and leaves its
+// planets to themselves, the hard one picks its moment and its targets.
 using SandboxShip.Sim.Data;
 using static SandboxShip.Sim.Galaxies;
 
@@ -13,6 +15,8 @@ public sealed partial class GalaxyAIState
     public int? Target, Staging;
     /// <summary>Galaxy seconds since the AI last struck an enemy planet: the longer, the smaller the edge it waits for.</summary>
     public double Idle;
+    /// <summary>Credits set aside for its next big project (GalaxyAi.Project), out of reach of its other purchases unless a planet is in danger.</summary>
+    public double Fund;
 }
 
 public static partial class GalaxyAi
@@ -20,12 +24,37 @@ public static partial class GalaxyAi
     const double ThinkInterval = 2;
     const string NoCredits = "Crédits insuffisants";
 
+
+    /// <summary>The easy AI's bad habits: it strikes too soon and alone, sends no help, seeks no deal, builds little and big, ignores specials, what it faces and the star lance.</summary>
+    static bool Clumsy(GalaxyAIState ai) => ai.Difficulty == Difficulty.Easy;
+
+    /// <summary>The hard AI's good ones: it researches first, buys what wins for its price, reads the odds, goes for a rival busy elsewhere, and breaks a truce when it pays.</summary>
+    static bool Cunning(GalaxyAIState ai) => ai.Difficulty == Difficulty.Hard;
+
     /// <summary>Relative odds of each ship class once unlocked.</summary>
     static readonly Dictionary<ShipClass, double> ShipWeights = new()
     {
         [ShipClass.Scout] = 1, [ShipClass.Bomber] = 1, [ShipClass.Support] = 1, [ShipClass.Frigate] = 4, [ShipClass.Torpedo] = 2,
         [ShipClass.Battlecruiser] = 3, [ShipClass.Bulwark] = 1, [ShipClass.Carrier] = 1, [ShipClass.Dreadnought] = 2,
         [ShipClass.Titan] = 1, [ShipClass.Leviathan] = 1,
+    };
+
+    /// <summary>
+    /// The hard AI buys what wins for its price, as fleets of one class against another measure
+    /// it: frigates and light craft far ahead, the big hulls only for what they unlock.
+    /// </summary>
+    static readonly Dictionary<ShipClass, double> ShrewdWeights = new()
+    {
+        [ShipClass.Scout] = 3, [ShipClass.Bomber] = 2, [ShipClass.Support] = 3, [ShipClass.Frigate] = 8, [ShipClass.Torpedo] = 1,
+        [ShipClass.Battlecruiser] = 1, [ShipClass.Carrier] = 2, [ShipClass.Dreadnought] = 1,
+    };
+
+    /// <summary>The easy AI goes for what looks big: heavy hulls that do little for their price.</summary>
+    static readonly Dictionary<ShipClass, double> ShowyWeights = new()
+    {
+        [ShipClass.Scout] = 0.5, [ShipClass.Bomber] = 0.5, [ShipClass.Support] = 0.5, [ShipClass.Frigate] = 1, [ShipClass.Torpedo] = 2,
+        [ShipClass.Battlecruiser] = 4, [ShipClass.Bulwark] = 4, [ShipClass.Carrier] = 1, [ShipClass.Dreadnought] = 2,
+        [ShipClass.Titan] = 3, [ShipClass.Leviathan] = 1,
     };
 
     static readonly TechId[] TechOrder =
@@ -75,6 +104,19 @@ public static partial class GalaxyAi
         return owned + fleets.Sum(FleetStrength);
     }
 
+    /// <summary>
+    /// What it really takes to win a planet, as series of battles measure it: what stands in orbit
+    /// falls more easily than its hull suggests, docked fleets fight harder than their price, and
+    /// the fleets next door come back for it. The hard AI's estimate, in place of Threat.
+    /// </summary>
+    static double Odds(Galaxy g, Side side, Planet planet, HashSet<int> seen)
+    {
+        var all = Threat(g, planet, side);
+        var fleets = all == 0 ? 0 : FleetsAt(g, planet.Id).Where(f => AtWar(g, side, f.Side) && !InNebula(g, f)).Sum(FleetStrength);
+        var near = Neighbours(g, planet.Id).SelectMany(n => FleetsAt(g, n)).Where(f => Hostile(g, side, f, seen)).Sum(FleetStrength);
+        return (all - fleets) * 0.6 + fleets * 1.3 + near * 0.5;
+    }
+
     /// <summary>Whether a fleet the faction sees can strike it: not its own, not an ally's or a truce partner's, not the Errants' guard, which never leaves its planet.</summary>
     static bool Hostile(Galaxy g, Side side, Fleet f, HashSet<int> seen) =>
         AtWar(g, side, f.Side) && FleetVisible(g, side, f, seen)
@@ -86,13 +128,14 @@ public static partial class GalaxyAi
     /// <summary>Ship weights tilted towards what counters the enemy fleets the faction can see.</summary>
     static ShipClass? PickShip(Galaxy g, Side side, Planet planet)
     {
-        var weights = new Dictionary<ShipClass, double>(ShipWeights);
+        var ai = g.Factions[side].AI!;
+        var weights = new Dictionary<ShipClass, double>(Cunning(ai) ? ShrewdWeights : Clumsy(ai) ? ShowyWeights : ShipWeights);
         var seen = VisiblePlanets(g, side);
         var small = 0;
         var large = 0;
         foreach (var f in g.Fleets.Values)
         {
-            if (Allies(g, f.Side, side) || !FleetVisible(g, side, f, seen)) continue;
+            if (Clumsy(ai) || Allies(g, f.Side, side) || !FleetVisible(g, side, f, seen)) continue;
             foreach (var c in Ships.All)
             {
                 if (Ships.Defs[c].Size == SizeClass.Small) small += f.Ships.Of(c);
@@ -100,13 +143,13 @@ public static partial class GalaxyAi
             }
         }
         if (small >= 6) weights[ShipClass.Frigate] += 4;
-        if (large >= 2)
+        if (large >= 2 && !Cunning(ai))
         {
             weights[ShipClass.Torpedo] += 4;
             weights[ShipClass.Bomber] += 3;
         }
         // Its personality leans to small or big hulls (× 1 for Balanced).
-        var def = Personalities.Defs[g.Factions[side].AI!.Personality];
+        var def = Personalities.Defs[ai.Personality];
         foreach (var c in Ships.All) if (weights.TryGetValue(c, out var w)) weights[c] = w * def.Lean(Ships.Defs[c].Size);
         // Classes at their limit are left out: wanting one would block every other purchase.
         var options = Ships.All.Where(c => weights.ContainsKey(c) && planet.Station >= Ships.Defs[c].MinStationLevel
@@ -121,10 +164,22 @@ public static partial class GalaxyAi
         return options.Count > 0 ? options[0] : null;
     }
 
+    /// <summary>What pays best first, as far as its stations allow: the hard AI's order.</summary>
+    static readonly TechId[] ScholarOrder =
+    [
+        TechId.Mining, TechId.Weapons, TechId.Shields, TechId.Armor, TechId.Logistics, TechId.Repair, TechId.Engines, TechId.Fortification, TechId.Hangars, TechId.Energy,
+    ];
+
     /// <summary>Least researched tech not at its last level, combat techs first.</summary>
     static TechId? PickTech(Galaxy g, Side side)
     {
         var r = g.Factions[side].Research;
+        if (Cunning(g.Factions[side].AI!))
+        {
+            var top = g.Planets.Where(p => p.Owner == side).Select(p => p.Station).Append(0).Max();
+            foreach (var t in ScholarOrder) if (r[t] < Techs.Defs[t].MaxLevel && Techs.StationFor(r[t] + 1) <= top) return t;
+            return null;
+        }
         foreach (var t in TechOrder.Where(t => r[t] < Techs.Defs[t].MaxLevel).OrderBy(t => r[t])) return t;
         return null;
     }
@@ -133,42 +188,71 @@ public static partial class GalaxyAi
     /// Candidate purchases, most wanted first. Its personality has a say: the aggressive AI builds
     /// few defenses and ships first, the defensive one arms every station, the thrifty one raises
     /// more stations and its economy first, the technological one a lab from its first planet and
-    /// research before the rest.
+    /// research before the rest. Rich mines come first and a shipyard is preferred, for all but
+    /// the easy AI. `danger`: a planet with a station faces more than it can hold.
     /// </summary>
-    static List<Wish> Wishes(Galaxy g, Side side, Dictionary<int, int> hops)
+    static List<Wish> Wishes(Galaxy g, Side side, Dictionary<int, int> hops, out bool danger)
     {
-        var personality = g.Factions[side].AI!.Personality;
+        var ai = g.Factions[side].AI!;
+        var personality = ai.Personality;
+        var clumsy = Clumsy(ai);
         var own = g.Planets.Where(p => p.Owner == side).ToList();
         var byFront = own.OrderBy(p => HopsOf(hops, p.Id)).ToList();
         static Wish At(Planet p, GalaxyBuild build) => new(p.Id, build);
-        var out_ = own.OrderByDescending(p => p.Income).Select(p => At(p, GalaxyBuild.Of(GalaxyBuildKind.Mine))).ToList();
+        var out_ = own.OrderByDescending(p => !clumsy && p.Special == PlanetSpecial.Rich).ThenByDescending(p => p.Income)
+            .Select(p => At(p, GalaxyBuild.Of(GalaxyBuildKind.Mine))).ToList();
 
         var infra = new List<Wish>();
         var capital = own.OrderByDescending(p => p.Station).FirstOrDefault();
         if (capital is not null && capital.Station < Station.Levels.Count) infra.Add(At(capital, GalaxyBuild.Of(GalaxyBuildKind.Station)));
-        var stations = own.Count(p => p.Station > 0);
-        var staging = byFront.Find(p => p.Station == 0 && p.Income >= 3);
-        if (staging is not null && stations < 1 + own.Count / (personality == Personality.Economic ? 2.0 : 3.0)) infra.Add(At(staging, GalaxyBuild.Of(GalaxyBuildKind.Station)));
+        var stations = own.Count(p => p.Station > 0 || p.Buildings.Exists(q => q.Kind == GalaxyBuildKind.Station));
+        // Where a station pays twice first: a shipyard builds faster, a fortress holds more platforms.
+        var staging = byFront.Where(p => p.Station == 0 && !p.Buildings.Exists(q => q.Kind == GalaxyBuildKind.Station) && (p.Income >= 3 || (!clumsy && p.Special == PlanetSpecial.Shipyard)))
+            .OrderByDescending(p => !clumsy && p.Special is PlanetSpecial.Shipyard or PlanetSpecial.Fortress).FirstOrDefault();
+        if (staging is not null && stations < 1 + own.Count / (personality == Personality.Economic || Cunning(ai) ? 2.0 : 3.0)) infra.Add(At(staging, GalaxyBuild.Of(GalaxyBuildKind.Station)));
         // Research: a lab in the rear once the empire grows, then one tech after another.
         var rear = byFront.LastOrDefault();
         var studious = personality == Personality.Technological;
-        if (rear is not null && own.Count >= (studious ? 1 : 3) && !own.Exists(p => p.Lab > 0)) infra.Add(At(rear, GalaxyBuild.Of(GalaxyBuildKind.Lab)));
+        // The hard AI puts research before all but its mines as soon as it pays: a level is worth
+        // a tenth of the fleet it strengthens, so a fleet four times its price or more. Before
+        // that, ships come first: with nothing flying, research loses the war at level 10.
+        var scholar = Cunning(ai);
+        var first = new List<Wish>();
+        var armada = g.Fleets.Values.Where(f => f.Side == side).Sum(FleetStrength);
+        // It takes its supply along too: a station where its fleets stand out of reach of one.
+        if (scholar && armada >= GalaxyRules.StationCost * 4)
+        {
+            foreach (var f in g.Fleets.Values)
+            {
+                if (f.Side != side || f.At is not int at || g.Planets[at].Owner != side || g.Planets[at].Station > 0 || Supplied(g, f)) continue;
+                if (!g.Planets[at].Buildings.Exists(q => q.Kind == GalaxyBuildKind.Station)) first.Add(At(g.Planets[at], GalaxyBuild.Of(GalaxyBuildKind.Station)));
+            }
+        }
+        if (rear is not null && own.Count >= (studious || scholar ? 1 : 3) && !own.Exists(p => p.Lab > 0)) (scholar && armada >= GalaxyRules.LabCost * 4 ? first : infra).Add(At(rear, GalaxyBuild.Of(GalaxyBuildKind.Lab)));
         if (own.Exists(p => p.Lab > 0) && g.Factions[side].Researching is null && PickTech(g, side) is TechId tech)
         {
-            if (studious) infra.Insert(0, new Wish(-1, null, tech));
+            // Mining pays for itself once there are mines to speak of.
+            var pays = tech == TechId.Mining ? own.Sum(p => p.Mines) >= 4 : armada >= PriceOf(g, side, new Wish(-1, null, tech)) * 4;
+            if (scholar && pays) first.Add(new Wish(-1, null, tech));
+            else if (studious) infra.Insert(0, new Wish(-1, null, tech));
             else infra.Add(new Wish(-1, null, tech));
         }
         foreach (var p in byFront)
         {
             if (p.Station == 0 || HopsOf(hops, p.Id) > 1 && personality != Personality.Defensive) continue;
-            if (personality != Personality.Aggressive) infra.Add(At(p, GalaxyBuild.Of(GalaxyBuildKind.Platform)));
+            if (personality != Personality.Aggressive)
+            {
+                // A few platforms gain more from a level than from one more of them.
+                if (!clumsy && p.Platforms >= 2) infra.Add(At(p, GalaxyBuild.Of(GalaxyBuildKind.PlatformTier)));
+                infra.Add(At(p, GalaxyBuild.Of(GalaxyBuildKind.Platform)));
+            }
             infra.Add(At(p, GalaxyBuild.Of(GalaxyBuildKind.RepairDock)));
             if (personality != Personality.Aggressive) infra.Add(At(p, GalaxyBuild.Of(GalaxyBuildKind.IonCannon)));
         }
 
         var ships = new List<Wish>();
-        var yard = byFront.Find(p => p.Station > 0 && p.Units.Count < 2);
-        var ai = g.Factions[side].AI!;
+        var yards = byFront.Where(p => p.Station > 0 && p.Units.Count < (clumsy ? 1 : 2)).ToList();
+        var yard = yards.Find(p => !clumsy && p.Special == PlanetSpecial.Shipyard) ?? yards.FirstOrDefault();
         if (yard is not null) ai.Want ??= PickShip(g, side, yard);
         if (yard is not null && ai.Want is ShipClass want) ships.Add(At(yard, GalaxyBuild.Ship(want)));
         // Heroes now and then, at the front shipyard.
@@ -179,21 +263,25 @@ public static partial class GalaxyAi
         });
         if (yard is not null && hero is not null && GalaxyRand(g) < 0.15) ships.Insert(0, At(yard, GalaxyBuild.HeroOf(hero.Id)));
 
-        // A planet facing a stronger enemy fleet next door gets its defenses first. The Errants'
-        // guard never leaves its planet: no danger.
+        // A planet facing a stronger enemy fleet next door gets its defenses first; the hard AI
+        // answers with ships before that, which fall less easily and can go where they are
+        // needed. The Errants' guard never leaves its planet: no danger.
         var seen = VisiblePlanets(g, side);
-        var danger = new List<Wish>();
+        var urgent = new List<Wish>();
+        danger = false;
         foreach (var p in own)
         {
             var near = Neighbours(g, p.Id).SelectMany(n => FleetsAt(g, n)).Where(f => Hostile(g, side, f, seen));
             var menace = near.Sum(FleetStrength);
             if (menace > 0 && menace > DefenseValue(g, p))
             {
-                danger.Add(At(p, GalaxyBuild.Of(p.Station == 0 ? GalaxyBuildKind.Station : GalaxyBuildKind.Platform)));
-                danger.Add(At(p, GalaxyBuild.Of(GalaxyBuildKind.IonCannon)));
+                danger |= p.Station > 0;
+                urgent.Add(At(p, GalaxyBuild.Of(p.Station == 0 ? GalaxyBuildKind.Station : GalaxyBuildKind.Platform)));
+                if (!clumsy) urgent.Add(At(p, GalaxyBuild.Of(GalaxyBuildKind.PlatformTier)));
+                urgent.Add(At(p, GalaxyBuild.Of(GalaxyBuildKind.IonCannon)));
             }
         }
-        if (danger.Count > 0) return [.. danger, .. out_, .. ships, .. infra];
+        if (urgent.Count > 0) return scholar ? [.. out_, .. first, .. ships, .. urgent, .. infra] : [.. urgent, .. out_, .. first, .. ships, .. infra];
         // Otherwise alternate between growing the fleet and the infrastructure, by turns of 20 s:
         // one in two, two in three for the aggressive AI, one in three for the defensive one,
         // and none in the thrifty one's first five minutes.
@@ -205,25 +293,63 @@ public static partial class GalaxyAi
             Personality.Economic => g.Time >= 300 && turn % 2 == 0,
             _ => turn % 2 == 0,
         };
-        return shipsFirst ? [.. out_, .. ships, .. infra] : [.. out_, .. infra, .. ships];
+        // The easy AI thinks of its fleet last: one turn in three, whoever it is.
+        if (clumsy) shipsFirst = turn % 3 == 0;
+        return shipsFirst ? [.. out_, .. first, .. ships, .. infra] : [.. out_, .. first, .. infra, .. ships];
     }
 
-    /// <summary>Buys the first wish it can; stops to save up when the wish is only too expensive.</summary>
-    static void Spend(Galaxy g, Side side, Dictionary<int, int> hops)
+    /// <summary>
+    /// The big project the AI saves for, beyond what its turns of spending ever gather: a star
+    /// lance, once it has a station at the top level. None for the easy AI.
+    /// </summary>
+    static Wish? Project(Galaxy g, Side side)
     {
-        foreach (var wish in Wishes(g, side, hops))
+        if (Clumsy(g.Factions[side].AI!) || HasLance(g, side)) return null;
+        var site = g.Planets.Where(p => p.Owner == side && p.Station >= Station.Levels.Count).OrderBy(p => p.Id).FirstOrDefault();
+        return site is null ? null : new Wish(site.Id, GalaxyBuild.Of(GalaxyBuildKind.StarLance));
+    }
+
+    /// <summary>What a wish costs right now.</summary>
+    static double PriceOf(Galaxy g, Side side, Wish wish) => wish.Tech is TechId t
+        ? Techs.Defs[t].Costs[ResearchQueue.PlannedLevel(g.Factions[side], t)]
+        : BuildPrice(g, g.Planets[wish.Planet], wish.Build!.Value);
+
+    /// <summary>
+    /// Buys the first wish it can; stops to save up when the wish is only too expensive. A share
+    /// of its income goes to its project, and only a planet in danger touches it; a treasury
+    /// well beyond the project's price buys it at once.
+    /// </summary>
+    static void Spend(Galaxy g, Side side, Dictionary<int, int> hops, double interval)
+    {
+        var f = g.Factions[side];
+        var ai = f.AI!;
+        var wishes = Wishes(g, side, hops, out var danger);
+        if (Project(g, side) is { } project)
+        {
+            ai.Fund += IncomeOf(g, side) * interval * Math.Min(0.6, Personalities.Defs[ai.Personality].SaveShare);
+            var price = PriceOf(g, side, project);
+            if ((ai.Fund >= price || f.Credits >= price * 1.5) && EnqueueBuild(g, side, project.Planet, project.Build!.Value).Ok)
+            {
+                ai.Fund = 0;
+                return;
+            }
+        }
+        else ai.Fund = 0;
+        ai.Fund = Math.Min(ai.Fund, f.Credits);
+        foreach (var wish in wishes)
         {
             var r = wish.Tech is TechId tech ? CanResearchTech(g, side, tech) : CanBuild(g, side, wish.Planet, wish.Build!.Value);
             if (r.Ok)
             {
+                if (!danger && PriceOf(g, side, wish) > f.Credits - ai.Fund) return;
                 if (wish.Tech is TechId t) StartTech(g, side, t);
                 else EnqueueBuild(g, side, wish.Planet, wish.Build!.Value);
-                if (wish.Build?.Kind == GalaxyBuildKind.Ship) g.Factions[side].AI!.Want = null;
+                if (wish.Build?.Kind == GalaxyBuildKind.Ship) ai.Want = null;
                 return;
             }
             if (r.Reason == NoCredits) return;
             // A ship it may no longer build (its limit reached meanwhile): want another one.
-            if (wish.Build?.Kind == GalaxyBuildKind.Ship) g.Factions[side].AI!.Want = null;
+            if (wish.Build?.Kind == GalaxyBuildKind.Ship) ai.Want = null;
         }
     }
 
@@ -232,11 +358,21 @@ public static partial class GalaxyAi
 
     static ShipClass Cheapest(Fleet f) => Ships.All.Where(c => f.Ships.Of(c) > 0).OrderBy(c => Ships.Defs[c].Cost).First();
 
-    /// <summary>What a planet brings to its owner.</summary>
-    static double Worth(Planet p) => p.Income + p.Mines * GalaxyRules.MineIncome + p.Station * 5;
+    /// <summary>What a planet brings to its owner: its special included, ruins most of all, for whoever gets there first.</summary>
+    static double Worth(Planet p) => p.Income + p.Mines * GalaxyRules.MineIncome + p.Station * 5 + p.Special switch
+    {
+        PlanetSpecial.Ruins => 15,
+        PlanetSpecial.Rich => p.MineSlots * GalaxyRules.MineIncome,
+        PlanetSpecial.Shipyard or PlanetSpecial.Archive => 5,
+        PlanetSpecial.Fortress or PlanetSpecial.Relay => 2,
+        _ => 0,
+    };
 
-    /// <summary>The edge an attack on a rival waits for: 40 %, down to 10 % after six idle minutes, × its personality's.</summary>
-    static double Edge(GalaxyAIState ai) => Math.Max(1.1, 1.4 - ai.Idle / 1200) * Personalities.Defs[ai.Personality].Edge;
+    /// <summary>
+    /// The edge an attack on a rival waits for: 40 %, down to 10 % after six idle minutes, × its
+    /// personality's. The easy AI goes in well short of that, and often loses its fleet.
+    /// </summary>
+    static double Edge(GalaxyAIState ai) => Math.Max(1.1, 1.4 - ai.Idle / 1200) * Personalities.Defs[ai.Personality].Edge * (Clumsy(ai) ? 0.5 : Cunning(ai) ? 0.75 : 1);
 
     /// <summary>Planets within two lanes of a planet, itself included.</summary>
     static HashSet<int> Around(Galaxy g, int planetId)
@@ -250,14 +386,18 @@ public static partial class GalaxyAi
         return out_;
     }
 
-    /// <summary>Strength of the hostile fleets the faction sees within two lanes of a planet, or on a lane towards it or a neighbour.</summary>
+    /// <summary>
+    /// Strength of the hostile fleets the faction sees within two lanes of a planet, or on a lane
+    /// towards it or a neighbour, and of a war band announced to strike it from the dark.
+    /// </summary>
     static double Menace(Galaxy g, Side side, Planet planet, HashSet<int> seen)
     {
         var around = Around(g, planet.Id);
         var next = Neighbours(g, planet.Id).Append(planet.Id).ToHashSet();
         return g.Fleets.Values
             .Where(f => (f.At is int at ? around.Contains(at) : f.To is int to && next.Contains(to)) && Hostile(g, side, f, seen))
-            .Sum(FleetStrength);
+            .Sum(FleetStrength)
+            + g.Ongoing.Where(i => i.Kind == IncidentKind.WarBand && i.Other == planet.Id).Sum(i => Battle.FleetValue(i.Ships));
     }
 
     /// <summary>A route from `from` to `to` that stops at no hostile planet before the end.</summary>
@@ -303,18 +443,42 @@ public static partial class GalaxyAi
     /// <summary>
     /// The next offensive: a rival planet next to one of the faction's, where its fleets gather.
     /// It holds while both stay what they are; then the most valuable planet for what guards it.
+    /// The hard AI weighs it anew all the time, and gladly turns to a planet whose owner has its
+    /// hands full elsewhere: its capital, more often than not, stripped of its fleet.
     /// </summary>
     static (int Staging, int Target)? Offensive(Galaxy g, Side side, GalaxyAIState ai, List<Planet> own)
     {
         bool Rival(Planet t) => t.Owner is Side o && g.Factions.ContainsKey(o) && AtWar(g, side, o);
-        if (ai.Staging is int s0 && ai.Target is int t0 && g.Planets[s0].Owner == side && Rival(g.Planets[t0])) return (s0, t0);
-        var best = own.SelectMany(s => Neighbours(g, s.Id).Select(id => g.Planets[id]).Where(Rival).Select(t => (Staging: s, Target: t)))
-            .OrderByDescending(x => Worth(x.Target) / (Threat(g, x.Target, side) + 1000))
+        var held = ai.Staging is int s0 && ai.Target is int t0 && g.Planets[s0].Owner == side && Rival(g.Planets[t0]) && !StormOn(g, s0, t0) ? (s0, t0) : ((int, int)?)null;
+        if (held is not null && !Cunning(ai)) return held;
+        double Score(Planet t) => Worth(t) / (Threat(g, t, side) + 1000) * (Cunning(ai) && BusyElsewhere(g, t.Owner!.Value, side) ? 2 : 1);
+        var best = own.SelectMany(s => Neighbours(g, s.Id).Where(id => !StormOn(g, s.Id, id)).Select(id => g.Planets[id]).Where(Rival).Select(t => (Staging: s, Target: t)))
+            .OrderByDescending(x => Score(x.Target))
             .ThenByDescending(x => x.Staging.Station)
             .Select(x => ((int, int)?)(x.Staging.Id, x.Target.Id)).FirstOrDefault();
+        // Not for a trifle: fleets on the way would turn back for nothing.
+        if (held is { } h && (best is not { } b || Score(g.Planets[b.Item2]) < Score(g.Planets[h.Item2]) * 1.3)) return h;
         ai.Staging = best?.Item1;
         ai.Target = best?.Item2;
         return best;
+    }
+
+    /// <summary>
+    /// The hard AI breaks a truce when it pays, as the rules let anyone: nobody paid for it, the
+    /// other is far weaker or busy elsewhere, and a fleet of its own stands next to a planet of
+    /// theirs it can take. The wronged AI bears the grudge, a player gets the warning.
+    /// </summary>
+    static void BreakTruces(Galaxy g, Side side, GalaxyAIState ai)
+    {
+        foreach (var t in g.Truces.ToList())
+        {
+            if ((t.A != side && t.B != side) || t.Paid) continue;
+            var other = t.A == side ? t.B : t.A;
+            if (Might(g, side) < Might(g, other) * 1.3 && !BusyElsewhere(g, other, side)) continue;
+            var ready = g.Fleets.Values.Any(f => f.Side == side && f.At is int at && f.BattleId is null && f.Condition >= 0.5 && Neighbours(g, at).Exists(n =>
+                g.Planets[n].Owner == other && !StormOn(g, at, n) && FleetStrength(f) >= DefenseValue(g, g.Planets[n]) * Edge(ai) + 300));
+            if (ready) BreakTruce(g, side, other);
+        }
     }
 
     /// <summary>The nearest planet of the faction with a station, where a worn fleet mends fastest; any of its planets without one.</summary>
@@ -330,17 +494,21 @@ public static partial class GalaxyAi
         var ai = g.Factions[side].AI!;
         var seen = VisiblePlanets(g, side);
         var own = g.Planets.Where(p => p.Owner == side).ToList();
-        var sent = Defend(g, side, own, seen);
+        var clumsy = Clumsy(ai);
+        var cunning = Cunning(ai);
+        var sent = Clumsy(ai) ? new HashSet<int>() : Defend(g, side, own, seen);
         var plan = Offensive(g, side, ai, own);
         var struck = false;
         var derelicts = g.Ongoing.Where(i => i.Kind == IncidentKind.Derelict).Select(i => i.Planet).ToList();
         foreach (var fleet in g.Fleets.Values.ToList())
         {
             if (fleet.Side != side || fleet.At is not int at || fleet.BattleId is not null || sent.Contains(fleet.Id)) continue;
-            var near = Neighbours(g, at).Select(id => g.Planets[id]).ToList();
+            // A lane an ion storm closes leads nowhere for now.
+            var near = Neighbours(g, at).Where(id => !StormOn(g, at, id)).Select(id => g.Planets[id]).ToList();
             var value = FleetStrength(fleet);
-            // A worn fleet stays home to mend, unless its own planet needs it.
-            var worn = fleet.Condition < 0.5;
+            // A worn fleet stays home to mend, unless its own planet needs it; the easy AI hardly
+            // waits, the hard one mends well before it goes back, where it can.
+            var worn = fleet.Condition < (clumsy ? 0.25 : cunning && Supplied(g, fleet) ? 0.7 : 0.5);
             var home = g.Planets[at].Owner == side;
 
             // Defend first: an own planet with enemies on it.
@@ -352,11 +520,14 @@ public static partial class GalaxyAi
             }
 
             // Then the most valuable enemy planet the fleet can clearly beat; the Errants, only
-            // with the full edge.
+            // with the full edge. The hard AI reads the odds better: it counts the fleets next
+            // door that would come back for it, and goes first for what is worth the most for
+            // what guards it.
+            double Guard(Planet p) => Cunning(ai) ? Odds(g, side, p, seen) : Threat(g, p, side);
             var target = near
                 .Where(p => (EnemyPlanet(g, side, p) || Threat(g, p, side) > 0)
-                    && value >= Threat(g, p, side) * (p.Owner == Faction.Errant ? 1.4 : Edge(ai)) + 300)
-                .OrderByDescending(Worth).FirstOrDefault();
+                    && value >= Guard(p) * (p.Owner == Faction.Errant ? 1.4 : Edge(ai)) + 300)
+                .OrderByDescending(p => cunning ? Worth(p) / (Guard(p) + 500) : Worth(p)).FirstOrDefault();
             if (target is not null && !worn && SendFleet(g, fleet.Id, target.Id).Ok)
             {
                 struck |= target.Owner is not null;
@@ -372,7 +543,7 @@ public static partial class GalaxyAi
                 if (SendFleet(g, fleet.Id, d0, one).Ok) continue;
             }
 
-            var free = near.Find(p => p.Owner is null && !Heading(g, side, p.Id) && Threat(g, p, side) == 0);
+            var free = near.Where(p => p.Owner is null && !Heading(g, side, p.Id) && Threat(g, p, side) == 0).OrderByDescending(p => clumsy ? 0 : Worth(p)).FirstOrDefault();
             if (free is not null && Battle.CountShips(fleet.Ships) >= 2)
             {
                 SendFleet(g, fleet.Id, free.Id, new ShipCounts { [Cheapest(fleet)] = 1 });
@@ -381,7 +552,7 @@ public static partial class GalaxyAi
 
             // Stranded at a truce partner's planet, or worn beyond its supply lines: back home.
             var partner = g.Planets[at].Owner is Side o && o != side && AtPeace(g, side, o);
-            if (partner || (worn && !home && !Supplied(g, fleet)))
+            if (partner || (worn && !Supplied(g, fleet)))
             {
                 if (Home(g, side, at) is { } back) SendFleet(g, fleet.Id, back.Id);
                 continue;
@@ -389,8 +560,9 @@ public static partial class GalaxyAi
             if (worn && home) continue;
 
             // Gather for the offensive at its staging planet, from the faction's own planets; at
-            // the staging planet, wait for the edge (the strike itself is the attack above).
-            if (plan is { } p0 && home)
+            // the staging planet, wait for the edge (the strike itself is the attack above). The
+            // easy AI never gathers: each fleet moves up and strikes on its own.
+            if (plan is { } p0 && home && !Clumsy(ai))
             {
                 if (at != p0.Staging && SafeRoute(g, side, at, p0.Staging, seen)) SendFleet(g, fleet.Id, p0.Staging);
                 continue;
@@ -431,10 +603,12 @@ public static partial class GalaxyAi
             if (f.AI is null || f.Eliminated) continue;
             f.AI.Timer -= dt;
             if (f.AI.Timer > 0) continue;
-            f.AI.Timer = ThinkInterval * (Worlds.Difficulties[f.AI.Difficulty].Think / Worlds.Difficulties[Difficulty.Normal].Think);
+            var interval = ThinkInterval * (Worlds.Difficulties[f.AI.Difficulty].Think / Worlds.Difficulties[Difficulty.Normal].Think);
+            f.AI.Timer = interval;
             var hops = HopsToEnemy(g, f.Id);
-            OfferDeals(g, f.Id);
-            Spend(g, f.Id, hops);
+            if (Cunning(f.AI)) BreakTruces(g, f.Id, f.AI);
+            if (!Clumsy(f.AI)) OfferDeals(g, f.Id);
+            Spend(g, f.Id, hops, interval);
             Command(g, f.Id, hops);
         }
     }

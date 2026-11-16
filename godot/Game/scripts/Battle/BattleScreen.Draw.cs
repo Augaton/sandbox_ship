@@ -593,8 +593,23 @@ public partial class BattleScreen
     static double EaseOutCubic(double k) => 1 - Math.Pow(1 - k, 3);
     static double EaseInCubic(double k) => k * k * k;
 
-    /// <summary>Brief ring where an order was given.</summary>
+    /// <summary>How long an order's ring lasts on the minimap.</summary>
+    public const double OrderPingMs = 900;
+
+    /// <summary>Orders just given, for the minimap: a fleet out of view shows nothing else.</summary>
+    public readonly List<(double X, double Y, Color Color, double Time)> OrderPings = [];
+
+    /// <summary>An order taken: its ring where it went, on the battlefield and the minimap, and its sound.</summary>
     public void Marker(double x, double y, Color color)
+    {
+        Ring(x, y, color);
+        OrderPings.RemoveAll(o => Now - o.Time >= OrderPingMs);
+        OrderPings.Add((x, y, color, Now));
+        Sfx.Play(Sound.Click);
+    }
+
+    /// <summary>A brief ring on the battlefield.</summary>
+    public void Ring(double x, double y, Color color)
     {
         var z = Zoom;
         Add(fxList, 350, (g, k) => Draw.Ring(g, x, y, 14 / z * (1 - 0.7 * k), color with { A = (float)(1 - k) }, 2 / z, z));
@@ -923,9 +938,14 @@ public partial class BattleScreen
         foreach (var e in World.Entities)
         {
             var r = e.Radius + 12 / z;
-            if (e.X + r < rect.Position.X || e.X - r > rect.End.X || e.Y + r < rect.Position.Y || e.Y - r > rect.End.Y) continue;
-            if (!CanSee(e)) continue;
             var sel = Selected.Contains(e.Id);
+            if (e.X + r < rect.Position.X || e.X - r > rect.End.X || e.Y + r < rect.Position.Y || e.Y - r > rect.End.Y)
+            {
+                // A selected fleet out of view still shows where it goes.
+                if (sel && e.Order is not null && CanSee(e)) DrawPlan(g, e, z, green, red, amber);
+                continue;
+            }
+            if (!CanSee(e)) continue;
             if (e.Hero is HeroId hero)
             {
                 Draw.Ring(g, e.X, e.Y, e.Radius + 9 / z, amber with { A = 0.8f }, 1.5 / z, z);
@@ -937,6 +957,7 @@ public partial class BattleScreen
             if (sel) Draw.Ring(g, e.X, e.Y, e.Radius + 5 / z, Whose(e) with { A = 0.9f }, 2 / z, z);
             if (sel && e.Order is not null) DrawPlan(g, e, z, green, red, amber);
             if (e.Rank > 0 && e.Kind == EntityKind.Ship) Chevrons(g, e, z);
+            if (e.Mending && e.Side == player) MendMark(g, e, z);
             var damaged = e.Hull < e.MaxHull || e.Shield < e.MaxShield;
             if (!sel && !damaged && e.Build >= 1 && !Settings.Current.AlwaysBars) continue;
             Bars(g, e, z);
@@ -1021,7 +1042,7 @@ public partial class BattleScreen
         var def = Abilities.Defs[id];
         var color = Palette.Hex(def.Color);
         var h = Controls.Hover;
-        foreach (var s in Controls.OwnShips())
+        foreach (var s in Controls.Casters())
         {
             if (!s.Abilities.Exists(a => a.Id == id)) continue;
             if (def.Range is double range)
@@ -1088,6 +1109,18 @@ public partial class BattleScreen
             Draw.Line(g, x - half, cy, x, cy - rise, gold, 2 / z);
             Draw.Line(g, x, cy - rise, x + half, cy, gold, 2 / z);
         }
+    }
+
+    /// <summary>A ship falling back by itself to be repaired (Movement.Mend): a light cross left of its bars, further with adapted colors, whose mark is there.</summary>
+    static void MendMark(CanvasItem g, Entity e, double z)
+    {
+        var w = Math.Max(28 / z, e.Radius * 1.6);
+        var x = e.X - w / 2 - (Palette.Marked ? 22 : 9) / z;
+        var y = e.Y - e.Radius - 6 / z;
+        var (half, thick) = (5.5 / z, 3 / z);
+        var color = Palette.Hex(0xa8f5c0);
+        Draw.Line(g, x - half, y, x + half, y, color, thick);
+        Draw.Line(g, x, y - half, x, y + half, color, thick);
     }
 
     /// <summary>Hull bar (green to red), shield bar above it, construction progress below.</summary>

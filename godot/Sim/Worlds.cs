@@ -5,12 +5,17 @@ namespace SandboxShip.Sim;
 
 public static class Worlds
 {
-    /// <summary>What the difficulty changes: AI income and how often it thinks.</summary>
+    /// <summary>The three levels of AI: what each decides, not only what it earns (see DifficultyDef).</summary>
     public static readonly IReadOnlyDictionary<Difficulty, DifficultyDef> Difficulties = new Dictionary<Difficulty, DifficultyDef>
     {
-        [Difficulty.Easy] = new("Facile", 0.75, 2.5),
-        [Difficulty.Normal] = new("Normale", 1, 1.5),
-        [Difficulty.Hard] = new("Difficile", 1.35, 0.9),
+        [Difficulty.Easy] = new("Facile", "Réagit tard, défend sa seule station, attaque sans compter, cherche peu et oublie souvent ses capacités.",
+            Income: 0.75, Think: 2.5, BattleIncome: 0.75, Reaction: 15, AbilityUse: 0.4, Research: 0.5, HomeOnly: true, Adapts: false, WeighsOdds: false, Sharp: false),
+        [Difficulty.Normal] = new("Normale", "Défend tout ce qu'elle possède, répond à ce qu'elle voit et attaque quand elle se sent la plus forte.",
+            Income: 1, Think: 1.5, BattleIncome: 1, Reaction: 0, AbilityUse: 1, Research: 1, HomeOnly: false, Adapts: true, WeighsOdds: true, Sharp: false),
+        [Difficulty.Hard] = new("Difficile", "Concentre ses tirs, vise armes et moteurs, pille tes mines, se replie quand elle perd, adapte sa flotte et pousse ses recherches.",
+            // Its edge in the campaign is its play, no more its income: at equal income it wins 85 % of
+            // its duels with the normal one, 83 % at 1.15, 88 % at 1.35 (DifficultyBalanceTests, 48 games).
+            Income: 1.15, Think: 0.9, BattleIncome: 1, Reaction: 0, AbilityUse: 1, Research: 1.75, HomeOnly: false, Adapts: true, WeighsOdds: true, Sharp: true),
     };
 
     public static World CreateWorld(double width, double height, int seed = 1) => new() { Width = width, Height = height, Seed = seed };
