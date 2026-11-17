@@ -7483,3 +7483,695 @@ msgstr "intact"
 #: Sim/GalaxyAiDiplomacy.cs
 msgid "Elle t'a déjà cédé une fois : plus maintenant"
 msgstr "It gave in to you once already: not again"
+
+#: Game/scripts/Battle/BattleScreen.Reserve.cs
+msgid "Un {0} ennemi sort de la tempête"
+msgstr "An enemy {0} comes out of the storm"
+
+#: Game/scripts/Galaxy/GalaxyHud.Diplomacy.cs
+msgid "la paix durable"
+msgstr "lasting peace"
+
+#: Game/scripts/Galaxy/GalaxyHud.Diplomacy.cs
+msgid "l'échange de planète"
+msgstr "the planet exchange"
+
+#: Game/scripts/Galaxy/GalaxyHud.Diplomacy.cs
+msgid "l'échange de technologie"
+msgstr "the technology exchange"
+
+#: Game/scripts/Galaxy/GalaxyHud.Diplomacy.cs
+msgid "{0} propose une paix durable"
+msgstr "{0} offers a lasting peace"
+
+#: Game/scripts/Galaxy/GalaxyHud.Diplomacy.cs
+msgid "{0} propose de te céder {1}{2}"
+msgstr "{0} offers to hand you {1}{2}"
+
+#: Game/scripts/Galaxy/GalaxyHud.Diplomacy.cs
+msgid "{0} demande {1}{2}"
+msgstr "{0} asks for {1}{2}"
+
+#: Game/scripts/Galaxy/GalaxyHud.Diplomacy.cs
+msgid "{0} propose de te transmettre {1}{2}"
+msgstr "{0} offers to share {1}{2} with you"
+
+#: Game/scripts/Galaxy/GalaxyHud.Diplomacy.cs
+msgid " en cadeau"
+msgstr " as a gift"
+
+#: Game/scripts/Galaxy/GalaxyHud.Diplomacy.cs
+msgid "Une paix sans fin : aucun combat ni flotte envoyée chez l'autre. Elle ne se rompt pas : on la dénonce, et la guerre vient {0} après."
+msgstr "A peace without end: no fighting, and no fleet sent to the other's planets. It cannot be broken: it is renounced, and war comes {0} later."
+
+#: Game/scripts/Galaxy/GalaxyHud.Diplomacy.cs
+msgid "La planète change de mains avec ses installations ; les flottes de son ancien propriétaire en repartent."
+msgstr "The planet changes hands with its installations; its former owner's fleets leave it."
+
+#: Game/scripts/Galaxy/GalaxyHud.Diplomacy.cs
+msgid "Celle qui est en retard gagne un niveau de cette technologie."
+msgstr "The one behind gains a level of this technology."
+
+#: Game/scripts/Galaxy/GalaxyHud.Diplomacy.cs
+msgid "Dénoncer la paix avec {0} ?"
+msgstr "Renounce the peace with {0}?"
+
+#: Game/scripts/Galaxy/GalaxyHud.Diplomacy.cs
+msgid "La guerre reprendra dans {0}. Ce n'est pas une trahison, mais ta réputation baisse un peu et {1} te fera moins confiance."
+msgstr "War will resume in {0}. It is not a betrayal, but your reputation drops a little and {1} will trust you less."
+
+#: Game/scripts/Galaxy/GalaxyHud.Diplomacy.cs
+msgid "Dénoncer"
+msgstr "Renounce"
+
+#: Game/scripts/Galaxy/GalaxyHud.Diplomacy.cs
+msgid " pour {0}"
+msgstr " for {0}"
+
+#: Game/scripts/Galaxy/GalaxyHud.Diplomacy.cs
+msgid ", en cadeau"
+msgstr ", as a gift"
+
+#: Game/scripts/Galaxy/GalaxyHud.Diplomacy.cs
+msgid "Fin de la paix de départ : les grands camps peuvent s'attaquer"
+msgstr "The opening peace is over: the great sides may attack each other"
+
+#: Game/scripts/Galaxy/GalaxyHud.Diplomacy.cs
+msgid "Paix durable avec {0} : sans fin, elle ne se rompt qu'avec un préavis de {1}"
+msgstr "Lasting peace with {0}: without end, it can only be broken with {1} of notice"
+
+#: Game/scripts/Galaxy/GalaxyHud.Diplomacy.cs
+msgid "Paix durable entre {0} et {1}"
+msgstr "Lasting peace between {0} and {1}"
+
+#: Game/scripts/Galaxy/GalaxyHud.Diplomacy.cs
+msgid "Tu cèdes"
+msgstr "You hand over"
+
+#: Game/scripts/Galaxy/GalaxyHud.Diplomacy.cs
+msgid "{0} cède"
+msgstr "{0} hands over"
+
+#: Game/scripts/Galaxy/GalaxyHud.Diplomacy.cs
+msgid "{0} {1} avec {2}{3}"
+msgstr "{0} {1} with {2}{3}"
+
+#: Game/scripts/Galaxy/GalaxyHud.Diplomacy.cs
+msgid "Tu partages"
+msgstr "You share"
+
+#: Game/scripts/Galaxy/GalaxyHud.Diplomacy.cs
+msgid "{0} partage"
+msgstr "{0} shares"
+
+#: Game/scripts/Galaxy/GalaxyHud.Diplomacy.cs
+msgid "Paix dénoncée avec {0} : la guerre dans {1}"
+msgstr "Peace with {0} renounced: war in {1}"
+
+#: Game/scripts/Galaxy/GalaxyHud.Diplomacy.cs
+msgid "{0} dénonce votre paix : la guerre dans {1} !"
+msgstr "{0} renounces your peace: war in {1}!"
+
+#: Game/scripts/Galaxy/GalaxyHud.Diplomacy.cs
+msgid "{0} dénonce sa paix avec {1}"
+msgstr "{0} renounces its peace with {1}"
+
+#: Game/scripts/Galaxy/GalaxyHud.Diplomacy.cs
+msgid "Négociation avec les indépendants de {0} : {1}"
+msgstr "Talks with the independents of {0}: {1}"
+
+#: Game/scripts/Galaxy/GalaxyHud.Diplomacy.cs
+msgid "{0} négocie avec les indépendants de {1}"
+msgstr "{0} is talking with the independents of {1}"
+
+#: Game/scripts/Galaxy/GalaxyHud.Diplomacy.cs
+msgid "{0} te rejoint, garnison comprise"
+msgstr "{0} joins you, garrison and all"
+
+#: Game/scripts/Galaxy/GalaxyHud.Diplomacy.cs
+msgid "{0} rejoint {1}"
+msgstr "{0} joins {1}"
+
+#: Game/scripts/Galaxy/GalaxyHud.DiplomacyScreen.cs
+msgid "Échanges"
+msgstr "Exchanges"
+
+#: Game/scripts/Galaxy/GalaxyHud.DiplomacyScreen.cs
+msgid " · lassitude de guerre {0} (revenu −{1})"
+msgstr " · war weariness {0} (income −{1})"
+
+#: Game/scripts/Galaxy/GalaxyHud.DiplomacyScreen.cs
+msgid "La guerre {0} après"
+msgstr "War {0} later"
+
+#: Game/scripts/Galaxy/GalaxyHud.DiplomacyScreen.cs
+msgid "Paix de départ : encore {0}, nul ne peut la rompre{1}"
+msgstr "Opening peace: {0} left, no one can break it{1}"
+
+#: Game/scripts/Galaxy/GalaxyHud.DiplomacyScreen.cs
+msgid " ; une paix durable lui succédera"
+msgstr "; a lasting peace will follow it"
+
+#: Game/scripts/Galaxy/GalaxyHud.DiplomacyScreen.cs
+msgid "Paix durable : sans fin ; la dénoncer laisse {0} avant la guerre"
+msgstr "Lasting peace: without end; renouncing it leaves {0} before war"
+
+#: Game/scripts/Galaxy/GalaxyHud.DiplomacyScreen.cs
+msgid ", il grandit encore {0}"
+msgstr ", still growing for {0}"
+
+#: Game/scripts/Galaxy/GalaxyHud.DiplomacyScreen.cs
+msgid ", à son plein"
+msgstr ", at its fullest"
+
+#: Game/scripts/Galaxy/GalaxyHud.DiplomacyScreen.cs
+msgid "Paix durable"
+msgstr "Lasting peace"
+
+#: Game/scripts/Galaxy/GalaxyHud.DiplomacyScreen.cs
+msgid "Une paix sans fin, qui ne se rompt pas : on la dénonce, et la guerre vient {0} après"
+msgstr "A peace without end that cannot be broken: it is renounced, and war comes {0} later"
+
+#: Game/scripts/Galaxy/GalaxyHud.DiplomacyScreen.cs
+msgid "Une planète ou un niveau de technologie contre des crédits ; à 0, c'est un cadeau, qui réchauffe une IA. Une capitale ne se cède pas."
+msgstr "A planet or a technology level for credits; at 0 it is a gift, which warms an AI. A capital cannot be handed over."
+
+#: Game/scripts/Galaxy/GalaxyHud.DiplomacyScreen.cs
+msgid "Obtenir {0}"
+msgstr "Get {0}"
+
+#: Game/scripts/Galaxy/GalaxyHud.DiplomacyScreen.cs
+msgid "Valeur estimée : {0}"
+msgstr "Estimated value: {0}"
+
+#: Game/scripts/Galaxy/GalaxyHud.DiplomacyScreen.cs
+msgid "Céder {0}"
+msgstr "Hand over {0}"
+
+#: Game/scripts/Galaxy/GalaxyHud.DiplomacyScreen.cs
+msgid "Transmettre"
+msgstr "Share"
+
+#: Game/scripts/Galaxy/GalaxyHud.DiplomacyScreen.cs
+msgid "Recevoir"
+msgstr "Receive"
+
+#: Game/scripts/Galaxy/GalaxyHud.DiplomacyScreen.cs
+msgid "Valeur : {0}"
+msgstr "Value: {0}"
+
+#: Game/scripts/Galaxy/GalaxyHud.DiplomacyScreen.cs
+msgid "Rien à échanger pour l'instant."
+msgstr "Nothing to exchange for now."
+
+#: Game/scripts/Galaxy/GalaxyHud.DiplomacyScreen.cs
+msgid "Cadeau"
+msgstr "Gift"
+
+#: Game/scripts/Galaxy/GalaxyHud.DiplomacyScreen.cs
+msgid "Ce que ça vaut, à peu près"
+msgstr "Roughly what it is worth"
+
+#: Game/scripts/Galaxy/GalaxyHud.DiplomacyScreen.cs
+msgid "C'est toi qui paies."
+msgstr "You pay."
+
+#: Game/scripts/Galaxy/GalaxyHud.DiplomacyScreen.cs
+msgid "C'est elle qui paie."
+msgstr "They pay."
+
+#: Game/scripts/Galaxy/GalaxyHud.DiplomacyScreen.cs
+msgid "Proposer l'échange"
+msgstr "Propose the exchange"
+
+#: Game/scripts/Galaxy/GalaxyHud.DiplomacyScreen.cs
+msgid "Elle répond aussitôt, et dit ce qu'elle voudrait si elle refuse."
+msgstr "They answer at once, and say what they would want if they refuse."
+
+#: Game/scripts/Galaxy/GalaxyHud.DiplomacyScreen.cs
+msgid "Paix durable signée"
+msgstr "Lasting peace signed"
+
+#: Game/scripts/Galaxy/GalaxyHud.DiplomacyScreen.cs
+msgid "{0} cède {1} à {2}{3}"
+msgstr "{0} hands {1} over to {2}{3}"
+
+#: Game/scripts/Galaxy/GalaxyHud.DiplomacyScreen.cs
+msgid "{0} transmet {1} à {2}{3}"
+msgstr "{0} shares {1} with {2}{3}"
+
+#: Game/scripts/Galaxy/GalaxyHud.DiplomacyScreen.cs
+msgid "{0} dénonce la paix durable"
+msgstr "{0} renounces the lasting peace"
+
+#: Game/scripts/Galaxy/GalaxyHud.cs
+msgid "Indépendants"
+msgstr "Independents"
+
+#: Game/scripts/Galaxy/GalaxyHud.cs
+msgid "Indépendants ({0})"
+msgstr "Independents ({0})"
+
+#: Game/scripts/Galaxy/GalaxyHud.cs
+msgid " (lassitude −{0})"
+msgstr " (weariness −{0})"
+
+#: Game/scripts/Galaxy/GalaxyHud.cs
+msgid "Lassitude de guerre : {0} sur {1}. Les pertes et les fronts tenus contre d'autres grands camps l'augmentent ; la paix la fait retomber."
+msgstr "War weariness: {0} of {1}. Losses and fronts held against other great sides raise it; peace brings it down."
+
+#: Game/scripts/Galaxy/GalaxyHud.cs
+msgid "Planète indépendante"
+msgstr "Independent planet"
+
+#: Game/scripts/Galaxy/GalaxyHud.cs
+msgid "Sa garnison ne quitte jamais la planète et ne compte pas pour la victoire. Elle se défend contre quiconque l'attaque : vaincue, elle laisse la planète au vainqueur. Plus une planète est riche et loin des capitales, plus sa garnison est forte."
+msgstr "Its garrison never leaves the planet and does not count for victory. It defends itself against anyone who attacks it: defeated, it leaves the planet to the victor. The richer a planet and the farther from the capitals, the stronger its garrison."
+
+#: Game/scripts/Galaxy/GalaxyHud.cs
+msgid "Capitale fortifiée"
+msgstr "Fortified capital"
+
+#: Game/scripts/Galaxy/GalaxyHud.cs
+msgid "Capitale {0}"
+msgstr "Capital {0}"
+
+#: Game/scripts/Galaxy/GalaxyHud.cs
+msgid "de : {0}"
+msgstr "of: {0}"
+
+#: Game/scripts/Galaxy/GalaxyHud.cs
+msgid "Tant que {0} avec sa station, ses plateformes détruites se relèvent seules : une toutes les {1} s, jusqu'à {2}."
+msgstr "As long as {0} with its station, its destroyed platforms rise again on their own: one every {1} s, up to {2}."
+
+#: Game/scripts/Galaxy/GalaxyHud.cs
+msgid "tu la tiens"
+msgstr "you hold it"
+
+#: Game/scripts/Galaxy/GalaxyHud.cs
+msgid "son camp la tient"
+msgstr "its side holds it"
+
+#: Game/scripts/Galaxy/GalaxyHud.cs
+msgid "Reprise par son camp, ses plateformes se relèveraient seules."
+msgstr "Retaken by its side, its platforms would rise again on their own."
+
+#: Game/scripts/Galaxy/GalaxyHud.cs
+msgid "{0} aussi, encore {1} s"
+msgstr "{0} too, {1} s left"
+
+#: Game/scripts/Galaxy/GalaxyHud.cs
+msgid "Négociation en cours : la planète te rejoint dans {0} s, sauf si on la prend avant."
+msgstr "Talks under way: the planet joins you in {0} s, unless someone takes it first."
+
+#: Game/scripts/Galaxy/GalaxyHud.cs
+msgid "Convaincre ses indépendants de te rejoindre sans combat : {0} crédits et {1} s. Garnison et plateformes passent de ton côté ; une meilleure réputation coûte moins cher. L'attaquer met fin à la négociation."
+msgstr "Convince its independents to join you without a fight: {0} credits and {1} s. Garrison and platforms come over to your side; a better reputation costs less. Attacking it ends the talks."
+
+#: Game/scripts/Galaxy/GalaxyHud.cs
+msgid " En course : {0}."
+msgstr " Also in the running: {0}."
+
+#: Game/scripts/Galaxy/GalaxyHud.cs
+msgid "Convaincre ({0} cr)"
+msgstr "Convince ({0} cr)"
+
+#: Game/scripts/Galaxy/GalaxyHud.cs
+msgid "{0} : les indépendants tombent devant {1}"
+msgstr "{0}: the independents fall to {1}"
+
+#: Game/scripts/Galaxy/GalaxyHud.cs
+msgid "les indépendants de la planète"
+msgstr "the planet's independents"
+
+#: Game/scripts/Galaxy/GalaxyHud.cs
+msgid "Les planètes libres sont tenues par des indépendants, dont la garnison se défend : plus la planète est riche et loin des capitales, plus elle est forte. On peut aussi les convaincre de te rejoindre sans combat depuis une planète voisine : des crédits et {0} s, garnison comprise, moins cher avec une bonne réputation. La guerre entre grands camps use : pertes, planètes perdues et fronts tenus font monter la lassitude, qui ronge le revenu ; la paix la fait retomber, et une IA lasse cherche la paix. Une paix durable ne finit jamais d'elle-même et ne se rompt pas : on la dénonce, avec un préavis. Le commerce grandit avec la paix, et l'on peut échanger planètes et technologies contre des crédits. Chaque capitale démarre avec une station niveau {1} et relève seule ses plateformes. Au début, une paix de départ (réglée au salon) interdit toute attaque entre grands camps ; elle ne se rompt pas. Une flotte seule prend une planète sans défense en {2} s ({3} s si elle est neutre). Quand deux camps se rencontrent, la bataille se commande dans la vue tactique ou se résout seule. Les flottes traversent les planètes neutres ou alliées et s'arrêtent aux planètes ennemies. Tu perds quand tu n'as plus de planète. Chaque planète a deux files : bâtiments et vaisseaux. Certaines planètes ont un bonus. À plus de {4} voies de tes stations, une flotte est hors ravitaillement : elle s'use de {5} par minute et ne se répare plus. L'écran Diplomatie (T) montre les relations de tous les camps et, avant chaque offre, la réponse d'une IA : trêves, alliances, commerce, vision partagée, guerres communes, tributs et ultimatums ; trahir abîme ta réputation auprès de tous. Toutes les quelques minutes, un événement survient : épave à récupérer, bande errante, tempête ionique, essor commercial. Les Errants, neutres, gardent la planète la plus isolée avec leur Colosse : ils n'en bougent jamais et ne comptent pas pour la victoire. Chaque vaisseau abattu rapporte {6} de sa valeur ; le Colosse, {7} crédits et un niveau de recherche. La campagne se sauvegarde toute seule ; « Continuer la campagne » la reprend depuis le menu."
+msgstr "Free planets are held by independents, whose garrison defends itself: the richer the planet and the farther from the capitals, the stronger it is. You can also convince them to join you without a fight from a neighboring planet: credits and {0} s, garrison and all, cheaper with a good reputation. War between great sides wears you down: losses, planets lost and fronts held raise weariness, which eats into income; peace brings it down, and a weary AI seeks peace. A lasting peace never ends by itself and cannot be broken: it is renounced, with notice. Trade grows with peace, and planets and technologies can be exchanged for credits. Each capital starts with a level {1} station and raises its platforms again on its own. At the start, an opening peace (set in the lobby) forbids any attack between great sides; it cannot be broken. A lone fleet takes an undefended planet in {2} s ({3} s if it is neutral). When two sides meet, the battle is commanded in the tactical view or resolves itself. Fleets pass through neutral or allied planets and stop at enemy planets. You lose when you have no planet left. Each planet has two queues: buildings and ships. Some planets have a bonus. More than {4} lanes from your stations, a fleet is out of supply: it wears down by {5} per minute and is no longer repaired. The Diplomacy screen (T) shows the relations of every side and, before each offer, an AI's answer: truces, alliances, trade, shared vision, joint wars, tributes and ultimatums; betrayal damages your reputation with everyone. Every few minutes, an event happens: a wreck to recover, a wandering band, an ion storm, a trade boom. The Errants, neutral, guard the most isolated planet with their Colossus: they never leave it and do not count for victory. Each ship shot down earns {6} of its value; the Colossus, {7} credits and a research level. The campaign saves itself; \"Continue the campaign\" resumes it from the menu."
+
+#: Game/scripts/Ui/Hud.Dialogs.cs
+msgid "[b]Réserve.[/b] Chaque vaisseau construit attend en réserve, dans le panneau au-dessus des groupes. Glisse-le sur la carte, près de tes bâtiments ou de tes vaisseaux de ligne, loin des bâtiments ennemis : il arrive par l'hyperespace. Une escadrille arrive d'un bloc ; un clic droit sur sa carte les envoie tous au point de ralliement (clic droit sur la carte, station sélectionnée)."
+msgstr "[b]Reserve.[/b] Every ship built waits in reserve, in the panel above the groups. Drag it onto the map, near your buildings or your line ships, far from enemy buildings: it arrives through hyperspace. A squadron arrives all at once; a right click on its card sends them all to the rally point (right click on the map, station selected)."
+
+#: Game/scripts/Ui/Hud.Dialogs.cs
+msgid "[b]Construction.[/b] Autour de la station et des avant-postes. Un avant-poste se pose loin de la base, à 1 500 au moins de ta station et de tes autres avant-postes, là où un de tes vaisseaux tient la position, hors combat ; il ouvre une nouvelle zone de construction. Plateformes et docks se construisent aussi près de tes mines. Sélectionne une plateforme ou un avant-poste pour l'améliorer : chaque bâtiment s'améliore en même temps que les autres, sans file d'attente. Au niveau 4 (station niveau 3), une plateforme devient un bastion à quatre tourelles."
+msgstr "[b]Construction.[/b] Around the station and the outposts. An outpost goes far from the base, at least 1,500 from your station and your other outposts, where one of your ships holds the position, out of combat; it opens a new construction area. Platforms and docks can also be built near your mines. Select a platform or an outpost to upgrade it: each building upgrades at the same time as the others, with no queue. At level 4 (station level 3), a platform becomes a bastion with four turrets."
+
+#: Game/scripts/Ui/Hud.Selection.cs
+msgid "Niveau {0} dans {1} s"
+msgstr "Level {0} in {1} s"
+
+#: Game/scripts/Ui/Hud.cs
+msgid "Réserve : glisse un vaisseau sur la carte"
+msgstr "Reserve: drag a ship onto the map"
+
+#: Game/scripts/Ui/Hud.cs
+msgid "{0} en réserve : glisse-le sur la carte"
+msgstr "{0} in reserve: drag it onto the map"
+
+#: Game/scripts/Ui/Hud.cs
+msgid "{0} : glisse-le sur la carte, ou clique ici puis sur la carte (Maj : plusieurs) ; clic droit : tous au point de ralliement. Il arrive par l'hyperespace près de tes forces, jamais près d'un bâtiment ennemi."
+msgstr "{0}: drag it onto the map, or click here then on the map (Shift: several); right click: all to the rally point. It arrives through hyperspace near your forces, never near an enemy building."
+
+#: Game/scripts/Ui/Hud.cs
+msgid "Aucun point libre au ralliement"
+msgstr "No free spot at the rally point"
+
+#: Game/scripts/Ui/Loading.cs
+msgid "Tout vaisseau construit attend en réserve : glisse-le sur la carte, ou clic droit sur sa carte pour l'envoyer au point de ralliement."
+msgstr "Every ship built waits in reserve: drag it onto the map, or right click its card to send it to the rally point."
+
+#: Game/scripts/Ui/Loading.cs
+msgid "L'artillerie frappe les bâtiments de très loin, mais ses obus lents tombent sous la défense ponctuelle des corvettes."
+msgstr "Artillery strikes buildings from very far, but its slow shells fall to the corvettes' point defense."
+
+#: Game/scripts/Ui/Loading.cs
+msgid "Un croiseur furtif ne se voit que de près, ou quand il vient de tirer."
+msgstr "A stealth cruiser is only seen up close, or just after it fires."
+
+#: Game/scripts/Ui/Loading.cs
+msgid "Le brouilleur réduit la portée des ennemis de sa zone, plateformes comprises, et fige leurs boucliers."
+msgstr "The jammer cuts the range of the enemies in its zone, platforms included, and freezes their shields."
+
+#: Game/scripts/Ui/Loading.cs
+msgid "Améliorée au niveau 4, une plateforme devient un bastion à quatre tourelles."
+msgstr "Upgraded to level 4, a platform becomes a bastion with four turrets."
+
+#: Game/scripts/Ui/Menu.Lobby.cs
+msgid "Paix de départ"
+msgstr "Opening peace"
+
+#: Game/scripts/Ui/Menu.Lobby.cs
+msgid "Aucune attaque entre grands camps pendant ce temps. Les planètes libres sont tenues par des indépendants à vaincre, et chaque capitale relève ses plateformes."
+msgstr "No attacks between great sides meanwhile. Free planets are held by independents to defeat, and each capital raises its platforms again."
+
+#: Game/scripts/Ui/Menu.Lobby.cs
+msgid "sans paix de départ"
+msgstr "no opening peace"
+
+#: Game/scripts/Ui/Menu.Lobby.cs
+msgid "{0} min de paix"
+msgstr "{0} min of peace"
+
+#: Game/scripts/Ui/Menu.cs
+msgid "Vaisseaux des Errants, Rempart, Transporteur, Titan, Léviathan, Colosse, Artillerie, Corvette, Brouilleur et Croiseur furtif : dessinés par le jeu dans la manière de ces packs."
+msgstr "The Errants' ships, Bulwark, Carrier, Titan, Leviathan, Colossus, Artillery, Corvette, Jammer and Stealth cruiser: drawn by the game in the manner of these packs."
+
+#: Game/scripts/Ui/Tutorial.cs
+msgid "Onglet « Vaisseaux » : commande une frégate. Une fois prête, elle attend en réserve, dans le panneau au-dessus des groupes."
+msgstr "\"Ships\" tab: order a frigate. Once ready, it waits in reserve, in the panel above the groups."
+
+#: Game/scripts/Ui/Tutorial.cs
+msgid "La réserve"
+msgstr "The reserve"
+
+#: Game/scripts/Ui/Tutorial.cs
+msgid "Glisse la frégate de la réserve sur la carte, près de ta station ou de tes vaisseaux : elle arrive par l'hyperespace."
+msgstr "Drag the frigate from the reserve onto the map, near your station or your ships: it arrives through hyperspace."
+
+#: Sim/Data/Abilities.cs
+msgid "Brouillage"
+msgstr "Jamming"
+
+#: Sim/Data/Abilities.cs
+msgid "Dans la zone, les ennemis, bâtiments compris, perdent 40 % de leur portée et leurs boucliers ne se rechargent plus pendant 10 s."
+msgstr "In the zone, enemies, buildings included, lose 40% of their range and their shields stop recharging for 10 s."
+
+#: Sim/Data/Units.cs
+msgid "Artillerie"
+msgstr "Artillery"
+
+#: Sim/Data/Units.cs
+msgid "Corvette"
+msgstr "Corvette"
+
+#: Sim/Data/Units.cs
+msgid "Brouilleur"
+msgstr "Jammer"
+
+#: Sim/Data/Units.cs
+msgid "Croiseur furtif"
+msgstr "Stealth cruiser"
+
+#: Sim/GalaxyAiDiplomacy.cs
+msgid "Elle en veut au moins {0} crédits"
+msgstr "They want at least {0} credits"
+
+#: Sim/GalaxyAiDiplomacy.cs
+msgid "Elle n'en donnerait que {0} crédits"
+msgstr "They would only give {0} credits"
+
+#: Sim/GalaxyAiDiplomacy.cs
+msgid "Elle ne veut pas armer plus fort qu'elle"
+msgstr "They will not arm someone stronger than themselves"
+
+#: Sim/GalaxyAiDiplomacy.cs
+msgid "Elle ne traite pas avec le camp qui domine la galaxie"
+msgstr "They do not deal with the side that dominates the galaxy"
+
+#: Sim/GalaxyDiplomacy.cs
+msgid "Pas pendant la paix de départ"
+msgstr "Not during the opening peace"
+
+#: Sim/GalaxyDiplomacy.cs
+msgid "Paix durable déjà en cours"
+msgstr "Lasting peace already in place"
+
+#: Sim/GalaxyDiplomacy.cs
+msgid "La paix de départ ne se rompt pas"
+msgstr "The opening peace cannot be broken"
+
+#: Sim/GalaxyDiplomacy.cs
+msgid "Une paix durable se dénonce, avec un préavis"
+msgstr "A lasting peace is renounced, with notice"
+
+#: Sim/GalaxyGen.cs
+msgid "Albor"
+msgstr "Albor"
+
+#: Sim/GalaxyGen.cs
+msgid "Bastide"
+msgstr "Bastide"
+
+#: Sim/GalaxyGen.cs
+msgid "Cendre"
+msgstr "Cendre"
+
+#: Sim/GalaxyGen.cs
+msgid "Doria"
+msgstr "Doria"
+
+#: Sim/GalaxyGen.cs
+msgid "Écume"
+msgstr "Écume"
+
+#: Sim/GalaxyGen.cs
+msgid "Faëlle"
+msgstr "Faëlle"
+
+#: Sim/GalaxyGen.cs
+msgid "Grisol"
+msgstr "Grisol"
+
+#: Sim/GalaxyGen.cs
+msgid "Hélis"
+msgstr "Hélis"
+
+#: Sim/GalaxyGen.cs
+msgid "Ivoire"
+msgstr "Ivoire"
+
+#: Sim/GalaxyGen.cs
+msgid "Jaspe"
+msgstr "Jaspe"
+
+#: Sim/GalaxyGen.cs
+msgid "Korrin"
+msgstr "Korrin"
+
+#: Sim/GalaxyGen.cs
+msgid "Lys"
+msgstr "Lys"
+
+#: Sim/GalaxyGen.cs
+msgid "Mérac"
+msgstr "Mérac"
+
+#: Sim/GalaxyGen.cs
+msgid "Nivôse"
+msgstr "Nivôse"
+
+#: Sim/GalaxyGen.cs
+msgid "Orphée"
+msgstr "Orphée"
+
+#: Sim/GalaxyGen.cs
+msgid "Pernelle"
+msgstr "Pernelle"
+
+#: Sim/GalaxyGen.cs
+msgid "Quintil"
+msgstr "Quintil"
+
+#: Sim/GalaxyGen.cs
+msgid "Rocaille"
+msgstr "Rocaille"
+
+#: Sim/GalaxyGen.cs
+msgid "Sirin"
+msgstr "Sirin"
+
+#: Sim/GalaxyGen.cs
+msgid "Tanaïs"
+msgstr "Tanaïs"
+
+#: Sim/GalaxyGen.cs
+msgid "Urbane"
+msgstr "Urbane"
+
+#: Sim/GalaxyGen.cs
+msgid "Valmy"
+msgstr "Valmy"
+
+#: Sim/GalaxyGen.cs
+msgid "Wyrd"
+msgstr "Wyrd"
+
+#: Sim/GalaxyGen.cs
+msgid "Xanthe"
+msgstr "Xanthe"
+
+#: Sim/GalaxyGen.cs
+msgid "Yseult"
+msgstr "Yseult"
+
+#: Sim/GalaxyGen.cs
+msgid "Zénith"
+msgstr "Zénith"
+
+#: Sim/GalaxyGen.cs
+msgid "Aurige"
+msgstr "Aurige"
+
+#: Sim/GalaxyGen.cs
+msgid "Balise"
+msgstr "Balise"
+
+#: Sim/GalaxyGen.cs
+msgid "Cyrène"
+msgstr "Cyrène"
+
+#: Sim/GalaxyGen.cs
+msgid "Délos"
+msgstr "Délos"
+
+#: Sim/GalaxyGen.cs
+msgid "Éther"
+msgstr "Éther"
+
+#: Sim/GalaxyGen.cs
+msgid "Fanal"
+msgstr "Fanal"
+
+#: Sim/GalaxyGen.cs
+msgid "Gaïa"
+msgstr "Gaïa"
+
+#: Sim/GalaxyGen.cs
+msgid "Halcyon"
+msgstr "Halcyon"
+
+#: Sim/GalaxyGen.cs
+msgid "Ilion"
+msgstr "Ilion"
+
+#: Sim/GalaxyRelations.cs
+msgid "Pas une planète indépendante"
+msgstr "Not an independent planet"
+
+#: Sim/GalaxyRelations.cs
+msgid "Un ralliement à la fois"
+msgstr "One rallying at a time"
+
+#: Sim/GalaxyRelations.cs
+msgid "Il faut une planète voisine"
+msgstr "A neighboring planet is needed"
+
+#: Sim/GalaxyRelations.cs
+msgid "Bataille en cours"
+msgstr "Battle under way"
+
+#: Sim/GalaxyRelations.cs
+msgid "Aucune paix durable"
+msgstr "No lasting peace"
+
+#: Sim/GalaxyRelations.cs
+msgid "Choisis une planète"
+msgstr "Pick a planet"
+
+#: Sim/GalaxyRelations.cs
+msgid "Choisis une planète à l'une de vous deux"
+msgstr "Pick a planet belonging to one of you"
+
+#: Sim/GalaxyRelations.cs
+msgid "Une capitale ne se cède pas"
+msgstr "A capital cannot be handed over"
+
+#: Sim/GalaxyRelations.cs
+msgid "Sa dernière planète"
+msgstr "Their last planet"
+
+#: Sim/GalaxyRelations.cs
+msgid "Choisis une technologie"
+msgstr "Pick a technology"
+
+#: Sim/GalaxyRelations.cs
+msgid "Vous en êtes au même niveau"
+msgstr "You are at the same level"
+
+#: Sim/GalaxyRelations.cs
+msgid "Déjà en recherche"
+msgstr "Already being researched"
+
+#: Sim/Reserves.cs
+msgid "Point invalide"
+msgstr "Invalid point"
+
+#: Sim/Reserves.cs
+msgid "Pas en réserve"
+msgstr "Not in reserve"
+
+#: Sim/Reserves.cs
+msgid "Point d'arrivée déjà pris"
+msgstr "Arrival point already taken"
+
+#: Sim/Reserves.cs
+msgid "Trop près d'un bâtiment ennemi"
+msgstr "Too close to an enemy building"
+
+#: Sim/Reserves.cs
+msgid "Trop loin de tes forces"
+msgstr "Too far from your forces"
+
+#: Sim/Scenario.cs
+msgid "Très grande"
+msgstr "Very large"
+
+#: Sim/Scenario.cs
+msgid "Immense"
+msgstr "Immense"
+
+#: Sim/Structures.cs
+msgid "Amélioration en cours"
+msgstr "Upgrade under way"
+
+#: Sim/Structures.cs
+msgid "Pas assez de place autour"
+msgstr "Not enough room around it"
+
+#: Sim/Structures.cs
+msgid "Trop près de la station"
+msgstr "Too close to the station"
+
+#: Sim/Structures.cs
+msgid "Trop près d'un autre avant-poste"
+msgstr "Too close to another outpost"
