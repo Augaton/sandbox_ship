@@ -43,6 +43,8 @@ public partial class Hud : CanvasLayer
     HFlowContainer reserveRow = null!;
     /// <summary>How many ships the reserve held at the last refresh: one more is announced.</summary>
     int reserveSeen;
+    /// <summary>The reserve by kind of ship, in the order first built, refilled at each refresh.</summary>
+    readonly List<(ReserveShip Ship, int Count)> reserveKinds = [];
     ScrollContainer selectionScroll = null!;
     VBoxContainer selection = null!;
     /// <summary>A production tab: its button and its name, what it shows, how many it has under way.</summary>
@@ -678,10 +680,18 @@ public partial class Hud : CanvasLayer
         if (f.Reserve.Count == 0) return;
         var c = scene.Controls;
         var armed = c.Mode is DeployMode dm ? dm.Ship : (ReserveShip?)null;
-        var parts = new List<Part>();
-        foreach (var kind in f.Reserve.Distinct())
+        // Counted in one pass: a reserve holds few kinds.
+        reserveKinds.Clear();
+        foreach (var s in f.Reserve)
         {
-            var (ship, count) = (kind, f.Reserve.Count(s => s == kind));
+            var i = 0;
+            while (i < reserveKinds.Count && reserveKinds[i].Ship != s) i++;
+            if (i == reserveKinds.Count) reserveKinds.Add((s, 1));
+            else reserveKinds[i] = (s, reserveKinds[i].Count + 1);
+        }
+        var parts = new List<Part>(reserveKinds.Count);
+        foreach (var (ship, count) in reserveKinds)
+        {
             var name = ReserveName(ship);
             var held = armed == ship;
             parts.Add(new Part($"reserve:{ship.Cls}:{ship.Hero}", () =>

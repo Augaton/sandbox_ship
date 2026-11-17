@@ -56,6 +56,20 @@ public class LongHullTests
     }
 
     [Fact]
+    public void A_long_hull_whose_radius_came_shorter_than_its_beam_has_no_keel_and_throws_nothing()
+    {
+        // A replica's radius comes over the network: a forged one must not bring the view down.
+        var w = NewWorld();
+        var l = Leviathan(w);
+        foreach (var radius in new[] { l.Beam / 2, 0, -5, double.NegativeInfinity })
+        {
+            l.Radius = radius;
+            Assert.Equal((l.X, l.Y), Keel(l, 1500, 1200));
+            Expect.Close(100 - l.Beam, Gap(l, 1100, 1000));
+        }
+    }
+
+    [Fact]
     public void A_ship_abeam_of_a_long_hull_keeps_its_place_when_clear_of_it()
     {
         var w = NewWorld();

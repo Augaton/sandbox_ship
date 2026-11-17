@@ -196,7 +196,7 @@ public class FuzzTests
 
     /// <summary>
     /// A battle of what came after the first pass: dense terrain, ships on patrol, guarding,
-    /// holding fire, with orders queued, veterans among them.
+    /// holding fire, with orders queued, veterans among them; a long hull, a reserve and a jump.
     /// </summary>
     internal static World Rough(int seed)
     {
@@ -213,7 +213,13 @@ public class FuzzTests
         Movement.IssueMove(w, ids[4..], 1200, 1200);
         Movement.IssueMove(w, ids[4..], 1400, 600, queued: true);
         Movement.SetStance(w, ids[3..], Stance.Hold);
+        Worlds.SpawnShip(w, Faction.Klaed, ShipClass.Leviathan, 700, 1300);
         Steps.Run(w, 20);
+        // A reserve, a hero among it, and a jump under way.
+        var f = w.Factions[Faction.Klaed];
+        f.Reserve.AddRange([new ReserveShip(ShipClass.Battlecruiser), new ReserveShip(ShipClass.Dreadnought, new HeroId(Faction.Klaed, HeroRole.Admiral))]);
+        var station = Worlds.StationOf(w, Faction.Klaed)!;
+        Assert.True(Reserves.Deploy(w, Faction.Klaed, new ReserveShip(ShipClass.Battlecruiser), station.X + 400, station.Y).Ok);
         return w;
     }
 
@@ -234,7 +240,7 @@ public class FuzzTests
         var rough = Rough(5);
         using var rs = new MemoryStream();
         using (var bw = new BinaryWriter(rs, Encoding.UTF8, true)) Snapshot.Write(rough, Faction.Klaed, bw, rough.Events.ToList());
-        Survives("Snapshot.Read (terrain, ordres, vétérans)", [rs.ToArray()], bytes => Snapshot.Read(new BinaryReader(new MemoryStream(bytes)), new World()));
+        Survives("Snapshot.Read (terrain, ordres, vétérans, réserve, sauts)", [rs.ToArray()], bytes => Snapshot.Read(new BinaryReader(new MemoryStream(bytes)), new World()));
         var roughParts = Snapshot.WriteParts(rough, Faction.Klaed, rough.Events.ToList(), null, new SnapshotFrames());
         Survives("Snapshot.ReadPart (terrain, ordres, vétérans)", roughParts.Take(4), bytes => Snapshot.ReadPart(new BinaryReader(new MemoryStream(bytes)), new World(), new SnapshotFrames()));
     }

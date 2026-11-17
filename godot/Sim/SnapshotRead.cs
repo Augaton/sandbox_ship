@@ -87,11 +87,13 @@ public static partial class Snapshot
         for (var n = Count(r); n > 0; n--) strikes.Add(ReadStrike(r));
         replica.Strikes = strikes;
         var jumps = new List<Jump>();
-        for (var n = Count(r); n > 0; n--)
+        for (var n = Listed(r); n > 0; n--)
         {
             var j = new Jump { Id = r.ReadVarint(), Side = r.ReadSide(), Cls = r.ReadEnum<ShipClass>(), Hero = r.ReadBoolean() ? ReadHero(r) : null };
             (j.X, j.Y, j.Angle, j.Left, j.Total) = (r.ReadSingle(), r.ReadSingle(), r.ReadSingle(), r.ReadSingle(), r.ReadSingle());
-            if (!double.IsFinite(j.X) || !double.IsFinite(j.Y) || !double.IsFinite(j.Angle) || !(j.Total > 0) || !double.IsFinite(j.Total) || !double.IsFinite(j.Left))
+            // A side of the battle (read before), a point and a time that make sense: the view draws it from them.
+            if (!replica.Factions.ContainsKey(j.Side) || !double.IsFinite(j.X) || !double.IsFinite(j.Y) || !double.IsFinite(j.Angle)
+                || !double.IsFinite(j.Total) || !(j.Total > 0) || !double.IsFinite(j.Left))
                 throw new InvalidDataException("Saut invalide");
             jumps.Add(j);
         }
@@ -111,6 +113,9 @@ public static partial class Snapshot
         var n = r.ReadVarint();
         return n is >= 0 and <= 1 << 20 ? n : throw new InvalidDataException($"Liste de {n} éléments");
     }
+
+    /// <summary>The length of a reserve or of the jumps under way, within reason (Reserves.MaxListed).</summary>
+    static int Listed(BinaryReader r) => Count(r) is var n && n <= Reserves.MaxListed ? n : throw new InvalidDataException($"Liste de {n} vaisseaux");
 
     static int? Optional(BinaryReader r) => r.ReadVarint() is var id && id >= 0 ? id : null;
 
@@ -215,7 +220,7 @@ public static partial class Snapshot
         f.HeroCooldowns.Clear();
         for (var n = Count(r); n > 0; n--) f.HeroCooldowns[ReadHero(r)] = r.ReadSingle();
         f.Reserve.Clear();
-        for (var n = Count(r); n > 0; n--) f.Reserve.Add(new ReserveShip(r.ReadEnum<ShipClass>(), r.ReadBoolean() ? ReadHero(r) : null));
+        for (var n = Listed(r); n > 0; n--) f.Reserve.Add(new ReserveShip(r.ReadEnum<ShipClass>(), r.ReadBoolean() ? ReadHero(r) : null));
     }
 
     static List<QueueItem> ReadQueue(BinaryReader r)

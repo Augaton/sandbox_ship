@@ -32,6 +32,11 @@ public static class Reserves
     public const double ShipReach = 600;
     /// <summary>Never this close to a foe's structure.</summary>
     public const double EnemyClearance = 700;
+    /// <summary>
+    /// Most ships a snapshot may list in a reserve or in hyperspace: one shipyard building a large
+    /// hull every half-minute at best never comes near it, and a forged list is refused.
+    /// </summary>
+    public const int MaxListed = 4096;
     /// <summary>Seconds in hyperspace: the line's ships, and the capitals, who announce themselves longer.</summary>
     public const double JumpTime = 3, CapitalJumpTime = 6;
     /// <summary>A ship coming out throws craft aside within its girth and this much more, at this speed at most.</summary>
@@ -45,15 +50,18 @@ public static class Reserves
 
     public static double JumpTimeOf(ShipClass cls) => Capital(cls) ? CapitalJumpTime : JumpTime;
 
-    /// <summary>Where a side may call its reserve in: round its built structures and its warships.</summary>
+    /// <summary>How far round an entity of the side its reserve may be called in: its built structures and its warships; 0 for anything else.</summary>
+    static double ReachOf(Entity e) =>
+        e.Kind == EntityKind.Structure && e.Build >= 1 ? e.Radius + StructureReach
+        : e.Kind == EntityKind.Ship && e.Size != SizeClass.Small ? e.Girth + ShipReach : 0;
+
+    /// <summary>Where a side may call its reserve in, as circles, for the view to draw.</summary>
     public static List<Circle> Zones(World world, Side side)
     {
         var zones = new List<Circle>();
         foreach (var e in world.Entities)
         {
-            if (e.Side != side) continue;
-            if (e.Kind == EntityKind.Structure && e.Build >= 1) zones.Add(new Circle(e.X, e.Y, e.Radius + StructureReach));
-            else if (e.Kind == EntityKind.Ship && e.Size != SizeClass.Small) zones.Add(new Circle(e.X, e.Y, e.Girth + ShipReach));
+            if (e.Side == side && ReachOf(e) is var r && r > 0) zones.Add(new Circle(e.X, e.Y, r));
         }
         return zones;
     }
@@ -75,17 +83,20 @@ public static class Reserves
         var def = Ships.Defs[ship.Cls];
         var girth = def.Beam > 0 ? def.Beam : def.Radius;
         if (x < girth || y < girth || x > world.Width - girth || y > world.Height - girth) return Result.Fail("Hors de la carte");
-        if (!Zones(world, side).Exists(z => Hypot(z.X - x, z.Y - y) <= z.R)) return Result.Fail("Trop loin de tes forces");
-        foreach (var e in world.Entities)
-        {
-            if (e.Kind == EntityKind.Structure && Foes(world, e.Side, side) && Gap(e, x, y) < EnemyClearance) return Result.Fail("Trop près d'un bâtiment ennemi");
-        }
-        if (world.Terrain.Count > 0 && !Terrains.Clear(world, x, y, girth)) return Result.Fail("Terrain impraticable");
         foreach (var j in world.Jumps)
         {
             var other = Ships.Defs[j.Cls];
             if (Hypot(j.X - x, j.Y - y) < girth + (other.Beam > 0 ? other.Beam : other.Radius)) return Result.Fail("Point d'arrivée déjà pris");
         }
+        // One pass over the battle, nothing allocated: the AI tries several points, the view one a frame.
+        var near = false;
+        foreach (var e in world.Entities)
+        {
+            if (e.Side == side) near = near || ReachOf(e) is var r && r > 0 && Hypot(e.X - x, e.Y - y) <= r;
+            else if (e.Kind == EntityKind.Structure && Foes(world, e.Side, side) && Gap(e, x, y) < EnemyClearance) return Result.Fail("Trop près d'un bâtiment ennemi");
+        }
+        if (!near) return Result.Fail("Trop loin de tes forces");
+        if (world.Terrain.Count > 0 && !Terrains.Clear(world, x, y, girth)) return Result.Fail("Terrain impraticable");
         return Result.OK;
     }
 

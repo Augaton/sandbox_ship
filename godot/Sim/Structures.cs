@@ -230,9 +230,12 @@ public static class Structures
     static bool HeroInService(World world, Side side, HeroId id)
     {
         foreach (var e in world.Entities) if (e.Hero == id && e.Side == side) return true;
-        // In reserve, or on its way there.
-        if (world.Jumps.Exists(j => j.Side == side && j.Hero == id)) return true;
-        return world.Factions.TryGetValue(side, out var f) && (f.Queue.Exists(q => q.Kind == QueueKind.Hero && q.Hero == id) || f.Reserve.Exists(r => r.Hero == id));
+        // In reserve, or on its way.
+        foreach (var j in world.Jumps) if (j.Side == side && j.Hero == id) return true;
+        if (!world.Factions.TryGetValue(side, out var f)) return false;
+        foreach (var r in f.Reserve) if (r.Hero == id) return true;
+        foreach (var q in f.Queue) if (q.Kind == QueueKind.Hero && q.Hero == id) return true;
+        return false;
     }
 
     /// <summary>One of each hero at a time, and a delay before a fallen hero can be built again.</summary>

@@ -290,7 +290,8 @@ public static class Worlds
     {
         var beam = e.Beam;
         if (beam <= 0) return (e.X, e.Y);
-        var half = e.Radius - beam;
+        // A replica's radius comes over the network: one shorter than the beam makes no keel, never an inverted range.
+        var half = Math.Max(0, e.Radius - beam);
         var (c, s) = (Math.Cos(e.Angle), Math.Sin(e.Angle));
         var t = Math.Clamp((x - e.X) * c + (y - e.Y) * s, -half, half);
         return (e.X + c * t, e.Y + s * t);

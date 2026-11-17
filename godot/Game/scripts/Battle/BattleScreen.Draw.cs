@@ -40,6 +40,8 @@ public partial class BattleScreen
         public Node2D? Shadow;
         public Vector2 ShadowAt;
         public bool ShadowOn = true;
+        /// <summary>What the shadow was last placed for (rotation, scale, roll, stretch, height): unchanged, it stays.</summary>
+        public (float Rotation, float Grow, float Roll, float Stretch, float Lift) ShadowFor = (float.NaN, 0, 0, 0, 0);
         /// <summary>How far its shadow falls at full height, in world pixels.</summary>
         public double Height;
         /// <summary>Its turn rate, smoothed, and how far it banks at its fastest: its sprite narrows as it rolls into a turn.</summary>
@@ -568,6 +570,9 @@ public partial class BattleScreen
             v.Shadow!.Visible = on;
         }
         if (!on) return;
+        var key = (v.Rotation, v.Grow, v.Roll, v.Stretch, (float)lift);
+        if (key == v.ShadowFor) return;
+        v.ShadowFor = key;
         var height = v.Height * lift;
         var local = (ShadowFall * (float)height).Rotated(-v.Rotation);
         local = new Vector2(local.X / (v.Grow * v.Roll), local.Y / v.Grow);
