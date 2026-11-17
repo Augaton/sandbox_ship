@@ -113,7 +113,7 @@ public static class Movement
             var away = (safe + hit) / 2;
             SteerTo(world, e, def, t.X + (e.X - t.X) / dist * away, t.Y + (e.Y - t.Y) / dist * away, dt, 0);
         }
-        else if (dist - t.Radius > stop)
+        else if (Gap(t, e.X, e.Y) > stop)
         {
             SteerTo(world, e, def, t.X, t.Y, dt, 0);
         }
@@ -162,7 +162,7 @@ public static class Movement
     /// </summary>
     static double Remaining(World world, Entity e, Order o) => o.Type switch
     {
-        OrderType.Attack => world.Entities.Get(o.TargetId) is { } t ? Dist(e, t) - t.Radius - Math.Max(e.Range * 1.6, 350) : 0,
+        OrderType.Attack => world.Entities.Get(o.TargetId) is { } t ? Gap(t, e.X, e.Y) - Math.Max(e.Range * 1.6, 350) : 0,
         // A patrol's legs turn: what is left of this one, straight.
         OrderType.Patrol => Hypot(o.X - e.X, o.Y - e.Y),
         _ => (o.X - e.X) * o.Group!.DirX + (o.Y - e.Y) * o.Group.DirY,
@@ -336,7 +336,7 @@ public static class Movement
             e.WardId = ward?.Id;
         }
         if (ward is null) return false;
-        if (Dist(e, ward) - ward.Radius > Ships.Defs[e.Cls].Repair!.Range * 0.7) SteerTo(world, e, def, ward.X, ward.Y, dt, 0);
+        if (Gap(ward, e.X, e.Y) > Ships.Defs[e.Cls].Repair!.Range * 0.7) SteerTo(world, e, def, ward.X, ward.Y, dt, 0);
         else Brake(e, def, dt);
         return true;
     }
@@ -546,41 +546,48 @@ public static class Movement
     }
 
     /// <summary>
-    /// Pushes overlapping ships apart (small craft may overlap each other) and out of
-    /// structures. Heavier ships move less.
+    /// Pushes overlapping ships apart and out of structures; heavier ships move less. Small craft
+    /// fly above the others (the view gives them their height): they overlap any ship and are
+    /// only pushed out of structures.
     /// </summary>
     public static void Separate(World world)
     {
         world.Grid.Rebuild(world.Entities);
-        // Parts push nothing and small craft do not push each other: two grids leave them out
-        // of the queries. They reach as far as the main grid, so the same cells are visited in
-        // the same order, and what pushes comes in the same order: the result is the same.
-        var (bodies, heavies) = (world.Bodies, world.Heavies);
-        bodies.Clear();
+        // Parts push nothing and small craft push no one: their own grid leaves them out of the
+        // queries. It reaches as far as the main grid, so the same cells are visited in the same
+        // order, and what pushes comes in the same order.
+        var heavies = world.Heavies;
         heavies.Clear();
         foreach (var e in world.Entities)
-        {
-            if (e.Kind == EntityKind.Hardpoint) continue;
-            bodies.Add(e);
-            if (e.Kind != EntityKind.Ship || e.Size != SizeClass.Small) heavies.Add(e);
-        }
-        bodies.MaxRadius = heavies.MaxRadius = world.Grid.MaxRadius;
+            if (e.Kind == EntityKind.Structure || (e.Kind == EntityKind.Ship && e.Size != SizeClass.Small)) heavies.Add(e);
+        heavies.MaxRadius = world.Grid.MaxRadius;
         foreach (var a in world.Entities)
         {
             if (a.Kind != EntityKind.Ship) continue;
-            foreach (var b in (a.Size == SizeClass.Small ? heavies : bodies).Near(a.X, a.Y, a.Radius))
+            foreach (var b in heavies.Near(a.X, a.Y, a.Radius))
             {
                 if (b.Kind == EntityKind.Structure)
                 {
                     PushOut(a, b);
                     continue;
                 }
-                // Each pair once; small craft may overlap each other.
-                if (b.Kind != EntityKind.Ship || b.Id <= a.Id || (a.Size == SizeClass.Small && b.Size == SizeClass.Small)) continue;
+                // Each pair once.
+                if (a.Size == SizeClass.Small || b.Id <= a.Id) continue;
                 var min = (a.Radius + b.Radius) * 0.9;
                 var dx = b.X - a.X;
                 var dy = b.Y - a.Y;
-                if (Math.Abs(dx) >= min || Math.Abs(dy) >= min) continue;
+                var longHull = a.Beam > 0 || b.Beam > 0;
+                var bound = longHull ? a.Radius + b.Radius : min;
+                if (Math.Abs(dx) >= bound || Math.Abs(dy) >= bound) continue;
+                if (longHull)
+                {
+                    // A long hull: apart from the nearest points of the two keels, by their girths.
+                    var (ax, ay) = Worlds.Keel(a, b.X, b.Y);
+                    var (bx, by) = Worlds.Keel(b, ax, ay);
+                    (ax, ay) = Worlds.Keel(a, bx, by);
+                    (dx, dy) = (bx - ax, by - ay);
+                    min = (a.Girth + b.Girth) * 0.9;
+                }
                 var d = Hypot(dx, dy);
                 if (d >= min) continue;
                 if (d == 0)
@@ -606,6 +613,17 @@ public static class Movement
 
     static void PushOut(Entity a, Entity s)
     {
+        if (a.Beam > 0)
+        {
+            // A long hull: its keel's nearest point kept its beam off the structure.
+            var (kx, ky) = Worlds.Keel(a, s.X, s.Y);
+            var (ox, oy) = (kx - s.X, ky - s.Y);
+            var (gap, room) = (Hypot(ox, oy), a.Beam + s.Radius);
+            if (gap >= room || gap == 0) return;
+            a.X += ox / gap * room - ox;
+            a.Y += oy / gap * room - oy;
+            return;
+        }
         var dx = a.X - s.X;
         var dy = a.Y - s.Y;
         var min = a.Radius + s.Radius;

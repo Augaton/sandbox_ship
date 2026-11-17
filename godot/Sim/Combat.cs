@@ -13,7 +13,7 @@ public static class Combat
     static bool Operational(Entity e) => e.Build >= 1;
 
     /// <summary>Edge-to-center distance: how far `e` must reach to hit `t`.</summary>
-    static double Reach(Entity e, Entity t) => Dist(e, t) - t.Radius;
+    static double Reach(Entity e, Entity t) => Gap(t, e.X, e.Y);
 
     /// <summary>
     /// What targeting and weapons weigh (not in the web version): the damage already flying at
@@ -348,9 +348,10 @@ public static class Combat
         w.Cooldown = BeamSpark;
         var owner = OwnerOf(world, t);
         var shieldOf = owner.Kind == EntityKind.Ship ? owner : t;
-        // On the near side of the target, where the beam meets it.
-        var len = Math.Max(1, Dist(e, t));
-        var (x, y) = (t.X + (e.X - t.X) / len * t.Radius * 0.7, t.Y + (e.Y - t.Y) / len * t.Radius * 0.7);
+        // On the near side of the target, where the beam meets it: off its keel, for a long hull.
+        var (kx, ky) = Keel(t, e.X, e.Y);
+        var len = Math.Max(1, Hypot(e.X - kx, e.Y - ky));
+        var (x, y) = (kx + (e.X - kx) / len * t.Girth * 0.7, ky + (e.Y - ky) / len * t.Girth * 0.7);
         world.Events.Add(new Hit(x, y, WeaponKind.Beam, t.Id, t.Side, shieldOf.Shield > 0 ? shieldOf.Id : null));
     }
 
@@ -417,7 +418,7 @@ public static class Combat
         foreach (var t in world.Entities)
         {
             if (!Foes(world, e.Side, t.Side) || Reach(e, t) > range || !Vision.IsVisible(world, e.Side, t)) continue;
-            var d = Hypot(t.X - pilot.AimX, t.Y - pilot.AimY) - t.Radius;
+            var d = Gap(t, pilot.AimX, pilot.AimY);
             if (d < bestD)
             {
                 bestD = d;
@@ -536,7 +537,7 @@ public static class Combat
                 p.Ttl = 0;
                 continue;
             }
-            if (t is not null && Dist(p, t) <= t.Radius)
+            if (t is not null && Gap(t, p.X, p.Y) <= 0)
             {
                 var owner = OwnerOf(world, t);
                 var shieldOf = owner.Kind == EntityKind.Ship ? owner : t;
@@ -642,7 +643,7 @@ public static class Combat
                 // What is already lost this step is not brought back.
                 if (t == e || !Operational(t) || t.Hull <= 0 || !Allies(world, t.Side, e.Side)) continue;
                 var ratio = t.Hull / t.MaxHull;
-                if (ratio < bestRatio && Dist(e, t) - t.Radius <= repair.Range)
+                if (ratio < bestRatio && Gap(t, e.X, e.Y) <= repair.Range)
                 {
                     bestRatio = ratio;
                     best = t;

@@ -52,7 +52,7 @@ public partial class BattleScreen
             var color = Palette.Of(World, side);
             Draw.Ring(g, e.X, e.Y, e.Radius + 16 / z, color with { A = 0.85f }, 2.5 / z, z);
             // Above the hero's name.
-            var (x, y, s) = (e.X, e.Y - e.Radius - 34 / z, 1 / z);
+            var (x, y, s) = (e.X, e.Y - Above(e) - 34 / z, 1 / z);
             Draw.Rect(g, x - 11 * s, y, 22 * s, 5 * s, color);
             foreach (var dx in new[] { -11.0, 0, 11 })
             {

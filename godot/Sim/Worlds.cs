@@ -282,6 +282,28 @@ public static class Worlds
 
     public static double Hypot(double x, double y) => Math.Sqrt(x * x + y * y);
 
+    /// <summary>
+    /// The point of an entity's keel nearest to (x, y). A long hull (Beam > 0) is a capsule whose
+    /// keel runs Radius - Beam either side of its middle along its heading; anything round is its middle.
+    /// </summary>
+    public static (double X, double Y) Keel(Entity e, double x, double y)
+    {
+        var beam = e.Beam;
+        if (beam <= 0) return (e.X, e.Y);
+        var half = e.Radius - beam;
+        var (c, s) = (Math.Cos(e.Angle), Math.Sin(e.Angle));
+        var t = Math.Clamp((x - e.X) * c + (y - e.Y) * s, -half, half);
+        return (e.X + c * t, e.Y + s * t);
+    }
+
+    /// <summary>How far (x, y) lies from an entity's hull, round or long: negative inside.</summary>
+    public static double Gap(Entity t, double x, double y)
+    {
+        if (t.Beam <= 0) return Hypot(x - t.X, y - t.Y) - t.Radius;
+        var (kx, ky) = Keel(t, x, y);
+        return Hypot(x - kx, y - ky) - t.Beam;
+    }
+
     public static List<Entity> ChildrenOf(World world, int parentId)
     {
         var out_ = new List<Entity>();

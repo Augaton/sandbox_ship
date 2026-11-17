@@ -33,6 +33,20 @@ public partial class BattleScreen
         public Vector2 Position;
         public float Rotation, Alpha = 1, Grow = 1;
         public bool Shown = true, EngineOn = true;
+        /// <summary>
+        /// A ship's shadow, cast aside as if lit from the top left. Craft fly high and cast it
+        /// far, over the hulls they pass; the others ride low.
+        /// </summary>
+        public Node2D? Shadow;
+        public Vector2 ShadowAt;
+        public bool ShadowOn = true;
+        /// <summary>How far its shadow falls at full height, in world pixels.</summary>
+        public double Height;
+        /// <summary>Its turn rate, smoothed, and how far it banks at its fastest: its sprite narrows as it rolls into a turn.</summary>
+        public double Turn, MaxTurn;
+        public float Roll = 1, MaxRoll;
+        /// <summary>The SyncViews pass it was last drawn in: one missed, its turn starts afresh.</summary>
+        public int Synced;
     }
 
     /// <summary>A shot's sprite, and the frame it was last seen alive.</summary>
@@ -47,6 +61,14 @@ public partial class BattleScreen
     /// <summary>When each big ship came through its portal, by id: it grows out of it.</summary>
     readonly Dictionary<int, double> arrivals = [];
     const double ArrivalMs = 1400;
+    /// <summary>When each craft took off (launched, or out of the shipyard), by id: it climbs to its height.</summary>
+    readonly Dictionary<int, double> climbs = [];
+    const double ClimbMs = 900;
+    /// <summary>Where shadows fall, from a light at the top left, per world pixel of height.</summary>
+    static readonly Vector2 ShadowFall = new Vector2(0.55f, 0.85f).Normalized();
+    static readonly Color ShadowTint = new(0, 0, 0, 0.42f);
+    /// <summary>Counts SyncViews passes (see View.Synced).</summary>
+    int syncPass;
 
     /// <summary>Something shown for a moment: drawn every frame with its progress, 0 to 1.</summary>
     sealed record Transient(double Start, double Duration, Action<CanvasItem, double> Paint, Action? Done = null);
@@ -62,11 +84,17 @@ public partial class BattleScreen
     /// <summary>World pixels per fog texel: drawn small and stretched with smoothing, its edges blur.</summary>
     const int FogCell = 16;
 
-    /// <summary>Draw order, as the web version's depths.</summary>
+    /// <summary>Draw order, as the web version's depths, with a band of its own for the craft flying over the ships.</summary>
     static class Depth
     {
-        public const double Field = 0, Structure = 10, Hardpoint = 12, Ship = 20, Shot = 30, Fx = 40, Fog = 45, Overlay = 50;
+        public const double Field = 0, Structure = 10, Hardpoint = 12, Ship = 20, Craft = 28, Shot = 30, Fx = 40, Fog = 45, Overlay = 50;
         public static int Z(double depth) => (int)Math.Round(depth * 50);
+
+        /// <summary>
+        /// A ship's hull: craft over every ship, the others by size, two steps apart so that each
+        /// ship's parts (one step up) sit on it and under any bigger ship.
+        /// </summary>
+        public static int Hull(Entity ship) => ship.Size == SizeClass.Small ? Z(Craft) : Z(Ship) + 2 * (int)Math.Round(ship.Radius);
     }
 
     static readonly Dictionary<WeaponKind, Sound> ShotSound = new()
@@ -90,7 +118,7 @@ public partial class BattleScreen
     /// <summary>One batch for the shapes of every layer, filled and sent by each in turn.</summary>
     readonly ShapeBatch shapes = new();
     readonly Stack<AnimatedSprite2D> shotPool = [];
-    DrawCanvas overlay = null!, lod = null!, fx = null!, trails = null!, transientsFx = null!, transientsTop = null!, lamps = null!, partLamps = null!;
+    DrawCanvas overlay = null!, lod = null!, fx = null!, trails = null!, craftTrails = null!, transientsFx = null!, transientsTop = null!, lamps = null!, partLamps = null!;
     Puffs debris = null!, smoke = null!;
     readonly List<Transient> fxList = [], topList = [];
     int callouts;
@@ -147,7 +175,8 @@ public partial class BattleScreen
         BuildTerrainView();
         viewsRoot = new Node2D();
         worldRoot.AddChild(viewsRoot);
-        trails = Layer(Depth.Ship - 1, "trails", DrawTrails);
+        trails = Layer(Depth.Ship - 1, "trails", g => DrawTrails(g, false));
+        craftTrails = Layer(Depth.Craft - 0.1, "trails", g => DrawTrails(g, true));
         // Over the structures and under their parts; over the parts and under the ships.
         lamps = Layer(Depth.Structure + 1, "lamps", g => DrawLamps(g, false));
         partLamps = Layer(Depth.Hardpoint + 0.5, "lamps", g => DrawLamps(g, true));
@@ -209,6 +238,7 @@ public partial class BattleScreen
         lod.QueueRedraw();
         fx.QueueRedraw();
         trails.QueueRedraw();
+        craftTrails.QueueRedraw();
         transientsFx.QueueRedraw();
         transientsTop.QueueRedraw();
         overlay.QueueRedraw();
@@ -283,9 +313,23 @@ public partial class BattleScreen
         var scale = LayerScale(e, look.Layers[0].Key, look.Layers[0].Size);
         // Ship parts sit on top of their ship.
         var parent = World.Entities.Get(e.ParentId);
-        var depth = parent?.Kind == EntityKind.Ship ? Depth.Ship + 1 + parent.Radius / 100
-            : (e.Kind == EntityKind.Ship ? Depth.Ship : e.Kind == EntityKind.Hardpoint ? Depth.Hardpoint : Depth.Structure) + e.Radius / 100;
-        var root = new Node2D { ZIndex = Depth.Z(depth) };
+        var z = parent?.Kind == EntityKind.Ship ? Depth.Hull(parent) + 1
+            : e.Kind == EntityKind.Ship ? Depth.Hull(e)
+            : Depth.Z((e.Kind == EntityKind.Hardpoint ? Depth.Hardpoint : Depth.Structure) + e.Radius / 100);
+        var root = new Node2D { ZIndex = z };
+        // A ship's shadow: its hull in black, one step under it, moved aside as SyncViews says.
+        Node2D? shadow = null;
+        if (e.Kind == EntityKind.Ship)
+        {
+            shadow = new Node2D { ZIndex = -1, Modulate = ShadowTint };
+            foreach (var l in look.Layers)
+                shadow.AddChild(new Sprite2D
+                {
+                    Texture = Assets.Frame(l.Key), Position = new Vector2((float)(l.X * e.Radius), (float)(l.Y * e.Radius)),
+                    Scale = Vector2.One * (float)LayerScale(e, l.Key, l.Size),
+                });
+            root.AddChild(shadow);
+        }
         var engine = look.Engine is string ek ? Sprite(ek, scale, null) : null;
         if (engine is not null) root.AddChild(engine);
         foreach (var l in look.Layers)
@@ -301,10 +345,40 @@ public partial class BattleScreen
         var view = new View
         {
             Root = root, Engine = engine, Look = look, Scale = scale, Level = e.Level, ShipPart = e.Kind == EntityKind.Hardpoint && parent?.Kind == EntityKind.Ship,
-            Gun = gun, Spin = look.Spin,
+            Gun = gun, Spin = look.Spin, Shadow = shadow,
         };
+        if (e.Kind == EntityKind.Ship)
+        {
+            // Craft fly high and bank hard; warships ride low, and the biggest barely lean.
+            (view.Height, view.MaxRoll) = e.Size switch
+            {
+                SizeClass.Small => (16.0, 0.38f),
+                SizeClass.Medium => (6.0, 0.2f),
+                _ => (4 + e.Radius * 0.06, 0.07f),
+            };
+            view.MaxTurn = Ships.Defs.TryGetValue(e.Cls, out var def) && def.TurnRate > 0 ? def.TurnRate : 1;
+            // A craft launched from its hangar takes off from it.
+            if (e.Launched && e.Size == SizeClass.Small && syncPass > 1) climbs[e.Id] = Now;
+        }
         views[e.Id] = view;
         return view;
+    }
+
+    /// <summary>How far an entity's hull reaches above its middle on screen: a long hull's, by how it lies.</summary>
+    static double Above(Entity e) => e.Beam > 0 ? Math.Abs(Math.Sin(e.Angle)) * (e.Radius - e.Beam) + e.Beam : e.Radius;
+
+    /// <summary>A ring `pad` out round an entity's hull: round, or a capsule round a long hull.</summary>
+    static void HullRing(CanvasItem g, Entity e, double pad, Color color, double width, double z)
+    {
+        if (e.Beam > 0) Draw.Capsule(g, e.X, e.Y, e.Angle, e.Radius - e.Beam, e.Beam + pad, color, width, z);
+        else Draw.Ring(g, e.X, e.Y, e.Radius + pad, color, width, z);
+    }
+
+    /// <summary>An entity's hull filled, `pad` out (see HullRing).</summary>
+    static void HullDisc(CanvasItem g, Entity e, double pad, Color color, double z)
+    {
+        if (e.Beam > 0) Draw.CapsuleDisc(g, e.X, e.Y, e.Angle, e.Radius - e.Beam, e.Beam + pad, color, z);
+        else Draw.Disc(g, e.X, e.Y, e.Radius + pad, color, z);
     }
 
     /// <summary>A gun's slow sweep with nothing to aim at, in radians either side of where it faces; each its own.</summary>
@@ -348,6 +422,7 @@ public partial class BattleScreen
         var rect = ViewRect();
         var simple = z < LodSimple;
         var icons = z < LodIcons;
+        syncPass++;
         foreach (var e in World.Entities)
         {
             var v = views.TryGetValue(e.Id, out var found) ? found : CreateView(e);
@@ -393,6 +468,18 @@ public partial class BattleScreen
                     v.Gun.Rotation = (float)aim;
                 }
             }
+            // Banking: the turn rate, smoothed, rolls the ship into its turn; after a pass unseen
+            // (off screen, hidden) it starts afresh rather than from a stale heading.
+            if (v.MaxRoll > 0)
+            {
+                if (v.Synced == syncPass - 1 && delta > 0)
+                {
+                    var turn = Math.IEEERemainder(rotation - v.Rotation, Math.Tau) / delta;
+                    v.Turn += (turn - v.Turn) * Math.Min(1, delta * 6);
+                }
+                else v.Turn = 0;
+                v.Synced = syncPass;
+            }
             if (rotation != v.Rotation)
             {
                 v.Rotation = rotation;
@@ -404,19 +491,31 @@ public partial class BattleScreen
             Show(v, seen || remembered);
             var cloaked = Vision.Cloaked(e);
             var alpha = remembered ? 0.45 : cloaked ? 0.35 : e.Build < 1 ? 0.4 + 0.4 * e.Build : 1;
-            // Out of its portal: it grows and comes into being.
+            // Out of its portal: it grows and comes into being. A craft taking off grows a little
+            // as it climbs, its shadow drawing away.
+            var grow = 1f;
+            var lift = 1.0;
             if (arrivals.TryGetValue(e.Id, out var came))
             {
                 var k = Math.Min(1, (Now - came) / ArrivalMs);
-                var grow = (float)(0.25 + 0.75 * EaseOutCubic(k));
-                if (grow != v.Grow)
-                {
-                    v.Grow = grow;
-                    v.Root.Scale = Vector2.One * grow;
-                }
+                grow = (float)(0.25 + 0.75 * EaseOutCubic(k));
                 alpha *= k;
                 if (k >= 1) arrivals.Remove(e.Id);
             }
+            else if (climbs.TryGetValue(e.Id, out var took))
+            {
+                var k = Math.Min(1, (Now - took) / ClimbMs);
+                lift = 0.1 + 0.9 * EaseOutCubic(k);
+                grow = (float)(0.72 + 0.28 * lift);
+                if (k >= 1) climbs.Remove(e.Id);
+            }
+            var roll = v.MaxRoll > 0 ? (float)(1 - v.MaxRoll * Math.Min(1, Math.Abs(v.Turn) / v.MaxTurn)) : 1f;
+            if (grow != v.Grow || Math.Abs(roll - v.Roll) > 0.004f)
+            {
+                (v.Grow, v.Roll) = (grow, roll);
+                v.Root.Scale = new Vector2(grow * roll, grow);
+            }
+            if (v.Shadow is not null) PlaceShadow(e, v, lift, simple);
             if ((float)alpha != v.Alpha)
             {
                 v.Alpha = (float)alpha;
@@ -434,8 +533,10 @@ public partial class BattleScreen
                 if (v.Smoke <= 0)
                 {
                     v.Smoke = 160;
-                    var sr = e.Radius * 0.5;
-                    smoke.Emit(e.X + (random.NextDouble() - 0.5) * sr, e.Y + (random.NextDouble() - 0.5) * sr, e.Radius > 30 ? 2 : 1);
+                    // Anywhere about its middle, or along a long hull's keel.
+                    var sr = e.Girth * 0.5;
+                    var along = e.Beam > 0 ? (random.NextDouble() - 0.5) * 2 * (e.Radius - e.Beam) : 0;
+                    smoke.Emit(e.X + Math.Cos(e.Angle) * along + (random.NextDouble() - 0.5) * sr, e.Y + Math.Sin(e.Angle) * along + (random.NextDouble() - 0.5) * sr, e.Radius > 30 ? 2 : 1);
                 }
             }
         }
@@ -447,6 +548,29 @@ public partial class BattleScreen
             v.Root.QueueFree();
             views.Remove(id);
         }
+    }
+
+    /// <summary>
+    /// Moves a ship's shadow to where its light casts it: aside by its height (a craft's bobbing
+    /// gently), turned against its rotation and stretched against its scale, since it hangs from
+    /// the ship. Not drawn from afar.
+    /// </summary>
+    void PlaceShadow(Entity e, View v, double lift, bool simple)
+    {
+        var on = !simple;
+        if (on != v.ShadowOn)
+        {
+            v.ShadowOn = on;
+            v.Shadow!.Visible = on;
+        }
+        if (!on) return;
+        var height = v.Height * lift;
+        if (e.Size == SizeClass.Small) height *= 1 + 0.12 * Math.Sin(Now / 1000 * 1.6 + e.Id * 2.3);
+        var local = (ShadowFall * (float)height).Rotated(-v.Rotation);
+        local = new Vector2(local.X / (v.Grow * v.Roll), local.Y / v.Grow);
+        if (local.DistanceSquaredTo(v.ShadowAt) < 0.01f) return;
+        v.ShadowAt = local;
+        v.Shadow!.Position = local;
     }
 
     /// <summary>Strokes and chevrons standing in for shots and small craft when zoomed out; under the fog.</summary>
@@ -646,7 +770,7 @@ public partial class BattleScreen
         if (!echo && callouts < MaxCallouts)
         {
             callouts++;
-            var (x, y) = (e.X, e.Y - e.Radius - 10 / z);
+            var (x, y) = (e.X, e.Y - Above(e) - 10 / z);
             var color = Palette.Hex(def.Color);
             // Drawn on the battlefield, not by a control: translated here.
             var name = Lang.T(def.Name);
@@ -796,8 +920,9 @@ public partial class BattleScreen
         foreach (var b in World.Beams)
         {
             if (World.Entities.Get(b.From) is not { } from || World.Entities.Get(b.To) is not { } to || (!CanSee(from) && !CanSee(to))) continue;
-            var len = Math.Max(1, Math.Sqrt((from.X - to.X) * (from.X - to.X) + (from.Y - to.Y) * (from.Y - to.Y)));
-            var (ex, ey) = (to.X + (from.X - to.X) / len * to.Radius * 0.7, to.Y + (from.Y - to.Y) / len * to.Radius * 0.7);
+            var (kx, ky) = Worlds.Keel(to, from.X, from.Y);
+            var len = Math.Max(1, Math.Sqrt((from.X - kx) * (from.X - kx) + (from.Y - ky) * (from.Y - ky)));
+            var (ex, ey) = (kx + (from.X - kx) / len * to.Girth * 0.7, ky + (from.Y - ky) / len * to.Girth * 0.7);
             var throb = (float)(0.7 + 0.3 * Math.Sin(now / 40 + b.From));
             var color = Palette.Of(World, b.Side);
             Draw.Line(g, from.X, from.Y, ex, ey, color with { A = 0.35f * throb }, Math.Max(2 / z, 6 * throb));
@@ -823,8 +948,8 @@ public partial class BattleScreen
                 continue;
             }
             if (!CanSee(e)) continue;
-            Draw.Disc(g, e.X, e.Y, e.Radius + 5 / z, Palette.Hex(0x7cc4ff, 0.12f * (float)k), z);
-            Draw.Ring(g, e.X, e.Y, e.Radius + 5 / z, Palette.Hex(0x9fd4ff, 0.7f * (float)k), 2 / z, z);
+            HullDisc(g, e, 5 / z, Palette.Hex(0x7cc4ff, 0.12f * (float)k), z);
+            HullRing(g, e, 5 / z, Palette.Hex(0x9fd4ff, 0.7f * (float)k), 2 / z, z);
         }
         var pulse = 0.5 + 0.5 * Math.Sin(now / 160);
         foreach (var zone in World.Zones)
@@ -864,7 +989,7 @@ public partial class BattleScreen
             foreach (var a in e.Abilities)
             {
                 if (a.Active <= 0) continue;
-                Draw.Ring(g, e.X, e.Y, e.Radius + ring, Palette.Hex(Abilities.Defs[a.Id].Color, (float)(0.4 + 0.5 * pulse)), 2 / z, z);
+                HullRing(g, e, ring, Palette.Hex(Abilities.Defs[a.Id].Color, (float)(0.4 + 0.5 * pulse)), 2 / z, z);
                 ring += 4 / z;
             }
             // A star lance shows its charge to whoever sees it: an arc filling up, a pulsing ring once ready.
@@ -896,7 +1021,7 @@ public partial class BattleScreen
             }
             // Crackling: a ring that flickers between two sizes.
             if (fxs.Stunned > 0) Draw.Ring(g, e.X, e.Y, r + (pulse > 0.5 ? 3 : -2) / z, Palette.Hex(0x9fd4ff, (float)(0.5 + 0.5 * pulse)), 2 / z, z);
-            if (fxs.Corroded > 0) Draw.Disc(g, e.X, e.Y, e.Radius, Palette.Hex(0x6fd08c, (float)(0.25 + 0.2 * pulse)), z);
+            if (fxs.Corroded > 0) HullDisc(g, e, 0, Palette.Hex(0x6fd08c, (float)(0.25 + 0.2 * pulse)), z);
             // Taunted: a red thread to the bulwark it cannot help shooting at.
             if (fxs.Taunted > 0 && World.Entities.Get(fxs.TauntedBy) is { } taunter)
                 Draw.Line(g, e.X, e.Y, taunter.X, taunter.Y, Palette.Hex(0xe05a4a, (float)(0.15 + 0.15 * pulse)), 1.5 / z);
@@ -904,20 +1029,23 @@ public partial class BattleScreen
     }
 
     /// <summary>Engine trails behind moving ships, under the ships themselves.</summary>
-    void DrawTrails(CanvasItem g)
+    /// <summary>The engine trails of the ships, or of the craft: theirs fly with them, over the ships.</summary>
+    void DrawTrails(CanvasItem g, bool craft)
     {
         var z = Zoom;
         if (z < LodSimple) return;
         var rect = ViewRect();
         foreach (var e in World.Entities)
         {
-            if (e.Kind != EntityKind.Ship || e.Speed < 20 || !rect.HasPoint(new Vector2((float)e.X, (float)e.Y)) || !CanSee(e)) continue;
+            if (e.Kind != EntityKind.Ship || (e.Size == SizeClass.Small) != craft || e.Speed < 20 || !rect.HasPoint(new Vector2((float)e.X, (float)e.Y)) || !CanSee(e)) continue;
             var c = Math.Cos(e.Angle);
             var n = Math.Sin(e.Angle);
-            var sx = e.X - c * e.Radius * 0.7;
-            var sy = e.Y - n * e.Radius * 0.7;
+            // From astern: a long hull's stern lies well beyond its girth.
+            var stern = e.Beam > 0 ? e.Radius * 1.15 : e.Radius * 0.7;
+            var sx = e.X - c * stern;
+            var sy = e.Y - n * stern;
             var len = e.Speed * 0.45;
-            var w = Math.Max(1.5 / z, e.Radius * 0.22);
+            var w = Math.Max(1.5 / z, e.Beam > 0 ? e.Beam * 0.5 : e.Radius * 0.22);
             Draw.Line(g, sx, sy, sx - c * len * 0.5, sy - n * len * 0.5, Palette.Hex(0x9fd4ff, 0.3f), w);
             Draw.Line(g, sx - c * len * 0.5, sy - n * len * 0.5, sx - c * len, sy - n * len, Palette.Hex(0x9fd4ff, 0.12f), w * 0.6);
         }
@@ -948,13 +1076,13 @@ public partial class BattleScreen
             if (!CanSee(e)) continue;
             if (e.Hero is HeroId hero)
             {
-                Draw.Ring(g, e.X, e.Y, e.Radius + 9 / z, amber with { A = 0.8f }, 1.5 / z, z);
-                if (z >= LodIcons || e.Size != SizeClass.Small) Draw.Text(g, UiTheme.Mono, Heroes.Defs[hero].Name, e.X, e.Y - e.Radius - 14 / z, 13, amber, z);
+                HullRing(g, e, 9 / z, amber with { A = 0.8f }, 1.5 / z, z);
+                if (z >= LodIcons || e.Size != SizeClass.Small) Draw.Text(g, UiTheme.Mono, Heroes.Defs[hero].Name, e.X, e.Y - Above(e) - 14 / z, 13, amber, z);
             }
             // Structures and station parts wear their side's ring; ship parts go without, their ship shows.
             var fixedPart = e.Kind == EntityKind.Structure || (e.Kind == EntityKind.Hardpoint && World.Entities.Get(e.ParentId)?.Kind != EntityKind.Ship);
             if (fixedPart) Draw.Ring(g, e.X, e.Y, e.Radius + 2 / z, Palette.Of(World, e.Side, 0.45f), 1.5 / z, z);
-            if (sel) Draw.Ring(g, e.X, e.Y, e.Radius + 5 / z, Whose(e) with { A = 0.9f }, 2 / z, z);
+            if (sel) HullRing(g, e, 5 / z, Whose(e) with { A = 0.9f }, 2 / z, z);
             if (sel && e.Order is not null) DrawPlan(g, e, z, green, red, amber);
             if (e.Rank > 0 && e.Kind == EntityKind.Ship) Chevrons(g, e, z);
             if (e.Mending && e.Side == player) MendMark(g, e, z);
@@ -965,7 +1093,7 @@ public partial class BattleScreen
             if (Palette.Marked && e.Kind != EntityKind.Hardpoint)
             {
                 var w = Math.Max(28 / z, e.Radius * 1.6);
-                Draw.Mark(g, e.Side, e.X - w / 2 - 6 / z, e.Y - e.Radius - 6 / z, 4 / z, Palette.Of(World, e.Side), z);
+                Draw.Mark(g, e.Side, e.X - w / 2 - 6 / z, e.Y - Above(e) - 6 / z, 4 / z, Palette.Of(World, e.Side), z);
             }
         }
         // Ring under the cursor: green for your units, red for a target, grey for an ally's.
@@ -1101,7 +1229,7 @@ public partial class BattleScreen
         var gold = Palette.Hex(0xe8c14a);
         var w = Math.Max(28 / z, e.Radius * 1.6);
         var x = e.X + w / 2 + 9 / z;
-        var y = e.Y - e.Radius - 4 / z;
+        var y = e.Y - Above(e) - 4 / z;
         var (half, rise) = (5 / z, 3.5 / z);
         for (var i = 0; i < e.Rank; i++)
         {
@@ -1116,7 +1244,7 @@ public partial class BattleScreen
     {
         var w = Math.Max(28 / z, e.Radius * 1.6);
         var x = e.X - w / 2 - (Palette.Marked ? 22 : 9) / z;
-        var y = e.Y - e.Radius - 6 / z;
+        var y = e.Y - Above(e) - 6 / z;
         var (half, thick) = (5.5 / z, 3 / z);
         var color = Palette.Hex(0xa8f5c0);
         Draw.Line(g, x - half, y, x + half, y, color, thick);
@@ -1129,7 +1257,7 @@ public partial class BattleScreen
         var w = Math.Max(28 / z, e.Radius * 1.6);
         var h = 4 / z;
         var x = e.X - w / 2;
-        var y = e.Y - e.Radius - 8 / z;
+        var y = e.Y - Above(e) - 8 / z;
         var hull = Math.Max(0, e.Hull / e.MaxHull);
         var back = Palette.Hex(0x0b0d12, 0.8f);
         Draw.Rect(g, x - 1 / z, y - 1 / z, w + 2 / z, h + 2 / z, back);
@@ -1144,7 +1272,7 @@ public partial class BattleScreen
         }
         if (e.Build < 1)
         {
-            var by = e.Y + e.Radius + 6 / z;
+            var by = e.Y + Above(e) + 6 / z;
             Draw.Rect(g, x, by, w, h, back);
             Draw.Rect(g, x, by, w * e.Build, h, Palette.Hex(0xe8a13a));
         }

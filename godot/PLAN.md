@@ -68,6 +68,15 @@ tests de `FixtureTests` et `CrossTests` les listent.
   les recrues tombent d'abord, les vaisseaux qui partent emportent les meilleurs.
 - Nouvelles classes : Rempart (tank, « Provocation »), Transporteur (deux grands hangars,
   « Catapultes »), Léviathan (au-dessus du Titan, station niveau 4, un seul).
+- Le Léviathan est un vrai vaisseau capital : coque longue et fine (460 de long pour 125 de large),
+  batterie axiale de trois rayons à l'avant et un à l'arrière, bordées de lasers et de canons à rafales
+  sur ses deux coques latérales, DCA aux deux bouts (24 pièces). Lent (vitesse 19, virage 0,11).
+  Sa coque est une capsule le long de son cap (`ShipDef.Beam`, `Worlds.Keel` et `Worlds.Gap`) :
+  portée, impacts, collisions, vision, zones des capacités, clic, anneaux et bouclier la suivent.
+- Profondeur : éclaireurs, chasseurs et bombardiers volent au-dessus des autres vaisseaux, sans
+  pousser ni être poussés par eux (seulement par les bâtiments). À l'écran, une couche à eux au-dessus
+  des vaisseaux, une ombre portée par vaisseau (lumière en haut à gauche, d'autant plus loin qu'il vole
+  haut, posée sur les coques survolées), le roulis dans les virages et le décollage des appareils lancés.
 - Deux Titans au plus. Les gros vaisseaux ont plusieurs capacités (cuirassé 2, Titan 3,
   Léviathan 4) et sortent du chantier par un portail ; Titan et Léviathan, avec une trompe.
 - Les chasseurs se construisent aussi au chantier (4 pour 300).

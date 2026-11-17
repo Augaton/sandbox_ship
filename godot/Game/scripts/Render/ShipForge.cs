@@ -891,26 +891,35 @@ public static partial class ShipForge
     }
 
     /// <summary>
-    /// Leviathan: a spine thrust between two great jaws, pods and wings astern, a red core
-    /// burning amidships, the whole hull darker.
+    /// Leviathan: a true capital ship, long and narrow. A forked prow round the bow battery, a
+    /// long keel between two flank hulls carrying the broadsides, a bridge raised astern of
+    /// amidships, fins and a bank of engines at the stern, a red core burning under the bridge,
+    /// the whole hull darker. Laid out about the canvas's middle, which is the ship's.
     /// </summary>
     static Canvas Leviathan(Faction f)
     {
-        var c = new Canvas(184, 240);
+        var c = new Canvas(92, 348);
         var k = KitOf(f, c);
-        k.Wing(46, 124, 90, 48);
-        k.Pod(62, 74, 218, 15);
-        k.Jaw(35, 0, 124, 12);
-        for (var y = 30; y < 112; y += 12) c.Glow(c.Rect(35, y, 36, y + 1), M.Core, 2);
-        k.Spine(16, 230, 31);
-        // The core: a red eye amidships in a sunken ring.
-        c.Raise(c.Oval(0, 120, 13, 15), M.Plate, 6, 2);
-        c.Carve(c.Oval(0, 120, 10, 12), 2f);
-        c.Glow(c.Oval(0, 120, 8, 10), M.Core, 0);
-        c.Glow(c.Oval(0, 119, 5, 7), M.Core, 1);
-        c.Glow(c.Oval(-1.5, 116, 2, 3), M.Core, 2);
-        k.Engines(230, 8, 21);
-        k.Engines(218, 62);
+        k.Wing(34, 266, 45, 32);
+        k.Pod(30, 126, 308, 10);
+        k.Jaw(11, 10, 98, 7);
+        k.Spine(40, 334, 17);
+        // The bridge: a narrow tower on the keel, its windows lit.
+        var bridge = c.Body((3, 174), (8, 182), (8, 232), (6, 238));
+        c.Raise(bridge, M.Plate, 8, 2);
+        c.Inset(bridge, 2f, 1f);
+        for (var y = 188; y < 228; y += 8) c.Glow(c.Rect(3, y, 6, y + 1), M.Glass, y == 188 ? 2 : 1);
+        // Running lights down both sides of the keel, slots of the core between the bow guns.
+        for (var y = 138; y < 300; y += 12) c.Glow(c.Rect(16, y, 17, y + 1), M.Light, (y / 12) % 3 == 0 ? 2 : 1);
+        for (var y = 66; y < 124; y += 10) c.Glow(c.Rect(12, y, 15, y + 1), M.Core, 1);
+        // The core: a red eye astern of the last gun, in a sunken ring.
+        c.Raise(c.Oval(0, 279, 6, 7), M.Plate, 6, 2);
+        c.Carve(c.Oval(0, 279, 4.5, 5.5), 2f);
+        c.Glow(c.Oval(0, 279, 3.5, 4.5), M.Core, 0);
+        c.Glow(c.Oval(0, 278, 2, 2.5), M.Core, 1);
+        c.Glow(c.Oval(-0.5, 276, 1, 1.5), M.Core, 2);
+        k.Engines(336, 0, 10, 19);
+        k.Engines(312, 30);
         return c;
     }
 

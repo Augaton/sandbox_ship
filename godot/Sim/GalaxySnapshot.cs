@@ -330,9 +330,10 @@ public static partial class GalaxySnapshot
             {
                 w.Write((byte)ai.Personality);
                 w.Write((float)ai.Trust.GetValueOrDefault(viewer));
-                // Worked out here: a replica sees only part of the AI's fleets and income.
+                // Worked out here: a replica sees only part of the AI's fleets and income, so one
+                // writes back what it was told rather than working it out again.
                 var talks = !own && !f.Eliminated && g.Factions.ContainsKey(viewer);
-                var mind = talks ? GalaxyAi.Mind(g, f.Id, viewer) : default;
+                var mind = !talks ? default : ai.Asked is double asked && ai.Preview is { } told ? (Price: asked, Preview: told) : GalaxyAi.Mind(g, f.Id, viewer);
                 w.Write((float)mind.Price);
                 w.Write(talks);
                 if (talks) WriteMind(w, ai, viewer, mind.Preview!);

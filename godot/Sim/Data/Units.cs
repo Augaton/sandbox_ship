@@ -84,7 +84,10 @@ public sealed record ShipDef(
     // Ships delivered per order; cost and build time are for the whole squadron.
     int? Squad = null,
     // At most this many at a time per faction, counting those being built.
-    int? Limit = null)
+    int? Limit = null,
+    // Half the width of a long hull, a capsule along its heading (Radius long either side of its
+    // middle); 0 for a round one. Not in the web version.
+    double Beam = 0)
 {
     public bool Unique => Limit is not null;
 
@@ -280,30 +283,42 @@ public static class Ships
             Ability: AbilityId.Spinal, Extra: [AbilityId.Broadside, AbilityId.Launch], Limit: 2),
         // The tier above the titan: three dreadnought hulls in one, heavy guns, two hangars,
         // and a shield dome over the fleet around it.
+        // A true capital ship: a long, narrow hull bristling with guns along its whole length, a
+        // spinal battery forward, broadsides down both flanks, slow to get going and slower to turn.
         [ShipClass.Leviathan] = new(ShipClass.Leviathan, "Léviathan", SizeClass.Large,
-            Hull: 12000, Shield: 7000, ShieldRegen: 20, Speed: 24, Accel: 18, TurnRate: 0.2, Radius: 130,
+            Hull: 12000, Shield: 7000, ShieldRegen: 20, Speed: 19, Accel: 11, TurnRate: 0.11, Radius: 184,
             FromHangar: false, Cost: 32000, BuildTime: 200, MinStationLevel: 4,
             Weapons: [Weapons.Flak, Weapons.Flak, Weapons.Flak],
             Hardpoints: [
-                new(HardpointRole.HeavyTurret, 80, -28, Hull: 700, Radius: 13, Weapons: [LeviathanRay]),
-                new(HardpointRole.HeavyTurret, 80, 28, Hull: 700, Radius: 13, Weapons: [LeviathanRay]),
-                new(HardpointRole.HeavyTurret, 40, 0, Hull: 700, Radius: 13, Weapons: [LeviathanRay]),
-                new(HardpointRole.Turret, 30, -72, Hull: 350, Radius: 9, Weapons: [Weapons.Laser with { Range = 480, Damage = 26 }]),
-                new(HardpointRole.Turret, 30, 72, Hull: 350, Radius: 9, Weapons: [Weapons.Laser with { Range = 480, Damage = 26 }]),
-                new(HardpointRole.Turret, -34, -84, Hull: 350, Radius: 9, Weapons: [HeavyBurst]),
-                new(HardpointRole.Turret, -34, 84, Hull: 350, Radius: 9, Weapons: [HeavyBurst]),
-                new(HardpointRole.Turret, -70, -62, Hull: 250, Radius: 8, Weapons: [Weapons.Flak]),
-                new(HardpointRole.Turret, -70, 62, Hull: 250, Radius: 8, Weapons: [Weapons.Flak]),
-                new(HardpointRole.Hangar, -10, -36, Hull: 600, Radius: 11, Hangar: CarrierHangar with { Interval = 16 }),
-                new(HardpointRole.Hangar, -10, 36, Hull: 600, Radius: 11, Hangar: CarrierHangar with { Interval = 16 }),
-                new(HardpointRole.Shield, -50, -22, Hull: 500, Radius: 10),
-                new(HardpointRole.Shield, -50, 22, Hull: 500, Radius: 10),
-                new(HardpointRole.Shield, 10, 0, Hull: 500, Radius: 10),
-                new(HardpointRole.Engine, -124, -48),
-                new(HardpointRole.Engine, -130, 0),
-                new(HardpointRole.Engine, -124, 48),
+                // The spinal battery, down the keel; one more astern of the bridge.
+                new(HardpointRole.HeavyTurret, 160, 0, Hull: 700, Radius: 13, Weapons: [LeviathanRay]),
+                new(HardpointRole.HeavyTurret, 112, 0, Hull: 700, Radius: 13, Weapons: [LeviathanRay]),
+                new(HardpointRole.HeavyTurret, 64, 0, Hull: 700, Radius: 13, Weapons: [LeviathanRay]),
+                new(HardpointRole.HeavyTurret, -112, 0, Hull: 700, Radius: 13, Weapons: [LeviathanRay]),
+                // The broadsides, on the flank hulls aft of the bow: lasers forward, burst cannons aft.
+                new(HardpointRole.Turret, 40, -41, Hull: 300, Radius: 9, Weapons: [Weapons.Laser with { Range = 480, Damage = 22 }]),
+                new(HardpointRole.Turret, 40, 41, Hull: 300, Radius: 9, Weapons: [Weapons.Laser with { Range = 480, Damage = 22 }]),
+                new(HardpointRole.Turret, 0, -42, Hull: 300, Radius: 9, Weapons: [Weapons.Laser with { Range = 480, Damage = 22 }]),
+                new(HardpointRole.Turret, 0, 42, Hull: 300, Radius: 9, Weapons: [Weapons.Laser with { Range = 480, Damage = 22 }]),
+                new(HardpointRole.Turret, -60, -42, Hull: 300, Radius: 9, Weapons: [HeavyBurst]),
+                new(HardpointRole.Turret, -60, 42, Hull: 300, Radius: 9, Weapons: [HeavyBurst]),
+                new(HardpointRole.Turret, -104, -42, Hull: 300, Radius: 9, Weapons: [HeavyBurst]),
+                new(HardpointRole.Turret, -104, 42, Hull: 300, Radius: 9, Weapons: [HeavyBurst]),
+                // Flak at both ends, against craft.
+                new(HardpointRole.Turret, 196, -16, Hull: 220, Radius: 8, Weapons: [Weapons.Flak]),
+                new(HardpointRole.Turret, 196, 16, Hull: 220, Radius: 8, Weapons: [Weapons.Flak]),
+                new(HardpointRole.Turret, -150, -44, Hull: 220, Radius: 8, Weapons: [Weapons.Flak]),
+                new(HardpointRole.Turret, -150, 44, Hull: 220, Radius: 8, Weapons: [Weapons.Flak]),
+                new(HardpointRole.Hangar, -30, -24, Hull: 600, Radius: 11, Hangar: CarrierHangar with { Interval = 16 }),
+                new(HardpointRole.Hangar, -30, 24, Hull: 600, Radius: 11, Hangar: CarrierHangar with { Interval = 16 }),
+                new(HardpointRole.Shield, 24, 0, Hull: 500, Radius: 10),
+                new(HardpointRole.Shield, -160, -18, Hull: 500, Radius: 10),
+                new(HardpointRole.Shield, -160, 18, Hull: 500, Radius: 10),
+                new(HardpointRole.Engine, -224, 0),
+                new(HardpointRole.Engine, -212, -40),
+                new(HardpointRole.Engine, -212, 40),
             ],
-            Ability: AbilityId.ShieldDome, Extra: [AbilityId.OrbitalStrike, AbilityId.Emp, AbilityId.Launch], Limit: 1),
+            Ability: AbilityId.ShieldDome, Extra: [AbilityId.OrbitalStrike, AbilityId.Emp, AbilityId.Launch], Limit: 1, Beam: 46),
         // The ultimate ship, at the price of a whole fleet; the Errants' one is a raid boss,
         // guarding a corner of the map for whoever can bring it down. Its four shield generators
         // are the way in: with them gone, its shields are gone.

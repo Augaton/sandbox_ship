@@ -114,7 +114,7 @@ public static class Vision
     readonly record struct Eye(Entity E, double Sight, int Cx, int Cy)
     {
         /// <summary>`cap`: the most anything sees `t` from (a nebula's, Terrain.cs).</summary>
-        public bool Sees(Entity t, double cap) => Worlds.Hypot(E.X - t.X, E.Y - t.Y) <= Math.Min(Sight, cap) + t.Radius;
+        public bool Sees(Entity t, double cap) => Worlds.Gap(t, E.X, E.Y) <= Math.Min(Sight, cap);
     }
 
     /// <summary>

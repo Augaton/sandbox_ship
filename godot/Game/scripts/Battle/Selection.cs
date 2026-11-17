@@ -78,7 +78,8 @@ public partial class Selection : Node
         foreach (var e in world.Entities)
         {
             if (viewer is Side v && !Vision.IsVisible(world, v, e)) continue;
-            var ratio = Worlds.Dist(e, at) / (e.Radius + slop);
+            // A long hull is picked along its keel, not across the whole circle round it.
+            var ratio = e.Beam > 0 ? (Worlds.Gap(e, x, y) + e.Beam) / (e.Beam + slop) : Worlds.Dist(e, at) / (e.Radius + slop);
             if (ratio <= 1 && ratio < bestRatio)
             {
                 bestRatio = ratio;

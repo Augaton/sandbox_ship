@@ -260,6 +260,13 @@ public sealed class Entity : IPoint
     /// <summary>The ship class, for a ship. Looked up by name once: steering and repairs ask for it every step.</summary>
     public ShipClass Cls => cls ??= Ids.Ship(Type);
     ShipClass? cls;
+
+    /// <summary>Half the width of a long hull (see ShipDef.Beam); 0 for anything round. Looked up once.</summary>
+    public double Beam => beam ??= Kind == EntityKind.Ship ? Ships.Defs[Cls].Beam : 0;
+    double? beam;
+
+    /// <summary>Half its width: its beam for a long hull, else its radius.</summary>
+    public double Girth => Beam > 0 ? Beam : Radius;
 }
 
 public sealed class Projectile : IPoint
@@ -517,8 +524,8 @@ public sealed class World
     public double VisionTimer;
     /// <summary>Neighbour index, rebuilt every step.</summary>
     public readonly SpatialGrid Grid = new();
-    /// <summary>Separation's own grids: ships and structures, and what small craft are pushed by (see Movement.Separate).</summary>
-    public readonly SpatialGrid Bodies = new(), Heavies = new();
+    /// <summary>Separation's own grid: structures and the ships that push (see Movement.Separate).</summary>
+    public readonly SpatialGrid Heavies = new();
     /// <summary>The battle mode and what it keeps track of (see Modes).</summary>
     public ModeState Mode = new();
     /// <summary>What targeting weighs, gathered once in a step that needs it (see Combat.Pressure).</summary>

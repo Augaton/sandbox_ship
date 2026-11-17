@@ -217,12 +217,13 @@ public partial class BattleScreen : Node
             var x = 400.0;
             foreach (var c in Ships.All)
             {
-                var r = Ships.Defs[c].Radius;
+                // Bow up: a long hull takes the room of its girth across, and its length down the row.
+                var r = Ships.Defs[c].Beam > 0 ? Ships.Defs[c].Beam * 1.3 : Ships.Defs[c].Radius;
                 x += r + 40;
                 Worlds.SpawnShip(World, f, c, x, y, -Math.PI / 2);
                 x += r + 40;
             }
-            y += 380;
+            y += 500;
         }
         // Each race's stations, levels 1 to 4 with their parts, then each of its buildings at each of its levels.
         foreach (var f in Factions.All.Append(Faction.Errant))
@@ -580,6 +581,8 @@ public partial class BattleScreen : Node
                     break;
                 case Delivered dl:
                     if (w.Entities.Get(dl.Id) is { Size: SizeClass.Large } big && (CanSee(big) || big.Side == Opts.Player)) Portal(big);
+                    // Craft out of the shipyard take off from it.
+                    else if (w.Entities.Get(dl.Id) is { Size: SizeClass.Small }) climbs[dl.Id] = Now;
                     break;
                 case Built b:
                     var built = w.Entities.Get(b.Id);

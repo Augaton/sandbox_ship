@@ -112,7 +112,7 @@ public static class AbilitySystem
         {
             var t = aim?.Id is int aimed ? world.Entities.Get(aimed) : null;
             if (t is null || !Foes(world, e.Side, t.Side) || !Vision.IsVisible(world, e.Side, t)) return Result.Fail("Choisis un ennemi");
-            if (Dist(e, t) - t.Radius > def.Range!.Value) return Result.Fail("Cible hors de portée");
+            if (Gap(t, e.X, e.Y) > def.Range!.Value) return Result.Fail("Cible hors de portée");
             target = OwnerOf(world, t);
             point = new Point(t.X, t.Y);
         }
@@ -187,7 +187,7 @@ public static class AbilitySystem
             case AbilityId.Emp:
                 foreach (var t in world.Entities)
                 {
-                    if (t.Kind != EntityKind.Ship || Dist(t, e) > def.Radius!.Value + t.Radius || !Foes(world, t.Side, e.Side)) continue;
+                    if (t.Kind != EntityKind.Ship || Gap(t, e.X, e.Y) > def.Radius!.Value || !Foes(world, t.Side, e.Side)) continue;
                     t.Shield = 0;
                     t.Effects.Stunned = Abilities.Stunned;
                 }
@@ -195,7 +195,7 @@ public static class AbilitySystem
             case AbilityId.Taunt:
                 foreach (var t in world.Entities)
                 {
-                    if (t.Kind == EntityKind.Hardpoint || Dist(t, e) > def.Radius!.Value + t.Radius || !Foes(world, t.Side, e.Side)) continue;
+                    if (t.Kind == EntityKind.Hardpoint || Gap(t, e.X, e.Y) > def.Radius!.Value || !Foes(world, t.Side, e.Side)) continue;
                     t.Effects.Taunted = Abilities.Taunted;
                     t.Effects.TauntedBy = e.Id;
                     t.TargetId = e.Id;
@@ -227,8 +227,8 @@ public static class AbilitySystem
         foreach (var t in world.Grid.Near(cx, cy, reach))
         {
             if (!Foes(world, t.Side, s.Side)) continue;
-            var d = s.Kind != StrikeKind.Beam ? Hypot(t.X - s.X, t.Y - s.Y) : SegmentDistance(t, s);
-            if (d <= s.Radius + t.Radius) hit.Add(t);
+            var d = s.Kind != StrikeKind.Beam ? Gap(t, s.X, s.Y) : SegmentDistance(t, s) - t.Radius;
+            if (d <= s.Radius) hit.Add(t);
         }
         var by = world.Entities.Get(s.By);
         // A ship or a structure takes the blow once, its shield with it; its parts only a share of
@@ -272,7 +272,7 @@ public static class AbilitySystem
         var c = new Point(at.X, at.Y);
         foreach (var t in world.Grid.Near(c.X, c.Y, r))
         {
-            if (test(t) && Dist(t, c) <= r + t.Radius) n++;
+            if (test(t) && Gap(t, c.X, c.Y) <= r) n++;
         }
         return n;
     }
@@ -362,7 +362,7 @@ public static class AbilitySystem
         var def = Abilities.Defs[ability.Id];
         var self = new Aim(e.X, e.Y);
         var t = world.Entities.Get(e.TargetId);
-        var reach = t is not null ? Dist(e, t) - t.Radius : double.PositiveInfinity;
+        var reach = t is not null ? Gap(t, e.X, e.Y) : double.PositiveInfinity;
         var ai = world.Factions.GetValueOrDefault(e.Side)?.AI;
         var sharp = ai is not null && Difficulties[ai.Difficulty].Sharp;
         Func<Entity, bool> Ally(double min) => a => a.Kind == EntityKind.Ship && a.Hull < a.MaxHull * min && Allies(world, a.Side, e.Side);
@@ -382,7 +382,7 @@ public static class AbilitySystem
                 case AbilityId.HuntMark:
                 case AbilityId.Spores:
                     // On the ship its fleet singled out, when it can reach it.
-                    if (world.Entities.Get(ai!.FocusId) is { } focus && Dist(e, focus) - focus.Radius <= def.Range!.Value && Vision.IsVisible(world, e.Side, focus)) return new Aim(focus.X, focus.Y, focus.Id);
+                    if (world.Entities.Get(ai!.FocusId) is { } focus && Gap(focus, e.X, e.Y) <= def.Range!.Value && Vision.IsVisible(world, e.Side, focus)) return new Aim(focus.X, focus.Y, focus.Id);
                     break;
                 case AbilityId.Taunt:
                     // Worth it to draw fire off wounded allies, while it still has the hull for it.

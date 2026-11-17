@@ -46,6 +46,37 @@ public static class Draw
         else g.DrawArc(new Vector2((float)x, (float)y), (float)r, (float)from, (float)to, points, color, (float)width);
     }
 
+    /// <summary>
+    /// The outline of a capsule: two half rings `r` round the ends of a segment `half` either side
+    /// of (x, y) along `angle`, joined by straight sides. A long hull's ring.
+    /// </summary>
+    public static void Capsule(CanvasItem g, double x, double y, double angle, double half, double r, Color color, double width, double zoom)
+    {
+        var (c, s) = (Math.Cos(angle), Math.Sin(angle));
+        var (fx, fy, bx, by) = (x + c * half, y + s * half, x - c * half, y - s * half);
+        var n = Segments(r, zoom) / 2 + 2;
+        Arc(g, fx, fy, r, angle - Math.PI / 2, angle + Math.PI / 2, n, color, width);
+        Arc(g, bx, by, r, angle + Math.PI / 2, angle + Math.PI * 1.5, n, color, width);
+        Line(g, fx + s * r, fy - c * r, bx + s * r, by - c * r, color, width);
+        Line(g, fx - s * r, fy + c * r, bx - s * r, by + c * r, color, width);
+    }
+
+    /// <summary>A capsule filled (see Capsule).</summary>
+    public static void CapsuleDisc(CanvasItem g, double x, double y, double angle, double half, double r, Color color, double zoom)
+    {
+        var (c, s) = (Math.Cos(angle), Math.Sin(angle));
+        var n = Segments(r, zoom) / 2 + 2;
+        Span<Vector2> pts = stackalloc Vector2[2 * n];
+        for (var i = 0; i < n; i++)
+        {
+            var a = angle - Math.PI / 2 + Math.PI * i / (n - 1);
+            pts[i] = new Vector2((float)(x + c * half + Math.Cos(a) * r), (float)(y + s * half + Math.Sin(a) * r));
+            pts[n + i] = new Vector2((float)(x - c * half + Math.Cos(a + Math.PI) * r), (float)(y - s * half + Math.Sin(a + Math.PI) * r));
+        }
+        if (BatchOf(g) is { } b) b.Convex(pts, color);
+        else g.DrawColoredPolygon(pts, color, ReadOnlySpan<Vector2>.Empty, null);
+    }
+
     public static void Disc(CanvasItem g, double x, double y, double r, Color color, double zoom)
     {
         var n = Segments(r, zoom);

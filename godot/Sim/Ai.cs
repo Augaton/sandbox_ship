@@ -637,7 +637,7 @@ public static class Ai
         foreach (var e in world.Entities)
         {
             if (e.Kind != EntityKind.Ship || e.Launched || e.Size == SizeClass.Small || !Foes(world, f.Id, e.Side) || !Vision.IsVisible(world, f.Id, e)) continue;
-            if (!ships.Exists(s => Dist(s, e) - e.Radius < s.Range)) continue;
+            if (!ships.Exists(s => Gap(e, s.X, s.Y) < s.Range)) continue;
             var worth = ShipValue(e) / Math.Max(1, e.Hull + e.Shield) * (e.Id == ai.FocusId ? 1.5 : 1);
             if (worth > most)
             {
