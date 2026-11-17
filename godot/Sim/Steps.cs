@@ -14,6 +14,7 @@ public static class Steps
         Ai.UpdateAI(world, dt);
         Structures.UpdateEconomy(world, dt);
         Structures.UpdateProduction(world, dt);
+        Reserves.Update(world, dt);
         Structures.UpdateResearch(world, dt);
         Structures.UpdateConstruction(world, dt);
         Structures.UpdateRebuild(world, dt);
@@ -22,6 +23,7 @@ public static class Steps
         Combat.UpdateTargeting(world, dt);
         AbilitySystem.UpdateAbilities(world, dt);
         Movement.UpdateShips(world, dt);
+        Movement.Drift(world, dt);
         Terrains.Update(world, dt);
         Movement.Separate(world);
         Worlds.AttachHardpoints(world);

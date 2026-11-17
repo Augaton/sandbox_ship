@@ -34,7 +34,7 @@ public sealed record MenuChoice
 
 /// <summary>
 /// Launch options for checking a screen without clicking through the menu, after `--` on the
-/// command line: --start=menu|battle|sandbox|campaign|gallery (every ship class and platform level, paused)|raid (a battle centered on the colossus)|stress
+/// command line: --start=menu|battle|sandbox|campaign|gallery (every ship class and platform level, paused)|raid (a battle centered on the colossus)|stress|jumps (ships of the reserve in hyperspace at each stage, one coming out, one being called in)
 /// (three large fleets in a fight, one step a frame, frame times logged before a --shot run quits), --skip=SECONDS (battle or galaxy played
 /// ahead, the player's side on the AI too), --zoom=Z, --shot=FILE.png and --frames=N (capture, then quit),
 /// --intro (the opening, which a capture or a start into a screen skips), --music-dump=DIR (the music as WAV files, then quit),

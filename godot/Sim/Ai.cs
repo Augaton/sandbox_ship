@@ -829,10 +829,36 @@ public static class Ai
         return new Point(best.X + (station.X - best.X) / reach * deep, best.Y + (station.Y - best.Y) / reach * deep);
     }
 
+    /// <summary>
+    /// Calls its reserve in where its fleet gathers: at the rally point or round it, else on the
+    /// way there from the station, else by the station. A ship with nowhere to go waits.
+    /// </summary>
+    static void CallReserve(World world, FactionState f, Entity? station)
+    {
+        if (f.Reserve.Count == 0) return;
+        foreach (var ship in f.Reserve.ToList())
+        {
+            foreach (var (x, y) in ReserveSpots(f, station))
+            {
+                if (Reserves.Deploy(world, f.Id, ship, x, y).Ok) break;
+            }
+        }
+    }
+
+    static IEnumerable<(double X, double Y)> ReserveSpots(FactionState f, Entity? station)
+    {
+        yield return (f.RallyX, f.RallyY);
+        for (var i = 0; i < 6; i++) yield return (f.RallyX + Math.Cos(i * Math.Tau / 6) * 260, f.RallyY + Math.Sin(i * Math.Tau / 6) * 260);
+        if (station is null) yield break;
+        foreach (var k in new[] { 0.6, 0.3 }) yield return (station.X + (f.RallyX - station.X) * k, station.Y + (f.RallyY - station.Y) * k);
+        for (var i = 0; i < 8; i++) yield return (station.X + Math.Cos(i * Math.Tau / 8) * 450, station.Y + Math.Sin(i * Math.Tau / 8) * 450);
+    }
+
     static void Think(World world, FactionState f)
     {
         var ai = f.AI!;
         var station = StationOf(world, f.Id);
+        CallReserve(world, f, station);
         if (station is null) return;
         var enemy = NearestEnemyStation(world, f, station);
         RetreatDamaged(world, f);

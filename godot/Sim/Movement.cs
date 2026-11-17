@@ -545,6 +545,20 @@ public static class Movement
         }
     }
 
+    /// <summary>Ships thrown aside (Entity.KnockX/Y) drift with it, and it dies out within a second or so.</summary>
+    public static void Drift(World world, double dt)
+    {
+        var fade = Math.Exp(-4 * dt);
+        foreach (var e in world.Entities)
+        {
+            if (e.KnockX == 0 && e.KnockY == 0) continue;
+            e.X += e.KnockX * dt;
+            e.Y += e.KnockY * dt;
+            (e.KnockX, e.KnockY) = (e.KnockX * fade, e.KnockY * fade);
+            if (e.KnockX * e.KnockX + e.KnockY * e.KnockY < 4) (e.KnockX, e.KnockY) = (0, 0);
+        }
+    }
+
     /// <summary>
     /// Pushes overlapping ships apart and out of structures; heavier ships move less. Small craft
     /// fly above the others (the view gives them their height): they overlap any ship and are

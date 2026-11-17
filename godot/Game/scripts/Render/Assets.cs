@@ -384,6 +384,9 @@ public static class Assets
     }
 
     /// <summary>The pack sprite of a ship class, for pictures outside the battle (the menu); null for a placeholder.</summary>
+    /// <summary>How a class of a race looks: a jump's hologram shows it before the ship is there.</summary>
+    public static Look ShipLook(Faction f, ShipClass c) => ships[(f, c)];
+
     public static string? ShipSprite(Faction f, ShipClass c) => ships[(f, c)].Tint ? null : ships[(f, c)].Layers[0].Key;
 
     public static bool Has(string key) => strips.ContainsKey(key);

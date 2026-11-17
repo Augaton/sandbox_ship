@@ -42,6 +42,8 @@ public abstract record Command
     public sealed record CancelResearch(int Index) : Command;
     /// <summary>Where new ships gather once out of the shipyard.</summary>
     public sealed record SetRally(double X, double Y) : Command;
+    /// <summary>A ship of the reserve (its class, and its hero if one) called in by hyperspace at a point (Reserves.cs).</summary>
+    public sealed record Deploy(ShipClass Cls, HeroId? Hero, double X, double Y) : Command;
     /// <summary>Keeps a ship class in production, or stops it.</summary>
     public sealed record SetLoop(ShipClass Cls, bool On) : Command;
     /// <summary>The issuer's ships use their abilities by themselves.</summary>
@@ -205,6 +207,9 @@ public static partial class Commands
             case Command.CancelResearch cr:
                 Structures.CancelResearch(world, issuer, cr.Index);
                 return Result.OK;
+            case Command.Deploy d:
+                if (!Defined(d.Cls) || !Finite(d.X, d.Y) || d.Hero is HeroId called && (!Hero(called) || Heroes.Defs[called].Base != d.Cls)) return Invalid;
+                return Reserves.Deploy(world, issuer, new ReserveShip(d.Cls, d.Hero), d.X, d.Y);
             case Command.SetRally r:
             {
                 if (!Finite(r.X, r.Y)) return Invalid;

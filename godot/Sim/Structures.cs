@@ -163,6 +163,15 @@ public static class Structures
             item.Remaining -= dt;
             if (item.Remaining > 0) continue;
             f.Queue.RemoveAt(0);
+            // Too big for the shipyard: into the reserve, to be called in by hyperspace.
+            var hull = item.Kind == QueueKind.Hero ? Heroes.Defs[item.Hero].Base : item.Cls;
+            if (Reserves.Reserved(hull))
+            {
+                var many = item.Kind == QueueKind.Hero ? 1 : Ships.Defs[hull].Squad ?? 1;
+                f.Stats.Built += many;
+                for (var i = 0; i < many; i++) f.Reserve.Add(new ReserveShip(hull, item.Kind == QueueKind.Hero ? item.Hero : null));
+                continue;
+            }
             var p = ShipyardPos(world, station);
             var angle = Math.Atan2(f.RallyY - p.Y, f.RallyX - p.X);
             // Squadrons come out together and fly to the rally point side by side.
@@ -196,13 +205,13 @@ public static class Structures
         return Result.OK;
     }
 
-    /// <summary>How many of this class the side fields or has in its queue.</summary>
+    /// <summary>How many of this class the side fields, has in its queue, in reserve or on their way.</summary>
     public static int InService(World world, Side side, ShipClass cls)
     {
         var type = Ids.Of(cls);
         var n = 0;
         foreach (var e in world.Entities) if (e.Type == type && e.Kind == EntityKind.Ship && e.Side == side) n++;
-        return n + (world.Factions.TryGetValue(side, out var f) ? f.Queue.Count(q => q.Kind == QueueKind.Ship && q.Cls == cls) : 0);
+        return n + Reserves.Waiting(world, side, cls) + (world.Factions.TryGetValue(side, out var f) ? f.Queue.Count(q => q.Kind == QueueKind.Ship && q.Cls == cls) : 0);
     }
 
     public static Result EnqueueShip(World world, Side side, ShipClass cls)
@@ -221,7 +230,9 @@ public static class Structures
     static bool HeroInService(World world, Side side, HeroId id)
     {
         foreach (var e in world.Entities) if (e.Hero == id && e.Side == side) return true;
-        return world.Factions.TryGetValue(side, out var f) && f.Queue.Exists(q => q.Kind == QueueKind.Hero && q.Hero == id);
+        // In reserve, or on its way there.
+        if (world.Jumps.Exists(j => j.Side == side && j.Hero == id)) return true;
+        return world.Factions.TryGetValue(side, out var f) && (f.Queue.Exists(q => q.Kind == QueueKind.Hero && q.Hero == id) || f.Reserve.Exists(r => r.Hero == id));
     }
 
     /// <summary>One of each hero at a time, and a delay before a fallen hero can be built again.</summary>

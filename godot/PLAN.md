@@ -78,7 +78,19 @@ tests de `FixtureTests` et `CrossTests` les listent.
   des vaisseaux, une ombre portée par vaisseau (lumière en haut à gauche, d'autant plus loin qu'il vole
   haut, posée sur les coques survolées), le roulis dans les virages et le décollage des appareils lancés.
 - Deux Titans au plus. Les gros vaisseaux ont plusieurs capacités (cuirassé 2, Titan 3,
-  Léviathan 4) et sortent du chantier par un portail ; Titan et Léviathan, avec une trompe.
+  Léviathan 4).
+- Réserve (`Reserves.cs`) : les grandes coques (croiseur, Rempart, Transporteur, cuirassé, Titan,
+  Léviathan, Colosse, et les héros bâtis sur l'une d'elles) ne sortent plus du chantier. Une fois
+  construites, elles attendent en réserve (panneau au-dessus des groupes) et se glissent sur la
+  carte, ou se placent d'un clic (Maj : plusieurs). Elles arrivent par l'hyperespace près de ses
+  forces : à 900 de ses bâtiments construits, à 600 de ses vaisseaux moyens et grands, jamais à
+  moins de 700 d'un bâtiment ennemi, sur un terrain libre. Le saut dure 3 s (6 s pour Titan,
+  Léviathan, Colosse), son point marqué pour tous (silhouette, tunnel de lumière, hologramme). En
+  sortant, le vaisseau jaillit de derrière son point, étiré, freine net, laisse des traînées, et son
+  onde de choc écarte les appareils proches ; les capitaux sonnent de la trompe et font trembler
+  l'écran. La réserve et les sauts comptent dans les limites (Titans, Léviathan, héros). L'IA appelle
+  sa réserve à son point de ralliement. Réseau : commande `Deploy` (commandes 3), instantanés 10,
+  protocole 13. Tests : `ReserveTests`. `--start=jumps` montre des sauts à chaque stade.
 - Les chasseurs se construisent aussi au chantier (4 pour 300).
 - Recherche : il faut un laboratoire ; l'escarmouche en donne un derrière chaque station.
 - Plateformes : 3 autour de la station, 2 par avant-poste, 1 par mine ; leur aspect suit leur

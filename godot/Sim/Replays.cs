@@ -151,7 +151,7 @@ public static class Replays
         var wire = r.ReadInt32();
         // Formats 1 to 3 still read: their battles had no terrain (1), their AIs all played Balanced
         // (1, 2), their waves the usual strength (1 to 3). So do commands 1: those of 2 but the new tags.
-        if (format is not (1 or 2 or 3 or FormatVersion) || wire is not (1 or Commands.WireVersion)) throw new InvalidDataException("Rediffusion d'une autre version du jeu, illisible par celle-ci.");
+        if (format is not (1 or 2 or 3 or FormatVersion) || wire is not (1 or 2 or Commands.WireVersion)) throw new InvalidDataException("Rediffusion d'une autre version du jeu, illisible par celle-ci.");
         var version = r.ReadText();
         var savedAt = r.ReadInt64();
         var length = r.ReadInt64();

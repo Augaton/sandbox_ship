@@ -46,6 +46,7 @@ public class ProtocolTests
         yield return new Message.Order(new Command.Patrol([4, 8], [new Point(10, 20), new Point(30.5, 40)], true));
         yield return new Message.Order(new Command.SetStance([15], Stance.Passive));
         yield return new Message.Order(new Command.Guard([16], 23, true));
+        yield return new Message.Order(new Command.Deploy(ShipClass.Dreadnought, null, 2000, 1500.25));
         yield return new Message.State([1, 2, 3, 250, 0]);
         yield return new Message.Ack(123456);
         yield return new Message.Chart([71, 67, 72, 84, 2, 0]);

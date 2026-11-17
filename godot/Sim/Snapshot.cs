@@ -42,9 +42,10 @@ public static partial class Snapshot
     /// missiles shot down. 5: sent in parts, one a packet (SnapshotParts.cs). 6: endless survival,
     /// each seat's score and the time held, and how far ahead a wave was beaten. 7: the terrain.
     /// 8: veterans (rank, experience, Promoted), stances, patrols and orders queued. 9: a ship of the
-    /// viewer's falling back to be repaired, in the top bit of its stance.
+    /// viewer's falling back to be repaired, in the top bit of its stance. 10: the viewer's reserve,
+    /// and the jumps under way, seen by all.
     /// </summary>
-    public const ushort Version = 9;
+    public const ushort Version = 10;
     /// <summary>In a stance's byte: the ship is falling back to be repaired (Mending). The flags have no bit left, and few ships are.</summary>
     const byte MendingBit = 0x80;
     const uint Magic = 0x504E5353;
@@ -203,6 +204,20 @@ public static partial class Snapshot
         }
         w.Write7BitEncodedInt(world.Strikes.Count);
         foreach (var s in world.Strikes) WriteStrike(w, s);
+        // A jump's point is marked for all to see, whoever is coming.
+        w.Write7BitEncodedInt(world.Jumps.Count);
+        foreach (var j in world.Jumps)
+        {
+            w.Write7BitEncodedInt(j.Id);
+            w.Write7BitEncodedInt(j.Side.Id);
+            w.Write((byte)j.Cls);
+            WriteHeroOrNone(w, j.Hero);
+            w.Write((float)j.X);
+            w.Write((float)j.Y);
+            w.Write((float)j.Angle);
+            w.Write((float)j.Left);
+            w.Write((float)j.Total);
+        }
         var told = (events ?? world.Events).Where(ev => Tells(world, viewer, ev, shown, sight)).ToList();
         var kept = vital is null ? told : told.Where(ev => !Vital(world, ev)).ToList();
         w.Write7BitEncodedInt(kept.Count);
@@ -325,6 +340,19 @@ public static partial class Snapshot
             WriteHero(w, hero);
             w.Write((float)wait);
         }
+        w.Write7BitEncodedInt(f.Reserve.Count);
+        foreach (var s in f.Reserve)
+        {
+            w.Write((byte)s.Cls);
+            WriteHeroOrNone(w, s.Hero);
+        }
+    }
+
+    /// <summary>A flag, then the hero if there is one: the default HeroId is a hero too.</summary>
+    static void WriteHeroOrNone(BinaryWriter w, HeroId? h)
+    {
+        w.Write(h is not null);
+        if (h is HeroId hero) WriteHero(w, hero);
     }
 
     static void WriteQueue(BinaryWriter w, List<QueueItem> queue)

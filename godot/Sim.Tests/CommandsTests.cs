@@ -380,6 +380,7 @@ public class CommandsTests
             new Command.Move([3], 1, 2, Queued: true), new Command.Attack([4], 5, Queued: true),
             new Command.Patrol([6, 7], [new Point(1, 2), new Point(-3.5, 4)], true), new Command.Guard([8], 9),
             new Command.SetStance([10], Stance.Aggressive),
+            new Command.Deploy(ShipClass.Leviathan, null, 1500.5, -2), new Command.Deploy(ShipClass.Titan, new HeroId(Faction.Klaed, HeroRole.Admiral), 3, 4),
         ];
         foreach (var c in battle)
         {

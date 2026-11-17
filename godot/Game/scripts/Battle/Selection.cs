@@ -21,6 +21,8 @@ public sealed record GuardMode : Mode;
 public sealed record AbilityMode(AbilityId Id) : Mode;
 /// <summary>Sandbox: `What` is a ship class, a structure, "station" or a hero role, as the web version names them.</summary>
 public sealed record SpawnMode(Faction Faction, string What) : Mode;
+/// <summary>Picking where a ship of the reserve comes out of hyperspace: dropped there from the reserve, or a click.</summary>
+public sealed record DeployMode(ReserveShip Ship) : Mode;
 
 public sealed record Ghost(double X, double Y, double Radius, bool Ok);
 
@@ -58,6 +60,8 @@ public partial class Selection : Node
     readonly Random random = new();
     /// <summary>The flown ship's controls as last sent: they go again only when they change.</summary>
     Command.PilotInput? sentInput;
+    /// <summary>A ship of the reserve is being dragged: let go over the battlefield, it is called in there.</summary>
+    bool deployDrag;
 
     public Selection(BattleScreen scene)
     {
@@ -242,10 +246,36 @@ public partial class Selection : Node
                 if (!r.Ok) scene.Hud.Toast(r.Reason);
                 break;
             }
+            case DeployMode m:
+                CallIn(m, w.X, w.Y, shift);
+                break;
             default:
                 return false;
         }
         return true;
+    }
+
+    /// <summary>A ship of the reserve, from its button: picked up to be dropped on the battlefield, or clicked there.</summary>
+    public void ArmDeploy(ReserveShip ship)
+    {
+        SetMode(new DeployMode(ship));
+        deployDrag = true;
+    }
+
+    /// <summary>
+    /// Calls the ship in at (x, y). With Shift, the next of the same kind stays in hand; otherwise,
+    /// or with none left, back to selecting.
+    /// </summary>
+    void CallIn(DeployMode m, double x, double y, bool shift)
+    {
+        var r = Sink.Send(new Command.Deploy(m.Ship.Cls, m.Ship.Hero, x, y));
+        if (!r.Ok)
+        {
+            scene.Hud.Toast(r.Reason);
+            return;
+        }
+        scene.Marker(x, y, Palette.Hex(0x9fd4ff));
+        if (!shift || World.Factions[Player].Reserve.Count(s => s == m.Ship) <= 1) SetMode(new SelectMode());
     }
 
     void AttackMove(double x, double y, bool queued = false)
@@ -410,6 +440,18 @@ public partial class Selection : Node
     {
         if (p.ButtonIndex == MouseButton.Middle) panFrom = null;
         if (p.ButtonIndex == MouseButton.Left) firing = false;
+        // A ship dragged from the reserve and let go over the battlefield comes there; let go on
+        // the HUD (a plain click on its button), it waits for a click on the battlefield.
+        if (p.ButtonIndex == MouseButton.Left && deployDrag)
+        {
+            deployDrag = false;
+            if (Mode is DeployMode dm && PointerOver)
+            {
+                var w = scene.WorldPoint(p.Position);
+                CallIn(dm, w.X, w.Y, p.ShiftPressed);
+            }
+            return;
+        }
         if (Box is not Rect2 b || p.ButtonIndex != MouseButton.Left) return;
         Box = null;
         var shift = p.ShiftPressed;
@@ -706,8 +748,10 @@ public partial class Selection : Node
     public void Tick(double delta)
     {
         EaseZoom(delta);
-        // Its casters gone (destroyed, deselected), an ability has nothing left to aim with.
+        // Its casters gone (destroyed, deselected), an ability has nothing left to aim with; a
+        // ship no longer in reserve (called in already), nothing to call in.
         if (Mode is AbilityMode m && !Casters().Exists(s => s.Abilities.Exists(a => a.Id == m.Id))) SetMode(new SelectMode());
+        if (Mode is DeployMode d && !(World.Factions.TryGetValue(Player, out var own) && own.Reserve.Contains(d.Ship))) SetMode(new SelectMode());
         if (PilotId is not null)
         {
             UpdatePilot();
@@ -727,6 +771,14 @@ public partial class Selection : Node
         if ((keys && Bindings.Held(Bindings.PanUp)) || (edge && p.Y < Edge)) c.Y -= step;
         if ((keys && Bindings.Held(Bindings.PanDown)) || (edge && p.Y > size.Y - Edge)) c.Y += step;
         scene.Center = c;
+    }
+
+    /// <summary>Ghost of the ship being called in: where, which way it would face, and whether it can (and why not).</summary>
+    public (ReserveShip Ship, double X, double Y, double Angle, Result Check)? DeployGhost()
+    {
+        if (Mode is not DeployMode m) return null;
+        var (x, y) = ((double)Hover.X, (double)Hover.Y);
+        return (m.Ship, x, y, Reserves.Heading(World, Player, x, y), Reserves.CanDeploy(World, Player, m.Ship, x, y));
     }
 
     /// <summary>Ghost of the structure being placed: where it would go and whether it can.</summary>

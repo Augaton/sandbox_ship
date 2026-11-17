@@ -155,6 +155,7 @@ public partial class BattleScreen : Node
             AddChild(tutorial);
         }
         if (Dev.Start == "gallery") Gallery();
+        if (Dev.Start == "jumps") Jumps();
         if (Dev.Start == "raid" && World.Entities.FirstOrDefault(e => e.Type == "colossus") is { } boss)
         {
             World.Fog = false;
@@ -252,6 +253,38 @@ public partial class BattleScreen : Node
         World.Fog = false;
         Paused = true;
         CenterOn(1700, 1150);
+    }
+
+    /// <summary>
+    /// --start=jumps: ships of the reserve on their way at each stage of their jump, from the line's
+    /// to a leviathan, one about to come out among craft, and a dreadnought in hand under the
+    /// pointer, with where it may come.
+    /// </summary>
+    void Jumps()
+    {
+        World.Fog = false;
+        var me = Opts.Player;
+        var station = Worlds.StationOf(World, me)!;
+        var f = World.Factions[me];
+        var dx = (double)Math.Sign(World.Width / 2 - station.X);
+        var (x0, y0) = (station.X, station.Y);
+        (ShipClass Cls, double X, double Y, double Left)[] calls =
+        [
+            (ShipClass.Battlecruiser, x0 + dx * 450, y0 - 420, 2.6), (ShipClass.Carrier, x0 + dx * 820, y0 - 330, 1.0),
+            (ShipClass.Leviathan, x0 + dx * 620, y0 + 60, 4.5), (ShipClass.Dreadnought, x0 + dx * 380, y0 + 480, 1.6),
+        ];
+        foreach (var (cls, x, y, left) in calls)
+        {
+            f.Reserve.Add(new ReserveShip(cls));
+            if (!Reserves.Deploy(World, me, new ReserveShip(cls), x, y).Ok) continue;
+            World.Jumps[^1].Left = left;
+        }
+        // Craft where the dreadnought comes out: thrown aside.
+        for (var i = 0; i < 6; i++) Worlds.SpawnShip(World, me, ShipClass.Fighter, x0 + dx * 380 + Math.Cos(i) * 90, y0 + 480 + Math.Sin(i) * 90, i);
+        f.Reserve.Add(new ReserveShip(ShipClass.Dreadnought));
+        Controls.ArmDeploy(new ReserveShip(ShipClass.Dreadnought));
+        Controls.Hover = new Vector2((float)(x0 + dx * 900), (float)(y0 + 420));
+        CenterOn(x0 + dx * 560, y0 + 40);
     }
 
     Point FleetCenter(Side side)
@@ -580,7 +613,8 @@ public partial class BattleScreen : Node
                     else Hud.Toast($"Les {Factions.Defs[Worlds.RaceOf(w, rw.Side)].Name} ont abattu le Colosse");
                     break;
                 case Delivered dl:
-                    if (w.Entities.Get(dl.Id) is { Size: SizeClass.Large } big && (CanSee(big) || big.Side == Opts.Player)) Portal(big);
+                    // Large hulls come from the reserve, out of hyperspace.
+                    if (w.Entities.Get(dl.Id) is { Size: SizeClass.Large } big && (CanSee(big) || big.Side == Opts.Player)) Hyperspace(big);
                     // Craft out of the shipyard take off from it.
                     else if (w.Entities.Get(dl.Id) is { Size: SizeClass.Small }) climbs[dl.Id] = Now;
                     break;

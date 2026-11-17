@@ -38,6 +38,11 @@ public partial class Hud : CanvasLayer
     readonly Dictionary<double, Button> speedButtons = [];
     Button? sandboxButton;
     HFlowContainer quickbar = null!;
+    /// <summary>The reserve: large hulls built and waiting to be dragged onto the battlefield; hidden while empty.</summary>
+    PanelContainer reservePanel = null!;
+    HFlowContainer reserveRow = null!;
+    /// <summary>How many ships the reserve held at the last refresh: one more is announced.</summary>
+    int reserveSeen;
     ScrollContainer selectionScroll = null!;
     VBoxContainer selection = null!;
     /// <summary>A production tab: its button and its name, what it shows, how many it has under way.</summary>
@@ -202,6 +207,14 @@ public partial class Hud : CanvasLayer
         left.CustomMinimumSize = new Vector2(260, 0);
         left.SizeFlagsVertical = Control.SizeFlags.ShrinkEnd;
         bar.AddChild(left);
+        reservePanel = Panel(8, 6);
+        reservePanel.Visible = false;
+        var reserveBox = Column(4);
+        reserveBox.AddChild(Text("Réserve : glisse un vaisseau sur la carte", Palette.Muted, 12));
+        reserveRow = Flow(4);
+        reserveBox.AddChild(reserveRow);
+        reservePanel.AddChild(reserveBox);
+        left.AddChild(reservePanel);
         quickbar = Flow(4);
         left.AddChild(quickbar);
         selectionPanel = Panel();
@@ -652,6 +665,47 @@ public partial class Hud : CanvasLayer
         Sync(quickbar, parts);
     }
 
+    /// <summary>
+    /// The reserve, one button per kind of ship (a hero apart), with how many wait: pressed, the
+    /// ship is picked up, to be let go over the battlefield or placed with a click there. A ship
+    /// come into the reserve is announced.
+    /// </summary>
+    void RefreshReserve(FactionState f)
+    {
+        if (f.Reserve.Count > reserveSeen) Toast($"{ReserveName(f.Reserve[^1])} en réserve : glisse-le sur la carte");
+        reserveSeen = f.Reserve.Count;
+        reservePanel.Visible = f.Reserve.Count > 0;
+        if (f.Reserve.Count == 0) return;
+        var c = scene.Controls;
+        var armed = c.Mode is DeployMode dm ? dm.Ship : (ReserveShip?)null;
+        var parts = new List<Part>();
+        foreach (var kind in f.Reserve.Distinct())
+        {
+            var (ship, count) = (kind, f.Reserve.Count(s => s == kind));
+            var name = ReserveName(ship);
+            var held = armed == ship;
+            parts.Add(new Part($"reserve:{ship.Cls}:{ship.Hero}", () =>
+            {
+                var b = new LabelButton(true, 6, 3) { MinSize = new Vector2(0, 40) };
+                b.Add(name, Palette.Text, 13);
+                b.Add("", Palette.Accent, 12);
+                b.SetIcon(Assets.ShipIcon(Race, ship.Cls));
+                b.ButtonDown += () => c.ArmDeploy(ship);
+                return b;
+            }, n =>
+            {
+                var b = (LabelButton)n;
+                b.Line(1).Text = count > 1 ? $"×{count}" : "prêt";
+                b.TooltipText = $"{name} : glisse-le sur la carte, ou clique ici puis sur la carte (Maj : plusieurs). Il arrive par l'hyperespace près de tes forces, jamais près d'un bâtiment ennemi.";
+                b.Marked = held;
+                b.Paint();
+            }));
+        }
+        Sync(reserveRow, parts);
+    }
+
+    static string ReserveName(ReserveShip s) => s.Hero is HeroId h ? Heroes.Defs[h].Name : Ships.Defs[s.Cls].Name;
+
     static Part QuickButton(string key, string label, string? count, string tip, bool disabled, Action act) => new(key, () =>
     {
         var b = new LabelButton(false, 10, 0) { MinSize = new Vector2(0, 32), TooltipText = tip };
@@ -675,6 +729,7 @@ public partial class Hud : CanvasLayer
         var station = Worlds.StationOf(World, Player);
         RefreshTip();
         RefreshQuickbar();
+        RefreshReserve(f);
         if (campaign is not null)
         {
             level.Text = station is not null ? $"Station niveau {station.Level}" : "";

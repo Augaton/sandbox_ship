@@ -102,7 +102,7 @@ public partial class Main : Node
                         : BattleOptions.Versus(Faction.Klaed, [Faction.Nairan]),
                 });
                 break;
-            case "sandbox" or "gallery": StartBattle(new BattleOptions { Player = Faction.Klaed, Slots = BattleOptions.Versus(Faction.Klaed, [Faction.Nairan]), Mode = GameMode.Sandbox, Size = Dev.Size, Terrain = Dev.Terrain ?? TerrainDensity.None }); break;
+            case "sandbox" or "gallery" or "jumps": StartBattle(new BattleOptions { Player = Faction.Klaed, Slots = BattleOptions.Versus(Faction.Klaed, [Faction.Nairan]), Mode = GameMode.Sandbox, Size = Dev.Size, Terrain = Dev.Terrain ?? TerrainDensity.None }); break;
             case "campaign": StartCampaign(DevCampaign()); break;
             case "tutorial": StartBattle(Ui.Tutorial.Options()); break;
             case "replay" when Dev.Replay is string file && ReplayStore.Load(file, out _) is { } replay: StartBattle(BattleOptions.Watch(replay)); break;

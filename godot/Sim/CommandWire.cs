@@ -8,8 +8,8 @@ namespace SandboxShip.Sim;
 
 public static partial class Commands
 {
-    /// <summary>Layout of commands below: client and host compare it when they connect. Bumped with any change.</summary>
-    public const int WireVersion = 2;
+    /// <summary>Layout of commands below: client and host compare it when they connect. Bumped with any change. 3: Deploy.</summary>
+    public const int WireVersion = 3;
 
     /// <summary>Most ids a list may carry: a whole battle's.</summary>
     const int MaxList = 1 << 16;
@@ -44,6 +44,11 @@ public static partial class Commands
             case Command.CancelConstruction cc: Tag(w, 12); w.Write7BitEncodedInt(cc.Structure); break;
             case Command.CancelResearch cr: Tag(w, 13); w.Write7BitEncodedInt(cr.Index); break;
             case Command.SetRally r: Tag(w, 14); w.Write(r.X); w.Write(r.Y); break;
+            case Command.Deploy d:
+                Tag(w, 30); w.Write((byte)d.Cls); w.Write(d.Hero is not null);
+                if (d.Hero is HeroId hero) HeroOf(w, hero);
+                w.Write(d.X); w.Write(d.Y);
+                break;
             case Command.SetLoop l: Tag(w, 15); w.Write((byte)l.Cls); w.Write(l.On); break;
             case Command.SetAutoAbilities a: Tag(w, 16); w.Write(a.On); break;
             case Command.StartPilot p: Tag(w, 17); w.Write7BitEncodedInt(p.Ship); break;
@@ -91,6 +96,7 @@ public static partial class Commands
         27 => new Command.Patrol(ReadIds(r), PointsOf(r), r.ReadBoolean()),
         28 => new Command.Guard(ReadIds(r), r.ReadVarint(), r.ReadBoolean()),
         29 => new Command.SetStance(ReadIds(r), r.ReadEnum<Stance>()),
+        30 => new Command.Deploy(r.ReadEnum<ShipClass>(), r.ReadBoolean() ? HeroOf(r) : null, r.ReadDouble(), r.ReadDouble()),
         var tag => throw new InvalidDataException($"Commande inconnue : {tag}"),
     };
 

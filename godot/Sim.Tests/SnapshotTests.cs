@@ -97,6 +97,8 @@ public class SnapshotTests(ITestOutputHelper output)
         Assert.Equal(ResearchQueue.Jobs(hf).Select(j => j.Tech), ResearchQueue.Jobs(rf).Select(j => j.Tech));
         Assert.Equal(hf.Repeat, rf.Repeat);
         Assert.Equal(hf.HeroCooldowns.Keys.Order(), rf.HeroCooldowns.Keys.Order());
+        Assert.Equal(hf.Reserve, rf.Reserve);
+        Assert.Equal(host.Jumps.Select(j => (j.Id, j.Side, j.Cls, j.Hero, (float)j.X, (float)j.Y)), replica.Jumps.Select(j => (j.Id, j.Side, j.Cls, j.Hero, (float)j.X, (float)j.Y)));
         return (foes, remembered);
     }
 

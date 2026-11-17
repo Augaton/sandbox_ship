@@ -52,9 +52,10 @@ public class StructuresTests
         (f.RallyX, f.RallyY) = (platform.X, platform.Y);
         // A big hull sitting beside it too.
         SpawnShip(w, Faction.Klaed, ShipClass.Dreadnought, 1100, 2100).Stance = Stance.Hold;
-        Assert.True(EnqueueShip(w, Faction.Klaed, ShipClass.Battlecruiser).Ok);
-        Run(w, Ships.Defs[ShipClass.Battlecruiser].BuildTime + 25);
-        var ship = ShipsOf(w, Faction.Klaed, "battlecruiser").Single();
+        // A frigate: large hulls go to the reserve rather than out of the shipyard.
+        Assert.True(EnqueueShip(w, Faction.Klaed, ShipClass.Frigate).Ok);
+        Run(w, Ships.Defs[ShipClass.Frigate].BuildTime + 25);
+        var ship = ShipsOf(w, Faction.Klaed, "frigate").Single();
         // A point inside a platform could never be reached: it kept its order, and fought nothing.
         Assert.Null(ship.Order);
     }

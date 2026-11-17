@@ -31,8 +31,9 @@ npm run fixtures                            # références et apparences tirées
 manquant, le bouton « Build » (marteau, en haut à droite) le compile.
 
 Options pour vérifier un écran sans passer par le menu, après `--` :
-`--start=menu|battle|sandbox|campaign|gallery` (`gallery` : chaque classe de vaisseau et chaque
-niveau de plateforme, en pause), `--skip=SECONDES` (partie jouée d'avance par l'IA), `--zoom=Z`,
+`--start=menu|battle|sandbox|campaign|gallery|jumps` (`gallery` : chaque classe de vaisseau et chaque
+niveau de plateforme, en pause ; `jumps` : des vaisseaux de la réserve en hyperespace à chaque stade,
+un qui en sort parmi des chasseurs, un autre en main sous le pointeur), `--skip=SECONDES` (partie jouée d'avance par l'IA), `--zoom=Z`,
 `--at=X,Y` (centre la vue de bataille), `--menu=home|new|controls|credits|options|lobby-MODE` (`new` : les
 modes ; `lobby-skirmish`, `lobby-campaign`, `lobby-assault`… : le salon de ce mode, que `--seats=N` remplit
 d'IA et où `--teams=1,2,…` place les équipes dans l'ordre des places),

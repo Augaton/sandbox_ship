@@ -126,7 +126,8 @@ public class AiLevelsTests
         f.AI.Saved = 0;
         f.Credits = Heroes.Defs[admiral].Cost + 100;
         f.Queue.Clear();
-        Run(w, Heroes.Defs[admiral].BuildTime + 5, 1.0 / 30);
+        // A dreadnought goes to the reserve, and the AI calls it in by hyperspace.
+        Run(w, Heroes.Defs[admiral].BuildTime + 5 + Reserves.JumpTime + 3, 1.0 / 30);
         Assert.Contains(w.Entities, e => e.Hero == admiral && e.Side == Bot);
         Assert.False(f.AI.Big?.Hero == admiral);
     }

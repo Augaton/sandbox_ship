@@ -31,7 +31,7 @@ public partial class BattleScreen
         // What the nodes were last given: a write that changes nothing still costs a call into
         // the engine and a transform update, for every entity every frame. Node defaults first.
         public Vector2 Position;
-        public float Rotation, Alpha = 1, Grow = 1;
+        public float Rotation, Alpha = 1, Grow = 1, Stretch = 1;
         public bool Shown = true, EngineOn = true;
         /// <summary>
         /// A ship's shadow, cast aside as if lit from the top left. Craft fly high and cast it
@@ -58,9 +58,8 @@ public partial class BattleScreen
         public bool Shown = true;
     }
 
-    /// <summary>When each big ship came through its portal, by id: it grows out of it.</summary>
+    /// <summary>When each ship of the reserve came out of hyperspace, by id: it races in to its point (BattleScreen.Reserve.cs).</summary>
     readonly Dictionary<int, double> arrivals = [];
-    const double ArrivalMs = 1400;
     /// <summary>When each craft took off (launched, or out of the shipyard), by id: it climbs to its height.</summary>
     readonly Dictionary<int, double> climbs = [];
     const double ClimbMs = 900;
@@ -118,7 +117,7 @@ public partial class BattleScreen
     /// <summary>One batch for the shapes of every layer, filled and sent by each in turn.</summary>
     readonly ShapeBatch shapes = new();
     readonly Stack<AnimatedSprite2D> shotPool = [];
-    DrawCanvas overlay = null!, lod = null!, fx = null!, trails = null!, craftTrails = null!, transientsFx = null!, transientsTop = null!, lamps = null!, partLamps = null!;
+    DrawCanvas overlay = null!, lod = null!, fx = null!, trails = null!, craftTrails = null!, jumps = null!, transientsFx = null!, transientsTop = null!, lamps = null!, partLamps = null!;
     Puffs debris = null!, smoke = null!;
     readonly List<Transient> fxList = [], topList = [];
     int callouts;
@@ -176,6 +175,7 @@ public partial class BattleScreen
         viewsRoot = new Node2D();
         worldRoot.AddChild(viewsRoot);
         trails = Layer(Depth.Ship - 1, "trails", g => DrawTrails(g, false));
+        jumps = Layer(Depth.Fx - 0.5, "jumps", DrawJumps);
         craftTrails = Layer(Depth.Craft - 0.1, "trails", g => DrawTrails(g, true));
         // Over the structures and under their parts; over the parts and under the ships.
         lamps = Layer(Depth.Structure + 1, "lamps", g => DrawLamps(g, false));
@@ -239,6 +239,7 @@ public partial class BattleScreen
         fx.QueueRedraw();
         trails.QueueRedraw();
         craftTrails.QueueRedraw();
+        jumps.QueueRedraw();
         transientsFx.QueueRedraw();
         transientsTop.QueueRedraw();
         overlay.QueueRedraw();
@@ -440,7 +441,11 @@ public partial class BattleScreen
                 Show(v, false);
                 continue;
             }
-            var position = new Vector2((float)e.X, (float)e.Y);
+            // Out of hyperspace, a ship and its parts race in from behind their point.
+            var arriving = arrivals.Count == 0 ? null
+                : e.Kind == EntityKind.Ship ? Arriving(e)
+                : v.ShipPart && World.Entities.Get(e.ParentId) is { } hull ? Arriving(hull) : null;
+            var position = new Vector2((float)e.X, (float)e.Y) + (arriving?.Offset ?? Vector2.Zero);
             if (position != v.Position)
             {
                 v.Position = position;
@@ -491,16 +496,15 @@ public partial class BattleScreen
             Show(v, seen || remembered);
             var cloaked = Vision.Cloaked(e);
             var alpha = remembered ? 0.45 : cloaked ? 0.35 : e.Build < 1 ? 0.4 + 0.4 * e.Build : 1;
-            // Out of its portal: it grows and comes into being. A craft taking off grows a little
-            // as it climbs, its shadow drawing away.
+            // Out of hyperspace: stretched along its course, it brakes hard on its point. A craft
+            // taking off grows a little as it climbs, its shadow drawing away.
             var grow = 1f;
+            var stretch = 1f;
             var lift = 1.0;
-            if (arrivals.TryGetValue(e.Id, out var came))
+            if (arriving is { } arrival)
             {
-                var k = Math.Min(1, (Now - came) / ArrivalMs);
-                grow = (float)(0.25 + 0.75 * EaseOutCubic(k));
-                alpha *= k;
-                if (k >= 1) arrivals.Remove(e.Id);
+                if (e.Kind == EntityKind.Ship) stretch = arrival.Stretch;
+                alpha *= arrival.Alpha;
             }
             else if (climbs.TryGetValue(e.Id, out var took))
             {
@@ -510,10 +514,10 @@ public partial class BattleScreen
                 if (k >= 1) climbs.Remove(e.Id);
             }
             var roll = v.MaxRoll > 0 ? (float)(1 - v.MaxRoll * Math.Min(1, Math.Abs(v.Turn) / v.MaxTurn)) : 1f;
-            if (grow != v.Grow || Math.Abs(roll - v.Roll) > 0.004f)
+            if (grow != v.Grow || stretch != v.Stretch || Math.Abs(roll - v.Roll) > 0.004f)
             {
-                (v.Grow, v.Roll) = (grow, roll);
-                v.Root.Scale = new Vector2(grow * roll, grow);
+                (v.Grow, v.Roll, v.Stretch) = (grow, roll, stretch);
+                v.Root.Scale = new Vector2(grow * roll / MathF.Sqrt(stretch), grow * stretch);
             }
             if (v.Shadow is not null) PlaceShadow(e, v, lift, simple);
             if ((float)alpha != v.Alpha)
@@ -551,9 +555,9 @@ public partial class BattleScreen
     }
 
     /// <summary>
-    /// Moves a ship's shadow to where its light casts it: aside by its height (a craft's bobbing
-    /// gently), turned against its rotation and stretched against its scale, since it hangs from
-    /// the ship. Not drawn from afar.
+    /// Moves a ship's shadow to where its light casts it: aside by its height, turned against its
+    /// rotation and stretched against its scale, since it hangs from the ship. It only moves when
+    /// the ship turns, rolls or climbs. Not drawn from afar.
     /// </summary>
     void PlaceShadow(Entity e, View v, double lift, bool simple)
     {
@@ -565,7 +569,6 @@ public partial class BattleScreen
         }
         if (!on) return;
         var height = v.Height * lift;
-        if (e.Size == SizeClass.Small) height *= 1 + 0.12 * Math.Sin(Now / 1000 * 1.6 + e.Id * 2.3);
         var local = (ShadowFall * (float)height).Rotated(-v.Rotation);
         local = new Vector2(local.X / (v.Grow * v.Roll), local.Y / v.Grow);
         if (local.DistanceSquaredTo(v.ShadowAt) < 0.01f) return;
@@ -818,42 +821,6 @@ public partial class BattleScreen
             Draw.Line(g, s.X, s.Y, s.X2, s.Y2, Palette.Hex(0xe8a13a, 0.7f * a), s.Radius * 2);
             Draw.Line(g, s.X, s.Y, s.X2, s.Y2, Palette.Hex(0xfff2d0, a), s.Radius * 0.8);
         });
-    }
-
-    /// <summary>
-    /// A big ship out of the shipyard comes through a portal: two rings turning against each
-    /// other, a flash, the hull growing out of it. A titan or a leviathan is greeted by a horn.
-    /// </summary>
-    void Portal(Entity e)
-    {
-        arrivals[e.Id] = Now;
-        var (x, y, r, z) = (e.X, e.Y, e.Radius * 1.7, Zoom);
-        var color = Palette.Of(e.Race);
-        var light = Palette.Hex(0x9fd4ff);
-        Add(fxList, 2000, (g, k) =>
-        {
-            var open = k < 0.3 ? EaseOutCubic(k / 0.3) : 1 - EaseInCubic((k - 0.3) / 0.7) * 0.6;
-            var fade = (float)(k < 0.75 ? 1 : 1 - (k - 0.75) / 0.25);
-            var spin = k * Math.PI * 3;
-            Draw.Disc(g, x, y, r * open, color with { A = 0.18f * fade }, z);
-            for (var i = 0; i < 3; i++)
-            {
-                var a0 = spin + i * Math.Tau / 3;
-                Draw.Arc(g, x, y, r * open, a0, a0 + 1.4, 24, light with { A = 0.8f * fade }, 4 / z);
-                var b0 = -spin * 1.6 + i * Math.Tau / 3;
-                Draw.Arc(g, x, y, r * open * 0.72, b0, b0 + 1.1, 20, color with { A = 0.9f * fade }, 3 / z);
-            }
-        });
-        Boom(x, y, r * 2.2 / 64, 1.6, 900, 0.7f);
-        var big = e.Cls is ShipClass.Titan or ShipClass.Leviathan;
-        var mine = e.Side == Opts.Player;
-        if (mine || OnScreen(x, y)) Sfx.Play(Sound.Warp, 0, 0.8);
-        if (!big) return;
-        Shake(600, e.Cls == ShipClass.Leviathan ? 0.008 : 0.005);
-        // The horn carries: one's own is always heard, an enemy's when in sight.
-        if (mine || OnScreen(x, y)) Sfx.Play(Sound.Horn, 0, 1);
-        if (mine) Hud.Toast($"{Ships.Defs[e.Cls].Name} en service");
-        else if (CanSee(e)) Hud.Toast($"Un {Ships.Defs[e.Cls].Name} ennemi est apparu");
     }
 
     void Explode(int id, double x, double y, double radius)
@@ -1150,6 +1117,7 @@ public partial class BattleScreen
             Draw.Line(g, station.X, station.Y, f.RallyX, f.RallyY, green with { A = 0.6f }, 1 / z);
             Draw.Disc(g, f.RallyX, f.RallyY, 5 / z, green with { A = 0.8f }, z);
         }
+        DrawDeployGhost(g, z);
         if (ghost is { } gh)
         {
             var c = gh.Ok ? green : red;

@@ -119,8 +119,9 @@ public static class Protocol
     /// and each side's power, occupations begun, rally points cancelled, what an AI asks for peace, a
     /// truce prolonged). 12: galaxy snapshots 5 and ProposeAccord (shared vision, joint wars,
     /// ultimatums, requests for help, bundles; reputations, the chronicle, what an AI would answer).
+    /// 13: with commands 3 (Deploy) and battle snapshots 10 (the reserve and the jumps).
     /// </summary>
-    public const int Version = 12;
+    public const int Version = 13;
     /// <summary>Where a host listens for players, unless told otherwise.</summary>
     public const int DefaultPort = 24680;
     /// <summary>Where hosts call out to the local network, and the join screen listens.</summary>

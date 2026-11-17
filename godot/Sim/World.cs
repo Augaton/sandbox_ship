@@ -178,6 +178,8 @@ public sealed class Entity : IPoint
     public double X { get; set; }
     public double Y { get; set; }
     public double Angle, Speed, Radius = 10;
+    /// <summary>A throw it was given (a ship out of hyperspace near a craft), in pixels a second: it carries it along and dies out.</summary>
+    public double KnockX, KnockY;
     public SizeClass Size = SizeClass.Structure;
     public double Hull = 1, MaxHull = 1, Shield, MaxShield, ShieldRegen;
     public List<WeaponState> Weapons = [];
@@ -410,6 +412,8 @@ public sealed class FactionState : IResearcher
     public bool AutoAbilities;
     /// <summary>Classes kept in production: one goes back in the queue as soon as none is in it.</summary>
     public List<ShipClass> Repeat = [];
+    /// <summary>Large hulls built and waiting to be called in by hyperspace (Reserves.cs), in the order they were built.</summary>
+    public List<ReserveShip> Reserve = [];
     public BattleStats Stats = new();
     /// <summary>Seconds before each fallen hero can be built again.</summary>
     public Dictionary<HeroId, double> HeroCooldowns = [];
@@ -511,6 +515,9 @@ public sealed class World
     public Side? Winner;
     public List<Zone> Zones = [];
     public List<Strike> Strikes = [];
+    /// <summary>Ships of the reserve in hyperspace towards their point (Reserves.cs), and the next one's id.</summary>
+    public List<Jump> Jumps = [];
+    public int NextJumpId = 1;
     /// <summary>World time of the last damage anyone dealt: a long quiet means a battle that cannot end.</summary>
     public double LastDamage;
     /// <summary>Fog of war: each side only sees and targets what its own units and its allies' see.</summary>

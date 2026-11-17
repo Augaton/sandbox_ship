@@ -86,6 +86,16 @@ public static partial class Snapshot
         var strikes = new List<Strike>();
         for (var n = Count(r); n > 0; n--) strikes.Add(ReadStrike(r));
         replica.Strikes = strikes;
+        var jumps = new List<Jump>();
+        for (var n = Count(r); n > 0; n--)
+        {
+            var j = new Jump { Id = r.ReadVarint(), Side = r.ReadSide(), Cls = r.ReadEnum<ShipClass>(), Hero = r.ReadBoolean() ? ReadHero(r) : null };
+            (j.X, j.Y, j.Angle, j.Left, j.Total) = (r.ReadSingle(), r.ReadSingle(), r.ReadSingle(), r.ReadSingle(), r.ReadSingle());
+            if (!double.IsFinite(j.X) || !double.IsFinite(j.Y) || !double.IsFinite(j.Angle) || !(j.Total > 0) || !double.IsFinite(j.Total) || !double.IsFinite(j.Left))
+                throw new InvalidDataException("Saut invalide");
+            jumps.Add(j);
+        }
+        replica.Jumps = jumps;
         for (var n = Count(r); n > 0; n--) replica.Events.Add(ReadEvent(r));
     }
 
@@ -204,6 +214,8 @@ public static partial class Snapshot
         for (var n = Count(r); n > 0; n--) f.Repeat.Add(r.ReadEnum<ShipClass>());
         f.HeroCooldowns.Clear();
         for (var n = Count(r); n > 0; n--) f.HeroCooldowns[ReadHero(r)] = r.ReadSingle();
+        f.Reserve.Clear();
+        for (var n = Count(r); n > 0; n--) f.Reserve.Add(new ReserveShip(r.ReadEnum<ShipClass>(), r.ReadBoolean() ? ReadHero(r) : null));
     }
 
     static List<QueueItem> ReadQueue(BinaryReader r)
