@@ -1,7 +1,7 @@
-// The reserve (not in the web version): ships too big for a station's shipyard, the large hulls,
-// wait in reserve once built, and their side calls them in by hyperspace where it holds the
-// field: around its structures and its warships, never close to a foe's structure. A jump takes
-// a few seconds, its point marked for all to see; the capitals take longer. Coming out, a ship
+// The reserve (not in the web version): every ship a station builds waits in reserve, and its
+// side calls it in by hyperspace where it holds the field: around its structures and its
+// warships, never close to a foe's structure. A squadron comes in together. A jump takes a few
+// seconds, longer the bigger the ship, its point marked for all to see. Coming out, a large hull
 // throws the craft around it aside.
 using SandboxShip.Sim.Data;
 using static SandboxShip.Sim.Worlds;
@@ -37,34 +37,27 @@ public static class Reserves
     /// hull every half-minute at best never comes near it, and a forged list is refused.
     /// </summary>
     public const int MaxListed = 4096;
-    /// <summary>Seconds in hyperspace: the line's ships, and the capitals, who announce themselves longer.</summary>
-    public const double JumpTime = 3, CapitalJumpTime = 6;
+    /// <summary>Seconds in hyperspace: small craft, medium ships, the line's large hulls, and the capitals, who announce themselves longer.</summary>
+    public const double SmallJumpTime = 1.5, MediumJumpTime = 2, JumpTime = 3, CapitalJumpTime = 6;
+    /// <summary>Room between the craft of a squadron coming in together.</summary>
+    public const double SquadGap = 30;
     /// <summary>A ship coming out throws craft aside within its girth and this much more, at this speed at most.</summary>
     public const double ShockReach = 220;
     const double ShockSpeed = 320;
 
-    /// <summary>Whether ships of this class go to the reserve rather than out of the shipyard: the large hulls.</summary>
-    public static bool Reserved(ShipClass cls) => Ships.Defs[cls].Size == SizeClass.Large;
-
     public static bool Capital(ShipClass cls) => cls is ShipClass.Titan or ShipClass.Leviathan or ShipClass.Colossus;
 
-    public static double JumpTimeOf(ShipClass cls) => Capital(cls) ? CapitalJumpTime : JumpTime;
+    public static double JumpTimeOf(ShipClass cls) => Capital(cls) ? CapitalJumpTime : Ships.Defs[cls].Size switch
+    {
+        SizeClass.Small => SmallJumpTime,
+        SizeClass.Medium => MediumJumpTime,
+        _ => JumpTime,
+    };
 
     /// <summary>How far round an entity of the side its reserve may be called in: its built structures and its warships; 0 for anything else.</summary>
     static double ReachOf(Entity e) =>
         e.Kind == EntityKind.Structure && e.Build >= 1 ? e.Radius + StructureReach
         : e.Kind == EntityKind.Ship && e.Size != SizeClass.Small ? e.Girth + ShipReach : 0;
-
-    /// <summary>Where a side may call its reserve in, as circles, for the view to draw.</summary>
-    public static List<Circle> Zones(World world, Side side)
-    {
-        var zones = new List<Circle>();
-        foreach (var e in world.Entities)
-        {
-            if (e.Side == side && ReachOf(e) is var r && r > 0) zones.Add(new Circle(e.X, e.Y, r));
-        }
-        return zones;
-    }
 
     /// <summary>Which way a ship called in at (x, y) faces: away from its station, as if come from home; toward the middle of the map near it.</summary>
     public static double Heading(World world, Side side, double x, double y)
@@ -92,6 +85,8 @@ public static class Reserves
         var near = false;
         foreach (var e in world.Entities)
         {
+            // Never on top of a building, one's own included: it could not get out.
+            if (e.Kind == EntityKind.Structure && Gap(e, x, y) < girth) return Result.Fail("Emplacement occupé");
             if (e.Side == side) near = near || ReachOf(e) is var r && r > 0 && Hypot(e.X - x, e.Y - y) <= r;
             else if (e.Kind == EntityKind.Structure && Foes(world, e.Side, side) && Gap(e, x, y) < EnemyClearance) return Result.Fail("Trop près d'un bâtiment ennemi");
         }
@@ -100,19 +95,74 @@ public static class Reserves
         return Result.OK;
     }
 
-    /// <summary>Sends a ship of the reserve into hyperspace towards (x, y).</summary>
+    /// <summary>
+    /// Sends a ship of the reserve into hyperspace towards (x, y); a squadron's class brings as
+    /// many of its kind as make a squadron, side by side across its heading.
+    /// </summary>
     public static Result Deploy(World world, Side side, ReserveShip ship, double x, double y)
     {
         var r = CanDeploy(world, side, ship, x, y);
         if (!r.Ok) return r;
-        world.Factions[side].Reserve.Remove(ship);
+        var reserve = world.Factions[side].Reserve;
+        var many = ship.Hero is null ? Math.Min(Ships.Defs[ship.Cls].Squad ?? 1, reserve.Count(s => s == ship)) : 1;
         var time = JumpTimeOf(ship.Cls);
-        world.Jumps.Add(new Jump
+        var angle = Heading(world, side, x, y);
+        var (ax, ay) = (-Math.Sin(angle), Math.Cos(angle));
+        for (var i = 0; i < many; i++)
         {
-            Id = world.NextJumpId++, Side = side, Cls = ship.Cls, Hero = ship.Hero, X = x, Y = y,
-            Angle = Heading(world, side, x, y), Left = time, Total = time,
-        });
+            reserve.Remove(ship);
+            var off = (i - (many - 1) / 2.0) * SquadGap;
+            world.Jumps.Add(new Jump
+            {
+                Id = world.NextJumpId++, Side = side, Cls = ship.Cls, Hero = ship.Hero,
+                X = Math.Clamp(x + ax * off, 0, world.Width), Y = Math.Clamp(y + ay * off, 0, world.Height),
+                Angle = angle, Left = time, Total = time,
+            });
+        }
         return Result.OK;
+    }
+
+    /// <summary>
+    /// Points round (x, y), nearest first, on a spiral whose turns are `gap` apart: where to call
+    /// a whole reserve in about one point, each on a spot of its own.
+    /// </summary>
+    public static IEnumerable<(double X, double Y)> Around(double x, double y, double gap, int count = 60)
+    {
+        for (var i = 0; i < count; i++)
+        {
+            var r = gap * Math.Sqrt(i);
+            var a = i * 2.39996;
+            yield return (x + Math.Cos(a) * r, y + Math.Sin(a) * r);
+        }
+    }
+
+    /// <summary>
+    /// Calls the whole reserve in where the side's fleet gathers: at the rally point or round it,
+    /// else on the way there from the station, else by the station; a squadron at a time. A ship
+    /// with nowhere to go waits. The AI does so at every thought.
+    /// </summary>
+    public static void CallAll(World world, Side side)
+    {
+        if (!world.Factions.TryGetValue(side, out var f) || f.Reserve.Count == 0) return;
+        var station = StationOf(world, side);
+        foreach (var ship in f.Reserve.ToList())
+        {
+            // Gone already with its squadron.
+            if (!f.Reserve.Contains(ship)) continue;
+            foreach (var (x, y) in Gathering(f, station))
+            {
+                if (Deploy(world, side, ship, x, y).Ok) break;
+            }
+        }
+    }
+
+    static IEnumerable<(double X, double Y)> Gathering(FactionState f, Entity? station)
+    {
+        yield return (f.RallyX, f.RallyY);
+        for (var i = 0; i < 6; i++) yield return (f.RallyX + Math.Cos(i * Math.Tau / 6) * 260, f.RallyY + Math.Sin(i * Math.Tau / 6) * 260);
+        if (station is null) yield break;
+        foreach (var k in new[] { 0.6, 0.3 }) yield return (station.X + (f.RallyX - station.X) * k, station.Y + (f.RallyY - station.Y) * k);
+        for (var i = 0; i < 8; i++) yield return (station.X + Math.Cos(i * Math.Tau / 8) * 450, station.Y + Math.Sin(i * Math.Tau / 8) * 450);
     }
 
     /// <summary>How many ships of this class the side has in reserve or on their way.</summary>
@@ -136,7 +186,7 @@ public static class Reserves
             if (!world.Factions.ContainsKey(j.Side)) continue;
             var s = j.Hero is HeroId hero ? SpawnHero(world, j.Side, hero, j.X, j.Y, j.Angle) : SpawnShip(world, j.Side, j.Cls, j.X, j.Y, j.Angle);
             world.Events.Add(new Delivered(s.Id));
-            Shock(world, s);
+            if (s.Size == SizeClass.Large) Shock(world, s);
         }
     }
 

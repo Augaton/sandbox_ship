@@ -32,16 +32,28 @@ public class ReserveTests
     static int Count(World w, ShipClass cls) => w.Entities.Count(e => e.Kind == EntityKind.Ship && e.Side == Klaed && e.Cls == cls);
 
     [Fact]
-    public void Large_hulls_go_to_the_reserve_and_the_others_out_of_the_shipyard()
+    public void Every_ship_goes_to_the_reserve_and_a_squadron_comes_in_together()
     {
         var w = NewWorld();
         Build(w, ShipClass.Battlecruiser);
         Assert.Equal([new ReserveShip(ShipClass.Battlecruiser)], w.Factions[Klaed].Reserve);
         Assert.Equal(0, Count(w, ShipClass.Battlecruiser));
         Build(w, ShipClass.Frigate);
-        Assert.Equal(1, Count(w, ShipClass.Frigate));
-        Assert.Single(w.Factions[Klaed].Reserve);
-        Assert.All(Ships.All, c => Assert.Equal(Ships.Defs[c].Size == SizeClass.Large, Reserves.Reserved(c)));
+        Assert.Equal(0, Count(w, ShipClass.Frigate));
+        Assert.Equal(2, w.Factions[Klaed].Reserve.Count);
+        // A squadron is four in reserve, and one call brings all four, side by side.
+        Build(w, ShipClass.Fighter);
+        var fighter = new ReserveShip(ShipClass.Fighter);
+        Assert.Equal(4, w.Factions[Klaed].Reserve.Count(s => s == fighter));
+        Assert.True(Reserves.Deploy(w, Klaed, fighter, 1200, 1500).Ok);
+        Assert.Equal(0, w.Factions[Klaed].Reserve.Count(s => s == fighter));
+        var jumps = w.Jumps.Where(j => j.Cls == ShipClass.Fighter).ToList();
+        Assert.Equal(4, jumps.Count);
+        Assert.All(jumps, j => Assert.Equal(Reserves.SmallJumpTime, j.Total));
+        Assert.True(jumps.Zip(jumps.Skip(1)).All(p => Math.Abs(Hypot(p.First.X - p.Second.X, p.First.Y - p.Second.Y) - Reserves.SquadGap) < 1e-6));
+        Steps.Run(w, Reserves.SmallJumpTime + 0.1);
+        Assert.Equal(4, Count(w, ShipClass.Fighter));
+        Assert.Equal(Reserves.MediumJumpTime, Reserves.JumpTimeOf(ShipClass.Frigate));
     }
 
     [Fact]

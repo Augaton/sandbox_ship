@@ -30,6 +30,8 @@ public static class Assault
     [
         (ShipClass.Frigate, 9), (ShipClass.Torpedo, 4), (ShipClass.Bomber, 4), (ShipClass.Support, 2),
         (ShipClass.Battlecruiser, 2),
+        // Against platforms three times as sturdy as when the rest was measured: siege guns.
+        (ShipClass.Artillery, 2),
     ];
 
     public static int StartLevel(Slot s) => s.Team == Defenders ? Station.Levels.Count : BeachheadLevel;
@@ -60,14 +62,17 @@ public static class Assault
         }
     }
 
-    /// <summary>Three platforms at their top tier in an arc before the station, an ion cannon on a flank.</summary>
+    /// <summary>Level of the fortress's platforms: the third, the bastion's being out of reach of the measured balance.</summary>
+    const int FortressPlatforms = 3;
+
+    /// <summary>Three platforms at level 3 in an arc before the station, an ion cannon on a flank.</summary>
     static void Fortify(World world, Side side, Entity station, double toward)
     {
         foreach (var turn in new[] { -0.7, 0, 0.7 })
         {
             var a = toward + turn;
             var p = SpawnStructure(world, side, BuildableType.Platform, station.X + Math.Cos(a) * 330, station.Y + Math.Sin(a) * 330);
-            while (p.Level <= Buildables.Defs[BuildableType.Platform].Tiers!.Count) Structures.ApplyTier(world, p);
+            while (p.Level < FortressPlatforms) Structures.ApplyTier(world, p);
             p.Shield = p.MaxShield;
         }
         var flank = toward + 1.5;

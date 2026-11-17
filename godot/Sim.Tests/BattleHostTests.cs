@@ -155,8 +155,8 @@ public class BattleHostTests(ITestOutputHelper output)
         t.Run(1);
         Assert.Equal([Eve], t.Host.Peers);
         Assert.InRange(t.Host.Snapshots - sent, 19, 21);
-        // The AI plays it: it queues ships by itself.
-        t.Run(20);
+        // The AI plays it: it queues ships by itself, once it has the credits for the one it picked.
+        t.Run(40);
         Assert.True(nairan.Queue.Count > 0 || nairan.Stats.Built > 0);
     }
 

@@ -1,6 +1,6 @@
 // Original sprites for the ship classes the packs lack (bulwark, carrier, titan, leviathan,
-// colossus), and for every class of the neutral Errants, who have no pack, drawn from scratch in
-// the packs' manner. Each ship is sculpted as a height map (bevelled plates, carved grooves, inset
+// colossus, artillery, corvette, jammer, stealth cruiser), and for every class of the neutral
+// Errants, who have no pack, drawn from scratch in the packs' manner. Each ship is sculpted as a height map (bevelled plates, carved grooves, inset
 // panels that follow the shape, raised mounts and rivets), lit from the upper left, and the light
 // is brought down to the packs' own color ramps, four or five tones per material; trims, slots,
 // lights and engines glow on their own. A black outline closes it, as in the packs. Nothing is
@@ -371,6 +371,9 @@ public static partial class ShipForge
         public abstract void Wing(double root, double y, double span, double depth);
         public abstract void Jaw(double dx, double top, double bottom, double half);
 
+        /// <summary>Works the race's surface into a raised shape, `half` wide, from `top` down, lighting nothing: ribs, panel lines, a maze, gilded edges.</summary>
+        public abstract void Etch(bool[] shape, double top, double half);
+
         /// <summary>A gun mount: a raised ring of plate around a lit eye.</summary>
         public virtual void Mount(double dx, double y, double r)
         {
@@ -434,11 +437,16 @@ public static partial class ShipForge
             var cut = half * 0.6;
             var shape = C.Body((half - cut, top), (half, top + cut), (half, bottom - 4), (half - 3, bottom));
             C.Raise(shape, M.Hull, 4);
-            C.Inset(shape, 2.2f);
-            Ribbed(shape, 4, half - 3, half, top + cut);
+            Etch(shape, top + cut, half);
             // A raised keel with its glowing stripe, dashed.
             C.Lift(C.Rect(-2, top + cut * 0.6, 2, bottom - 6), 1.5f);
             for (var y = top + cut + 2; y < bottom - 8; y += 2) C.Glow(C.Rect(-1, y, 1, y + 1), M.Accent, (int)(y - top) % 6 < 2 ? 2 : 1);
+        }
+
+        public override void Etch(bool[] shape, double top, double half)
+        {
+            C.Inset(shape, 2.2f);
+            Ribbed(shape, 4, half - 3, half, top);
         }
 
         public override void Pod(double dx, double top, double bottom, double half)
@@ -501,8 +509,7 @@ public static partial class ShipForge
             var len = bottom - top;
             var shape = C.Body((0.5, top), (half * 0.42, top + len * 0.14), (half * 0.82, top + len * 0.32), (half, top + len * 0.48), (half, bottom - 5), (half * 0.7, bottom));
             C.Raise(shape, M.Hull, 4, 4);
-            C.Inset(shape, 2.5f);
-            C.Inset(shape, 6.5f, 0.9f);
+            Etch(shape, top, half);
             // A pale ridge down the middle, violet slots in pairs, a blue arc, the teal heart astern.
             C.Raise(C.Rect(-1.5, top + len * 0.08, 1.5, bottom - 8), M.Trim, 6, 1.5f);
             for (var y = top + len * 0.36; y < bottom - len * 0.22; y += 8)
@@ -514,6 +521,12 @@ public static partial class ShipForge
             C.Glow(C.Line(half * 0.55, bottom - len * 0.15, 0, bottom - len * 0.2, 1.5), M.Glass, 1);
             C.Glow(C.Oval(0, bottom - len * 0.08, half * 0.28, 3), M.Light, 1);
             C.Glow(C.Oval(0, bottom - len * 0.08, half * 0.12, 1.5), M.Light, 2);
+        }
+
+        public override void Etch(bool[] shape, double top, double half)
+        {
+            C.Inset(shape, 2.5f);
+            C.Inset(shape, 6.5f, 0.9f);
         }
 
         public override void Pod(double dx, double top, double bottom, double half)
@@ -572,8 +585,7 @@ public static partial class ShipForge
             var len = bottom - top;
             var shape = C.Body((0.5, top), (half * 0.35, top + len * 0.1), (half * 0.78, top + len * 0.32), (half, top + len * 0.52), (half * 0.8, top + len * 0.76), (half * 0.35, bottom - 3), (0.5, bottom));
             C.Raise(shape, M.Hull, 4, 5);
-            C.Inset(shape, 2.5f);
-            Maze(shape);
+            Etch(shape, top, half);
             // A flesh-colored backbone, blue chevrons, green crescents along the flanks.
             C.Raise(C.Body((0.5, top + 2), (2.5, top + len * 0.2), (2.5, bottom - len * 0.15), (0.5, bottom - 4)), M.Trim, 6, 1.5f);
             for (var i = 0; i < 4; i++)
@@ -586,6 +598,12 @@ public static partial class ShipForge
                 var y = top + len * (0.36 + 0.36 * t);
                 C.Glow(C.Rect(half * (0.86 - 0.22 * Math.Sin(t * Math.PI)), y, half * (0.86 - 0.22 * Math.Sin(t * Math.PI)) + 1, y + 1), M.Accent, t > 0.3 && t < 0.7 ? 2 : 1);
             }
+        }
+
+        public override void Etch(bool[] shape, double top, double half)
+        {
+            C.Inset(shape, 2.5f);
+            Maze(shape);
         }
 
         public override void Pod(double dx, double top, double bottom, double half)
@@ -743,8 +761,7 @@ public static partial class ShipForge
             var len = bottom - top;
             var hull = Lance(top, bottom, half);
             C.Raise(hull, M.Hull, 3, (float)Math.Clamp(half * 0.15, 2, 3));
-            if (half >= 20) C.Inset(hull, 2.5f, 1f);
-            Gild(hull, half >= 14 ? 2 : 1);
+            Etch(hull, top, half);
             var deck = Lance(top + len * 0.1, bottom - len * 0.05, half * 0.55);
             var window = half * 0.78;
             for (var y = top + len * 0.36; y < bottom - len * 0.14; y += Math.Max(4, half * 0.45))
@@ -758,6 +775,12 @@ public static partial class ShipForge
             var ridge = C.Body((0.5, top + len * 0.15), (Math.Max(1.5, half * 0.16), top + len * 0.22), (Math.Max(1.5, half * 0.16), bottom - len * 0.1), (0.5, bottom - len * 0.07));
             C.Raise(ridge, M.Trim, 7, 1);
             C.Glow(C.Rect(-0.5, top + len * 0.22, 0.5, bottom - len * 0.11), M.Accent, 1);
+        }
+
+        public override void Etch(bool[] shape, double top, double half)
+        {
+            if (half >= 20) C.Inset(shape, 2.5f, 1f);
+            Gild(shape, half >= 14 ? 2 : 1);
         }
 
         public override void Pod(double dx, double top, double bottom, double half)
@@ -1037,6 +1060,135 @@ public static partial class ShipForge
         return c;
     }
 
+    /// <summary>
+    /// Artillery: a siege gun with a ship behind it. One long tube down the keel, in the race's
+    /// second color, reaching far past the bow to its muzzle brake, laid in a heavy recoil
+    /// cradle; a broad, squat hull astern between two shell magazines.
+    /// </summary>
+    static Canvas Artillery(Faction f)
+    {
+        var c = new Canvas(41, 64);
+        var k = KitOf(f, c);
+        k.Pod(14, 34, 58, 4.5);
+        k.Spine(22, 61, 10);
+        Stern(c, 61, 7);
+        // The magazines either side of the breech, their shell caps in two rows.
+        c.Raise(c.Rect(4, 44, 9.5, 56), M.Hull, 6, 1);
+        for (var y = 46.5; y < 55; y += 3)
+        {
+            foreach (var dx in new[] { 5.7, 7.8 }) c.Raise(c.Oval(dx, y, 0.9, 0.9), M.Trim, 7, 0.6f);
+        }
+        // The cradle the tube lies in, its recoil cylinders along it.
+        var cradle = c.Body((4.5, 24), (6.5, 26), (6.5, 42), (5, 44));
+        c.Raise(cradle, M.Plate, 7, 1.5f);
+        c.Inset(cradle, 1.5f, 0.8f);
+        c.Raise(c.Rect(3.5, 20, 5.5, 41), M.Plate, 9, 1);
+        // The tube, banded, a slotted brake at its muzzle; the breech astern, a shell glowing in it.
+        var tube = c.Body((2.5, 5), (2.5, 22), (3.5, 24), (3.5, 42));
+        c.Raise(tube, M.Trim, 10, 2);
+        for (var y = 9; y < 22; y += 4) c.Carve(c.Rect(-2.5, y, 2.5, y + 1), 0.8f);
+        c.Raise(c.Rect(-4.5, 0, 4.5, 5), M.Plate, 11, 1);
+        c.Carve(c.Rect(1.5, 1.5, 4.5, 2.5), 1.8f);
+        c.Carve(c.Rect(1.5, 3, 4.5, 4), 1.8f);
+        c.Glow(c.Rect(-0.5, 0, 0.5, 1), M.Core, 1);
+        c.Raise(c.Rect(-4, 40, 4, 47), M.Plate, 10, 1);
+        c.Glow(c.Rect(-1.5, 42, 1.5, 45), M.Core, 1);
+        c.Glow(c.Rect(-0.5, 43, 0.5, 44), M.Core, 2);
+        k.Engines(61, 4.5);
+        k.Engines(58, 14);
+        return c;
+    }
+
+    /// <summary>
+    /// Corvette: a needle of a hull on swept wings, quick and small; a flak mount on each
+    /// sponson, its twin barrels forward, and the point-defense dome amidships, a blue eye.
+    /// </summary>
+    static Canvas Corvette(Faction f)
+    {
+        var c = new Canvas(27, 33);
+        var k = KitOf(f, c);
+        k.Wing(4, 15, 10, 8);
+        k.Spine(1, 30, 4.5);
+        // The flak mounts on their sponsons, twin barrels forward.
+        c.Raise(c.Pair((3, 10), (8, 10), (9.5, 12), (9.5, 15), (3, 16)), M.Hull, 5, 1.2f);
+        c.Raise(c.Rect(5, 5, 6, 11), M.Plate, 8, 0.8f);
+        c.Raise(c.Rect(7, 5, 8, 11), M.Plate, 8, 0.8f);
+        k.Mount(6.5, 12, 2.8);
+        // The point-defense dome.
+        c.Raise(c.Oval(0, 23, 3.2, 3.2), M.Plate, 6, 1.5f);
+        c.Glow(c.Oval(0, 23, 2.2, 2.2), M.Glass, 1);
+        c.Glow(c.Oval(-0.7, 22.3, 0.9, 0.9), M.Glass, 2);
+        k.Engines(31, 2.5);
+        return c;
+    }
+
+    /// <summary>
+    /// Jammer: a small hull carrying two great dishes on outriggers, a mast of crossed antennas
+    /// at its bow, swept fins astern studded with emitters; every one of them a blue light.
+    /// </summary>
+    static Canvas Jammer(Faction f)
+    {
+        var c = new Canvas(49, 46);
+        var k = KitOf(f, c);
+        k.Wing(5, 28, 19, 9);
+        foreach (var (dx, y) in new[] { (9.0, 32.0), (13.0, 33.0) })
+        {
+            c.Raise(c.Oval(dx, y, 2, 2), M.Plate, 6, 1);
+            c.Glow(c.Oval(dx, y, 1.2, 1.2), M.Glass, 1);
+            c.Glow(c.Rect(dx - 0.5, y - 0.5, dx + 0.5, y + 0.5), M.Glass, 2);
+        }
+        k.Spine(6, 43, 7.5);
+        // The outriggers and their dishes: a bowl in rings round a lit feed on three struts, rimmed in the hull's color.
+        c.Raise(c.Rect(5, 13, 10, 17), M.Hull, 4, 1);
+        const double dish = 15.5, dy0 = 15, r = 7.5;
+        c.Raise(c.Oval(dish, dy0, r, r), M.Plate, 6, 1.5f);
+        c.Dye(Canvas.Minus(c.Oval(dish, dy0, r, r), c.Oval(dish, dy0, r - 1.5, r - 1.5)), M.Hull);
+        c.Carve(c.Oval(dish, dy0, r * 0.7, r * 0.7), 1f);
+        c.Carve(c.Oval(dish, dy0, r * 0.4, r * 0.4), 1f);
+        foreach (var (sx, sy) in new[] { (0.0, -1.0), (0.87, 0.5), (-0.87, 0.5) })
+        {
+            c.Raise(c.Line(dish + sx * r * 0.8, dy0 + sy * r * 0.8, dish, dy0), M.Plate, 7, 0.8f);
+        }
+        c.Glow(c.Oval(dish, dy0, 1.5, 1.5), M.Glass, 1);
+        c.Glow(c.Rect(dish - 0.5, dy0 - 0.5, dish + 0.5, dy0 + 0.5), M.Glass, 2);
+        // The mast at the bow: crossed antennas, a blue light at each end.
+        c.Raise(c.Rect(-0.5, 0, 0.5, 9), M.Plate, 8, 0.8f);
+        foreach (var (y, half) in new[] { (2.0, 2.5), (5.0, 4.5) })
+        {
+            c.Raise(c.Rect(-half, y, half, y + 1), M.Plate, 8, 0.8f);
+            c.Glow(c.Rect(half - 0.5, y, half + 0.5, y + 1), M.Glass, 2);
+        }
+        c.Glow(c.Rect(-0.5, 0, 0.5, 1), M.Glass, 2);
+        k.Engines(43, 3.5);
+        return c;
+    }
+
+    /// <summary>
+    /// Stealth cruiser: a low chevron of dark plates in flat facets that turn the light away,
+    /// the race's second color on their leading edges, its hull only on the faceted hump down
+    /// the middle, worked in its hand; one gun, an unlit canopy, the engines in the trailing edge.
+    /// </summary>
+    static Canvas Stealth(Faction f)
+    {
+        var c = new Canvas(56, 50);
+        var k = KitOf(f, c);
+        var wing = c.Body((0.5, 1), (26, 40), (20, 43), (10, 37), (6, 46), (0.5, 46));
+        c.Raise(wing, M.Plate, 5, 9);
+        c.Dye(c.Front(wing, 1), M.Trim);
+        // Creases between the facets, from the nose to the wingtips.
+        c.CarveLine(wing, 4, 10, 21, 38, 0.8f);
+        c.CarveLine(wing, 9, 22, 10, 35, 0.8f);
+        var hump = c.Body((0.5, 5), (5, 18), (7, 31), (5, 41), (0.5, 45));
+        c.Raise(hump, M.Hull, 8, 5);
+        k.Etch(hump, 5, 7);
+        c.Raise(c.Body((0.5, 8), (1, 12), (1, 40), (0.5, 42)), M.Trim, 9, 1);
+        c.Raise(c.Body((0.5, 24), (2.5, 28), (2.5, 33), (0.5, 35)), M.Plate, 10, 1);
+        c.Glow(c.Body((0.5, 25.5), (1.5, 28.5), (1.5, 32), (0.5, 33.5)), M.Glass, 0);
+        k.Mount(0, 15, 3);
+        k.Engines(46, 4);
+        return c;
+    }
+
     // The Errants have no pack: their craft and warships are drawn here too, in their own hand,
     // sized as the packs' ships of the same class.
 
@@ -1203,10 +1355,14 @@ public static partial class ShipForge
     public sealed record Sprites(Image Hull, Image Engine, int EngineFrames, Image Destruction, int DestructionFrames);
 
     /// <summary>The classes the packs lack, drawn here for every faction.</summary>
-    static readonly ShipClass[] Capitals = [ShipClass.Bulwark, ShipClass.Carrier, ShipClass.Titan, ShipClass.Leviathan, ShipClass.Colossus];
+    static readonly ShipClass[] Lacking =
+    [
+        ShipClass.Bulwark, ShipClass.Carrier, ShipClass.Titan, ShipClass.Leviathan, ShipClass.Colossus,
+        ShipClass.Artillery, ShipClass.Corvette, ShipClass.Jammer, ShipClass.Stealth,
+    ];
 
     /// <summary>The classes drawn here for a faction: those the packs lack, and every one for the Errants, who have no pack.</summary>
-    public static IReadOnlyList<ShipClass> Classes(Faction f) => f == Faction.Errant ? Ships.All : Capitals;
+    public static IReadOnlyList<ShipClass> Classes(Faction f) => f == Faction.Errant ? Ships.All : Lacking;
 
     /// <summary>
     /// The star lance from above: a round gun deck on four buttresses, an emitter on each
@@ -1264,6 +1420,10 @@ public static partial class ShipForge
             ShipClass.Titan => (Titan(faction), 0),
             ShipClass.Leviathan => (Leviathan(faction), 1),
             ShipClass.Colossus => (Colossus(faction), 1),
+            ShipClass.Artillery => (Artillery(faction), 0),
+            ShipClass.Corvette => (Corvette(faction), 0),
+            ShipClass.Jammer => (Jammer(faction), 0),
+            ShipClass.Stealth => (Stealth(faction), 1),
             _ => throw new ArgumentOutOfRangeException(nameof(cls)),
         };
         Bases(canvas, KitOf(faction, canvas), cls);

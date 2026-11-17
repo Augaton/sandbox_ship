@@ -129,12 +129,10 @@ public static class Structures
         AddHardpoints(world, station, next.Hardpoints);
     }
 
-    static Entity ShipyardPos(World world, Entity station) =>
-        ChildrenOf(world, station.Id).Find(c => c.Type == "shipyard") ?? station;
-
     /// <summary>
-    /// Two queues run side by side: ships (paused while the shipyard is down) and station
-    /// upgrades. Only the front of each progresses.
+    /// Ships come one after the other (paused while the shipyard is down); building works, the
+    /// station's upgrade and the levels of platforms and outposts, all go on at once, one per
+    /// building (not in the web version, where they queued too).
     /// </summary>
     public static void UpdateProduction(World world, double dt)
     {
@@ -142,12 +140,20 @@ public static class Structures
         {
             var station = StationOf(world, f.Id);
             if (station is null) continue;
-            var work = f.BuildQueue.Count > 0 ? f.BuildQueue[0] : null;
-            if (work is not null && (work.Remaining -= dt) <= 0)
+            for (var i = 0; i < f.BuildQueue.Count; i++)
             {
-                f.BuildQueue.RemoveAt(0);
+                var work = f.BuildQueue[i];
+                // A building lost meanwhile takes its work with it.
+                var target = work.Kind == QueueKind.Tier ? world.Entities.Get(work.TargetId) : null;
+                if (work.Kind == QueueKind.Tier && target is null)
+                {
+                    f.BuildQueue.RemoveAt(i--);
+                    continue;
+                }
+                if ((work.Remaining -= dt) > 0) continue;
+                f.BuildQueue.RemoveAt(i--);
                 if (work.Kind == QueueKind.Upgrade) ApplyUpgrade(world, station);
-                if (work.Kind == QueueKind.Tier && world.Entities.Get(work.TargetId) is { } target) ApplyTier(world, target);
+                else ApplyTier(world, target!);
             }
             if (f.HeroCooldowns.Count > 0)
             {
@@ -163,30 +169,11 @@ public static class Structures
             item.Remaining -= dt;
             if (item.Remaining > 0) continue;
             f.Queue.RemoveAt(0);
-            // Too big for the shipyard: into the reserve, to be called in by hyperspace.
+            // Every ship waits in reserve, to be called in by hyperspace (not in the web version).
             var hull = item.Kind == QueueKind.Hero ? Heroes.Defs[item.Hero].Base : item.Cls;
-            if (Reserves.Reserved(hull))
-            {
-                var many = item.Kind == QueueKind.Hero ? 1 : Ships.Defs[hull].Squad ?? 1;
-                f.Stats.Built += many;
-                for (var i = 0; i < many; i++) f.Reserve.Add(new ReserveShip(hull, item.Kind == QueueKind.Hero ? item.Hero : null));
-                continue;
-            }
-            var p = ShipyardPos(world, station);
-            var angle = Math.Atan2(f.RallyY - p.Y, f.RallyX - p.X);
-            // Squadrons come out together and fly to the rally point side by side.
-            var count = item.Kind == QueueKind.Hero ? 1 : Ships.Defs[item.Cls].Squad ?? 1;
-            f.Stats.Built += count;
-            for (var i = 0; i < count; i++)
-            {
-                var s = item.Kind == QueueKind.Hero
-                    ? SpawnHero(world, f.Id, item.Hero, p.X, p.Y, angle)
-                    : SpawnShip(world, f.Id, item.Cls, p.X + i * 6, p.Y, angle);
-                var x = f.RallyX + (Rand(world) - 0.5) * 160;
-                var y = f.RallyY + (Rand(world) - 0.5) * 160;
-                s.Order = Movement.RallyOrder(world, s, x, y);
-                world.Events.Add(new Delivered(s.Id));
-            }
+            var many = item.Kind == QueueKind.Hero ? 1 : Ships.Defs[hull].Squad ?? 1;
+            f.Stats.Built += many;
+            for (var i = 0; i < many; i++) f.Reserve.Add(new ReserveShip(hull, item.Kind == QueueKind.Hero ? item.Hero : null));
         }
     }
 
@@ -272,7 +259,6 @@ public static class Structures
         if (!world.Factions.TryGetValue(side, out var f) || station is null) return Result.Fail("Aucune station");
         if (station.Level >= Station.Levels.Count) return Result.Fail("Niveau maximum");
         if (f.BuildQueue.Exists(q => q.Kind == QueueKind.Upgrade)) return Result.Fail("Amélioration déjà en cours");
-        if (f.BuildQueue.Count >= Buildables.MaxQueue) return Result.Fail("File d'attente pleine");
         if (f.Credits < Station.Levels[station.Level].UpgradeCost) return Result.Fail("Crédits insuffisants");
         return Result.OK;
     }
@@ -323,6 +309,8 @@ public static class Structures
         if (tiers is null || e.Level - 1 >= tiers.Count) return;
         var tier = tiers[e.Level - 1];
         e.Level++;
+        if (tier.Radius is double radius) e.Radius = radius;
+        if (tier.Hardpoints is not null) AddHardpoints(world, e, tier.Hardpoints);
         var hull = tier.Hull * HullMult(world, e.Side);
         e.Hull += hull - e.MaxHull;
         e.MaxHull = hull;
@@ -335,7 +323,8 @@ public static class Structures
         if (tier.Hangar is not null && e.Hangar is not null) e.Hangar.Def = tier.Hangar;
     }
 
-    static int QueuedTiers(FactionState f, int id) => f.BuildQueue.Count(q => q.Kind == QueueKind.Tier && q.TargetId == id);
+    /// <summary>Whether this building is taking its next level now.</summary>
+    public static bool Upgrading(FactionState f, int id) => f.BuildQueue.Exists(q => q.Kind == QueueKind.Tier && q.TargetId == id);
 
     public static Result CanUpgradeStructure(World world, Side side, int id)
     {
@@ -343,21 +332,35 @@ public static class Structures
         var tiers = e?.Kind == EntityKind.Structure ? BuildableOf(e)?.Tiers : null;
         if (e is null || !world.Factions.TryGetValue(side, out var f) || e.Side != side || tiers is null) return Result.Fail("Rien à améliorer");
         if (e.Build < 1) return Result.Fail("En construction");
-        var queued = QueuedTiers(f, id);
-        if (e.Level + queued > tiers.Count) return Result.Fail("Niveau maximum");
-        if (f.BuildQueue.Count >= Buildables.MaxQueue) return Result.Fail("File d'attente pleine");
-        if (f.Credits < tiers[e.Level - 1 + queued].Cost) return Result.Fail("Crédits insuffisants");
+        if (e.Level > tiers.Count) return Result.Fail("Niveau maximum");
+        // One level at a time on each building, every building at once.
+        if (Upgrading(f, id)) return Result.Fail("Amélioration en cours");
+        var tier = tiers[e.Level - 1];
+        if ((StationOf(world, side)?.Level ?? 1) < tier.MinStationLevel) return Result.Fail($"Station niveau {tier.MinStationLevel} requise");
+        if (tier.Radius is double radius && radius > e.Radius && !RoomToGrow(world, e, radius)) return Result.Fail("Pas assez de place autour");
+        if (f.Credits < tier.Cost) return Result.Fail("Crédits insuffisants");
         return Result.OK;
     }
 
-    /// <summary>Queues the next level of a platform or hangar in the buildings queue.</summary>
+    /// <summary>Whether a building may widen to `radius` where it stands: as clear of the others as a new one would be.</summary>
+    static bool RoomToGrow(World world, Entity e, double radius)
+    {
+        foreach (var o in world.Entities)
+        {
+            if (o == e || o.Kind == EntityKind.Ship || o.ParentId == e.Id) continue;
+            if (Hypot(o.X - e.X, o.Y - e.Y) < o.Radius + radius + 10) return false;
+        }
+        return world.Terrain.Count == 0 || Terrains.Clear(world, e.X, e.Y, radius);
+    }
+
+    /// <summary>Starts the next level of a platform or outpost, alongside every other building work.</summary>
     public static Result UpgradeStructure(World world, Side side, int id)
     {
         var r = CanUpgradeStructure(world, side, id);
         if (!r.Ok) return r;
         var f = world.Factions[side];
         var e = world.Entities.Get(id)!;
-        var tier = BuildableOf(e)!.Tiers![e.Level - 1 + QueuedTiers(f, id)];
+        var tier = BuildableOf(e)!.Tiers![e.Level - 1];
         f.Credits -= tier.Cost;
         f.BuildQueue.Add(new QueueItem { Kind = QueueKind.Tier, TargetId = id, Remaining = tier.Time, Total = tier.Time, Cost = tier.Cost });
         return Result.OK;
@@ -486,6 +489,18 @@ public static class Structures
         return Result.OK;
     }
 
+    /// <summary>Why an outpost may not stand at (x, y), too close to the side's station or to one of its outposts; null if it may.</summary>
+    public static string? OutpostCrowded(World world, Side side, double x, double y)
+    {
+        foreach (var e in world.Entities)
+        {
+            if (e.Side != side || e.Kind != EntityKind.Structure || e.Type is not ("station" or "outpost")) continue;
+            if (Hypot(e.X - x, e.Y - y) < Buildables.OutpostSpacing)
+                return e.Type == "station" ? "Trop près de la station" : "Trop près d'un autre avant-poste";
+        }
+        return null;
+    }
+
     static bool InBuildZone(World world, Side side, BuildableType type, double x, double y) =>
         BuildZones(world, side, type).Exists(z => Hypot(z.X - x, z.Y - y) <= z.R);
 
@@ -523,6 +538,7 @@ public static class Structures
         if (type == BuildableType.Outpost)
         {
             if (world.Fields.Exists(fl => Dist(fl, spot) < fl.Radius + def.Radius)) return At(Result.Fail("Pas sur un champ d'astéroïdes"), x, y);
+            if (OutpostCrowded(world, side, x, y) is { } crowded) return At(Result.Fail(crowded), x, y);
             if (!InBuildZone(world, side, type, x, y))
             {
                 var held = HoldCheck(world, side, spot, def.Radius);

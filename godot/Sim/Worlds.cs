@@ -391,7 +391,8 @@ public static class Worlds
             if (e.Type == "colossus" && e.Race == Faction.Errant) Raids.Reward(world, e);
             if (e.Hero is HeroId hero && world.Factions.TryGetValue(e.Side, out var hf)) hf.HeroCooldowns[hero] = Heroes.Defs[hero].Respawn;
             var parent = world.Entities.Get(e.ParentId);
-            if (parent?.Type == "station") parent.Rebuild.Add(new Rebuild(Ids.Role(e.Type), e.Ox, e.Oy));
+            // A station's parts come back, and a bastion's turrets.
+            if (parent?.Kind == EntityKind.Structure) parent.Rebuild.Add(new Rebuild(Ids.Role(e.Type), e.Ox, e.Oy));
             if (parent is not null && e.Type == "engine" && parent.Engines > 0) parent.Engines--;
             if (parent is not null && e.Type == "shield" && parent.ShieldGens > 0) parent.ShieldGens--;
             dead.AddRange(ChildrenOf(world, e.Id));

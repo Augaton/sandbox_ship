@@ -213,17 +213,21 @@ public class FinalSecurityTests
         // Finite, but beyond any map: a float of the snapshot cannot even hold it.
         Assert.True(Commands.Apply(w, Faction.Klaed, new Command.SetRally(1e300, -1e300)).Ok);
         Assert.True(Commands.Apply(w, Faction.Klaed, new Command.EnqueueShip(ShipClass.Fighter, 1)).Ok);
+        var f = w.Factions[Faction.Klaed];
+        Assert.InRange(f.RallyX, 0, w.Width);
+        Assert.InRange(f.RallyY, 0, w.Height);
         Entity? built = null;
         for (var i = 0; i < 60 * 60 && built is null; i++)
         {
             w.Events.Clear();
+            Reserves.CallAll(w, Faction.Klaed);
             Steps.StepWorld(w);
             if (w.Events.OfType<Delivered>().FirstOrDefault() is { } d) built = w.Entities.Get(d.Id);
         }
+        // Called in round the rally point, on the map.
         Assert.NotNull(built);
-        // Ships come out spread around the rally point, 160 wide.
-        Assert.InRange(built.Order!.X, -80, w.Width + 80);
-        Assert.InRange(built.Order.Y, -80, w.Height + 80);
+        Assert.InRange(built.X, 0, w.Width);
+        Assert.InRange(built.Y, 0, w.Height);
         using var ms = new MemoryStream();
         using (var bw = new BinaryWriter(ms, Encoding.UTF8, true)) Snapshot.Write(w, Faction.Klaed, bw);
         var replica = new World();

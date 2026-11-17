@@ -742,8 +742,17 @@ public static partial class ShipForge
                     h.Spar(Math.Abs(Math.Cos(a)) * r * 0.4, cy + Math.Sin(a) * r * 0.4, Math.Abs(Math.Cos(a)) * r * 1.1, cy + Math.Sin(a) * r * 1.1, level >= 2 ? 4 : 3);
                 foreach (var a in new[] { -Math.PI / 2, Math.PI / 6 })
                     h.Module(Math.Abs(Math.Cos(a)) * r * 1.05, cy + Math.Sin(a) * r * 1.05, 3 + level * 0.5, 3 + level * 0.5);
-                h.Hub(cy, r * (0.62 + level * 0.06));
+                // The bastion: an armored rim round its deck, a socket under each of its four turrets
+                // (fore and aft, abeam: the platform's own parts, as on a station).
+                if (level >= 4) h.Ring(cy, r * 1.02, 4);
+                h.Hub(cy, r * (0.62 + Math.Min(level, 3) * 0.06));
                 if (level >= 3) foreach (var s in new[] { -1.0, 1.0 }) k.Mount(r * 0.55, cy + s * r * 0.3, 3);
+                if (level >= 4)
+                {
+                    k.Mount(0, cy - r * 1.1, 4);
+                    k.Mount(0, cy + r * 1.1, 4);
+                    k.Mount(r * 1.06, cy, 4);
+                }
                 break;
             case BuildableType.Mine:
                 // A drilling rig clamped on its rock: three legs, a hopper, a lit head where the drill turns.

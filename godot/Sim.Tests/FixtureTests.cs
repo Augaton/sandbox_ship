@@ -13,8 +13,9 @@ public class FixtureTests
     /// classes, two abilities, a lab, fighters from the shipyard, a fourth station level, sturdier
     /// stations and dearer upgrades, dearer warships, four techs and more research levels.
     /// </summary>
-    static readonly HashSet<ShipClass> NewShips = [ShipClass.Bulwark, ShipClass.Carrier, ShipClass.Leviathan, ShipClass.Colossus];
-    static readonly HashSet<AbilityId> NewAbilities = [AbilityId.Taunt, AbilityId.Launch, AbilityId.StarLance];
+    static readonly HashSet<ShipClass> NewShips =
+        [ShipClass.Bulwark, ShipClass.Carrier, ShipClass.Leviathan, ShipClass.Colossus, ShipClass.Artillery, ShipClass.Corvette, ShipClass.Jammer, ShipClass.Stealth];
+    static readonly HashSet<AbilityId> NewAbilities = [AbilityId.Taunt, AbilityId.Launch, AbilityId.StarLance, AbilityId.Jam];
     static IEnumerable<ShipClass> WebShips => Ships.All.Where(c => !NewShips.Contains(c));
     static IEnumerable<AbilityId> WebAbilities => Enum.GetValues<AbilityId>().Where(a => !NewAbilities.Contains(a));
     /// <summary>Warships of the web version made dearer and slower to build here: small craft stay worth it longer.</summary>
@@ -247,6 +248,14 @@ public class FixtureTests
             var j = buildables.GetProperty(char.ToLowerInvariant(type.ToString()[0]) + type.ToString()[1..]);
             var d = Buildables.Defs[type];
             Assert.Equal(j.GetProperty("name").GetString(), d.Name);
+            // Platforms are sturdier and dearer here on purpose, with a fourth level, the bastion.
+            if (type == BuildableType.Platform)
+            {
+                Expect.Greater(d.Hull, j.GetProperty("hull").GetDouble());
+                Expect.Greater(d.Cost, j.GetProperty("cost").GetDouble());
+                Assert.Equal(j.GetProperty("tiers").GetArrayLength() + 1, d.Tiers!.Count);
+                continue;
+            }
             foreach (var (name, value) in new[] {
                 ("hull", d.Hull), ("shield", d.Shield), ("shieldRegen", d.ShieldRegen), ("radius", d.Radius),
                 ("cost", d.Cost), ("buildTime", d.BuildTime) })

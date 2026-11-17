@@ -195,7 +195,14 @@ public partial class Hud
         if (tiers is not null)
         {
             lines.Add(TextPart($"Niveau {e.Level} / {tiers.Count + 1}"));
-            if (own && e.Level <= tiers.Count)
+            var work = own && World.Factions.TryGetValue(Player, out var mine) ? mine.BuildQueue.Find(q => q.Kind == QueueKind.Tier && q.TargetId == e.Id) : null;
+            if (work is not null)
+            {
+                // Its next level on the way, alongside every other building work.
+                lines.Add(TextPart($"Niveau {e.Level + 1} dans {Math.Ceiling(work.Remaining)} s"));
+                lines.Add(BarPart(1 - work.Remaining / work.Total, Palette.Accent));
+            }
+            else if (own && e.Level <= tiers.Count)
             {
                 var r = Structures.CanUpgradeStructure(World, Player, e.Id);
                 var id = e.Id;

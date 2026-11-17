@@ -107,7 +107,11 @@ public static class Combat
     }
 
     /// <summary>How far from `t` a ship stops to fight it. Not to chase small craft: they come to it, and circle.</summary>
-    public static double StopRange(Entity e, Entity t) => t.Size == SizeClass.Small ? e.Range * 0.85 : StopRanges[(int)e.Cls][(int)t.Size];
+    public static double StopRange(Entity e, Entity t) =>
+        (t.Size == SizeClass.Small ? e.Range * 0.85 : StopRanges[(int)e.Cls][(int)t.Size]) * (e.Effects.Jammed > 0 ? Abilities.JamReach : 1);
+
+    /// <summary>Share of their reach its weapons have: less while it, or the ship or building it is on, is jammed.</summary>
+    static double JamOf(World world, Entity e) => OwnerOf(world, e).Effects.Jammed > 0 ? Abilities.JamReach : 1;
 
     /// <summary>
     /// How much `t` is worth shooting for `e`, `d` away out of `range` (not in the web version,
@@ -284,6 +288,7 @@ public static class Combat
     /// <summary>After a shot: the next round of the burst, or the reload once the burst is spent.</summary>
     static void Fired(World world, Entity e, WeaponState w)
     {
+        OwnerOf(world, e).FiredAt = world.Time;
         if (--w.Shots > 0)
         {
             w.Cooldown = w.Def.BurstGap;
@@ -439,18 +444,19 @@ public static class Combat
         {
             if (e.Weapons.Count == 0 || !Operational(e) || IsStunned(world, e)) continue;
             var pilot = PilotOf(world, e);
+            var jam = JamOf(world, e);
             if (pilot is not null)
             {
                 foreach (var w in e.Weapons)
                 {
                     if (w.Def.Kind == WeaponKind.Beam)
                     {
-                        if (pilot.Firing && AimedTarget(world, e, pilot, w.Def.Range) is { } held) HoldBeam(world, e, w, held, dt);
+                        if (pilot.Firing && AimedTarget(world, e, pilot, w.Def.Range * jam) is { } held) HoldBeam(world, e, w, held, dt);
                         continue;
                     }
                     w.Cooldown -= dt;
                     if (w.Cooldown > 0) continue;
-                    var t = pilot.Firing ? AimedTarget(world, e, pilot, w.Def.Range) : null;
+                    var t = pilot.Firing ? AimedTarget(world, e, pilot, w.Def.Range * jam) : null;
                     if (t is null)
                     {
                         w.Cooldown = 0;
@@ -476,16 +482,16 @@ public static class Combat
                 {
                     w.Cooldown -= dt;
                     if (w.Cooldown > 0) continue;
-                    if (w.Def.PointDefense && Threat(world, e, w.Def.Range) is { } prey)
+                    if (w.Def.PointDefense && Threat(world, e, w.Def.Range * jam) is { } prey)
                     {
                         Intercept(world, e, w.Def, prey);
                         Fired(world, e, w);
                         continue;
                     }
                 }
-                var orderedInReach = ordered is not null && Reach(e, ordered) <= w.Def.Range;
+                var orderedInReach = ordered is not null && Reach(e, ordered) <= w.Def.Range * jam;
                 var t = orderedInReach && w.Def.Multipliers.Of(ordered!.Size) >= 0.5 ? ordered
-                    : auto is not null && Reach(e, auto) <= w.Def.Range ? auto
+                    : auto is not null && Reach(e, auto) <= w.Def.Range * jam ? auto
                     : orderedInReach ? ordered : null;
                 if (beam)
                 {
@@ -601,7 +607,8 @@ public static class Combat
             // Biomechanical hulls mend themselves, but a ship already lost stays lost.
             var regen = Factions.Trait(e.Race).HullRegen;
             if (regen > 0 && e.Kind == EntityKind.Ship && e.Hull > 0) e.Hull = Math.Min(e.MaxHull, e.Hull + e.MaxHull * regen * share * dt);
-            if (e.MaxShield <= 0 || !Operational(e) || e.Effects.Stunned > 0) continue;
+            // Stunned or jammed, shields stay as they are.
+            if (e.MaxShield <= 0 || !Operational(e) || e.Effects.Stunned > 0 || e.Effects.Jammed > 0) continue;
             if (e.ShieldDown > 0)
             {
                 e.ShieldDown -= dt;

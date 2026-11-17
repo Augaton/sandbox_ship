@@ -192,6 +192,14 @@ public static class AbilitySystem
                     t.Effects.Stunned = Abilities.Stunned;
                 }
                 break;
+            case AbilityId.Jam:
+                // Ships and buildings alike; their parts go by them.
+                foreach (var t in world.Grid.Near(p.X, p.Y, def.Radius!.Value + 300))
+                {
+                    if (t.Kind == EntityKind.Hardpoint || Gap(t, p.X, p.Y) > def.Radius!.Value || !Foes(world, t.Side, e.Side)) continue;
+                    t.Effects.Jammed = Abilities.Jammed;
+                }
+                break;
             case AbilityId.Taunt:
                 foreach (var t in world.Entities)
                 {
@@ -411,6 +419,7 @@ public static class AbilitySystem
             case AbilityId.ShieldDome:
                 return t is not null && Count(world, e, def.Radius!.Value, Ally(1.01)) >= 3 ? self : null;
             case AbilityId.OrbitalStrike:
+            case AbilityId.Jam:
                 return BestCluster(world, e, def);
             case AbilityId.StarLance:
                 return RichestTarget(world, e, def, 4000);
@@ -465,6 +474,7 @@ public static class AbilitySystem
             if (fx.Marked > 0) fx.Marked = Math.Max(0, fx.Marked - dt);
             if (fx.Stunned > 0) fx.Stunned = Math.Max(0, fx.Stunned - dt);
             if (fx.Taunted > 0) fx.Taunted = Math.Max(0, fx.Taunted - dt);
+            if (fx.Jammed > 0) fx.Jammed = Math.Max(0, fx.Jammed - dt);
             if (e.Expires is not null)
             {
                 e.Expires -= dt;

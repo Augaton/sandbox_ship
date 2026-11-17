@@ -120,9 +120,10 @@ public static class Protocol
     /// truce prolonged). 12: galaxy snapshots 5 and ProposeAccord (shared vision, joint wars,
     /// ultimatums, requests for help, bundles; reputations, the chronicle, what an AI would answer).
     /// 13: with commands 3 (Deploy) and battle snapshots 10 (the reserve and the jumps).
-    /// 14: the campaign's opening peace (Settings), its independents (side 7), galaxy snapshots 6.
+    /// 14: battle snapshots 11 (four ship classes more, the bastion).
+    /// 15: the campaign's opening peace (Settings), its independents (side 7), galaxy snapshots 6.
     /// </summary>
-    public const int Version = 14;
+    public const int Version = 15;
     /// <summary>Where a host listens for players, unless told otherwise.</summary>
     public const int DefaultPort = 24680;
     /// <summary>Where hosts call out to the local network, and the join screen listens.</summary>

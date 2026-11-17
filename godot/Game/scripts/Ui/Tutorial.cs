@@ -27,7 +27,7 @@ public partial class Tutorial : CanvasLayer
 
     readonly BattleScreen scene;
     readonly List<Step> steps = [];
-    /// <summary>What the player has done, from the commands that went through: move, attack, mine, frigate, ability.</summary>
+    /// <summary>What the player has done, from the commands that went through: move, attack, mine, frigate, deploy, ability.</summary>
     readonly HashSet<string> did = [];
     int current;
     Vector2 startCenter;
@@ -58,8 +58,10 @@ public partial class Tutorial : CanvasLayer
                 () => did.Contains("move")),
             new("Une mine", "Les mines rapportent des crédits. Onglet « Bâtiments » en bas, choisis la mine, puis clique sur un champ d'astéroïdes près de ta station.",
                 () => did.Contains("mine")),
-            new("Produire", "Onglet « Vaisseaux » : commande une frégate. Elle sort du chantier de ta station dès qu'elle est prête.",
+            new("Produire", "Onglet « Vaisseaux » : commande une frégate. Une fois prête, elle attend en réserve, dans le panneau au-dessus des groupes.",
                 () => did.Contains("frigate")),
+            new("La réserve", "Glisse la frégate de la réserve sur la carte, près de ta station ou de tes vaisseaux : elle arrive par l'hyperespace.",
+                () => did.Contains("deploy")),
             new("Attaquer", $"Vaisseaux sélectionnés, {Key("Déplacer, ou attaquer")} sur un ennemi l'attaque ; {Key("Attaque-mouvement")} engage tout ce qui croise la route.",
                 () => did.Contains("attack")),
             new("Postures et ordres", $"{Key("Posture suivante")} change la posture des vaisseaux sélectionnés : agressive, défensive, tenir la position ou passive. "
@@ -109,6 +111,8 @@ public partial class Tutorial : CanvasLayer
         var w = scene.World;
         var side = scene.Opts.Player;
         if (Worlds.StationOf(w, side) is not { } station) return;
+        // Without the platforms every station starts with: its few ships are to win this battle.
+        foreach (var p in w.Entities.Where(e => e.Type == "platform").ToList()) w.Entities.Remove(p.Id);
         var toward = Math.Atan2(w.Height / 2 - station.Y, w.Width / 2 - station.X);
         (ShipClass Cls, double Ahead, double Across)[] fleet =
         [
@@ -134,6 +138,7 @@ public partial class Tutorial : CanvasLayer
             case Command.Attack: did.Add("attack"); break;
             case Command.PlaceStructure { Type: BuildableType.Mine }: did.Add("mine"); break;
             case Command.EnqueueShip { Cls: ShipClass.Frigate }: did.Add("frigate"); break;
+            case Command.Deploy: did.Add("deploy"); break;
             case Command.UseAbility: did.Add("ability"); break;
         }
     }

@@ -18,6 +18,7 @@ public static class Showcase
     [
         (ShipClass.Fighter, 5), (ShipClass.Bomber, 3), (ShipClass.Scout, 1), (ShipClass.Torpedo, 2), (ShipClass.Support, 1),
         (ShipClass.Frigate, 4), (ShipClass.Battlecruiser, 2), (ShipClass.Bulwark, 0.8), (ShipClass.Carrier, 0.6), (ShipClass.Dreadnought, 0.8),
+        (ShipClass.Corvette, 1), (ShipClass.Artillery, 0.6), (ShipClass.Jammer, 0.4), (ShipClass.Stealth, 0.5),
     ];
 
     static readonly Faction[] Races = [Faction.Klaed, Faction.Nairan, Faction.Nautolan, Faction.Errant];

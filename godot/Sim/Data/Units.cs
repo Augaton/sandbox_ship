@@ -26,6 +26,10 @@ public enum ShipClass
     Dreadnought, Titan,
     // Not in the web version: the tier above the titan, and the neutral raid boss nobody builds.
     Leviathan, Colossus,
+    // Not in the web version either: a siege gun against defenses, an escort against craft and
+    // missiles, a jammer, and a cruiser the enemy only sees up close or when it fires. Last, so
+    // that the classes before them keep their numbers.
+    Artillery, Corvette, Jammer, Stealth,
 }
 
 /// <summary>What sets a faction apart. Multipliers apply to everything it fields.</summary>
@@ -166,6 +170,10 @@ public static class Ships
     static readonly WeaponDef ColossusRay = new(WeaponKind.Ray, 800, 110, 2.5, 1200, Mult: new SizeMult(Small: 0.25));
     /// <summary>A carrier's hangar: fighters and bombers in turn, many and often.</summary>
     static readonly HangarDef CarrierHangar = new([new(ShipClass.Fighter, 4), new(ShipClass.Bomber, 3)], Cap: 10, Interval: 14);
+    /// <summary>Siege shells: slow, long-reaching, shot down by point defense; they crack defenses and barely touch small craft.</summary>
+    static readonly WeaponDef SiegeShell = new(WeaponKind.Torpedo, 950, 120, 6, 380,
+        Mult: new SizeMult(Small: 0.1, Medium: 0.5, Large: 1, Structure: 2.5));
+
 
     public static readonly IReadOnlyList<ShipClass> All = Enum.GetValues<ShipClass>();
 
@@ -358,6 +366,29 @@ public static class Ships
                 new(HardpointRole.Engine, -271, 80),
             ],
             Ability: AbilityId.Emp, Extra: [AbilityId.OrbitalStrike, AbilityId.ShieldDome, AbilityId.Launch], Limit: 1, Beam: 78),
+        // The four classes added together (not in the web version).
+        // Outranges every defense but the ion cannon, at the price of being helpless up close.
+        [ShipClass.Artillery] = new(ShipClass.Artillery, "Artillerie", SizeClass.Medium,
+            Hull: 500, Shield: 150, ShieldRegen: 3, Speed: 60, Accel: 50, TurnRate: 0.9, Radius: 26,
+            FromHangar: false, Cost: 1400, BuildTime: 28, MinStationLevel: 2,
+            Weapons: [SiegeShell], Ability: AbilityId.Barrage),
+        // Two to an order, quick, flak and point defense: the fleet's screen against craft, torpedoes and shells.
+        [ShipClass.Corvette] = new(ShipClass.Corvette, "Corvette", SizeClass.Small,
+            Hull: 220, Shield: 80, ShieldRegen: 3, Speed: 190, Accel: 220, TurnRate: 3, Radius: 14,
+            FromHangar: false, Cost: 450, BuildTime: 14, MinStationLevel: 1,
+            Weapons: [Weapons.Flak with { Range = 300, Damage = 5 }, Weapons.Flak with { Range = 300, Damage = 5 }],
+            Ability: AbilityId.Salvo, Squad: 2),
+        // Hardly armed: its jamming cuts the enemy's reach and stops its shields recharging.
+        [ShipClass.Jammer] = new(ShipClass.Jammer, "Brouilleur", SizeClass.Medium,
+            Hull: 320, Shield: 180, ShieldRegen: 4, Speed: 115, Accel: 110, TurnRate: 1.8, Radius: 20,
+            FromHangar: false, Cost: 900, BuildTime: 22, MinStationLevel: 2,
+            Weapons: [Weapons.Ion with { Range = 400, Damage = 10 }], Ability: AbilityId.Jam),
+        // Unseen by the enemy beyond a short reach until it fires (Vision.cs); it hunts mines and outposts.
+        [ShipClass.Stealth] = new(ShipClass.Stealth, "Croiseur furtif", SizeClass.Medium,
+            Hull: 550, Shield: 250, ShieldRegen: 4, Speed: 140, Accel: 120, TurnRate: 1.4, Radius: 24,
+            FromHangar: false, Cost: 1300, BuildTime: 26, MinStationLevel: 2,
+            Weapons: [Weapons.Burst with { Range = 360, Damage = 12, Mult = new SizeMult(Small: 0.5, Medium: 1.2, Structure: 1.6) }],
+            Ability: AbilityId.Cloak),
     };
 
     /// <summary>Price of one order (a ship, or a squadron) for a faction, after its trait.</summary>

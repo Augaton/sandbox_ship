@@ -27,6 +27,11 @@ public partial class Loading : CanvasLayer
         "Plateformes de défense : 3 autour de la station, 2 par avant-poste, 1 par mine.",
         "En campagne, un clic droit sur un vaisseau à produire le met en boucle sur la planète.",
         "Retour arrière ramène la vue sur la dernière alerte.",
+        "Tout vaisseau construit attend en réserve : glisse-le sur la carte, ou clic droit sur sa carte pour l'envoyer au point de ralliement.",
+        "L'artillerie frappe les bâtiments de très loin, mais ses obus lents tombent sous la défense ponctuelle des corvettes.",
+        "Un croiseur furtif ne se voit que de près, ou quand il vient de tirer.",
+        "Le brouilleur réduit la portée des ennemis de sa zone, plateformes comprises, et fige leurs boucliers.",
+        "Améliorée au niveau 4, une plateforme devient un bastion à quatre tourelles.",
     ];
 
     Control root = null!;

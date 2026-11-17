@@ -22,7 +22,15 @@ public partial class Hud : CanvasLayer
 
     const double RefreshMs = 100;
     static readonly double[] Speeds = [0.5, 1, 2, 4];
-    static readonly ShipClass[] ShipyardClasses = Ships.All.Where(c => !Ships.Defs[c].FromHangar).ToArray();
+    /// <summary>The build buttons, small to big, the classes added last beside their kin; none left out.</summary>
+    static readonly ShipClass[] ShipyardClasses =
+    [
+        .. new[]
+        {
+            ShipClass.Scout, ShipClass.Fighter, ShipClass.Bomber, ShipClass.Corvette, ShipClass.Support, ShipClass.Torpedo,
+            ShipClass.Frigate, ShipClass.Jammer, ShipClass.Stealth, ShipClass.Artillery,
+        }.Concat(Ships.All).Distinct().Where(c => !Ships.Defs[c].FromHangar),
+    ];
     /// <summary>Build buttons are laid out in columns at least this wide (a picture, then room for the name), 6 pixels apart.</summary>
     const int ColumnWidth = 132 + LabelButton.IconRoom, ColumnGap = 6;
 
@@ -45,6 +53,8 @@ public partial class Hud : CanvasLayer
     int reserveSeen;
     /// <summary>The reserve by kind of ship, in the order first built, refilled at each refresh.</summary>
     readonly List<(ReserveShip Ship, int Count)> reserveKinds = [];
+    /// <summary>Whether a ship come into the reserve was announced already.</summary>
+    bool reserveTold;
     ScrollContainer selectionScroll = null!;
     VBoxContainer selection = null!;
     /// <summary>A production tab: its button and its name, what it shows, how many it has under way.</summary>
@@ -674,7 +684,12 @@ public partial class Hud : CanvasLayer
     /// </summary>
     void RefreshReserve(FactionState f)
     {
-        if (f.Reserve.Count > reserveSeen) Toast($"{ReserveName(f.Reserve[^1])} en réserve : glisse-le sur la carte");
+        // Every ship comes to the reserve: the first is announced, then the large hulls and the heroes.
+        if (f.Reserve.Count > reserveSeen && (!reserveTold || f.Reserve[^1].Hero is not null || Ships.Defs[f.Reserve[^1].Cls].Size == SizeClass.Large))
+        {
+            Toast($"{ReserveName(f.Reserve[^1])} en réserve : glisse-le sur la carte");
+            reserveTold = true;
+        }
         reserveSeen = f.Reserve.Count;
         reservePanel.Visible = f.Reserve.Count > 0;
         if (f.Reserve.Count == 0) return;
@@ -701,12 +716,19 @@ public partial class Hud : CanvasLayer
                 b.Add("", Palette.Accent, 12);
                 b.SetIcon(Assets.ShipIcon(Race, ship.Cls));
                 b.ButtonDown += () => c.ArmDeploy(ship);
+                // Right click: all of this kind to the rally point.
+                b.GuiInput += ev =>
+                {
+                    if (ev is not InputEventMouseButton { Pressed: true, ButtonIndex: MouseButton.Right }) return;
+                    b.AcceptEvent();
+                    CallAllToRally(ship);
+                };
                 return b;
             }, n =>
             {
                 var b = (LabelButton)n;
                 b.Line(1).Text = count > 1 ? $"×{count}" : "prêt";
-                b.TooltipText = $"{name} : glisse-le sur la carte, ou clique ici puis sur la carte (Maj : plusieurs). Il arrive par l'hyperespace près de tes forces, jamais près d'un bâtiment ennemi.";
+                b.TooltipText = $"{name} : glisse-le sur la carte, ou clique ici puis sur la carte (Maj : plusieurs) ; clic droit : tous au point de ralliement. Il arrive par l'hyperespace près de tes forces, jamais près d'un bâtiment ennemi.";
                 b.Marked = held;
                 b.Paint();
             }));
@@ -715,6 +737,36 @@ public partial class Hud : CanvasLayer
     }
 
     static string ReserveName(ReserveShip s) => s.Hero is HeroId h ? Heroes.Defs[h].Name : Ships.Defs[s.Cls].Name;
+
+    /// <summary>
+    /// Calls every ship of this kind in round the rally point, a squadron at a time, each on a spot
+    /// of its own: over the network the host has not taken the first ones yet when the next go.
+    /// </summary>
+    void CallAllToRally(ReserveShip ship)
+    {
+        if (!World.Factions.TryGetValue(Player, out var f)) return;
+        var def = Ships.Defs[ship.Cls];
+        var squad = ship.Hero is null ? def.Squad ?? 1 : 1;
+        var calls = (f.Reserve.Count(s => s == ship) + squad - 1) / squad;
+        // Room for the hull, or for a squadron side by side.
+        var gap = Math.Max(def.Beam > 0 ? def.Radius : def.Radius * 2, squad * Reserves.SquadGap) + 40;
+        var taken = new List<(double X, double Y)>();
+        string? why = null;
+        foreach (var (x, y) in Reserves.Around(f.RallyX, f.RallyY, gap))
+        {
+            if (taken.Count == calls) break;
+            if (taken.Exists(t => Math.Abs(t.X - x) < gap * 0.9 && Math.Abs(t.Y - y) < gap * 0.9)) continue;
+            var r = Reserves.CanDeploy(World, Player, ship, x, y);
+            if (!r.Ok)
+            {
+                why ??= r.Reason;
+                continue;
+            }
+            if (scene.Sink.Send(new Command.Deploy(ship.Cls, ship.Hero, x, y)).Ok) taken.Add((x, y));
+        }
+        if (taken.Count == 0) Toast(why ?? "Aucun point libre au ralliement");
+        else scene.Marker(f.RallyX, f.RallyY, Palette.Hex(0x9fd4ff));
+    }
 
     static Part QuickButton(string key, string label, string? count, string tip, bool disabled, Action act) => new(key, () =>
     {
@@ -874,8 +926,9 @@ public partial class Hud : CanvasLayer
         }
         var sites = w.Entities.Where(e => e.Side == Player && e.Kind == EntityKind.Structure && e.Build < 1).ToList();
         RenderList(buildingsQueue!, [
-            .. f.BuildQueue.Select((q, i) => new QueueEntry(WorkName(q), $"index:{i}", i == 0 ? 1 - q.Remaining / q.Total : 0,
-                () => scene.Sink.Send(new Command.CancelQueued(i, QueueSide.Buildings)), i == 0 ? q.Remaining : null)),
+            // Every building work goes on at once, each with its own progress.
+            .. f.BuildQueue.Select((q, i) => new QueueEntry(WorkName(q), $"index:{i}", 1 - q.Remaining / q.Total,
+                () => scene.Sink.Send(new Command.CancelQueued(i, QueueSide.Buildings)), q.Remaining)),
             .. sites.Select(e => new QueueEntry(Names.EntityName(e), $"site:{e.Id}", e.Build, () => scene.Sink.Send(new Command.CancelConstruction(e.Id)))),
         ], "Rien en construction.");
         // Each queued level is named by the level it reaches.

@@ -56,8 +56,8 @@ public class CrossTests
         Expect.Close(j.GetProperty("time").GetDouble(), world.Time, 6);
         var entities = j.GetProperty("entities");
         var ids = entities.EnumerateArray().Select(e => e.GetProperty("id").GetInt32()).ToList();
-        // Labs are given last, and only here.
-        var ported = world.Entities.Where(e => e.Type != "lab").ToList();
+        // Labs and the platforms before each station are given last, and only here.
+        var ported = world.Entities.Where(e => e.Type is not ("lab" or "platform")).ToList();
         Assert.True(ids.SequenceEqual(ported.Select(e => e.Id)), $"{when}: entities differ: TS has {ids.Count}, C# has {ported.Count}");
         var i = 0;
         foreach (var e in ported)

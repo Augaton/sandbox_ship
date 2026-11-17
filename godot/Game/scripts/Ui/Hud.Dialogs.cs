@@ -283,8 +283,11 @@ public partial class Hud
     [
         "[b]Capacités.[/b] Chaque classe de vaisseau et chaque héros en a une. Le panneau de sélection dit ce qu'elle fait et si elle est prête, active ou en recharge. " +
         "E (ou son bouton) la déclenche ; certaines se visent d'un clic. Case « Automatique » : tes vaisseaux s'en servent seuls quand c'est utile. Sur le champ de bataille, un anneau coloré montre une capacité active, et son nom s'affiche quand elle part.",
-        "[b]Construction.[/b] Autour de la station et des avant-postes. Un avant-poste se pose loin de la base, là où un de tes vaisseaux tient la position, hors combat ; il ouvre une nouvelle zone de construction. " +
-        "Plateformes et docks se construisent aussi près de tes mines. Sélectionne une plateforme ou un avant-poste pour l'améliorer.",
+        "[b]Réserve.[/b] Chaque vaisseau construit attend en réserve, dans le panneau au-dessus des groupes. Glisse-le sur la carte, près de tes bâtiments ou de tes vaisseaux de ligne, loin des bâtiments ennemis : " +
+        "il arrive par l'hyperespace. Une escadrille arrive d'un bloc ; un clic droit sur sa carte les envoie tous au point de ralliement (clic droit sur la carte, station sélectionnée).",
+        "[b]Construction.[/b] Autour de la station et des avant-postes. Un avant-poste se pose loin de la base, à 1 500 au moins de ta station et de tes autres avant-postes, là où un de tes vaisseaux tient la position, hors combat ; il ouvre une nouvelle zone de construction. " +
+        "Plateformes et docks se construisent aussi près de tes mines. Sélectionne une plateforme ou un avant-poste pour l'améliorer : chaque bâtiment s'améliore en même temps que les autres, sans file d'attente. " +
+        "Au niveau 4 (station niveau 3), une plateforme devient un bastion à quatre tourelles.",
         "Détruire les points d'attache d'une station la désarme : chantier naval, hangar, générateur de bouclier, tourelles. Le brouillard de guerre cache ce que tes unités ne voient pas, l'IA comprise. " +
         "Les héros et le Titan sont uniques ; un héros détruit se reconstruit après un délai.",
     ];

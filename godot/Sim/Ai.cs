@@ -46,6 +46,7 @@ public static class Ai
         [ShipClass.Scout] = 1, [ShipClass.Fighter] = 1, [ShipClass.Bomber] = 1, [ShipClass.Support] = 1, [ShipClass.Frigate] = 4, [ShipClass.Torpedo] = 2,
         [ShipClass.Battlecruiser] = 3, [ShipClass.Bulwark] = 1, [ShipClass.Carrier] = 1, [ShipClass.Dreadnought] = 2,
         [ShipClass.Titan] = 1, [ShipClass.Leviathan] = 1, [ShipClass.Colossus] = 0.5,
+        [ShipClass.Artillery] = 1, [ShipClass.Corvette] = 1, [ShipClass.Jammer] = 0.6, [ShipClass.Stealth] = 0.8,
     };
 
     /// <summary>Goal failures worth waiting through: the AI keeps the goal instead of picking another.</summary>
@@ -95,6 +96,14 @@ public static class Ai
     }
 
     /// <summary>Warships that answer to the AI: built ones, not hangar craft, not those falling back.</summary>
+    /// <summary>Its warships, with those waiting in reserve or on their way out of hyperspace: they are its fleet too.</summary>
+    static int FleetSize(World world, FactionState f)
+    {
+        var n = Warships(world, f).Count + f.Reserve.Count;
+        foreach (var j in world.Jumps) if (j.Side == f.Id) n++;
+        return n;
+    }
+
     internal static List<Entity> Warships(World world, FactionState f)
     {
         var out_ = new List<Entity>();
@@ -161,7 +170,7 @@ public static class Ai
         foreach (var c in Ships.All) if (weights.TryGetValue(c, out var w)) weights[c] = w * def.Lean(Ships.Defs[c].Size);
         // A limited capital ship only with a fleet around it and a quarter of it paid: saving up
         // for it from nothing would leave the AI without ships for minutes.
-        var fleet = Warships(world, f).Count;
+        var fleet = FleetSize(world, f);
         var options = Ships.All.Where(c => weights.ContainsKey(c) && station.Level >= Ships.Defs[c].MinStationLevel
             && (Ships.Defs[c].Limit is not int limit
                 || (f.AI.Big is null && fleet >= 8 && f.Credits >= Ships.Cost(c, f.Race) / 4 && Structures.InService(world, f.Id, c) < limit))).ToList();
@@ -175,10 +184,15 @@ public static class Ai
         return null;
     }
 
-    /// <summary>Swarms of small craft: flak frigates. Middle hulls: burst cannons. Big hulls: torpedoes and bombers. Turrets: bombers.</summary>
+    /// <summary>Swarms of small craft: flak frigates and corvettes. Middle hulls: burst cannons. Big hulls: torpedoes and bombers. Turrets: bombers and siege guns.</summary>
     static void Counter(Dictionary<ShipClass, double> weights, Intel intel)
     {
-        if (intel.Small >= 6) weights[ShipClass.Frigate] += 4;
+        if (intel.Small >= 6)
+        {
+            weights[ShipClass.Frigate] += 4;
+            weights[ShipClass.Corvette] += 2;
+        }
+        if (intel.Structures >= 3) weights[ShipClass.Artillery] += 2;
         if (intel.Medium >= 4) weights[ShipClass.Battlecruiser] += 3;
         if (intel.Large >= 2)
         {
@@ -249,7 +263,7 @@ public static class Ai
         var mines = Count(world, f, "mine");
         if (mines < MineQuota(def, station) && Open(GoalKind.Mine) && MineableField(world, f)) return new AIGoal(GoalKind.Mine);
         // A first squadron early: it escorts the miners and scouts the map.
-        var fleet = Warships(world, f).Count;
+        var fleet = FleetSize(world, f);
         if (fleet == 0 && HasHardpoint(world, station.Id, HardpointRole.Shipyard)) return new AIGoal(GoalKind.Ship, Cls: ShipClass.Scout);
         // The technological AI puts its lab before anything else, by its research odds: always
         // was too much (13 games won of 16 against the others).
@@ -347,7 +361,8 @@ public static class Ai
     /// <summary>An outpost on the station's side of the nearest far field, which then lies in its zone.</summary>
     static Result PlaceOutpost(World world, FactionState f, Entity station)
     {
-        var field = FarFields(world, f, station).FirstOrDefault();
+        // The nearest far field with room for an outpost: away from the station and from its others.
+        var field = FarFields(world, f, station).FirstOrDefault(fl => Structures.OutpostCrowded(world, f.Id, fl.X, fl.Y) is null);
         if (field is null) return Result.Fail("Aucun champ accessible");
         var d = Dist(field, station);
         if (d == 0) d = 1;
@@ -829,36 +844,11 @@ public static class Ai
         return new Point(best.X + (station.X - best.X) / reach * deep, best.Y + (station.Y - best.Y) / reach * deep);
     }
 
-    /// <summary>
-    /// Calls its reserve in where its fleet gathers: at the rally point or round it, else on the
-    /// way there from the station, else by the station. A ship with nowhere to go waits.
-    /// </summary>
-    static void CallReserve(World world, FactionState f, Entity? station)
-    {
-        if (f.Reserve.Count == 0) return;
-        foreach (var ship in f.Reserve.ToList())
-        {
-            foreach (var (x, y) in ReserveSpots(f, station))
-            {
-                if (Reserves.Deploy(world, f.Id, ship, x, y).Ok) break;
-            }
-        }
-    }
-
-    static IEnumerable<(double X, double Y)> ReserveSpots(FactionState f, Entity? station)
-    {
-        yield return (f.RallyX, f.RallyY);
-        for (var i = 0; i < 6; i++) yield return (f.RallyX + Math.Cos(i * Math.Tau / 6) * 260, f.RallyY + Math.Sin(i * Math.Tau / 6) * 260);
-        if (station is null) yield break;
-        foreach (var k in new[] { 0.6, 0.3 }) yield return (station.X + (f.RallyX - station.X) * k, station.Y + (f.RallyY - station.Y) * k);
-        for (var i = 0; i < 8; i++) yield return (station.X + Math.Cos(i * Math.Tau / 8) * 450, station.Y + Math.Sin(i * Math.Tau / 8) * 450);
-    }
-
     static void Think(World world, FactionState f)
     {
         var ai = f.AI!;
         var station = StationOf(world, f.Id);
-        CallReserve(world, f, station);
+        Reserves.CallAll(world, f.Id);
         if (station is null) return;
         var enemy = NearestEnemyStation(world, f, station);
         RetreatDamaged(world, f);

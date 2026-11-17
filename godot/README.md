@@ -37,7 +37,7 @@ un qui en sort parmi des chasseurs, un autre en main sous le pointeur), `--skip=
 `--at=X,Y` (centre la vue de bataille), `--menu=home|new|controls|credits|options|lobby-MODE` (`new` : les
 modes ; `lobby-skirmish`, `lobby-campaign`, `lobby-assault`… : le salon de ce mode, que `--seats=N` remplit
 d'IA et où `--teams=1,2,…` place les équipes dans l'ordre des places),
-`--size=small|medium|large` (carte ou galaxie de `--start`), `--mode=survival|zones|assault|regicide`
+`--size=small|medium|large|huge|immense` (carte de `--start`, ou galaxie jusqu'à `large`), `--mode=survival|zones|assault|regicide`
 (règles de `--start=battle` ; en assaut, le joueur défend), `--shot=image.png --frames=N`
 (capture puis quitte ; les images se comptent une fois le chargement fini), `--dump=dossier`
 (sprites composés, stations, pièces et bâtiments dessinés par le jeu, et `boot.png`, le logo de

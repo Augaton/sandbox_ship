@@ -62,7 +62,7 @@ public partial class BattleScreen
 
     /// <summary>When each ship of the reserve came out of hyperspace, by id: it races in to its point (BattleScreen.Reserve.cs).</summary>
     readonly Dictionary<int, double> arrivals = [];
-    /// <summary>When each craft took off (launched, or out of the shipyard), by id: it climbs to its height.</summary>
+    /// <summary>When each launched craft took off, by id: it climbs to its height.</summary>
     readonly Dictionary<int, double> climbs = [];
     const double ClimbMs = 900;
     /// <summary>Where shadows fall, from a light at the top left, per world pixel of height.</summary>
@@ -497,7 +497,9 @@ public partial class BattleScreen
             var remembered = !seen && e.Kind != EntityKind.Ship && Vision.WasSeen(World, Opts.Player, e);
             Show(v, seen || remembered);
             var cloaked = Vision.Cloaked(e);
-            var alpha = remembered ? 0.45 : cloaked ? 0.35 : e.Build < 1 ? 0.4 + 0.4 * e.Build : 1;
+            // A stealth cruiser that has not fired shows faint to the eyes it hides from: a foe sees it only up close.
+            var veiled = !cloaked && Vision.Veiled(World, e);
+            var alpha = remembered ? 0.45 : cloaked ? 0.35 : veiled ? 0.55 : e.Build < 1 ? 0.4 + 0.4 * e.Build : 1;
             // Out of hyperspace: stretched along its course, it brakes hard on its point. A craft
             // taking off grows a little as it climbs, its shadow drawing away.
             var grow = 1f;
@@ -789,6 +791,30 @@ public partial class BattleScreen
             }, () => callouts--);
         }
         if (def.Target == AbilityTarget.Self && def.Radius is double radius && def.Duration == 0) Ripple(e.X, e.Y, radius, Palette.Hex(def.Color));
+    }
+
+    /// <summary>A jammer's blow: a ring of static thrown over its zone, crackling a moment, then gone.</summary>
+    void JamShown(double x, double y, double radius)
+    {
+        var color = Palette.Hex(Abilities.Defs[AbilityId.Jam].Color);
+        Ripple(x, y, radius, color);
+        var seed = (int)(x * 7 + y * 13);
+        Add(fxList, 1200, (g, k) =>
+        {
+            var z = Zoom;
+            var a = (float)(1 - k);
+            Draw.Ring(g, x, y, radius, color with { A = 0.5f * a }, 2 / z, z);
+            // Short broken strokes of static, new ones every few frames.
+            var tick = (int)(Now / 70);
+            for (var i = 0; i < 26; i++)
+            {
+                var r = radius * Math.Sqrt(Hash(seed, i, tick));
+                var t = Hash(seed, i, tick + 1) * Math.Tau;
+                var (px, py) = (x + Math.Cos(t) * r, y + Math.Sin(t) * r);
+                var len = 10 + 18 * Hash(seed, i, tick + 2);
+                Draw.Line(g, px - len / 2, py, px + len / 2, py, color with { A = 0.7f * a }, 1.5 / z);
+            }
+        });
     }
 
     void StrikeShown(Strike s)
