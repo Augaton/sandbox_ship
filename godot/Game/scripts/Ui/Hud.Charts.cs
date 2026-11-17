@@ -48,7 +48,7 @@ public partial class Hud
         {
             var item = Row(6);
             item.AddChild(Mark(side));
-            item.AddChild(Text(Factions.Defs[Worlds.RaceOf(World, side)].Name, side == Player ? Palette.Accent : Palette.Muted, 13));
+            item.AddChild(Text(Galaxies.SideName(World, side), side == Player ? Palette.Accent : Palette.Muted, 13));
             legend.AddChild(item);
         }
         box.AddChild(legend);

@@ -46,6 +46,9 @@ public static partial class Galaxies
     public static readonly Side Independent = new(Lobby.MaxSide);
     /// <summary>The independents' grey, on the map and in battle.</summary>
     public const uint IndependentColor = 0x9aa6ba;
+
+    /// <summary>How a battle names a side: its race, or the independents of a campaign battle, whose ships are their planet's people's.</summary>
+    public static string SideName(World world, Side side) => side == Independent ? "Indépendants" : Factions.Defs[Worlds.RaceOf(world, side)].Name;
     /// <summary>Level of a fortified capital's station at the start, and the platforms that rise again there.</summary>
     public const int CapitalStation = 2, CapitalPlatforms = 2;
     /// <summary>Galaxy seconds a fortified capital takes to raise a lost platform again.</summary>

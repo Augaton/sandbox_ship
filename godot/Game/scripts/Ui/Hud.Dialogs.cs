@@ -185,7 +185,7 @@ public partial class Hud
     {
         var who = Row(8);
         who.AddChild(Emblem(side));
-        who.AddChild(Text(Factions.Defs[Worlds.RaceOf(World, side)].Name, color, 14));
+        who.AddChild(Text(Galaxies.SideName(World, side), color, 14));
         return who;
     }
 

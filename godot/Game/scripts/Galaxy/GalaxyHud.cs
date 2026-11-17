@@ -151,7 +151,8 @@ public partial class GalaxyHud : CanvasLayer
     HBoxContainer Heading(string text, Side? side, int size)
     {
         var h = HudKit.Row(8);
-        if (side is Side s) h.AddChild(Emblem(s));
+        // The independents have no emblem of their own (they would wear the Errants').
+        if (side is Side s && s != Galaxies.Independent) h.AddChild(Emblem(s));
         h.AddChild(Text(text, size: size, bold: true));
         return h;
     }
