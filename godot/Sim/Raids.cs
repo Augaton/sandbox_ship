@@ -30,7 +30,9 @@ public static class Raids
         var stations = world.Entities.Where(e => e.Type == "station").ToList();
         var at = spots.OrderByDescending(s => stations.Count == 0 ? 0 : stations.Min(st => Dist(st, s))).First();
         var facing = Math.Atan2(h / 2 - at.Y, w / 2 - at.X);
-        var colossus = SpawnShip(world, Faction.Errant, ShipClass.Colossus, at.X, at.Y, facing);
+        // Broadside to the middle of the map, its long hull along the edge: it does not reach
+        // into the field, and shows its whole length to whoever comes.
+        var colossus = SpawnShip(world, Faction.Errant, ShipClass.Colossus, at.X, at.Y, facing + Math.PI / 2);
         // Its escort holds the flanks: a battlecruiser and two frigates on each side.
         foreach (var (cls, ahead, side) in new[] { (ShipClass.Battlecruiser, 140.0, 300.0), (ShipClass.Frigate, 60.0, 360.0), (ShipClass.Frigate, -80.0, 330.0) })
         {

@@ -26,6 +26,12 @@ public class FixtureTests
     /// </summary>
     static readonly HashSet<ShipClass> Rearmed = [ShipClass.Frigate, ShipClass.Battlecruiser, ShipClass.Dreadnought, ShipClass.Titan];
     /// <summary>
+    /// Warships of the web version reshaped here: the dreadnought a fifth bigger, its parts moved and
+    /// grown with it; the titan long and narrow, its parts laid down its length. Their radius and
+    /// their parts' places and sizes differ; their parts' roles, toughness and weapons do not.
+    /// </summary>
+    static readonly HashSet<ShipClass> Reshaped = [ShipClass.Dreadnought, ShipClass.Titan];
+    /// <summary>
     /// Races whose trait this version balances again, measured in games between AIs: the Kla'ed,
     /// +15 % damage and −10 % shields instead of +10 % and −15 %.
     /// </summary>
@@ -86,7 +92,7 @@ public class FixtureTests
     }
 
     /// <summary>`rearmed`: only the number of each slot's weapons is compared, not what they are.</summary>
-    static void SameSlots(JsonElement j, IReadOnlyList<HardpointSlot>? slots, bool rearmed = false)
+    static void SameSlots(JsonElement j, IReadOnlyList<HardpointSlot>? slots, bool rearmed = false, bool reshaped = false)
     {
         if (j.ValueKind != JsonValueKind.Array)
         {
@@ -100,10 +106,13 @@ public class FixtureTests
             var e = j[i];
             var s = slots[i];
             SameName(e.GetProperty("role"), s.Role);
-            Assert.Equal(e.GetProperty("x").GetDouble(), s.X);
-            Assert.Equal(e.GetProperty("y").GetDouble(), s.Y);
+            if (!reshaped)
+            {
+                Assert.Equal(e.GetProperty("x").GetDouble(), s.X);
+                Assert.Equal(e.GetProperty("y").GetDouble(), s.Y);
+                Assert.Equal(Optional(e, "radius"), s.Radius);
+            }
             Assert.Equal(Optional(e, "hull"), s.Hull);
-            Assert.Equal(Optional(e, "radius"), s.Radius);
             if (!e.TryGetProperty("weapons", out var w)) Assert.Null(s.Weapons);
             else if (rearmed) Assert.Equal(w.GetArrayLength(), s.Weapons!.Count);
             else SameWeapons(w, s.Weapons!);
@@ -170,13 +179,13 @@ public class FixtureTests
                 ("hull", d.Hull), ("shield", d.Shield), ("shieldRegen", d.ShieldRegen), ("speed", d.Speed), ("accel", d.Accel),
                 ("turnRate", d.TurnRate), ("radius", d.Radius), ("cost", built ? 0 : d.Cost), ("buildTime", built ? 0 : d.BuildTime) })
             {
-                if (Dearer.Contains(cls) && name is "cost" or "buildTime") continue;
+                if (Dearer.Contains(cls) && name is "cost" or "buildTime" || Reshaped.Contains(cls) && name == "radius") continue;
                 Assert.Equal(j.GetProperty(name).GetDouble(), value);
             }
             Assert.Equal(j.GetProperty("minStationLevel").GetInt32(), d.MinStationLevel);
             Assert.Equal(j.GetProperty("source").GetString() == "hangar", d.FromHangar || built);
             SameWeapons(j.GetProperty("weapons"), d.Weapons);
-            SameSlots(j.TryGetProperty("hardpoints", out var hp) ? hp : default, d.Hardpoints, Rearmed.Contains(cls));
+            SameSlots(j.TryGetProperty("hardpoints", out var hp) ? hp : default, d.Hardpoints, Rearmed.Contains(cls), Reshaped.Contains(cls));
             if (j.TryGetProperty("ability", out var a)) SameName(a, d.Ability!.Value);
             else Assert.Null(d.Ability);
             Assert.Equal(j.TryGetProperty("squad", out var sq) ? sq.GetInt32() : (int?)null, built ? null : d.Squad);

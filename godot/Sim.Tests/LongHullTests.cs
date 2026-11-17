@@ -26,14 +26,23 @@ public class LongHullTests
         return l;
     }
 
+    /// <summary>The capitals are long hulls; every other class is round.</summary>
+    static readonly ShipClass[] LongHulls = [ShipClass.Titan, ShipClass.Leviathan, ShipClass.Colossus];
+
     [Fact]
-    public void A_leviathan_is_long_and_narrow()
+    public void The_capitals_are_long_and_the_others_round()
     {
-        var def = Ships.Defs[ShipClass.Leviathan];
-        Expect.Greater(def.Beam, 0);
-        // Three times longer than wide at least, its keel inside its length.
-        Expect.Greater(def.Radius, def.Beam * 3);
-        Assert.All(Ships.All.Where(c => c != ShipClass.Leviathan), c => Assert.Equal(0, Ships.Defs[c].Beam));
+        foreach (var cls in LongHulls)
+        {
+            var def = Ships.Defs[cls];
+            // Over twice as long as wide, its keel inside its length.
+            Expect.Greater(def.Radius, def.Beam * 2.5);
+            Expect.Greater(def.Beam, 0);
+        }
+        // From the narrowest to the most massive: titan, leviathan, colossus.
+        Assert.Equal(LongHulls, LongHulls.OrderBy(c => Ships.Defs[c].Radius).ToArray());
+        Assert.Equal(LongHulls, LongHulls.OrderBy(c => Ships.Defs[c].Beam).ToArray());
+        Assert.All(Ships.All.Except(LongHulls), c => Assert.Equal(0, Ships.Defs[c].Beam));
     }
 
     [Fact]

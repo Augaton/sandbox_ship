@@ -211,7 +211,9 @@ public partial class BattleScreen : Node
     /// <summary>Checking the looks: one ship of each class per faction, the neutral Errants last, platforms at each level, a lab, a star lance charging; paused.</summary>
     void Gallery()
     {
-        var y = 600.0;
+        // Rows as far apart as the longest hull, bow up.
+        var rowGap = Ships.All.Max(c => Ships.Defs[c].Radius) * 2.6;
+        var y = 200 + rowGap / 2;
         foreach (var f in Factions.All.Append(Faction.Errant))
         {
             if (!World.Factions.ContainsKey(f)) Worlds.AddFaction(World, f, 0);
@@ -224,7 +226,7 @@ public partial class BattleScreen : Node
                 Worlds.SpawnShip(World, f, c, x, y, -Math.PI / 2);
                 x += r + 40;
             }
-            y += 500;
+            y += rowGap;
         }
         // Each race's stations, levels 1 to 4 with their parts, then each of its buildings at each of its levels.
         foreach (var f in Factions.All.Append(Faction.Errant))

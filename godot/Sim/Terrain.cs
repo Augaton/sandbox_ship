@@ -487,6 +487,9 @@ public static class Terrains
     /// <summary>Tries of a piece: where the layout puts it, then up to this many times again, each a little farther off.</summary>
     const int Tries = 30;
 
+    /// <summary>Open ground kept about the raid's ships past their hull, and room kept about any other ship on the map.</summary>
+    const double RaidRoom = 500, ShipRoom = 200;
+
     static void Place(World world, IReadOnlyList<Point> spots, Point c, Piece piece, Func<double> draw)
     {
         for (var t = 0; t <= Tries; t++)
@@ -585,8 +588,11 @@ public static class Terrains
         foreach (var e in world.Entities)
         {
             if (e.Kind == EntityKind.Structure && p.Holds(e.X, e.Y, e.Radius + (hard ? 200 : 0))) return false;
-            // The raid's colossus and whatever a mode put on the map.
-            if (e.Kind == EntityKind.Ship && p.Holds(e.X, e.Y, e.Radius + 500)) return false;
+            // Ships a mode put on the map, off their hull (a long one's measured from its keel): the
+            // raid keeps open ground about it to be fought on; a seat's ship (a flagship by its
+            // station) only room for itself.
+            if (e.Kind == EntityKind.Ship && Worlds.Keel(e, p.X, p.Y) is var (kx, ky)
+                && p.Holds(kx, ky, e.Girth + (e.Side == Faction.Errant ? RaidRoom : ShipRoom))) return false;
         }
         if (hard)
         {

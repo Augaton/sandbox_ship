@@ -68,11 +68,19 @@ tests de `FixtureTests` et `CrossTests` les listent.
   les recrues tombent d'abord, les vaisseaux qui partent emportent les meilleurs.
 - Nouvelles classes : Rempart (tank, « Provocation »), Transporteur (deux grands hangars,
   « Catapultes »), Léviathan (au-dessus du Titan, station niveau 4, un seul).
-- Le Léviathan est un vrai vaisseau capital : coque longue et fine (460 de long pour 125 de large),
-  batterie axiale de trois rayons à l'avant et un à l'arrière, bordées de lasers et de canons à rafales
-  sur ses deux coques latérales, DCA aux deux bouts (24 pièces). Lent (vitesse 19, virage 0,11).
-  Sa coque est une capsule le long de son cap (`ShipDef.Beam`, `Worlds.Keel` et `Worlds.Gap`) :
-  portée, impacts, collisions, vision, zones des capacités, clic, anneaux et bouclier la suivent.
+- Vaisseaux capitaux longs (coque en capsule le long du cap : `ShipDef.Beam`, `Worlds.Keel` et
+  `Worlds.Gap` ; portée, impacts, collisions, vision, zones des capacités, clic, anneaux, bouclier
+  et terrain la suivent), du plus fin au plus massif. Titan : 380 sur 110, une lame à quille
+  unique, superstructure en gradins, coques latérales et ailerons à l'arrière. Léviathan : 520 sur
+  190, proue fourchue, deux grandes coques latérales portant les bordées, passerelle, 24 pièces, lent
+  (vitesse 19, virage 0,11). Colosse : 620 sur 210, trimaran (quille et deux coques extérieures
+  reliées par des entretoises), grande fourche à la proue, cœur couronné. Le Colosse du raid est
+  couché le long du bord de la carte, flanc vers le centre.
+- Cuirassé un cinquième plus grand que dans la version web (rayon 68), ses pièces déplacées et
+  agrandies d'autant. Rempart (rayon 50) : un mur, un grand croissant de blindage devant une coque
+  ramassée. Transporteur : un pont d'envol éclairé entre deux coques-hangars ouvertes à la proue.
+- Terrain : il garde 500 de terrain dégagé autour des vaisseaux du raid, et seulement la place de
+  leur coque plus 200 autour des autres vaisseaux posés par un mode (vaisseau amiral du régicide).
 - Profondeur : éclaireurs, chasseurs et bombardiers volent au-dessus des autres vaisseaux, sans
   pousser ni être poussés par eux (seulement par les bâtiments). À l'écran, une couche à eux au-dessus
   des vaisseaux, une ombre portée par vaisseau (lumière en haut à gauche, d'autant plus loin qu'il vole

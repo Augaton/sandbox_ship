@@ -840,87 +840,131 @@ public static partial class ShipForge
 
     // The plans, the same for every faction, each faction's hand building them its own way.
 
-    /// <summary>Bulwark: a squat block behind tiers of frontal armor, one small gun.</summary>
+    /// <summary>
+    /// Bulwark: a wall. A great crescent of armor across the bow, wider than the ship is long,
+    /// ribbed and edged, the hull crouched behind it between two short sponsons.
+    /// </summary>
     static Canvas Bulwark(Faction f)
     {
-        var c = new Canvas(70, 76);
+        var c = new Canvas(92, 72);
         var k = KitOf(f, c);
-        k.Pod(24, 18, 62, 8);
-        k.Spine(8, 68, 19);
-        // Tiers of armor across the bow, each wider and lower than the one before.
-        for (var i = 2; i >= 0; i--)
-        {
-            var y = 10 + i * 7.0;
-            var tier = c.Body((12 + i * 5, y), (17 + i * 5, y + 3), (17 + i * 5, y + 8), (12 + i * 5, y + 8));
-            c.Raise(tier, M.Hull, 6 - i, 2);
-            c.Inset(tier, 1.5f, 0.9f);
-        }
-        k.Mount(0, 46, 5);
-        k.Engines(68, 7, 15);
-        return c;
-    }
-
-    /// <summary>Carrier: a long flight deck between two hangar hulls lined with launch bays.</summary>
-    static Canvas Carrier(Faction f)
-    {
-        var c = new Canvas(84, 124);
-        var k = KitOf(f, c);
-        k.Wing(21, 86, 40, 16);
-        k.Pod(26, 14, 110, 10);
-        k.Spine(2, 116, 14);
-        k.Bays(26, 34, 6, 7, 9);
-        // The flight deck: a dark lane down the spine, landing lights dashed along it.
-        c.Carve(c.Rect(0, 38, 4.5, 104), 2f);
-        for (var y = 40; y < 102; y += 6) c.Glow(c.Rect(-0.5, y, 0.5, y + 2), M.Light, y % 12 < 6 ? 2 : 1);
-        k.Engines(116, 6);
-        k.Engines(110, 26);
-        return c;
-    }
-
-    /// <summary>Titan: a massive spine between two pods, great wings, a battery of mounts.</summary>
-    static Canvas Titan(Faction f)
-    {
-        var c = new Canvas(130, 170);
-        var k = KitOf(f, c);
-        k.Wing(32, 72, 64, 34);
-        k.Pod(38, 30, 150, 13);
-        k.Spine(2, 162, 25);
-        k.Engines(162, 7, 17);
-        k.Engines(150, 38);
+        k.Pod(27, 20, 62, 8);
+        k.Spine(10, 66, 18);
+        var shield = c.Stroke((0, 11), (28, 7), (45, 34), 17, 10);
+        c.Raise(shield, M.Hull, 7, 3);
+        c.Inset(shield, 2.5f);
+        for (var dx = 5.0; dx < 44; dx += 5) c.Carve(Canvas.And(shield, c.Line(dx, 0, dx, c.H)), 1f);
+        c.Dye(c.Front(shield, 1), M.Trim);
+        // Slits along its crest, lit.
+        foreach (var (dx, y) in new[] { (8.0, 10.0), (18.0, 10.5), (27.0, 13.0), (35.0, 18.5) }) c.Glow(c.Rect(dx, y, dx + 2, y + 1), M.Accent, 1);
+        k.Mount(0, 44, 5);
+        Stern(c, 66, 19);
+        k.Engines(66, 6, 16);
         return c;
     }
 
     /// <summary>
-    /// Leviathan: a true capital ship, long and narrow. A forked prow round the bow battery, a
-    /// long keel between two flank hulls carrying the broadsides, a bridge raised astern of
-    /// amidships, fins and a bank of engines at the stern, a red core burning under the bridge,
-    /// the whole hull darker. Laid out about the canvas's middle, which is the ship's.
+    /// Carrier: a long flight deck, its runway lit, between two hangar hulls whose bows open on
+    /// their launch bays; the island astern, fins and engines behind.
+    /// </summary>
+    static Canvas Carrier(Faction f)
+    {
+        var c = new Canvas(70, 112);
+        var k = KitOf(f, c);
+        k.Wing(30, 84, 34, 14);
+        k.Pod(22, 18, 98, 9);
+        var deck = c.Body((6, 4), (13, 12), (13, 96), (10, 100));
+        c.Raise(deck, M.Plate, 3, 1.5f);
+        c.Inset(deck, 1.5f, 0.8f);
+        // The runway: a dark lane, its edges dashed with lights, arrows at the bow.
+        c.Carve(c.Rect(0, 16, 3, 92), 1.5f);
+        for (var y = 18; y < 90; y += 8) c.Glow(c.Rect(4, y, 5, y + 3), M.Light, y % 16 < 8 ? 2 : 1);
+        c.Glow(c.Line(3, 10, 0, 6), M.Light, 2);
+        // The hangar mouths at the hulls' bows, and bays down their flanks.
+        c.Carve(c.Rect(17, 24, 27, 36), 2.5f);
+        c.Glow(c.Line(17.5, 35, 26.5, 35), M.Light, 1);
+        k.Bays(22, 46, 4, 6, 8);
+        // The island: a narrow tower astern, its windows lit.
+        var island = c.Body((2, 74), (7, 78), (7, 90), (5, 92));
+        c.Raise(island, M.Plate, 8, 1.5f);
+        c.Glow(c.Rect(2, 80, 5, 81), M.Glass, 2);
+        c.Glow(c.Rect(2, 84, 5, 85), M.Glass, 1);
+        k.Engines(102, 5, 12);
+        k.Engines(100, 22);
+        return c;
+    }
+
+    /// <summary>
+    /// Titan: a long blade of a battleship. A single keel from its pointed bow to its engines,
+    /// a stepped superstructure amidships, side hulls and fins only aft: the narrowest of the
+    /// capitals, the bow battery down the keel.
+    /// </summary>
+    static Canvas Titan(Faction f)
+    {
+        var c = new Canvas(84, 300);
+        var k = KitOf(f, c);
+        k.Wing(28, 230, 41, 32);
+        k.Pod(25, 150, 278, 8);
+        k.Spine(6, 286, 14);
+        // The superstructure: three tiers, each narrower and higher, windows on the top one.
+        foreach (var (half, top, bottom, height) in new[] { (10.0, 118.0, 212.0, 6f), (7.0, 132.0, 198.0, 8f), (4.0, 146.0, 184.0, 10f) })
+        {
+            var tier = c.Body((half - 2, top), (half, top + 5), (half, bottom - 4), (half - 2, bottom));
+            c.Raise(tier, M.Plate, height, 2);
+            c.Inset(tier, 1.5f, 0.9f);
+        }
+        for (var y = 152; y < 180; y += 7) c.Glow(c.Rect(1, y, 3, y + 1), M.Glass, y == 152 ? 2 : 1);
+        // Running lights down the keel, and the glow of its reactor slots between the guns.
+        for (var y = 104; y < 280; y += 12) c.Glow(c.Rect(13, y, 14, y + 1), M.Light, (y / 12) % 3 == 0 ? 2 : 1);
+        for (var y = 64; y < 80; y += 6) c.Glow(c.Rect(6, y, 9, y + 1), M.Core, 1);
+        Stern(c, 288, 12);
+        k.Engines(288, 0, 8);
+        k.Engines(278, 25);
+        return c;
+    }
+
+    /// <summary>
+    /// Leviathan: a true capital ship, long and broad-shouldered. A forked prow round the bow
+    /// battery, a long keel between two great flank hulls carrying the broadsides, a bridge
+    /// raised astern of amidships, fins and a bank of engines at the stern, a red core burning
+    /// aft, the whole hull darker. Laid out about the canvas's middle, which is the ship's.
     /// </summary>
     static Canvas Leviathan(Faction f)
     {
-        var c = new Canvas(92, 348);
+        var c = new Canvas(144, 404);
         var k = KitOf(f, c);
-        k.Wing(34, 266, 45, 32);
-        k.Pod(30, 126, 308, 10);
-        k.Jaw(11, 10, 98, 7);
-        k.Spine(40, 334, 17);
-        // The bridge: a narrow tower on the keel, its windows lit.
-        var bridge = c.Body((3, 174), (8, 182), (8, 232), (6, 238));
-        c.Raise(bridge, M.Plate, 8, 2);
+        k.Wing(52, 312, 70, 40);
+        k.Pod(46, 148, 362, 15);
+        k.Jaw(16, 12, 118, 10);
+        k.Spine(48, 390, 26);
+        // The bridge: a tower on the keel, its windows lit.
+        var bridge = c.Body((5, 204), (12, 214), (12, 272), (9, 280));
+        c.Raise(bridge, M.Plate, 9, 2);
         c.Inset(bridge, 2f, 1f);
-        for (var y = 188; y < 228; y += 8) c.Glow(c.Rect(3, y, 6, y + 1), M.Glass, y == 188 ? 2 : 1);
+        for (var y = 220; y < 268; y += 9) c.Glow(c.Rect(4, y, 9, y + 1), M.Glass, y == 220 ? 2 : 1);
         // Running lights down both sides of the keel, slots of the core between the bow guns.
-        for (var y = 138; y < 300; y += 12) c.Glow(c.Rect(16, y, 17, y + 1), M.Light, (y / 12) % 3 == 0 ? 2 : 1);
-        for (var y = 66; y < 124; y += 10) c.Glow(c.Rect(12, y, 15, y + 1), M.Core, 1);
+        for (var y = 160; y < 360; y += 12) c.Glow(c.Rect(25, y, 26, y + 1), M.Light, (y / 12) % 3 == 0 ? 2 : 1);
+        for (var y = 78; y < 146; y += 10) c.Glow(c.Rect(18, y, 22, y + 1), M.Core, 1);
+        // Plates down the flank hulls, between the guns.
+        for (var y = 190.0; y < 350; y += 30) c.Carve(c.Rect(36, y, 56, y + 1), 1f);
         // The core: a red eye astern of the last gun, in a sunken ring.
-        c.Raise(c.Oval(0, 279, 6, 7), M.Plate, 6, 2);
-        c.Carve(c.Oval(0, 279, 4.5, 5.5), 2f);
-        c.Glow(c.Oval(0, 279, 3.5, 4.5), M.Core, 0);
-        c.Glow(c.Oval(0, 278, 2, 2.5), M.Core, 1);
-        c.Glow(c.Oval(-0.5, 276, 1, 1.5), M.Core, 2);
-        k.Engines(336, 0, 10, 19);
-        k.Engines(312, 30);
+        c.Raise(c.Oval(0, 326, 9, 10), M.Plate, 6, 2);
+        c.Carve(c.Oval(0, 326, 7, 8), 2f);
+        c.Glow(c.Oval(0, 326, 5.5, 6.5), M.Core, 0);
+        c.Glow(c.Oval(0, 325, 3, 4), M.Core, 1);
+        c.Glow(c.Oval(-1, 322, 1.5, 2), M.Core, 2);
+        Stern(c, 392, 31);
+        k.Engines(392, 0, 14, 27);
+        k.Engines(366, 46);
         return c;
+    }
+
+    /// <summary>An engine block across the stern, `half` wide either side, ending at `y`: the engines sit on it, whatever the hull's taper.</summary>
+    static void Stern(Canvas c, double y, double half)
+    {
+        var block = c.Body((half - 3, y - 12), (half, y - 9), (half, y - 1), (half - 2, y));
+        c.Raise(block, M.Plate, 4, 1.5f);
+        c.Inset(block, 1.5f, 0.8f);
     }
 
     /// <summary>
@@ -951,25 +995,45 @@ public static partial class ShipForge
     }
 
     /// <summary>
-    /// Colossus: the neutral raid boss. A vast spine between two great jaws, long pods, broad
-    /// wings, its heart burning in a crown of plate amidships.
+    /// Colossus: the ultimate ship, the neutral raid boss. A trimaran: a great keel between two
+    /// outer hulls set apart, tied to it by struts across the void, a massive fork at its bow,
+    /// its heart burning in a crown of plate amidships, a stepped superstructure aft of it.
     /// </summary>
     static Canvas Colossus(Faction f)
     {
-        var c = new Canvas(252, 316);
+        var c = new Canvas(160, 480);
         var k = KitOf(f, c);
-        k.Wing(60, 150, 124, 64);
-        k.Pod(86, 72, 288, 19);
-        k.Jaw(46, 0, 152, 16);
-        k.Spine(14, 300, 44);
-        c.Raise(c.Oval(0, 158, 22, 24), M.Plate, 7, 2.5f);
-        c.Inset(c.Oval(0, 158, 22, 24), 3f);
-        c.Carve(c.Oval(0, 158, 15, 17), 2f);
-        c.Glow(c.Oval(0, 158, 13, 15), M.Core, 0);
-        c.Glow(c.Oval(0, 157, 8, 10), M.Core, 1);
-        c.Glow(c.Oval(-2, 152, 3, 4), M.Core, 2);
-        k.Engines(300, 10, 30);
-        k.Engines(288, 86);
+        // The struts first: the hulls lie over their ends.
+        foreach (var y in new[] { 160.0, 250.0, 340.0, 410.0 })
+        {
+            var strut = c.Rect(24, y, 50, y + 9);
+            c.Raise(strut, M.Plate, 3, 1.5f);
+            c.Carve(c.Line(26, y + 4.5, 48, y + 4.5), 0.8f);
+        }
+        k.Pod(60, 120, 440, 14);
+        k.Jaw(34, 4, 170, 12);
+        k.Spine(56, 464, 28);
+        // The heart, in its crown.
+        c.Raise(c.Oval(0, 250, 22, 24), M.Plate, 7, 2.5f);
+        c.Inset(c.Oval(0, 250, 22, 24), 3f);
+        c.Carve(c.Oval(0, 250, 15, 17), 2f);
+        c.Glow(c.Oval(0, 250, 13, 15), M.Core, 0);
+        c.Glow(c.Oval(0, 249, 8, 10), M.Core, 1);
+        c.Glow(c.Oval(-2, 244, 3, 4), M.Core, 2);
+        // The superstructure aft of it, in tiers, windows on the top one.
+        foreach (var (half, top, bottom, height) in new[] { (14.0, 290.0, 392.0, 6f), (10.0, 302.0, 380.0, 8f), (6.0, 316.0, 366.0, 10f) })
+        {
+            var tier = c.Body((half - 3, top), (half, top + 6), (half, bottom - 5), (half - 3, bottom));
+            c.Raise(tier, M.Plate, height, 2);
+            c.Inset(tier, 1.5f, 0.9f);
+        }
+        for (var y = 324; y < 362; y += 8) c.Glow(c.Rect(1, y, 4, y + 1), M.Glass, y == 324 ? 2 : 1);
+        // Running lights down the keel and the outer hulls.
+        for (var y = 160; y < 450; y += 14) c.Glow(c.Rect(27, y, 28, y + 1), M.Light, (y / 14) % 3 == 0 ? 2 : 1);
+        for (var y = 90; y < 150; y += 10) c.Glow(c.Rect(12, y, 16, y + 1), M.Core, 1);
+        Stern(c, 466, 27);
+        k.Engines(466, 0, 12, 23);
+        k.Engines(444, 60);
         return c;
     }
 
