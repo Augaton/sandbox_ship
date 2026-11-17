@@ -32,9 +32,13 @@ public sealed record StationLevel(
     // Hardpoints added when this level is reached.
     IReadOnlyList<HardpointSlot> Hardpoints);
 
-/// <summary>What a platform or an outpost becomes at its next level.</summary>
+/// <summary>
+/// What a platform or an outpost becomes at its next level. Not in the web version: a level may
+/// need a station level, widen the building and give it destructible parts (the bastion).
+/// </summary>
 public sealed record TierDef(double Cost, double Time, double Hull, double Shield,
-    IReadOnlyList<WeaponDef>? Weapons = null, HangarDef? Hangar = null, double? Zone = null);
+    IReadOnlyList<WeaponDef>? Weapons = null, HangarDef? Hangar = null, double? Zone = null,
+    int MinStationLevel = 1, double? Radius = null, IReadOnlyList<HardpointSlot>? Hardpoints = null);
 
 public sealed record BuildableDef(
     BuildableType Id, string Name, double Hull, double Shield, double ShieldRegen, double Radius,
@@ -124,19 +128,37 @@ public static class Buildables
     public const double RebuildQuiet = 20;
     /// <summary>Defense platforms each build area holds at most (not in the web version).</summary>
     public const int StationPlatforms = 3, OutpostPlatforms = 2, MinePlatforms = 1;
+    /// <summary>
+    /// An outpost stands at least this far from the faction's station and from its other
+    /// outposts (not in the web version): their build areas, 750 across at the last level, then
+    /// never overlap, and an outpost holds new ground instead of thickening the old.
+    /// </summary>
+    public const double OutpostSpacing = 1500;
 
     public static readonly IReadOnlyList<BuildableType> All = Enum.GetValues<BuildableType>();
 
     public static readonly IReadOnlyDictionary<BuildableType, BuildableDef> Defs = new Dictionary<BuildableType, BuildableDef>
     {
-        [BuildableType.Platform] = new(BuildableType.Platform, "Plateforme de défense", Hull: 900, Shield: 200, ShieldRegen: 5, Radius: 22,
-            Cost: 400, BuildTime: 15, MinStationLevel: 1,
-            Weapons: [Weapons.Laser with { Range = 450, Damage = 12 }, Weapons.Flak],
+        // Built to last (not in the web version: 900 hull for 400 cr, 2 000 at its last level):
+        // a defense holds while its owner gathers a fleet, and costs what a few ships would.
+        [BuildableType.Platform] = new(BuildableType.Platform, "Plateforme de défense", Hull: 2000, Shield: 500, ShieldRegen: 6, Radius: 22,
+            Cost: 600, BuildTime: 20, MinStationLevel: 1,
+            Weapons: [Weapons.Laser with { Range = 450, Damage = 14 }, Weapons.Flak],
             NearMines: true,
             Tiers:
             [
-                new(400, 20, 1400, 350, [Weapons.Laser with { Range = 470, Damage = 18 }, Weapons.Flak]),
-                new(700, 30, 2000, 500, [Weapons.Laser with { Range = 500, Damage = 22 }, Weapons.Laser with { Range = 500, Damage = 22 }, Weapons.Flak]),
+                new(900, 25, 3500, 900, [Weapons.Laser with { Range = 470, Damage = 20 }, Weapons.Flak]),
+                new(1500, 35, 6000, 1500, [Weapons.Laser with { Range = 500, Damage = 24 }, Weapons.Laser with { Range = 500, Damage = 24 }, Weapons.Flak]),
+                // The bastion: a great deck carrying four turrets of its own, destructible and
+                // rebuilt like the station's, two heavy ones fore and aft, two light ones abeam.
+                new(3000, 50, 10000, 2500, [Weapons.Laser with { Range = 520, Damage = 26 }, Weapons.Laser with { Range = 520, Damage = 26 }, Weapons.Flak],
+                    MinStationLevel: 3, Radius: 34, Hardpoints:
+                    [
+                        new(HardpointRole.HeavyTurret, 38, 0),
+                        new(HardpointRole.HeavyTurret, -38, 0),
+                        new(HardpointRole.Turret, 0, -36),
+                        new(HardpointRole.Turret, 0, 36),
+                    ]),
             ]),
         [BuildableType.Mine] = new(BuildableType.Mine, "Mine d'astéroïdes", Hull: 700, Shield: 0, ShieldRegen: 0, Radius: 26,
             Cost: 500, BuildTime: 20, MinStationLevel: 1, Weapons: [], Income: 8),

@@ -205,7 +205,7 @@ public static partial class Snapshot
         if (r.ReadUInt32() != Magic) throw new InvalidDataException("Pas un instantané de bataille");
         var version = r.ReadUInt16();
         if (version != Version) throw new InvalidDataException($"Instantané en version {version}, version {Version} attendue");
-        var viewer = new Side(r.ReadVarint());
+        var viewer = r.ReadSide();
         var seq = r.ReadVarint();
         var from = r.ReadVarint();
         var kind = r.ReadByte();

@@ -87,22 +87,50 @@ tests de `FixtureTests` et `CrossTests` les listent.
   haut, posée sur les coques survolées), le roulis dans les virages et le décollage des appareils lancés.
 - Deux Titans au plus. Les gros vaisseaux ont plusieurs capacités (cuirassé 2, Titan 3,
   Léviathan 4).
-- Réserve (`Reserves.cs`) : les grandes coques (croiseur, Rempart, Transporteur, cuirassé, Titan,
-  Léviathan, Colosse, et les héros bâtis sur l'une d'elles) ne sortent plus du chantier. Une fois
-  construites, elles attendent en réserve (panneau au-dessus des groupes) et se glissent sur la
-  carte, ou se placent d'un clic (Maj : plusieurs). Elles arrivent par l'hyperespace près de ses
-  forces : à 900 de ses bâtiments construits, à 600 de ses vaisseaux moyens et grands, jamais à
-  moins de 700 d'un bâtiment ennemi, sur un terrain libre. Le saut dure 3 s (6 s pour Titan,
-  Léviathan, Colosse), son point marqué pour tous (silhouette, tunnel de lumière, hologramme). En
-  sortant, le vaisseau jaillit de derrière son point, étiré, freine net, laisse des traînées, et son
-  onde de choc écarte les appareils proches ; les capitaux sonnent de la trompe et font trembler
-  l'écran. La réserve et les sauts comptent dans les limites (Titans, Léviathan, héros). L'IA appelle
-  sa réserve à son point de ralliement. Réseau : commande `Deploy` (commandes 3), instantanés 10,
-  protocole 13. Tests : `ReserveTests`. `--start=jumps` montre des sauts à chaque stade.
-- Les chasseurs se construisent aussi au chantier (4 pour 300).
+- Réserve (`Reserves.cs`) : aucun vaisseau ne sort plus du chantier. Une fois construit, chacun
+  attend en réserve (panneau au-dessus des groupes, un bouton par sorte) et se glisse sur la carte,
+  ou se place d'un clic (Maj : plusieurs) ; clic droit sur un bouton : tous ceux de cette sorte au
+  point de ralliement, chacun sur sa place. Une escadrille arrive d'un bloc, de front. Ils arrivent
+  par l'hyperespace près de ses forces : à 900 de ses bâtiments construits, à 600 de ses vaisseaux
+  moyens et grands, jamais à moins de 700 d'un bâtiment ennemi ni sur un bâtiment, sur un terrain
+  libre. Le saut dure 1,5 s (petits), 2 s (moyens), 3 s (grands), 6 s (Titan, Léviathan, Colosse),
+  son point marqué pour tous (silhouette, tunnel de lumière, hologramme). En sortant, le vaisseau
+  jaillit de derrière son point, étiré, freine net et laisse des traînées ; l'onde de choc d'une
+  grande coque écarte les appareils proches. Un capital arrive autrement : une tempête se forme sur
+  son point pendant le saut (nuages sombres qui tournent, éclairs de plus en plus serrés, roulement
+  de tonnerre), puis il en sort lentement, la proue d'abord (4,5 s), des éclairs courant sur sa
+  coque, dans un éclair, le tonnerre et la trompe, l'écran tremblant longuement ; la tempête se
+  dissipe en 6 s. La réserve et les sauts comptent dans les limites (Titans, Léviathan, héros). L'IA
+  appelle sa réserve à son point de ralliement (`Reserves.CallAll`). Réseau : commande `Deploy`
+  (commandes 3). Tests : `ReserveTests`. `--start=jumps` montre des sauts à chaque stade.
+- Quatre classes de plus (instantanés 11, protocole 14), avec des sprites originaux forgés pour
+  chaque race : Artillerie (moyenne, 1 400 cr, station 2 ; obus de siège lents à 950 de portée,
+  ×2,5 contre les bâtiments, presque rien contre les petits, abattus par la défense ponctuelle ;
+  « Tir de barrage »), Corvette (petite, deux pour 450 cr ; deux flaks à défense ponctuelle ;
+  « Salve »), Brouilleur (moyen, 900 cr, station 2 ; « Brouillage » : dans une zone de 320, les
+  ennemis, bâtiments compris, perdent 40 % de portée et leurs boucliers ne se rechargent plus
+  pendant 10 s), Croiseur furtif (moyen, 1 300 cr, station 2 ; dans le brouillard, ses ennemis ne
+  le voient qu'à 300 au plus, sauf dans les 3 s qui suivent un tir ; « Camouflage »). L'IA les
+  construit (corvettes contre les essaims, artillerie contre les défenses) et l'attaque de l'assaut
+  emmène deux artilleries.
+- Les chasseurs se construisent aussi au chantier (4 pour 300), et passent par la réserve.
 - Recherche : il faut un laboratoire ; l'escarmouche en donne un derrière chaque station.
 - Plateformes : 3 autour de la station, 2 par avant-poste, 1 par mine ; leur aspect suit leur
-  niveau.
+  niveau. Bien plus solides et plus chères que dans la version web : 600 cr et 2 000 de coque, puis
+  +900 (3 500), +1 500 (6 000) et un niveau 4, le bastion (+3 000 cr, station niveau 3, 10 000 de
+  coque, rayon 34) : une grande plateforme qui porte quatre tourelles destructibles, deux lourdes
+  et deux légères, reconstruites comme celles de la station. En escarmouche (sauf assaut et survie),
+  chaque station commence avec deux plateformes niveau 3 devant elle, vers le centre de la carte,
+  contre les rushs ; la forteresse de l'assaut garde ses trois plateformes niveau 3.
+- Plus de file de bâtiment : l'amélioration de la station et les niveaux des plateformes et des
+  avant-postes avancent tous en même temps, un niveau à la fois par bâtiment (sa barre dans son
+  panneau et dans l'onglet Bâtiments).
+- Avant-postes : à 1 500 au moins de la station et des autres avant-postes du même camp.
+- Cartes d'escarmouche : deux tailles de plus, très grande (10 000 × 6 700) et immense
+  (13 000 × 8 700) ; les galaxies restent en trois tailles (une plus grande taille de carte donne
+  une grande galaxie).
+- Les cercles des zones d'arrivée ne s'affichent plus pendant un glisser-déposer : la silhouette,
+  verte ou rouge avec la raison, suffit.
 - Station : quatrième niveau, plus solide à chaque niveau ; améliorations bien plus chères
   (4 000, 9 000, 18 000). L'IA épargne la moitié de son revenu pour le niveau suivant et attaque
   par vagues plus grosses : parties d'environ 24 min en médiane entre IA, jusqu'à près d'une heure.
@@ -112,9 +140,10 @@ tests de `FixtureTests` et `CrossTests` les listent.
   Errants, non jouable) garde le point de la carte le plus loin des stations. Il frappe quiconque
   approche ; ses quatre générateurs de bouclier sont la clé. Le premier à l'abattre gagne
   8 000 crédits et un niveau de recherche. L'IA ne le chasse pas encore.
-- Rempart, Transporteur, Titan, Léviathan et Colosse ont des sprites originaux, dessinés au démarrage
-  par `Render/ShipForge.cs` dans la manière des packs (relief éclairé ramené à leurs palettes),
-  avec leurs réacteurs, leur destruction et un socle sous chaque tourelle.
+- Rempart, Transporteur, Titan, Léviathan, Colosse, Artillerie, Corvette, Brouilleur et Croiseur
+  furtif ont des sprites originaux, dessinés au démarrage par `Render/ShipForge.cs` dans la manière
+  des packs (relief éclairé ramené à leurs palettes), avec leurs réacteurs, leur destruction et un
+  socle sous chaque tourelle.
 - Les Errants sont une vraie faction, toujours neutre et non jouable : trait « Gardiens » (bouclier et
   coque ×1,2, vitesse ×0,8) et une flotte entière à eux (toutes les classes), forgée par `ShipForge`
   dans une palette bronze, or et turquoise.
@@ -195,6 +224,9 @@ tests de `FixtureTests` et `CrossTests` les listent.
     technologique 81 %. Campagne (petite galaxie, 60 min au plus) : équilibrée, agressive et
     technologique 56 %, économe 38 %, défensive 31 % ; 2 nuls ; médiane 31 min. À ±24 points près
     sur 16 parties : la technologique en bataille reste à surveiller.
+  - Le 2026-11-17, avec les plateformes de départ, la technologique ne cherchait pas plus que les
+    autres contre un joueur passif : sa chance de recherche passe de 0,2 à 0,35. L'IA compte dans sa
+    flotte les vaisseaux en réserve et en saut. Séries de personnalités pas encore refaites.
 - Campagne, IA : offensives groupées (rassemblement puis attaque à 1,4 fois la défense, 1,1 après
   6 min d'attente), renforts vers une planète menacée, récupération des épaves, retour des flottes
   usées. Parties entre IA : toutes finies, médiane 14 min.

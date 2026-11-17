@@ -23,7 +23,8 @@ public class QolTests
         StepWorld(w);
         Assert.Single(f.Queue);
         Run(w, Ships.Defs[ShipClass.Frigate].BuildTime * 2 + 1);
-        int Frigates() => w.Entities.Count(e => e.Type == "frigate" && e.Side == Faction.Klaed);
+        // In reserve once built.
+        int Frigates() => f.Reserve.Count(s => s.Cls == ShipClass.Frigate);
         Assert.Equal(2, Frigates());
         Assert.Single(f.Queue);
         f.Repeat = [];

@@ -39,6 +39,7 @@ public class VarietyTests
         Assert.True(EnqueueUpgrade(w, Faction.Klaed).Ok);
         Assert.True(EnqueueShip(w, Faction.Klaed, ShipClass.Scout).Ok);
         Run(w, Ships.Defs[ShipClass.Scout].BuildTime + 0.5);
+        Landing.Land(w, Faction.Klaed);
         Assert.Equal(Ships.Defs[ShipClass.Scout].Squad!.Value, ShipsOf(w, "scout").Count);
         var f = w.Factions[Faction.Klaed];
         Assert.Single(f.BuildQueue);
@@ -254,19 +255,44 @@ public class VarietyTests
     }
 
     [Fact]
-    public void A_platform_goes_up_two_levels_through_the_buildings_queue()
+    public void Platforms_go_up_a_level_at_a_time_each_and_all_at_once_without_a_queue()
     {
         var w = NewWorld();
-        SpawnStation(w, Faction.Klaed, 700, 2000);
+        var station = SpawnStation(w, Faction.Klaed, 700, 2000);
         var p = SpawnStructure(w, Faction.Klaed, BuildableType.Platform, 1000, 2300);
+        var q = SpawnStructure(w, Faction.Klaed, BuildableType.Platform, 1000, 1700);
         var tiers = Buildables.Defs[BuildableType.Platform].Tiers!;
+        // Both at once, alongside the station's upgrade; one level at a time on each.
         Assert.True(UpgradeStructure(w, Faction.Klaed, p.Id).Ok);
+        Assert.True(UpgradeStructure(w, Faction.Klaed, q.Id).Ok);
+        Assert.True(EnqueueUpgrade(w, Faction.Klaed).Ok);
+        Assert.Equal(Result.Fail("Amélioration en cours"), UpgradeStructure(w, Faction.Klaed, p.Id));
+        Run(w, tiers[0].Time + 0.5);
+        Assert.Equal((2, 2), (p.Level, q.Level));
         Assert.True(UpgradeStructure(w, Faction.Klaed, p.Id).Ok);
-        Assert.Equal(Result.Fail("Niveau maximum"), UpgradeStructure(w, Faction.Klaed, p.Id));
-        Run(w, tiers[0].Time + tiers[1].Time + 1);
+        Run(w, tiers[1].Time + 0.5);
         Assert.Equal(3, p.Level);
         Expect.Close(tiers[1].Hull * 1, p.MaxHull, 5);
         Assert.Equal(3, p.Weapons.Count);
+        // The bastion: a station of level 3, room around it; then four turrets of its own.
+        Assert.Equal(Result.Fail("Station niveau 3 requise"), CanUpgradeStructure(w, Faction.Klaed, p.Id));
+        while (station.Level < 3)
+        {
+            EnqueueUpgrade(w, Faction.Klaed);
+            Run(w, 1);
+        }
+        Assert.True(UpgradeStructure(w, Faction.Klaed, p.Id).Ok);
+        Run(w, tiers[2].Time + 0.5);
+        Assert.Equal(4, p.Level);
+        Assert.Equal(tiers[2].Radius, p.Radius);
+        Assert.Equal(4, ChildrenOf(w, p.Id).Count);
+        Assert.Equal(Result.Fail("Niveau maximum"), UpgradeStructure(w, Faction.Klaed, p.Id));
+        // A turret lost comes back, as a station's parts do.
+        ChildrenOf(w, p.Id)[0].Hull = 0;
+        StepWorld(w);
+        Assert.Equal(3, ChildrenOf(w, p.Id).Count);
+        Run(w, Buildables.RebuildQuiet + Buildables.RebuildTime + 1);
+        Assert.Equal(4, ChildrenOf(w, p.Id).Count);
     }
 
     [Fact]
@@ -335,6 +361,7 @@ public class VarietyTests
         Assert.True(EnqueueHero(w, Faction.Klaed, ace).Ok);
         Assert.Equal(Result.Fail("Déjà en service"), CanBuildHero(w, Faction.Klaed, ace));
         Run(w, Heroes.Defs[ace].BuildTime + 0.5);
+        Landing.Land(w, Faction.Klaed);
         var kesh = w.Entities.First(e => e.Hero == ace);
         Expect.Close(Ships.Defs[ShipClass.Scout].Hull * Heroes.Defs[ace].Hull, kesh.MaxHull, 5);
         kesh.Hull = 0;
@@ -412,6 +439,7 @@ public class VarietyTests
         var squad = Ships.Defs[ShipClass.Bomber].Squad!.Value;
         Assert.True(EnqueueShip(w, Faction.Klaed, ShipClass.Bomber).Ok);
         Run(w, Ships.Defs[ShipClass.Bomber].BuildTime + 0.5);
+        Landing.Land(w, Faction.Klaed);
         Assert.Equal(squad, ShipsOf(w, "bomber").Count(e => !e.Launched));
         Run(w, 20);
         Assert.All(ShipsOf(w, "fighter"), e => Assert.True(e.Launched));

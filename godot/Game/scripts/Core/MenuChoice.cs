@@ -48,7 +48,7 @@ public sealed record MenuChoice
 /// --menu=home|new|controls|credits|options|lobby-MODE (the menu screen opened first; new: the
 /// modes; lobby-skirmish, lobby-campaign...: that mode's lobby, see LobbyMode; skirmish: lobby-skirmish),
 /// --seats=N and --teams=T,T... (that lobby's bots added up to N seats, then its teams in seat order),
-/// --size=small|medium|large (the map, or the galaxy, of --start),
+/// --size=small|medium|large|huge|immense (the map, or the galaxy up to large, of --start),
 /// --terrain=none|light|dense (the terrain of --start's battle and of the stress scene, none without it; and of the dev runs' lobbies),
 /// --mode=survival|zones|assault|regicide (the rules of --start=battle; in an assault, the player defends),
 /// --wave=N (a survival game starts at wave N, the first a few seconds away: the late waves, or the end, without playing up to them),

@@ -4,7 +4,8 @@ using static SandboxShip.Sim.Worlds;
 
 namespace SandboxShip.Sim;
 
-public enum MapSize { Small, Medium, Large }
+/// <summary>Battle maps come in all five; galaxies in the first three (GalaxyGen.Fit).</summary>
+public enum MapSize { Small, Medium, Large, Huge, Immense }
 
 public sealed record MapSizeDef(double W, double H, string Name);
 
@@ -61,6 +62,9 @@ public static class Scenario
         [MapSize.Small] = new(4500, 3000, "Petite"),
         [MapSize.Medium] = new(6000, 4000, "Moyenne"),
         [MapSize.Large] = new(8000, 5400, "Grande"),
+        // Not in the web version: room for long wars, six sides, far outposts.
+        [MapSize.Huge] = new(10000, 6700, "Très grande"),
+        [MapSize.Immense] = new(13000, 8700, "Immense"),
     };
 
     public const double StartCredits = 1500;
@@ -195,6 +199,7 @@ public static class Scenario
             SpawnStation(world, slots[1].Side, size.W - 700 * (size.W / 6000), size.H / 2, Modes.StartLevel(o, slots[1]));
             ClassicFields(world);
             GiveLabs(world);
+            GiveGuards(world, o);
             if (raid) Raids.Place(world);
             Modes.Setup(world, o);
             Terrains.Classic(world, o.Terrain, [.. world.Factions.Keys.Select(s => StationOf(world, s)).OfType<Entity>().Select(e => new Point(e.X, e.Y))]);
@@ -207,12 +212,41 @@ public static class Scenario
         var area = size.W * size.H / (6000 * 4000);
         ScatterFields(world, (int)Js.Round((6 + Math.Floor(Rand(world) * 5)) * area), spots, 550);
         GiveLabs(world);
+        GiveGuards(world, o);
         if (raid) Raids.Place(world);
         Modes.Setup(world, o);
         // Last, on its own draws: the map without terrain stays the web version's.
         Terrains.Generate(world, o.Terrain, spots, o.Seed);
         world.Origin = o;
         return world;
+    }
+
+    /// <summary>Level of the two platforms each station starts with.</summary>
+    public const int GuardLevel = 3;
+
+    /// <summary>
+    /// Two platforms at level 3 before each station, towards the map center, against an early rush
+    /// (not in the web version). Not in an assault, whose fortress has its own and whose bridgehead
+    /// starts bare, nor in survival, whose waves are measured without them, nor in a regicide, where
+    /// stations decide nothing and they would only shelter the flagships (games between AIs no
+    /// longer ended).
+    /// </summary>
+    static void GiveGuards(World world, SkirmishOptions o)
+    {
+        if (o.Mode is BattleMode.Assault or BattleMode.Survival or BattleMode.Regicide) return;
+        foreach (var f in world.Factions.Values)
+        {
+            if (f.Race == Faction.Errant || StationOf(world, f.Id) is not { } s) continue;
+            var a = Math.Atan2(world.Height / 2 - s.Y, world.Width / 2 - s.X);
+            foreach (var turn in new[] { -0.6, 0.6 })
+            {
+                var x = Math.Max(100, Math.Min(world.Width - 100, s.X + Math.Cos(a + turn) * 300));
+                var y = Math.Max(100, Math.Min(world.Height - 100, s.Y + Math.Sin(a + turn) * 300));
+                var p = SpawnStructure(world, f.Id, BuildableType.Platform, x, y);
+                while (p.Level < GuardLevel) Structures.ApplyTier(world, p);
+                p.Shield = p.MaxShield;
+            }
+        }
     }
 
     /// <summary>

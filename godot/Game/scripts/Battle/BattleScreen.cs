@@ -615,10 +615,8 @@ public partial class BattleScreen : Node
                     else Hud.Toast($"Les {Factions.Defs[Worlds.RaceOf(w, rw.Side)].Name} ont abattu le Colosse");
                     break;
                 case Delivered dl:
-                    // Large hulls come from the reserve, out of hyperspace.
-                    if (w.Entities.Get(dl.Id) is { Size: SizeClass.Large } big && (CanSee(big) || big.Side == Opts.Player)) Hyperspace(big);
-                    // Craft out of the shipyard take off from it.
-                    else if (w.Entities.Get(dl.Id) is { Size: SizeClass.Small }) climbs[dl.Id] = Now;
+                    // Every ship comes from the reserve, out of hyperspace.
+                    if (w.Entities.Get(dl.Id) is { } come && (CanSee(come) || come.Side == Opts.Player)) Hyperspace(come);
                     break;
                 case Built b:
                     var built = w.Entities.Get(b.Id);
@@ -659,6 +657,7 @@ public partial class BattleScreen : Node
                         AbilityShown(e, a.Id);
                         Play(Sound.Ability, e.X, e.Y);
                     }
+                    if (a.Id == AbilityId.Jam && OnScreen(a.Tx, a.Ty)) JamShown(a.Tx, a.Ty, Abilities.Defs[AbilityId.Jam].Radius!.Value);
                     break;
                 case StrikeLanded s:
                     StrikeShown(s.Strike);

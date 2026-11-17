@@ -12,7 +12,13 @@ public static class Vision
         ["scout"] = 1100, ["fighter"] = 550, ["bomber"] = 550, ["support"] = 700, ["torpedo"] = 700,
         ["frigate"] = 750, ["battlecruiser"] = 850, ["dreadnought"] = 900, ["titan"] = 1000,
         ["bulwark"] = 750, ["carrier"] = 1000, ["leviathan"] = 1100, ["colossus"] = 1300,
+        ["artillery"] = 800, ["corvette"] = 650, ["jammer"] = 850, ["stealth"] = 750,
     };
+    /// <summary>
+    /// A stealth cruiser is seen by its foes from this close at most, until it fires and for
+    /// this many seconds after (not in the web version). Only in the fog: without it, all is seen.
+    /// </summary>
+    public const double StealthSight = 300, StealthLinger = 3;
     static readonly Dictionary<string, double> StructureVision = new()
     {
         ["station"] = 1100, ["platform"] = 850, ["mine"] = 500, ["outpost"] = 900, ["repairDock"] = 550, ["ionCannon"] = 1000, ["starLance"] = 1000,
@@ -54,6 +60,17 @@ public static class Vision
         return false;
     }
 
+    /// <summary>The most anything sees `t` from: a nebula's reach (Terrain.cs), a quiet stealth cruiser's.</summary>
+    static double SightCap(World world, Entity t)
+    {
+        var cap = Terrains.SightCap(world, t);
+        return Veiled(world, t) ? Math.Min(cap, StealthSight) : cap;
+    }
+
+    /// <summary>Whether this is a stealth cruiser that has not fired for a while: its foes see it only up close.</summary>
+    public static bool Veiled(World world, Entity e) =>
+        e.Kind == EntityKind.Ship && e.Cls == ShipClass.Stealth && world.Time - e.FiredAt > StealthLinger;
+
     /// <summary>An enemy structure seen once stays on the map, greyed out, even in the fog.</summary>
     public static bool WasSeen(World world, Side side, Entity e) =>
         world.Seen.TryGetValue(side, out var s) && s.Contains(e.Id);
@@ -94,7 +111,7 @@ public static class Vision
                 if (t.Kind == EntityKind.Hardpoint || Worlds.Allies(world, t.Side, side)) continue;
                 var cx = (int)Math.Floor(t.X / EyeCell);
                 var cy = (int)Math.Floor(t.Y / EyeCell);
-                if (Sees(eyes, t, cx, cy, Terrains.SightCap(world, t), ref last)) visible.Add(t.Id);
+                if (Sees(eyes, t, cx, cy, SightCap(world, t), ref last)) visible.Add(t.Id);
             }
             // Parts are seen along with what they are attached to.
             foreach (var t in all)

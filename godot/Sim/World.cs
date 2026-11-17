@@ -120,6 +120,8 @@ public sealed class Effects
     /// <summary>Can only target TauntedBy (not in the web version).</summary>
     public double Taunted;
     public int? TauntedBy;
+    /// <summary>Jammed: its weapons reach less far, its shields do not recharge (not in the web version).</summary>
+    public double Jammed;
 }
 
 public enum ZoneKind { Command, Dome, Graft }
@@ -256,6 +258,8 @@ public sealed class Entity : IPoint
     public double KilledValue;
     /// <summary>World time of the last hit it took.</summary>
     public double HitAt = double.NegativeInfinity;
+    /// <summary>World time it last fired, its turrets' shots included: a stealth cruiser shows itself so (not in the web version).</summary>
+    public double FiredAt = double.NegativeInfinity;
     /// <summary>Station parts lost and waiting to be rebuilt.</summary>
     public List<Rebuild> Rebuild = [];
 

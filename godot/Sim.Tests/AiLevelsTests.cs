@@ -554,13 +554,15 @@ public class AiLevelsTests
     {
         var w = Game(seed, personality: personality);
         var (mines, outposts, tier) = (0, 0, 0);
+        // The platforms every station starts with do not count: what it builds and raises does.
+        var given = w.Entities.Where(e => e.Type == "platform").Select(e => e.Id).ToHashSet();
         for (var t = 0; t < minutes * 60 && w.Winner is null; t++)
         {
             Run(w, 1, 1.0 / 30);
             w.Events.Clear();
             mines = Math.Max(mines, w.Entities.Count(e => e.Side == Bot && e.Type == "mine"));
             outposts = Math.Max(outposts, w.Entities.Count(e => e.Side == Bot && e.Type == "outpost"));
-            tier = Math.Max(tier, w.Entities.Where(e => e.Side == Bot && e.Type == "platform").Select(e => e.Level).DefaultIfEmpty(0).Max());
+            tier = Math.Max(tier, w.Entities.Where(e => e.Side == Bot && e.Type == "platform" && !given.Contains(e.Id)).Select(e => e.Level).DefaultIfEmpty(0).Max());
         }
         return (mines, outposts, tier);
     }
@@ -571,7 +573,8 @@ public class AiLevelsTests
         var thrifty = Plays(Personality.Economic, 4, 12);
         var balanced = Plays(Personality.Balanced, 4, 12);
         var aggressive = Plays(Personality.Aggressive, 4, 12);
-        var defensive = Plays(Personality.Defensive, 4, 12);
+        // Its platforms first, dearer than they were, then their levels: a longer game.
+        var defensive = Plays(Personality.Defensive, 4, 16);
         Expect.Greater(thrifty.Mines, balanced.Mines);
         Expect.Less(aggressive.Mines, balanced.Mines + 0.5);
         // With no use for one more mine, no outpost.

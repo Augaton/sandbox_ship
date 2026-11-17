@@ -37,6 +37,12 @@ public static class GalaxyGen
         [MapSize.Large] = (2200, 1350, 22, 30, 0),
     };
 
+    /// <summary>The galaxy size a map size stands for: the battle maps past the large one make a large galaxy.</summary>
+    public static MapSize Fit(MapSize size) => Sizes.ContainsKey(size) ? size : MapSize.Large;
+
+    /// <summary>Whether galaxies come in this size.</summary>
+    public static bool Offers(MapSize size) => Sizes.ContainsKey(size);
+
     /// <summary>Deterministic random numbers in [0, 1) (mulberry32).</summary>
     public static Func<double> SeededRandom(int seed)
     {
@@ -82,7 +88,7 @@ public static class GalaxyGen
     /// </summary>
     public static GalaxyLayout GenerateLayout(int seed, int players = 2, MapSize size = MapSize.Medium)
     {
-        var (w, h, min, max, perPlayer) = Sizes[size];
+        var (w, h, min, max, perPlayer) = Sizes[Fit(size)];
         // Up to three players, the web version's draws.
         var extra = Math.Max(0, players - 3) * perPlayer;
         (min, max) = (min + extra, Math.Min(Names.Length, max + extra));

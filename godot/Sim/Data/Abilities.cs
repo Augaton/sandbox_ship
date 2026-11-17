@@ -11,8 +11,8 @@ public enum AbilityId
     OrbitalStrike, HuntMark, FieldTurret,
     ShieldDome, Cloak, Emp,
     Swarm, Spores, Graft,
-    // Not in the web version: the star lance's blow.
-    StarLance,
+    // Not in the web version: the star lance's blow, the jammer's.
+    StarLance, Jam,
 }
 
 /// <summary>What the player picks to use it: nothing, a spot on the map, or an enemy.</summary>
@@ -41,7 +41,9 @@ public static class Abilities
     /// <summary>Admirals' passive command: allies this close deal more damage and fly faster.</summary>
     public const double CommandRadius = 500;
     /// <summary>Seconds that abilities' effects last on their targets.</summary>
-    public const double Marked = 12, Stunned = 4, Corroded = 8, Taunted = 8;
+    public const double Marked = 12, Stunned = 4, Corroded = 8, Taunted = 8, Jammed = 10;
+    /// <summary>Share of their reach jammed weapons keep.</summary>
+    public const double JamReach = 0.6;
     /// <summary>Delay before the spinal beam fires, and before an orbital strike lands.</summary>
     public const double SpinalCharge = 2, OrbitalDelay = 2.5;
     /// <summary>The star lance's blow: seconds of warning, seen by all, then its damage over its whole radius.</summary>
@@ -79,5 +81,8 @@ public static class Abilities
         [AbilityId.StarLance] = new(AbilityId.StarLance, "Frappe stellaire",
             "Après 5 s d'alerte visible de tous, un rayon venu des étoiles frappe n'importe quel point de la carte : 9 000 dégâts dans un grand rayon.",
             240, 0, AbilityTarget.Point, Star, Range: 1e6, Radius: 420),
+        [AbilityId.Jam] = new(AbilityId.Jam, "Brouillage",
+            "Dans la zone, les ennemis, bâtiments compris, perdent 40 % de leur portée et leurs boucliers ne se rechargent plus pendant 10 s.",
+            35, 0, AbilityTarget.Point, Blue, Range: 700, Radius: 320),
     };
 }

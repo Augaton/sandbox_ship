@@ -43,9 +43,10 @@ public static partial class Snapshot
     /// each seat's score and the time held, and how far ahead a wave was beaten. 7: the terrain.
     /// 8: veterans (rank, experience, Promoted), stances, patrols and orders queued. 9: a ship of the
     /// viewer's falling back to be repaired, in the top bit of its stance. 10: the viewer's reserve,
-    /// and the jumps under way, seen by all.
+    /// and the jumps under way, seen by all. 11: four ship classes more (artillery, corvette, jammer,
+    /// stealth cruiser) and the jammer's ability, the platform's fourth level and its turrets.
     /// </summary>
-    public const ushort Version = 10;
+    public const ushort Version = 11;
     /// <summary>In a stance's byte: the ship is falling back to be repaired (Mending). The flags have no bit left, and few ships are.</summary>
     const byte MendingBit = 0x80;
     const uint Magic = 0x504E5353;

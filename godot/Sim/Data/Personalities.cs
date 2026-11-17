@@ -59,7 +59,9 @@ public static class Personalities
             SaveShare: 0.8, Small: 1, Medium: 1, Large: 1.1, LanceFleet: 8, LanceOdds: 0.25,
             Edge: 1, Peace: 1.3, Friendship: 1.2, Trade: 2, Extortion: 0.6),
         [Personality.Technological] = new("Technologique", "Recherche sans relâche et mise sur les gros vaisseaux.",
-            Wave: 1.3, WaveGrowth: 1.2, AllInTime: 2100, Counter: 0, Mines: 4, Platforms: 1, PlatformOdds: 0.2, TierOdds: 0, Outposts: 2, OutpostOdds: 0.15, LabOdds: 0.6, ResearchOdds: 0.2,
+            // Research odds 0.35 (0.2 before the platforms every station starts with: games against
+            // a player who does nothing then lasted their quarter of an hour, and it researched no more than the others).
+            Wave: 1.3, WaveGrowth: 1.2, AllInTime: 2100, Counter: 0, Mines: 4, Platforms: 1, PlatformOdds: 0.2, TierOdds: 0, Outposts: 2, OutpostOdds: 0.15, LabOdds: 0.6, ResearchOdds: 0.35,
             SaveShare: 0.5, Small: 0.85, Medium: 1, Large: 1.3, LanceFleet: 6, LanceOdds: 0.3,
             Edge: 1.05, Peace: 1.2, Friendship: 1.4, Trade: 1.5, Extortion: 0.6),
     };

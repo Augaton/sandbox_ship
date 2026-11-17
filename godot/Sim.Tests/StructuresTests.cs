@@ -43,21 +43,21 @@ public class StructuresTests
     // Production.
 
     [Fact]
-    public void A_new_ship_gets_to_a_rally_point_on_a_platform_and_is_free_again()
+    public void A_ship_called_in_to_a_rally_point_on_a_platform_comes_beside_it()
     {
         var w = NewWorld(5000);
         var f = w.Factions[Faction.Klaed];
         SpawnStation(w, Faction.Klaed, 700, 2000, 2);
         var platform = SpawnStructure(w, Faction.Klaed, BuildableType.Platform, 1100, 2000);
         (f.RallyX, f.RallyY) = (platform.X, platform.Y);
-        // A big hull sitting beside it too.
-        SpawnShip(w, Faction.Klaed, ShipClass.Dreadnought, 1100, 2100).Stance = Stance.Hold;
-        // A frigate: large hulls go to the reserve rather than out of the shipyard.
         Assert.True(EnqueueShip(w, Faction.Klaed, ShipClass.Frigate).Ok);
-        Run(w, Ships.Defs[ShipClass.Frigate].BuildTime + 25);
+        Run(w, Ships.Defs[ShipClass.Frigate].BuildTime + 0.5);
+        var frigate = new ReserveShip(ShipClass.Frigate);
+        Assert.Equal("Emplacement occupé", Reserves.CanDeploy(w, Faction.Klaed, frigate, platform.X, platform.Y).Reason);
+        Landing.Land(w, Faction.Klaed);
         var ship = ShipsOf(w, Faction.Klaed, "frigate").Single();
-        // A point inside a platform could never be reached: it kept its order, and fought nothing.
-        Assert.Null(ship.Order);
+        Expect.Greater(Gap(platform, ship.X, ship.Y), ship.Radius);
+        Expect.Less(Hypot(ship.X - platform.X, ship.Y - platform.Y), 400);
     }
 
     [Fact]
@@ -70,7 +70,7 @@ public class StructuresTests
         var r = EnqueueShip(w, Faction.Klaed, ShipClass.Frigate);
         Assert.Equal(Result.Fail("Crédits insuffisants"), r);
         Run(w, Ships.Defs[ShipClass.Frigate].BuildTime + 0.5);
-        Assert.Single(ShipsOf(w, Faction.Klaed, "frigate"));
+        Assert.Equal([new ReserveShip(ShipClass.Frigate)], w.Factions[Faction.Klaed].Reserve);
     }
 
     [Fact]
