@@ -121,10 +121,14 @@ tests de `FixtureTests` et `CrossTests` les listent.
   coque, rayon 34) : une grande plateforme qui porte quatre tourelles destructibles, deux lourdes
   et deux légères, reconstruites comme celles de la station. En escarmouche (sauf assaut et survie),
   chaque station commence avec deux plateformes niveau 3 devant elle, vers le centre de la carte,
-  contre les rushs ; la forteresse de l'assaut garde ses trois plateformes niveau 3. Mesure du
-  2026-11-17 (`BALANCE=1`, 36 parties entre IA) : 21 nuls à 60 min, médiane 50 min pour les
-  autres (24 min avant) ; Kla'ed 17 %, Nairan 29 %, Nautolan 17 %. L'IA ne perce plus les défenses :
-  réglage à faire (artillerie de l'IA contre les bâtiments, niveau des plateformes de départ).
+  contre les rushs ; la forteresse de l'assaut garde ses trois plateformes niveau 3. Mesures du
+  2026-11-17 (`BALANCE=1`, 36 parties entre IA) : d'abord 21 nuls à 60 min (médiane 50 min) ; les
+  stations n'étaient jamais touchées, les flottes restaient petites, la moitié du revenu épargnée
+  pour la station. Réglage de l'IA : elle retient les défenses ennemies vues tant qu'elles tiennent
+  et prend d'autant plus d'artillerie (+1 par défense connue, 6 au plus) : 14 nuls ; passé son heure
+  du tout-pour-le-tout, elle n'épargne plus pour sa station : 2 nuls, médiane 44 min, Kla'ed 50 %,
+  Nairan 42 %, Nautolan 50 %. Essais écartés : plateformes de départ niveau 2 (4 nuls, Kla'ed
+  29 %), et l'armée du tout-pour-le-tout lancée droit sur la station (29 nuls : un suicide).
 - Plus de file de bâtiment : l'amélioration de la station et les niveaux des plateformes et des
   avant-postes avancent tous en même temps, un niveau à la fois par bâtiment (sa barre dans son
   panneau et dans l'onglet Bâtiments).

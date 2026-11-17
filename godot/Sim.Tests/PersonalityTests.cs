@@ -172,8 +172,8 @@ public class PersonalityTests(ITestOutputHelper output)
     [Fact]
     public void Each_personality_plays_the_way_it_says()
     {
-        // Two seeds each, a quarter of an hour against a player who does nothing.
-        var runs = Personalities.All.ToDictionary(p => p, p => new[] { Play(p, 4, 15), Play(p, 8, 15) });
+        // Three seeds each, a quarter of an hour against a player who does nothing (two left research to a single level either way).
+        var runs = Personalities.All.ToDictionary(p => p, p => new[] { Play(p, 4, 15), Play(p, 8, 15), Play(p, 12, 15) });
         double Mean(Personality p, Func<Played, double> of) => runs[p].Average(of);
         foreach (var (p, r) in runs) output.WriteLine($"{p}: {string.Join(" | ", r.Select(x => x.ToString()))}");
         // The aggressive AI strikes first.

@@ -131,7 +131,15 @@ public static class Ai
         var seen = new Intel();
         foreach (var e in world.Entities)
         {
-            if (!Foes(world, f.Id, e.Side) || !Vision.IsVisible(world, f.Id, e)) continue;
+            if (!Foes(world, f.Id, e.Side)) continue;
+            // A defense seen once is remembered while it stands, as the map shows it greyed out:
+            // it is still there to be broken.
+            if (e.Kind == EntityKind.Structure && e.Weapons.Count > 0 && Vision.WasSeen(world, f.Id, e))
+            {
+                seen.Structures++;
+                continue;
+            }
+            if (!Vision.IsVisible(world, f.Id, e)) continue;
             if (e.Kind == EntityKind.Ship && !e.Launched)
             {
                 if (e.Size == SizeClass.Small) seen.Small++;
@@ -192,7 +200,9 @@ public static class Ai
             weights[ShipClass.Frigate] += 4;
             weights[ShipClass.Corvette] += 2;
         }
-        if (intel.Structures >= 3) weights[ShipClass.Artillery] += 2;
+        // Siege guns against defenses, the more of them it knows the more (one each, six at most):
+        // platforms three times as sturdy as before outlasted the waves that came at them.
+        if (intel.Structures >= 2) weights[ShipClass.Artillery] += Math.Min(6, intel.Structures);
         if (intel.Medium >= 4) weights[ShipClass.Battlecruiser] += 3;
         if (intel.Large >= 2)
         {
@@ -456,7 +466,10 @@ public static class Ai
         ai.Guarded = !defensive;
         ai.Saved = Math.Min(ai.Saved, f.Credits);
         var income = Structures.IncomeRate(world, f.Id) * interval;
-        if (station.Level >= Station.Levels.Count || f.BuildQueue.Exists(q => q.Kind == QueueKind.Upgrade)) ai.Saved = 0;
+        // Past the time it goes all in, it saves no more for its station: everything into the fleet.
+        // Saving on, against platforms three times as sturdy, two AIs fed small fleets to each
+        // other's defenses for an hour (21 games drawn of 36; 4 without the savings).
+        if (station.Level >= Station.Levels.Count || f.BuildQueue.Exists(q => q.Kind == QueueKind.Upgrade) || world.Time >= Personalities.Defs[ai.Personality].AllInTime) ai.Saved = 0;
         else if (!defensive && CanSave(world, f, station))
         {
             var share = income * Personalities.Defs[ai.Personality].SaveShare;
