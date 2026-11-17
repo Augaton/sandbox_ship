@@ -13,7 +13,8 @@ using static SandboxShip.Sim.Galaxies;
 namespace SandboxShip.Sim;
 
 /// <summary>Why an AI says yes or no: its answer, which the diplomacy screen shows ahead (a reason in words, Reason).</summary>
-public enum DealWhy { Yes, GrudgeTruce, Grudge, RecentTruce, Stronger, WantsAll, NotTrusted, Distrust, Price, Spent, NoMeans, NotAfraid, Sworn, NoThreat, Treasured, Yielded }
+public enum DealWhy { Yes, GrudgeTruce, Grudge, RecentTruce, Stronger, WantsAll, NotTrusted, Distrust, Price, Spent, NoMeans, NotAfraid, Sworn, NoThreat, Treasured, Yielded,
+    Asks, Offers, Arming, Leader }
 
 /// <summary>
 /// What an AI would answer the viewer, worked out by the host and sent to a replica, which cannot:
@@ -22,7 +23,7 @@ public enum DealWhy { Yes, GrudgeTruce, Grudge, RecentTruce, Stronger, WantsAll,
 /// </summary>
 public sealed class DealPreview
 {
-    public DealWhy Truce, Alliance, Trade, Vision;
+    public DealWhy Truce, Alliance, Trade, Vision, Peace;
     public Dictionary<Side, DealWhy> JointWar = [];
     /// <summary>The largest tribute a minute it would pay if demanded, and the credits once an ultimatum would get of it.</summary>
     public double DemandLimit, YieldLimit;
@@ -69,6 +70,10 @@ public static partial class GalaxyAi
         DealWhy.NoThreat => "Cette cible ne l'inquiète pas",
         DealWhy.Treasured => "Elle tient trop à cette planète",
         DealWhy.Yielded => "Elle t'a déjà cédé une fois : plus maintenant",
+        DealWhy.Asks => $"Elle en veut au moins {(int)price} crédits",
+        DealWhy.Offers => $"Elle n'en donnerait que {(int)price} crédits",
+        DealWhy.Arming => "Elle ne veut pas armer plus fort qu'elle",
+        DealWhy.Leader => "Elle ne traite pas avec le camp qui domine la galaxie",
         _ => "",
     };
 
@@ -76,8 +81,11 @@ public static partial class GalaxyAi
 
     /// <summary>What an AI answers a deal `from` offers it: Ok to sign, else why not.</summary>
     public static Result AnswerDeal(Galaxy g, Side side, Side from, DealKind kind, double amount, bool perMinute,
-        Side? target = null, int? planet = null, DealTerms terms = DealTerms.None) => kind switch
+        Side? target = null, int? planet = null, DealTerms terms = DealTerms.None, TechId? tech = null) => kind switch
     {
+        DealKind.Peace => Answer(PeaceWhy(g, side, from)),
+        DealKind.Planet => AnswerPlanet(g, side, from, g.Planets[planet!.Value], amount),
+        DealKind.Tech => AnswerTech(g, side, from, tech!.Value, amount),
         DealKind.Truce => AnswerTruce(g, side, from),
         DealKind.Alliance => Answer(AnswerAlliance(g, side, from)),
         DealKind.Trade => Answer(AnswerTrade(g, side, from)),
@@ -102,7 +110,81 @@ public static partial class GalaxyAi
         if (Grudge(g, side, from)) return DealWhy.GrudgeTruce;
         if (g.Factions[side].AI!.TruceRest.ContainsKey(from)) return DealWhy.RecentTruce;
         if (Sworn(g, side, from)) return DealWhy.Sworn;
-        return Might(g, side) < Might(g, from) * DefOf(g, side).Peace || BusyElsewhere(g, side, from) ? DealWhy.Yes : DealWhy.Stronger;
+        // Worn down by war, it takes a truce even from the weaker.
+        return Might(g, side) < Might(g, from) * DefOf(g, side).Peace || BusyElsewhere(g, side, from) || Weary(g, side) ? DealWhy.Yes : DealWhy.Stronger;
+    }
+
+    /// <summary>The weariness past which an AI seeks and takes peace, whoever is stronger.</summary>
+    const double WearyPeace = 45;
+
+    /// <summary>
+    /// Whether war has worn the AI down enough to seek peace: never with only two factions left,
+    /// who signed truce after truce out of weariness and never ended the campaign.
+    /// </summary>
+    static bool Weary(Galaxy g, Side side)
+    {
+        if (g.Factions[side].Weariness < WearyPeace) return false;
+        var alive = 0;
+        foreach (var f in g.Factions.Values) if (!f.Eliminated) alive++;
+        return alive > 2;
+    }
+
+    /// <summary>
+    /// A lasting peace: with a faction it regards well (its personality bears it sooner or later),
+    /// or out of weariness, or when clearly the weaker; never with the faction dominating the
+    /// galaxy, nor when that peace would leave it nobody to fight: the campaign must end.
+    /// </summary>
+    static DealWhy PeaceWhy(Galaxy g, Side side, Side from)
+    {
+        if (Grudge(g, side, from)) return DealWhy.GrudgeTruce;
+        if (Sworn(g, side, from)) return DealWhy.Sworn;
+        if (Leader(g) == from) return DealWhy.Leader;
+        if (!g.Factions.Values.Any(o => !o.Eliminated && o.Id != side && o.Id != from && AtWar(g, side, o.Id))) return DealWhy.WantsAll;
+        var def = DefOf(g, side);
+        return Regard(g, side, from) >= 15 / def.Peace || Weary(g, side) || Might(g, side) < Might(g, from) * def.Peace * 0.8 ? DealWhy.Yes : DealWhy.NotTrusted;
+    }
+
+    /// <summary>
+    /// A planet passed between the AI and `from` for `amount`: one of its own, only a lesser one,
+    /// to a faction it does not mistrust nor fears to see dominate, at its worth and more the less
+    /// it likes them; one of theirs, at less than its worth, if it has the credits.
+    /// </summary>
+    static Result AnswerPlanet(Galaxy g, Side side, Side from, Planet p, double amount)
+    {
+        var worth = PlanetValue(g, p);
+        var regard = Regard(g, side, from);
+        if (p.Owner == from)
+        {
+            var offer = Math.Floor(Math.Min(worth * (0.8 + regard / 500), MeansOnce(g, side)) / 50) * 50;
+            return Answer(amount <= offer ? DealWhy.Yes : DealWhy.Offers, offer);
+        }
+        if (Leader(g) == from) return Answer(DealWhy.Leader);
+        if (regard < -10) return Answer(DealWhy.Distrust);
+        if (!Lesser(g, side, p)) return Answer(DealWhy.Treasured);
+        var price = Math.Ceiling(worth * (1.4 - regard / 250) / 50) * 50;
+        return Answer(amount >= price ? DealWhy.Yes : DealWhy.Asks, price);
+    }
+
+    /// <summary>
+    /// A tech level passed between the AI and `from` for `amount`: its own knowledge, to a faction
+    /// it does not mistrust, never to a stronger one, at its price and more the less it likes them;
+    /// theirs, at less than its price, if it has the credits.
+    /// </summary>
+    static Result AnswerTech(Galaxy g, Side side, Side from, TechId tech, double amount)
+    {
+        var (giver, taker) = TechSides(g, side, from, tech)!.Value;
+        var worth = TechValue(g.Factions[taker].Research[tech], tech);
+        var regard = Regard(g, side, from);
+        if (taker == side)
+        {
+            var offer = Math.Floor(Math.Min(worth * 0.8, MeansOnce(g, side)) / 50) * 50;
+            return Answer(amount <= offer ? DealWhy.Yes : DealWhy.Offers, offer);
+        }
+        if (Leader(g) == from) return Answer(DealWhy.Leader);
+        if (regard < 0) return Answer(DealWhy.Distrust);
+        if (Might(g, from) > Might(g, giver) * 1.2) return Answer(DealWhy.Arming);
+        var price = Math.Ceiling(worth * (1.3 - regard / 250) / 50) * 50;
+        return Answer(amount >= price ? DealWhy.Yes : DealWhy.Asks, price);
     }
 
     /// <summary>
@@ -175,7 +257,7 @@ public static partial class GalaxyAi
     public static double PeacePrice(Galaxy g, Side side, Side from)
     {
         var ratio = Might(g, side) / Math.Max(1, Might(g, from));
-        var price = Math.Clamp(ratio - DefOf(g, side).Peace, 0, 1) * IncomeOf(g, side) * 60 / 3;
+        var price = Math.Clamp(ratio - DefOf(g, side).Peace, 0, 1) * IncomeOf(g, side) * 60 / 3 * (1 - g.Factions[side].Weariness / WearyMax);
         if (BusyElsewhere(g, side, from)) price /= 2;
         if (Leader(g) == from) price *= 1.5;
         return Math.Min(MaxTributePerMinute, Math.Ceiling(price / 10) * 10);
@@ -282,7 +364,7 @@ public static partial class GalaxyAi
         var p = new DealPreview
         {
             Truce = TruceWhy(g, side, viewer), Alliance = AnswerAlliance(g, side, viewer),
-            Trade = AnswerTrade(g, side, viewer), Vision = AnswerVision(g, side, viewer),
+            Trade = AnswerTrade(g, side, viewer), Vision = AnswerVision(g, side, viewer), Peace = PeaceWhy(g, side, viewer),
         };
         var leader = Leader(g);
         foreach (var t in g.Factions.Values)
@@ -359,7 +441,7 @@ public static partial class GalaxyAi
         foreach (var r in rivals)
         {
             if (ai.Grudges.ContainsKey(r.Id) || ai.TruceRest.ContainsKey(r.Id) || !CanOfferTruce(g, side, r.Id).Ok || !Contact(g, side, r.Id)
-                || Sworn(g, side, r.Id) || (mine >= Might(g, r.Id) * 0.7 * def.Peace && !BusyElsewhere(g, side, r.Id))) continue;
+                || Sworn(g, side, r.Id) || (mine >= Might(g, r.Id) * 0.7 * def.Peace && !BusyElsewhere(g, side, r.Id) && !Weary(g, side))) continue;
             Offer(DealKind.Truce, r.Id);
             return;
         }
@@ -372,6 +454,13 @@ public static partial class GalaxyAi
             if (CanPropose(g, side, r.Id, DealKind.Alliance).Ok && AnswerAlliance(g, side, r.Id) == DealWhy.Yes)
             {
                 Offer(DealKind.Alliance, r.Id);
+                return;
+            }
+            // A truce kept a while with a faction it likes: a peace that lasts, if they would have it.
+            if (TruceOf(g, side, r.Id) is { Lasting: false } kept && kept.Remaining < TruceTime / 2 && CanPropose(g, side, r.Id, DealKind.Peace).Ok
+                && PeaceWhy(g, side, r.Id) == DealWhy.Yes && Regard(g, side, r.Id) >= 15 / def.Peace && (r.AI is null || PeaceWhy(g, r.Id, side) == DealWhy.Yes))
+            {
+                Offer(DealKind.Peace, r.Id);
                 return;
             }
             if (CanPropose(g, side, r.Id, DealKind.Trade).Ok && AnswerTrade(g, side, r.Id) == DealWhy.Yes && (def.Trade >= 1 || TrustOf(g, side, r.Id) >= 20))

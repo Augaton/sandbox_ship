@@ -26,6 +26,7 @@ public static partial class GalaxySnapshot
             planets.Add(new Planet
             {
                 Id = planets.Count, Name = r.ReadText(), X = r.ReadSingle(), Y = r.ReadSingle(), Income = r.ReadSingle(), MineSlots = Level(r),
+                Home = OptionalSide(r),
             });
         }
         if (lanes.Exists(l => (uint)l.A >= (uint)planets.Count || (uint)l.B >= (uint)planets.Count)) throw new InvalidDataException("Voie vers une planète inconnue");
@@ -61,9 +62,16 @@ public static partial class GalaxySnapshot
         ReadSides(r, replica, viewer);
         ReadBattles(r, replica);
         replica.Truces = [];
-        for (var n = Count(r); n > 0; n--) replica.Truces.Add(new Truce { A = SideOf(r), B = SideOf(r), Remaining = r.ReadSingle(), Renewed = r.ReadBoolean() });
+        for (var n = Count(r); n > 0; n--)
+        {
+            var t = new Truce { A = SideOf(r), B = SideOf(r), Remaining = r.ReadSingle() };
+            var bits = r.ReadByte();
+            (t.Renewed, t.Opening, t.Lasting) = ((bits & 1) != 0, (bits & 2) != 0, (bits & 4) != 0);
+            replica.Truces.Add(t);
+        }
         replica.Pacts = [];
-        for (var n = Count(r); n > 0; n--) replica.Pacts.Add(new Pact { Kind = Valid<DealKind>(r.ReadByte()), A = SideOf(r), B = SideOf(r), Target = OptionalSide(r), Remaining = Amount(r) });
+        for (var n = Count(r); n > 0; n--)
+            replica.Pacts.Add(new Pact { Kind = Valid<DealKind>(r.ReadByte()), A = SideOf(r), B = SideOf(r), Target = OptionalSide(r), Remaining = Amount(r), Since = replica.Time - Amount(r) });
         replica.Tributes = [];
         for (var n = Count(r); n > 0; n--) replica.Tributes.Add(new Tribute { Payer = SideOf(r), Payee = SideOf(r), PerMinute = r.ReadSingle(), Remaining = r.ReadSingle() });
         replica.Offers = [];
@@ -73,6 +81,7 @@ public static partial class GalaxySnapshot
             {
                 From = SideOf(r), To = SideOf(r), Kind = Valid<DealKind>(r.ReadByte()), Amount = r.ReadSingle(), PerMinute = r.ReadBoolean(), Remaining = r.ReadSingle(),
                 Target = OptionalSide(r), Planet = OptionalPlanet(r, replica), Terms = Terms(r.ReadByte()),
+                Tech = r.ReadByte() is var tech and > 0 ? Valid<TechId>((byte)(tech - 1)) : null,
             });
         }
         replica.Chronicle = [];
@@ -98,6 +107,8 @@ public static partial class GalaxySnapshot
                 Kind = Valid<IncidentKind>(r.ReadByte()), Planet = PlanetOf(r, replica), Other = OtherOf(r, replica), Remaining = r.ReadSingle(), Ships = ReadShips(r),
             });
         }
+        replica.Courtships = [];
+        for (var n = Count(r); n > 0; n--) replica.Courtships.Add(new Courtship { Side = SideOf(r), Planet = PlanetOf(r, replica), Remaining = Amount(r) });
         ReadEvents(r, replica);
         return clock;
     }
@@ -151,17 +162,46 @@ public static partial class GalaxySnapshot
         var p = new DealPreview
         {
             Truce = Valid<DealWhy>(r.ReadByte()), Alliance = Valid<DealWhy>(r.ReadByte()), Trade = Valid<DealWhy>(r.ReadByte()), Vision = Valid<DealWhy>(r.ReadByte()),
+            Peace = Valid<DealWhy>(r.ReadByte()),
         };
         for (var n = Count(r); n > 0; n--) p.JointWar[SideOf(r)] = Valid<DealWhy>(r.ReadByte());
         (p.DemandLimit, p.YieldLimit, p.Cedes) = (Amount(r), Amount(r), r.ReadBoolean());
         return p;
     }
 
+    /// <summary>A deal concluded: a planet of the galaxy for a planet deal, a known tech for a tech deal, nothing else for a peace.</summary>
+    static Concluded ReadConcluded(BinaryReader r, Galaxy g)
+    {
+        var c = new Concluded(Valid<DealKind>(r.ReadByte()), SideOf(r), SideOf(r), Amount(r), r.ReadVarint() - 1);
+        var sane = c.Kind switch
+        {
+            DealKind.Peace => c.Extra == -1,
+            DealKind.Planet => (uint)c.Extra < (uint)g.Planets.Count,
+            DealKind.Tech => Enum.IsDefined((TechId)c.Extra),
+            _ => false,
+        };
+        return sane ? c : throw new InvalidDataException($"Accord {c.Kind} {c.Extra}");
+    }
+
+    /// <summary>Research levels, each within what a tech reaches.</summary>
+    static ResearchLevels ReadLevels(BinaryReader r)
+    {
+        var levels = new ResearchLevels();
+        var techs = Count(r);
+        for (var t = 0; t < techs; t++)
+        {
+            var level = r.ReadVarint();
+            if (level is < 0 or > Techs.MaxLevel) throw new InvalidDataException($"Niveau de recherche {level}");
+            if (t < Techs.All.Count) levels[Techs.All[t]] = level;
+        }
+        return levels;
+    }
+
     /// <summary>A side as n + 1, 0 for none.</summary>
     static Side? OptionalSide(BinaryReader r)
     {
         var id = r.ReadVarint() - 1;
-        return id is < -1 or > Lobby.MaxSeats ? throw new InvalidDataException($"Camp inconnu : {id}") : id >= 0 ? new Side(id) : null;
+        return id is < -1 or > Lobby.MaxSide ? throw new InvalidDataException($"Camp inconnu : {id}") : id >= 0 ? new Side(id) : null;
     }
 
     static int PlanetOf(BinaryReader r, Galaxy g) =>
@@ -288,6 +328,8 @@ public static partial class GalaxySnapshot
                 if (f.AI is { } ai) ai.Grudges[viewer] = grudge;
             }
             f.Reputation = r.ReadSingle() is var rep && rep is >= -100 and <= 100 ? rep : throw new InvalidDataException($"Réputation {rep}");
+            f.Weariness = r.ReadSingle() is var weary && weary is >= 0 and <= (float)Galaxies.WearyMax ? weary : throw new InvalidDataException($"Lassitude {weary}");
+            var known = r.ReadBoolean() ? ReadLevels(r) : null;
             if (f.AI is { } bot)
             {
                 bot.Personality = Valid<Personality>(r.ReadByte());
@@ -297,9 +339,9 @@ public static partial class GalaxySnapshot
                 bot.Why.Clear();
                 bot.Preview = r.ReadBoolean() ? ReadMind(r, bot, viewer) : null;
             }
-            // Only the viewer's own economy is known.
+            // Only the viewer's own economy is known, and the research of those at peace with it.
             f.Credits = 0;
-            f.Research = new ResearchLevels();
+            f.Research = known ?? new ResearchLevels();
             f.Researching = null;
             f.ResearchQueue = [];
             f.HeroCooldowns = [];
@@ -387,11 +429,17 @@ public static partial class GalaxySnapshot
         Tag.TechResearched => new TechResearched(SideOf(r), Valid<TechId>(r.ReadByte())),
         Tag.BountyPaid => new BountyPaid(PlanetOf(r, g), SideOf(r), r.ReadDouble(), OptionalTech(r), ReadLane(r, g)),
         Tag.GalaxyVictory => new GalaxyVictory(SideOf(r), r.ReadVarint()),
-        Tag.DealOffered => new DealOffered(SideOf(r), SideOf(r), Valid<DealKind>(r.ReadByte()), r.ReadDouble(), r.ReadBoolean(), OptionalSide(r), OptionalPlanet(r, g), Terms(r.ReadByte())),
+        Tag.DealOffered => new DealOffered(SideOf(r), SideOf(r), Valid<DealKind>(r.ReadByte()), r.ReadDouble(), r.ReadBoolean(), OptionalSide(r), OptionalPlanet(r, g), Terms(r.ReadByte()),
+            r.ReadByte() is var tech and > 0 ? Valid<TechId>((byte)(tech - 1)) : null),
         Tag.UltimatumEnded => new UltimatumEnded(SideOf(r), SideOf(r), r.ReadBoolean()),
         Tag.PlanetCeded => new PlanetCeded(PlanetOf(r, g), SideOf(r), SideOf(r)),
         Tag.HelpAnswered => new HelpAnswered(SideOf(r), SideOf(r), OtherOf(r, g), r.ReadBoolean()),
         Tag.AiSaid => new AiSaid(SideOf(r), SideOf(r), Valid<Remark>(r.ReadByte())),
+        Tag.PeaceOver => new PeaceOver(),
+        Tag.Concluded => ReadConcluded(r, g),
+        Tag.PeaceDenounced => new PeaceDenounced(SideOf(r), SideOf(r)),
+        Tag.CourtshipBegun => new CourtshipBegun(PlanetOf(r, g), SideOf(r)),
+        Tag.Joined => new Joined(PlanetOf(r, g), SideOf(r)),
         Tag.DealRefused => new DealRefused(SideOf(r), SideOf(r), Valid<DealKind>(r.ReadByte()), r.ReadText()),
         Tag.PactSigned => new PactSigned(Valid<DealKind>(r.ReadByte()), SideOf(r), SideOf(r), OptionalSide(r)),
         Tag.PactEnded => new PactEnded(Valid<DealKind>(r.ReadByte()), SideOf(r), SideOf(r), OptionalSide(r), OptionalSide(r)),

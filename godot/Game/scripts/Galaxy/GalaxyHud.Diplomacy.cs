@@ -49,16 +49,25 @@ public partial class GalaxyHud
         DealKind.Ultimatum => "l'ultimatum",
         DealKind.Help => "la demande d'aide",
         DealKind.Bundle => "l'accord",
+        DealKind.Peace => "la paix durable",
+        DealKind.Planet => "l'échange de planète",
+        DealKind.Tech => "l'échange de technologie",
         _ => "la demande de tribut",
     };
 
     /// <summary>What an offer is, as a rival makes it: "Bob propose une alliance".</summary>
-    string OfferTitle(DealOffer o) => OfferTitle(o.From, o.Kind, o.Amount, o.PerMinute, o.Target, o.Planet, o.Terms);
+    string OfferTitle(DealOffer o) => OfferTitle(o.From, o.Kind, o.Amount, o.PerMinute, o.Target, o.Planet, o.Terms, o.Tech);
 
-    string OfferTitle(DealOffered o) => OfferTitle(o.From, o.Kind, o.Amount, o.PerMinute, o.Target, o.Planet, o.Terms);
+    string OfferTitle(DealOffered o) => OfferTitle(o.From, o.Kind, o.Amount, o.PerMinute, o.Target, o.Planet, o.Terms, o.Tech);
 
-    string OfferTitle(Side from, DealKind kind, double amount, bool perMinute, Side? target = null, int? planet = null, DealTerms terms = DealTerms.None) => kind switch
+    string OfferTitle(Side from, DealKind kind, double amount, bool perMinute, Side? target = null, int? planet = null, DealTerms terms = DealTerms.None,
+        TechId? tech = null) => kind switch
     {
+        DealKind.Peace => $"{NameOf(from)} propose une paix durable",
+        DealKind.Planet when planet is int p => G.Planets[p].Owner == from
+            ? $"{NameOf(from)} propose de te céder {PlanetName(p)}{For(amount)}" : $"{NameOf(from)} demande {PlanetName(p)}{For(amount, true)}",
+        DealKind.Tech when tech is TechId t => G.Factions[Player].Research[t] < G.Factions[from].Research[t]
+            ? $"{NameOf(from)} propose de te transmettre {Techs.Defs[t].Name}{For(amount)}" : $"{NameOf(from)} demande {Techs.Defs[t].Name}{For(amount, true)}",
         DealKind.Truce => $"{NameOf(from)} propose une trêve de {Minutes(Galaxies.TruceTime)}",
         DealKind.Alliance => $"{NameOf(from)} propose une alliance",
         DealKind.Trade => $"{NameOf(from)} propose un accord commercial",
@@ -82,6 +91,9 @@ public partial class GalaxyHud
         return string.Join(", ", bits);
     }
 
+    /// <summary>" pour 500 crédits", or " contre 500 crédits" when they pay: what a planet or tech deal costs; " en cadeau" for nothing.</summary>
+    static string For(double amount, bool theyPay = false) => amount <= 0 ? " en cadeau" : $" {(theyPay ? "contre" : "pour")} {Credits(amount, false)}";
+
     /// <summary>What accepting an offer would mean.</summary>
     string OfferText(DealOffer o) => OfferText(o.From, o.Kind, o.Amount, o.PerMinute, o.Target, o.Planet);
 
@@ -89,6 +101,9 @@ public partial class GalaxyHud
 
     string OfferText(Side from, DealKind kind, double amount, bool perMinute, Side? target = null, int? planet = null) => kind switch
     {
+        DealKind.Peace => $"Une paix sans fin : aucun combat ni flotte envoyée chez l'autre. Elle ne se rompt pas : on la dénonce, et la guerre vient {Minutes(Galaxies.NoticeTime)} après.",
+        DealKind.Planet => "La planète change de mains avec ses installations ; les flottes de son ancien propriétaire en repartent.",
+        DealKind.Tech => "Celle qui est en retard gagne un niveau de cette technologie.",
         DealKind.Truce => $"{Minutes(Galaxies.TruceTime)} sans aucun combat entre vous, ni sur les planètes ni en chemin, et aucune flotte envoyée chez l'autre.",
         DealKind.Alliance => "Vous partageriez la vision, ne vous battriez plus et gagneriez ensemble. La rompre serait une trahison.",
         DealKind.Trade => $"Tant que dure la paix, chacun gagnerait {N(Galaxies.TradeRate(G, from, Player))} crédits de plus par seconde.",
@@ -103,15 +118,16 @@ public partial class GalaxyHud
         _ => $"Tu lui paierais {Credits(amount, perMinute)} contre une trêve de {Minutes(Galaxies.TruceTime)}. Refuser, c'est rester en guerre.",
     };
 
-    void Propose(Side rival, DealKind kind, double amount = 0, bool perMinute = false, Side? target = null, int? planet = null, DealTerms terms = DealTerms.None)
+    void Propose(Side rival, DealKind kind, double amount = 0, bool perMinute = false, Side? target = null, int? planet = null, DealTerms terms = DealTerms.None,
+        TechId? tech = null)
     {
-        var can = Galaxies.CanPropose(G, Player, rival, kind, amount, perMinute, target, planet, terms);
+        var can = Galaxies.CanPropose(G, Player, rival, kind, amount, perMinute, target, planet, terms, tech);
         if (!can.Ok)
         {
             Notify(can.Reason);
             return;
         }
-        var r = scene.Sink.Send(new GalaxyCommand.ProposeAccord(rival, kind, amount, perMinute, target, planet, terms));
+        var r = scene.Sink.Send(new GalaxyCommand.ProposeAccord(rival, kind, amount, perMinute, target, planet, terms, tech));
         // A deal signed says so itself (TruceSigned, PactSigned, TributeSigned), an AI's refusal too (DealRefused).
         // Over the network, another player answers in their own time.
         if (r.Ok && G.Factions[rival].AI is null) Notify($"Offre faite à {NameOf(rival)} : réponse sous {Left(kind == DealKind.Ultimatum ? Galaxies.UltimatumTime : Galaxies.OfferTime)}");
@@ -151,6 +167,9 @@ public partial class GalaxyHud
             DealKind.Alliance => ($"Rompre l'alliance avec {who} ?",
                 $"Vous ne partagerez plus la vision. {Minutes(Galaxies.NoticeTime)} de trêve pour retirer vos flottes, puis la guerre. {who} refusera toute trêve "
                 + $"et toute alliance pendant {Minutes(2 * Galaxies.GrudgeTime)}, et les autres factions te feront moins confiance.", "Rompre"),
+            DealKind.Peace => ($"Dénoncer la paix avec {who} ?",
+                $"La guerre reprendra dans {Minutes(Galaxies.NoticeTime)}. Ce n'est pas une trahison, mais ta réputation baisse un peu et {who} te fera moins confiance.",
+                "Dénoncer"),
             DealKind.Tribute => ($"Cesser de payer {who} ?",
                 $"C'est rompre la trêve que le tribut achète : vos flottes pourront de nouveau se battre, et {who} refusera toute trêve pendant {Minutes(Galaxies.GrudgeTime)}.",
                 "Cesser de payer"),
@@ -196,6 +215,11 @@ public partial class GalaxyHud
     }
 
     string PlanetName(int id) => G.Planets[id].Name;
+
+    /// <summary>Who receives in a planet or tech deal, "toi" for the player, and what was paid, for its notice.</summary>
+    string Taker(Concluded c) => c.To == Player ? "toi" : NameOf(c.To);
+
+    static string Paid(Concluded c) => c.Amount > 0 ? $" pour {Credits(c.Amount, false)}" : ", en cadeau";
 
     string Holder(Side? f) => f is Side o ? NameOf(o) : "neutre";
 
@@ -321,6 +345,43 @@ public partial class GalaxyHud
                 break;
             case TruceEnded e:
                 Notify($"Fin de la trêve entre {NameOf(e.A)} et {NameOf(e.B)}");
+                break;
+            case PeaceOver:
+                Notify("Fin de la paix de départ : les grands camps peuvent s'attaquer");
+                Sfx.Play(Sound.Alert);
+                break;
+            case Concluded { Kind: DealKind.Peace } c:
+                Notify(c.From == player || c.To == player
+                    ? $"Paix durable avec {NameOf(c.From == player ? c.To : c.From)} : sans fin, elle ne se rompt qu'avec un préavis de {Minutes(Galaxies.NoticeTime)}"
+                    : $"Paix durable entre {NameOf(c.From)} et {NameOf(c.To)}");
+                break;
+            case Concluded { Kind: DealKind.Planet } c:
+                Notify($"{(c.From == player ? "Tu cèdes" : $"{NameOf(c.From)} cède")} {PlanetName(c.Extra)} à {Taker(c)}{Paid(c)}", c.Extra);
+                break;
+            case Concluded { Kind: DealKind.Tech } c:
+                Notify($"{(c.From == player ? "Tu partages" : $"{NameOf(c.From)} partage")} {Techs.Defs[(TechId)c.Extra].Name} avec {Taker(c)}{Paid(c)}");
+                break;
+            case PeaceDenounced d when d.By == player || d.Other == player:
+                Notify(d.By == player
+                    ? $"Paix dénoncée avec {NameOf(d.Other)} : la guerre dans {Minutes(Galaxies.NoticeTime)}"
+                    : $"{NameOf(d.By)} dénonce votre paix : la guerre dans {Minutes(Galaxies.NoticeTime)} !");
+                Sfx.Play(Sound.Alert);
+                break;
+            case PeaceDenounced d:
+                Notify($"{NameOf(d.By)} dénonce sa paix avec {NameOf(d.Other)}");
+                break;
+            case CourtshipBegun b when b.Side == player:
+                Notify($"Négociation avec les indépendants de {PlanetName(b.PlanetId)} : {Minutes(Galaxies.CourtTime)}", b.PlanetId);
+                break;
+            case CourtshipBegun b when Galaxies.Known(G, player, G.Planets[b.PlanetId]):
+                Notify($"{NameOf(b.Side)} négocie avec les indépendants de {PlanetName(b.PlanetId)}", b.PlanetId);
+                break;
+            case Joined j when j.Side == player:
+                Notify($"{PlanetName(j.PlanetId)} te rejoint, garnison comprise", j.PlanetId);
+                Sfx.Play(Sound.Built);
+                break;
+            case Joined j when Galaxies.Known(G, player, G.Planets[j.PlanetId]):
+                Notify($"{PlanetName(j.PlanetId)} rejoint {NameOf(j.Side)}", j.PlanetId);
                 break;
             case IncidentStarted i:
                 OnIncident(i);

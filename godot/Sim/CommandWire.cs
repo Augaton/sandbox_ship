@@ -150,7 +150,9 @@ public static partial class Commands
                 w.Write7BitEncodedInt(p.Target is Side aim ? aim.Id + 1 : 0);
                 w.Write7BitEncodedInt((p.Planet ?? -1) + 1);
                 w.Write((byte)p.Terms);
+                w.Write((byte)(p.Tech is TechId tech ? (int)tech + 1 : 0));
                 break;
+            case GalaxyCommand.Court court: Tag(w, 21); w.Write7BitEncodedInt(court.Planet); break;
             default: throw new ArgumentException($"Commande sans format : {c.GetType().Name}");
         }
     }
@@ -176,7 +178,9 @@ public static partial class Commands
         17 => new GalaxyCommand.ProposeDeal(r.ReadSide(), r.ReadEnum<DealKind>(), r.ReadDouble(), r.ReadBoolean()),
         18 => new GalaxyCommand.AnswerDeal(r.ReadSide(), r.ReadEnum<DealKind>(), r.ReadBoolean()),
         19 => new GalaxyCommand.EndDeal(r.ReadSide(), r.ReadEnum<DealKind>()),
-        20 => new GalaxyCommand.ProposeAccord(r.ReadSide(), r.ReadEnum<DealKind>(), r.ReadDouble(), r.ReadBoolean(), OptionalSide(r), OptionalPlanet(r), Terms(r.ReadByte())),
+        20 => new GalaxyCommand.ProposeAccord(r.ReadSide(), r.ReadEnum<DealKind>(), r.ReadDouble(), r.ReadBoolean(), OptionalSide(r), OptionalPlanet(r), Terms(r.ReadByte()),
+            r.ReadByte() is var tech and > 0 ? Wire.Known<TechId>(tech - 1) : null),
+        21 => new GalaxyCommand.Court(CourtPlanet(r)),
         var tag => throw new InvalidDataException($"Commande galactique inconnue : {tag}"),
     };
 
@@ -185,6 +189,9 @@ public static partial class Commands
     /// <summary>A side as n + 1, 0 for none; checked as Wire.ReadSide checks one.</summary>
     static Side? OptionalSide(BinaryReader r) => r.ReadVarint() is var n && n == 0 ? null
         : n - 1 is var id && id is >= 0 and <= Lobby.MaxSeats ? new Side(id) : throw new InvalidDataException($"Camp inconnu : {n - 1}");
+
+    /// <summary>A planet to win over; its range is the galaxy's to check (Galaxies.CanCourt).</summary>
+    static int CourtPlanet(BinaryReader r) => r.ReadVarint() is var n && n is >= 0 and <= 1 << 16 ? n : throw new InvalidDataException($"Planète {n}");
 
     /// <summary>A planet as n + 1, 0 for none; its range is the galaxy's to check (Commands.Apply).</summary>
     static int? OptionalPlanet(BinaryReader r) => r.ReadVarint() is var n && n == 0 ? null : n is > 0 and <= 1 << 16 ? n - 1 : throw new InvalidDataException($"Planète {n}");

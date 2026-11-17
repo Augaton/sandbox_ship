@@ -62,6 +62,8 @@ public static class GalaxySave
         public Dictionary<Side, string> Humans = [];
         /// <summary>The name the player gave the save (SaveSlots); none for the automatic one, nor in older saves.</summary>
         public string? Name;
+        /// <summary>Independent planets being won over (none in older saves).</summary>
+        public List<Courtship> Courtships = [];
     }
 
     static readonly JsonSerializerOptions Options = new()
@@ -87,7 +89,7 @@ public static class GalaxySave
             Factions = [.. g.Factions.Values], NextId = g.NextId, Seed = g.Seed, Winner = g.Winner, Sides = true,
             Truces = g.Truces, Offers = g.Offers, Pacts = g.Pacts, Tributes = g.Tributes, Chronicle = g.Chronicle, Promises = g.Promises,
             Incidents = g.Incidents, NextIncident = g.NextIncident, IncidentSeed = g.IncidentSeed, Ongoing = g.Ongoing,
-            Humans = g.Humans, Name = name,
+            Humans = g.Humans, Name = name, Courtships = g.Courtships,
         };
         return JsonSerializer.Serialize(save, Options);
     }
@@ -167,7 +169,7 @@ public static class GalaxySave
             Time = s.Time, Player = s.Player, W = s.W, H = s.H, Planets = s.Planets, Lanes = s.Lanes, NextId = s.NextId, Seed = s.Seed, Winner = s.Winner,
             Truces = s.Truces, Offers = s.Offers, Pacts = s.Pacts, Tributes = s.Tributes, Chronicle = s.Chronicle, Promises = s.Promises,
             Incidents = s.Incidents, NextIncident = s.NextIncident, IncidentSeed = s.IncidentSeed, Ongoing = s.Ongoing,
-            Humans = s.Humans,
+            Humans = s.Humans, Courtships = s.Courtships,
         };
         foreach (var f in s.Fleets) g.Fleets[f.Id] = f;
         // Planets and sides out of range would bring down the view or the step that looks them up.
@@ -175,6 +177,8 @@ public static class GalaxySave
         g.Promises.RemoveAll(p => (uint)p.Planet >= (uint)g.Planets.Count || !s.Factions.Exists(f => f.Id == p.Asker) || !s.Factions.Exists(f => f.Id == p.Helper));
         g.Offers.RemoveAll(o => o.Planet is int planet && (uint)planet >= (uint)g.Planets.Count);
         g.Pacts.RemoveAll(p => p.Target is Side t && !s.Factions.Exists(f => f.Id == t));
+        g.Courtships.RemoveAll(c => (uint)c.Planet >= (uint)g.Planets.Count || !s.Factions.Exists(f => f.Id == c.Side) || !double.IsFinite(c.Remaining));
+        foreach (var f in s.Factions) f.Weariness = double.IsFinite(f.Weariness) ? Math.Clamp(f.Weariness, 0, Galaxies.WearyMax) : 0;
         foreach (var f in s.Factions)
         {
             if (!s.Sides)

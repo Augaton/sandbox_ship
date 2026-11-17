@@ -626,6 +626,50 @@ tests de `FixtureTests` et `CrossTests` les listent.
     (les parties du banc finissent aux mêmes instants). Trêves, pactes et tributs se cherchent sans fermeture, et les
     oublis par pas (rancunes, causes, offres, guerres communes, promesses) ne copient plus rien. Après : instantané 6 à
     9,5 Kio, pas de campagne 19 à 29 Kio (21 à 33 avant la diplomatie).
+- Campagne qui dure (2026-11-17, à la demande de l'utilisateur, choix faits avec lui) : plus grande galaxie, plus de
+  rush, une diplomatie qui sert. Chaque partie neuve en a les règles (`CampaignSetup.Of`, `Sim/GalaxyEndurance.cs`) ; une
+  galaxie faite sans (`CampaignSetup.None`, par défaut dans les tests) et les anciennes sauvegardes restent comme avant.
+  - Galaxie Immense (`MapSize.Immense`, campagne seulement) : 3400 × 2100, 54 à 64 planètes, en sept à neuf régions
+    séparées par une bande vide, reliées par une seule voie entre deux régions voisines, plus d'autres voies au hasard
+    pour contourner les goulets (`GalaxyGen.Regions`) ; des noms à elle, deux sites Errants, et la vue s'ouvre zoomée sur
+    la capitale du joueur. Les trois autres tailles gardent exactement leurs tirages.
+  - Indépendants (camp 7, `Galaxies.Independent` = `Lobby.MaxSide`, pas une faction) : chaque planète libre a une
+    garnison qui ne bouge jamais (plateformes, frégates, un soutien, un croiseur pour les plus riches), plus forte loin
+    des capitales et sur les planètes riches ou spéciales (`Garrison`, sans tirage : la galaxie classique reste en
+    miroir). Vaincue, elle laisse la planète au vainqueur ; ses vaisseaux ont l'allure du peuple de la planète, en gris.
+    Elle ne compte ni pour la victoire, ni comme menace pour l'IA. Les lecteurs réseau acceptent le camp 7.
+  - Capitales fortifiées : station niveau 2 et deux plateformes au départ ; tant que son camp la tient avec sa station,
+    une capitale relève une plateforme perdue toutes les 90 s, jusqu'à deux (`Planet.Home`).
+  - Paix de départ (salon : 10 min par défaut, aucune, 5 ou 15) : une trêve inviolable entre grands camps d'équipes
+    différentes (`Truce.Opening`) : ni rupture, ni ultimatum, ni confiance gagnée ; une seule annonce à la fin (`PeaceOver`).
+  - IA patiente : marge d'attaque de 50 % ramenée à 20 % en dix minutes (40 % à 10 % en six avant), 90 s de regroupement
+    entre deux frappes sur une faction rivale (`Regroup`), flottes réparées à 65 % avant de repartir. Elle rassemble aussi
+    son offensive sur la planète d'un allié qui touche l'ennemi, et avance de planète amie en planète amie : deux camps
+    alliés à un même troisième ne finissaient jamais leur guerre.
+  - Lassitude de guerre (`Sim/GalaxyRelations.cs`, 0 à 100) : une bataille contre une autre faction en ajoute 15 × la
+    part de sa puissance perdue (10 au plus), une planète perdue 6, la capitale 15, chaque front tenu 0,5 par minute ; elle
+    retombe de 2 par minute, de 4 sans guerre en face. Elle coûte jusqu'à 30 % du revenu. Une IA lasse (45) accepte et
+    propose la trêve même plus forte, et demande moins pour la paix ; jamais quand il ne reste que deux camps, qui
+    signaient trêve sur trêve et ne finissaient plus (première mesure : lassitude à 100 partout, une partie à deux sans fin).
+  - Paix durable (`DealKind.Peace`, `Truce.Lasting`) : sans fin, elle ne se rompt pas, on la dénonce (`Denounce`) : 2 min
+    de trêve puis la guerre, réputation -3, confiance -10. Une IA l'accepte de qui elle estime, par lassitude ou plus
+    faible ; jamais avec le camp qui domine, ni si elle n'aurait plus personne à combattre ; elle la dénonce contre le
+    camp qui domine, ou quand plus personne n'est en guerre avec elle. Signée pendant la paix de départ, elle lui succède.
+  - Commerce : 1 cr/s, +1 par voie commune (4 au plus), +10 % de la valeur des planètes du plus pauvre des deux, le tout
+    de ×0,5 à ×1,5 en 10 min de commerce (`Pact.Since`), 30 au plus.
+  - Convaincre les indépendants (`Galaxies.Court`, commande `Court`) : depuis une planète voisine, un à la fois, au prix
+    de ce qui la garde plus 300 par point de revenu, moins cher avec une bonne réputation ; 120 s plus tard la planète
+    rejoint le camp avec sa garnison et ses plateformes. Le premier qui finit l'emporte, les autres récupèrent la moitié ;
+    attaquer la planète met fin à sa propre négociation. L'IA le fait quand ses crédits le permettent, l'agressive rarement.
+  - Échanges (`DealKind.Planet`, `DealKind.Tech`), en paix ou en alliance : une planète (jamais une capitale ni la dernière)
+    ou un niveau de technologie passe de l'un à l'autre contre des crédits, 0 pour un cadeau qui réchauffe une IA. L'IA
+    vend au-dessus de la valeur, achète en dessous, ne vend ni au camp qui domine ni sa technologie à plus fort qu'elle.
+    Les recherches d'un camp en paix avec le joueur lui sont connues (instantané).
+  - Correctif : une bande errante gagnait sans fin contre des plateformes sans station (la bataille finit aussitôt, les
+    plateformes restaient, la suivante repartait au pas d'après : 12 000 batailles dans une partie). Ce qui reste en orbite
+    tombe maintenant avec le défenseur vaincu.
+  - Réseau : protocole 14 (réglage `Peace`, camp 7), instantanés de galaxie 6, commande `Court`, `ProposeAccord` avec sa
+    technologie. Tests : `EnduranceTests`, `RelationsTests`, `GalaxySizesTests`.
 - Sécurité (2026-11-03) : ce qu'un inconnu peut envoyer au serveur en ligne, à un hôte ou au jeu, et les fichiers du joueur.
   Chaque lecteur exposé passe un test de robustesse à graine fixe (`FuzzTests` : trames du relais, messages du jeu, ordres,
   instantanés de bataille entiers et en parties, galaxie, rediffusions, sauvegardes), et chaque correction a son test

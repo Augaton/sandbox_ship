@@ -120,8 +120,9 @@ public static class Protocol
     /// truce prolonged). 12: galaxy snapshots 5 and ProposeAccord (shared vision, joint wars,
     /// ultimatums, requests for help, bundles; reputations, the chronicle, what an AI would answer).
     /// 13: with commands 3 (Deploy) and battle snapshots 10 (the reserve and the jumps).
+    /// 14: the campaign's opening peace (Settings), its independents (side 7), galaxy snapshots 6.
     /// </summary>
-    public const int Version = 13;
+    public const int Version = 14;
     /// <summary>Where a host listens for players, unless told otherwise.</summary>
     public const int DefaultPort = 24680;
     /// <summary>Where hosts call out to the local network, and the join screen listens.</summary>
@@ -320,6 +321,7 @@ public static class Protocol
                 w.Write((byte)v.Terrain);
                 w.Write7BitEncodedInt(v.Credits);
                 w.Write7BitEncodedInt(v.WaveStrength);
+                w.Write7BitEncodedInt(v.Peace);
                 break;
             default: throw new ArgumentException($"Demande sans format : {q.GetType().Name}");
         }
@@ -335,7 +337,7 @@ public static class Protocol
         6 => new LobbyRequest.AddBot(),
         7 => new LobbyRequest.Remove(r.ReadVarint()),
         8 => new LobbyRequest.Settings(new LobbySettings(r.ReadEnum<MapKind>(), r.ReadEnum<MapSize>(), r.ReadVarint(), r.ReadBoolean(),
-            r.ReadBoolean(), r.ReadVarint(), r.ReadVarint(), r.ReadBoolean(), r.ReadBoolean(), r.ReadEnum<TerrainDensity>(), r.ReadVarint(), r.ReadVarint())),
+            r.ReadBoolean(), r.ReadVarint(), r.ReadVarint(), r.ReadBoolean(), r.ReadBoolean(), r.ReadEnum<TerrainDensity>(), r.ReadVarint(), r.ReadVarint(), r.ReadVarint())),
         9 => new LobbyRequest.SetPersonality(r.ReadVarint(), r.ReadEnumOrNone<Personality>()),
         var tag => throw new InvalidDataException($"Demande inconnue : {tag}"),
     };

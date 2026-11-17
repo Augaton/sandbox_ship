@@ -15,9 +15,10 @@ namespace SandboxShip.Sim;
 /// What one galaxy faction may offer another: a truce, an alliance, a trade agreement, a tribute
 /// it pays for peace, or one it demands for peace; its sight shared, a war on a third faction
 /// waged together, an ultimatum (credits or a planet, or war), an AI's request for help, or
-/// several terms at once (DealTerms). New kinds go last: their numbers travel and are saved.
+/// several terms at once (DealTerms); a lasting peace, a planet or a tech level passed from one to
+/// the other for credits (GalaxyRelations.cs). New kinds go last: their numbers travel and are saved.
 /// </summary>
-public enum DealKind { Truce, Alliance, Trade, Tribute, Demand, Vision, JointWar, Ultimatum, Help, Bundle }
+public enum DealKind { Truce, Alliance, Trade, Tribute, Demand, Vision, JointWar, Ultimatum, Help, Bundle, Peace, Planet, Tech }
 
 /// <summary>A non-aggression pact between two galaxy factions.</summary>
 public sealed class Truce
@@ -29,6 +30,17 @@ public sealed class Truce
     public bool Renewed;
     /// <summary>A tribute bought or prolonged it: even an AI that breaks truces keeps this one.</summary>
     public bool Paid;
+    /// <summary>
+    /// The peace every two great factions start a campaign with (CampaignSetup.OpeningPeace): nobody
+    /// may break it, nor threaten its partner meanwhile, and keeping it builds no trust.
+    /// </summary>
+    public bool Opening;
+    /// <summary>
+    /// A lasting peace (DealKind.Peace): it never runs out, and cannot be broken at once, only
+    /// denounced (Galaxies.Denounce), which leaves NoticeTime before the war. Signed during the
+    /// opening peace, it is both until the opening peace ends.
+    /// </summary>
+    public bool Lasting;
 }
 
 /// <summary>
@@ -41,6 +53,8 @@ public sealed class Pact
     public Side A, B;
     public Side? Target;
     public double Remaining;
+    /// <summary>Galaxy time it was signed: trade grows with its age (Galaxies.TradeRate).</summary>
+    public double Since;
 }
 
 /// <summary>Credits `Payer` pays `Payee` each minute, for peace, while `Remaining` lasts.</summary>
@@ -71,14 +85,24 @@ public sealed class DealOffer
     public int? Planet;
     /// <summary>A bundle's terms.</summary>
     public DealTerms Terms;
+    /// <summary>The tech a level of which a tech deal passes on.</summary>
+    public TechId? Tech;
 }
 
-public sealed record DealOffered(Side From, Side To, DealKind Kind, double Amount, bool PerMinute, Side? Target = null, int? Planet = null, DealTerms Terms = DealTerms.None) : GalaxyEvent;
+public sealed record DealOffered(Side From, Side To, DealKind Kind, double Amount, bool PerMinute, Side? Target = null, int? Planet = null, DealTerms Terms = DealTerms.None,
+    TechId? Tech = null) : GalaxyEvent;
 /// <summary>`To` turned down what `From` offered: an AI says why, a player does not.</summary>
 public sealed record DealRefused(Side From, Side To, DealKind Kind, string Reason) : GalaxyEvent;
 public sealed record TruceSigned(Side A, Side B) : GalaxyEvent;
 /// <summary>A truce ran out, or `BrokenBy` broke it.</summary>
 public sealed record TruceEnded(Side A, Side B, Side? BrokenBy) : GalaxyEvent;
+/// <summary>
+/// A lasting peace signed between `From` and `To` (Kind Peace), or a planet (Kind Planet, `Extra`
+/// its id) or a tech level (Kind Tech, `Extra` the tech) passed from `From` to `To` for `Amount` credits.
+/// </summary>
+public sealed record Concluded(DealKind Kind, Side From, Side To, double Amount = 0, int Extra = -1) : GalaxyEvent;
+/// <summary>`By` denounced its lasting peace with `Other`: war in NoticeTime.</summary>
+public sealed record PeaceDenounced(Side By, Side Other) : GalaxyEvent;
 /// <summary>An alliance, a trade agreement, shared vision or a joint war (against `Target`) signed.</summary>
 public sealed record PactSigned(DealKind Kind, Side A, Side B, Side? Target = null) : GalaxyEvent;
 /// <summary>A pact ended: `By` gave it up or broke it, or (null) it ran out or lost the peace it needs.</summary>
@@ -127,8 +151,12 @@ public static partial class Galaxies
     public const double RetruceTime = 600;
     /// <summary>Galaxy seconds of truce a broken alliance leaves, for the fleets to part; a tribute by the minute lasts.</summary>
     public const double NoticeTime = 120, TributeTime = 600;
-    /// <summary>Credits a second that trade brings each partner: so much, and so much more per lane between their planets, up to TradeMax.</summary>
-    public const double TradeBase = 1, TradePerLane = 1, TradeMax = 6;
+    /// <summary>
+    /// Credits a second that trade brings each partner: so much, so much more per lane between
+    /// their planets (TradeLanes at most) and a share of the poorer one's planets' worth, the whole
+    /// growing from half to one and a half over TradeMaturity galaxy seconds; TradeMax at most.
+    /// </summary>
+    public const double TradeBase = 1, TradePerLane = 1, TradeLanes = 4, TradeShare = 0.1, TradeMaturity = 600, TradeMax = 30;
     /// <summary>The largest tribute, once and by the minute: a bigger one is refused as it is read.</summary>
     public const double MaxTribute = 10000, MaxTributePerMinute = 1000;
     public const double TrustMax = 100;
@@ -239,7 +267,11 @@ public static partial class Galaxies
     /// <summary>`attacker` opened a battle against `defender`: the defender's AI trusts it less.</summary>
     static void Attacked(Galaxy g, Side attacker, Side defender) => Trusts(g, defender, attacker, -TrustAttack, TrustAttackFloor, TrustCause.Attacks);
 
-    /// <summary>The credits a second that trade brings each of `a` and `b`: more with each lane between their planets.</summary>
+    /// <summary>
+    /// The credits a second that trade brings each of `a` and `b`: more with each lane between
+    /// their planets and the richer the poorer of the two, more the longer it lasts (from what
+    /// all know: who holds which planet, and what it yields at least).
+    /// </summary>
     public static double TradeRate(Galaxy g, Side a, Side b)
     {
         var lanes = 0;
@@ -248,7 +280,15 @@ public static partial class Galaxies
             var (x, y) = (g.Planets[l.A].Owner, g.Planets[l.B].Owner);
             if ((x == a && y == b) || (x == b && y == a)) lanes++;
         }
-        return Math.Min(TradeMax, TradeBase + TradePerLane * lanes);
+        double worthA = 0, worthB = 0;
+        foreach (var p in g.Planets)
+        {
+            if (p.Owner == a) worthA += p.Income;
+            else if (p.Owner == b) worthB += p.Income;
+        }
+        var age = PactOf(g, DealKind.Trade, a, b) is { } pact ? g.Time - pact.Since : 0;
+        var maturity = 0.5 + Math.Clamp(age / TradeMaturity, 0, 1);
+        return Math.Min(TradeMax, (TradeBase + TradePerLane * Math.Min(TradeLanes, lanes) + TradeShare * Math.Min(worthA, worthB)) * maturity);
     }
 
     /// <summary>What a side's trade agreements bring it each second.</summary>
@@ -264,7 +304,7 @@ public static partial class Galaxies
 
     /// <summary>Whether `from` may offer `to` this deal now, and if not, why.</summary>
     public static Result CanPropose(Galaxy g, Side from, Side to, DealKind kind, double amount = 0, bool perMinute = false,
-        Side? target = null, int? planet = null, DealTerms terms = DealTerms.None)
+        Side? target = null, int? planet = null, DealTerms terms = DealTerms.None, TechId? tech = null)
     {
         if (!Enum.IsDefined(kind) || Teammates(g, from, to) || !g.Factions.TryGetValue(from, out var a) || !g.Factions.TryGetValue(to, out var b))
             return Result.Fail("Aucun accord possible");
@@ -296,6 +336,7 @@ public static partial class Galaxies
             case DealKind.Ultimatum:
                 if (Allied(g, from, to)) return Result.Fail("Pas entre alliées");
                 if (AtWar(g, from, to)) return Result.Fail("Déjà en guerre : exige plutôt un tribut");
+                if (TruceOf(g, from, to) is { Opening: true }) return Result.Fail("Pas pendant la paix de départ");
                 if (GalaxyAi.Might(g, from) < GalaxyAi.Might(g, to) * UltimatumEdge) return Result.Fail("Pas assez forte pour l'exiger");
                 if (planet is int p)
                 {
@@ -311,6 +352,14 @@ public static partial class Galaxies
                 break;
             case DealKind.Bundle:
                 return CanBundle(g, from, to, terms, amount, perMinute, a);
+            case DealKind.Peace:
+                if (Allied(g, from, to)) return Result.Fail("Déjà alliées");
+                if (TruceOf(g, from, to) is { Lasting: true }) return Result.Fail("Paix durable déjà en cours");
+                break;
+            case DealKind.Planet:
+                return CanTradePlanet(g, from, to, planet, amount);
+            case DealKind.Tech:
+                return CanTradeTech(g, from, to, tech, amount);
             default:
                 if (!double.IsFinite(amount) || amount <= 0 || amount > (perMinute ? MaxTributePerMinute : MaxTribute)) return Result.Fail("Montant invalide");
                 if (TributeOf(g, from, to) is not null) return Result.Fail("Tribut déjà en cours");
@@ -329,18 +378,18 @@ public static partial class Galaxies
     /// accepted.
     /// </summary>
     public static Result ProposeDeal(Galaxy g, Side from, Side to, DealKind kind, double amount = 0, bool perMinute = false,
-        Side? target = null, int? planet = null, DealTerms terms = DealTerms.None)
+        Side? target = null, int? planet = null, DealTerms terms = DealTerms.None, TechId? tech = null)
     {
-        var r = CanPropose(g, from, to, kind, amount, perMinute, target, planet, terms);
+        var r = CanPropose(g, from, to, kind, amount, perMinute, target, planet, terms, tech);
         if (!r.Ok) return r;
-        if (kind is DealKind.Truce or DealKind.Alliance or DealKind.Trade or DealKind.Vision && g.Offers.Exists(o => o.From == to && o.To == from && o.Kind == kind))
+        if (kind is DealKind.Truce or DealKind.Alliance or DealKind.Trade or DealKind.Vision or DealKind.Peace && g.Offers.Exists(o => o.From == to && o.To == from && o.Kind == kind))
             return AcceptDeal(g, from, to, kind);
         // A threat is held against its maker, whatever comes of it.
         if (kind == DealKind.Ultimatum) Repute(g, from, -5);
         if (g.Factions[to].AI is not null)
         {
-            var answer = GalaxyAi.AnswerDeal(g, to, from, kind, amount, perMinute, target, planet, terms);
-            if (answer.Ok) answer = Conclude(g, from, to, kind, amount, perMinute, target, planet, terms);
+            var answer = GalaxyAi.AnswerDeal(g, to, from, kind, amount, perMinute, target, planet, terms, tech);
+            if (answer.Ok) answer = Conclude(g, from, to, kind, amount, perMinute, target, planet, terms, tech);
             if (!answer.Ok)
             {
                 Note(g, new DealRefused(from, to, kind, answer.Reason));
@@ -349,8 +398,8 @@ public static partial class Galaxies
             return answer;
         }
         var remaining = kind == DealKind.Ultimatum ? UltimatumTime : OfferTime;
-        g.Offers.Add(new DealOffer { From = from, To = to, Kind = kind, Amount = amount, PerMinute = perMinute, Remaining = remaining, Target = target, Planet = planet, Terms = terms });
-        Note(g, new DealOffered(from, to, kind, amount, perMinute, target, planet, terms));
+        g.Offers.Add(new DealOffer { From = from, To = to, Kind = kind, Amount = amount, PerMinute = perMinute, Remaining = remaining, Target = target, Planet = planet, Terms = terms, Tech = tech });
+        Note(g, new DealOffered(from, to, kind, amount, perMinute, target, planet, terms, tech));
         return Result.OK;
     }
 
@@ -363,8 +412,8 @@ public static partial class Galaxies
         if (offer is null) return Result.Fail("Aucune offre");
         g.Offers.Remove(offer);
         // What changed since it was made may have undone it: a tribute nobody can pay, a trade without peace.
-        var still = CanPropose(g, from, side, kind, offer.Amount, offer.PerMinute, offer.Target, offer.Planet, offer.Terms);
-        return still.Ok ? Conclude(g, from, side, kind, offer.Amount, offer.PerMinute, offer.Target, offer.Planet, offer.Terms) : Result.Fail("L'offre n'est plus valable");
+        var still = CanPropose(g, from, side, kind, offer.Amount, offer.PerMinute, offer.Target, offer.Planet, offer.Terms, offer.Tech);
+        return still.Ok ? Conclude(g, from, side, kind, offer.Amount, offer.PerMinute, offer.Target, offer.Planet, offer.Terms, offer.Tech) : Result.Fail("L'offre n'est plus valable");
     }
 
     public static Result AcceptTruce(Galaxy g, Side side, Side from) => AcceptDeal(g, side, from, DealKind.Truce);
@@ -392,13 +441,29 @@ public static partial class Galaxies
     public static void RefuseTruce(Galaxy g, Side side, Side from) => RefuseDeal(g, side, from, DealKind.Truce);
 
     /// <summary>The deal `from` offered `to` takes effect, both having agreed.</summary>
-    static Result Conclude(Galaxy g, Side from, Side to, DealKind kind, double amount, bool perMinute, Side? target, int? planet, DealTerms terms = DealTerms.None)
+    static Result Conclude(Galaxy g, Side from, Side to, DealKind kind, double amount, bool perMinute, Side? target, int? planet, DealTerms terms = DealTerms.None,
+        TechId? tech = null)
     {
         switch (kind)
         {
             case DealKind.Truce:
                 Sign(g, from, to);
                 break;
+            case DealKind.Peace:
+                g.Offers.RemoveAll(o => o.Kind is DealKind.Truce or DealKind.Peace && Pair(o.From, o.To, from, to));
+                if (TruceOf(g, from, to) is not { } peace)
+                {
+                    Sign(g, from, to);
+                    peace = TruceOf(g, from, to)!;
+                }
+                peace.Lasting = true;
+                Note(g, new Concluded(DealKind.Peace, from, to));
+                Say(g, to, from, Remark.Welcome);
+                break;
+            case DealKind.Planet:
+                return TradePlanet(g, from, to, planet!.Value, amount);
+            case DealKind.Tech:
+                return TradeTech(g, from, to, tech!.Value, amount);
             case DealKind.Alliance:
                 // The alliance takes over from a truce and shared vision; whatever else they agreed stands.
                 g.Offers.RemoveAll(o => o.Kind is DealKind.Alliance or DealKind.Truce or DealKind.Vision && Pair(o.From, o.To, from, to));
@@ -412,7 +477,7 @@ public static partial class Galaxies
                 break;
             case DealKind.Trade or DealKind.Vision:
                 g.Offers.RemoveAll(o => o.Kind == kind && Pair(o.From, o.To, from, to));
-                g.Pacts.Add(new Pact { Kind = kind, A = from, B = to });
+                g.Pacts.Add(new Pact { Kind = kind, A = from, B = to, Since = g.Time });
                 Note(g, new PactSigned(kind, from, to));
                 break;
             case DealKind.JointWar:
@@ -471,6 +536,8 @@ public static partial class Galaxies
     {
         var truce = TruceOf(g, by, other);
         if (truce is null) return Result.Fail("Aucune trêve");
+        if (truce.Opening) return Result.Fail("La paix de départ ne se rompt pas");
+        if (truce.Lasting) return Result.Fail("Une paix durable se dénonce, avec un préavis");
         g.Truces.Remove(truce);
         if (g.Factions.TryGetValue(other, out var o) && o.AI is not null) o.AI.Grudges[by] = Math.Max(o.AI.Grudges.GetValueOrDefault(by), GrudgeTime);
         Trusts(g, other, by, -TrustBrokenTruce, cause: TrustCause.Betrayal);
@@ -492,6 +559,8 @@ public static partial class Galaxies
         {
             case DealKind.Truce:
                 return BreakTruce(g, by, other);
+            case DealKind.Peace:
+                return Denounce(g, by, other);
             case DealKind.Alliance:
                 return BreakAlliance(g, by, other);
             case DealKind.Trade:
@@ -596,11 +665,23 @@ public static partial class Galaxies
     static void UpdateDiplomacy(Galaxy g, double dt)
     {
         bool Gone(Side f) => !g.Factions.TryGetValue(f, out var gf) || gf.Eliminated;
+        var opened = false;
         foreach (var t in g.Truces.ToList())
         {
-            t.Remaining -= dt;
+            // A lasting peace never runs out; the opening peace it may still be does.
+            if (!t.Lasting || t.Opening) t.Remaining -= dt;
             if (Gone(t.A) || Gone(t.B)) g.Truces.Remove(t);
-            else if (t.Remaining <= 0)
+            else if (t.Remaining <= 0 && t.Opening)
+            {
+                // The opening peace ends for all at once: one notice (PeaceOver), not one per pair.
+                // A lasting peace signed meanwhile holds on.
+                opened = true;
+                t.Opening = false;
+                if (t.Lasting) continue;
+                g.Truces.Remove(t);
+                PeaceLost(g, t.A, t.B, null);
+            }
+            else if (t.Remaining <= 0 && !t.Lasting)
             {
                 // Kept to its end: both sides' word is worth a little more.
                 g.Truces.Remove(t);
@@ -615,6 +696,7 @@ public static partial class Galaxies
                 }
             }
         }
+        if (opened && !g.Truces.Exists(t => t.Opening)) g.Events.Add(new PeaceOver());
         for (var i = g.Offers.Count - 1; i >= 0; i--)
         {
             var o = g.Offers[i];
@@ -665,7 +747,7 @@ public static partial class Galaxies
             foreach (var other in g.Factions.Values)
             {
                 if (other.Id == f.Id || other.Eliminated) continue;
-                var peace = AtPeace(g, f.Id, other.Id) ? TrustTruce : 0;
+                var peace = TruceOf(g, f.Id, other.Id) is { Opening: false } ? TrustTruce : 0;
                 var alliance = Allied(g, f.Id, other.Id) ? TrustAlliance : 0;
                 var trade = g.Pacts.Count > 0 && PactOf(g, DealKind.Trade, f.Id, other.Id) is not null ? TrustTrade : 0;
                 var joint = g.Pacts.Count > 0 && JointWarOf(g, f.Id, other.Id) is not null ? TrustJointWar : 0;

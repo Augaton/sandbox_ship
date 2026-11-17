@@ -23,6 +23,8 @@ public sealed record MenuChoice
     public MapKind Map { get; init; } = MapKind.Random;
     public int Seed { get; init; } = 1;
     public MapSize Size { get; init; } = MapSize.Medium;
+    /// <summary>A new game's minutes of peace between the great factions at the start (Lobby.Peace).</summary>
+    public int Peace { get; init; } = CampaignSetup.PeaceMinutes[0];
     /// <summary>Without Seats, the enemies' AI; with --skip, the player's while the galaxy plays ahead.</summary>
     public Difficulty Difficulty { get; init; } = Difficulty.Normal;
     /// <summary>A campaign over the network: the host's galaxy, or a player's replica of it (Network.NetGalaxy); the rest is unused.</summary>
@@ -48,7 +50,7 @@ public sealed record MenuChoice
 /// --menu=home|new|controls|credits|options|lobby-MODE (the menu screen opened first; new: the
 /// modes; lobby-skirmish, lobby-campaign...: that mode's lobby, see LobbyMode; skirmish: lobby-skirmish),
 /// --seats=N and --teams=T,T... (that lobby's bots added up to N seats, then its teams in seat order),
-/// --size=small|medium|large (the map, or the galaxy, of --start),
+/// --size=small|medium|large|huge|immense (the map, or the galaxy up to large, of --start),
 /// --terrain=none|light|dense (the terrain of --start's battle and of the stress scene, none without it; and of the dev runs' lobbies),
 /// --mode=survival|zones|assault|regicide (the rules of --start=battle; in an assault, the player defends),
 /// --wave=N (a survival game starts at wave N, the first a few seconds away: the late waves, or the end, without playing up to them),

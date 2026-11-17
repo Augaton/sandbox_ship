@@ -90,7 +90,7 @@ public static partial class Galaxies
     {
         var ai = g.Factions[side].AI!;
         return g.Planets
-            .Where(p => p.Owner != Faction.Errant && CanFireLance(g, side, from, p.Id).Ok)
+            .Where(p => p.Owner is Side o && IsFaction(g, o) && CanFireLance(g, side, from, p.Id).Ok)
             .OrderByDescending(p => ai.Difficulty == Difficulty.Hard && p.Id == ai.Target)
             .ThenByDescending(p => DefenseValue(g, p))
             .Select(p => (int?)p.Id).FirstOrDefault();

@@ -192,7 +192,7 @@ public sealed class BattleHistory
         var h = new BattleHistory { Every = Finite(r.ReadDouble()), Closed = true };
         var times = Bounded(r, MaxSamples + 1, "Échantillons");
         for (var i = 0; i < times; i++) h.Times.Add(Finite(r.ReadDouble()));
-        var sides = Bounded(r, Lobby.MaxSeats + 1, "Camps");
+        var sides = Bounded(r, Lobby.MaxSide + 1, "Camps");
         for (var s = 0; s < sides; s++)
         {
             var side = r.ReadSide();
@@ -204,7 +204,7 @@ public sealed class BattleHistory
             }
             if (!h.Sides.TryAdd(side, points)) throw new InvalidDataException($"Camp en double : {side.Id}");
         }
-        var aceSides = Bounded(r, Lobby.MaxSeats + 1, "Camps");
+        var aceSides = Bounded(r, Lobby.MaxSide + 1, "Camps");
         for (var s = 0; s < aceSides; s++)
         {
             var side = r.ReadSide();

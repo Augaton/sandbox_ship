@@ -26,6 +26,10 @@ public partial class GalaxyHud
     DealTerms diploTerms;
     double diploAmount = 60;
     bool diploPerMinute = true;
+    /// <summary>The exchange being put together: a planet or a tech, and its price in credits.</summary>
+    int? swapPlanet;
+    TechId? swapTech;
+    double swapPrice;
     /// <summary>The screen stopped time, and gives it back when it closes.</summary>
     bool heldByDiplomacy;
     /// <summary>The matrix as last drawn: rebuilt when a relation changes.</summary>
@@ -160,6 +164,8 @@ public partial class GalaxyHud
     /// <summary>Where `a` and `b` stand, in a word and its color: allies, at peace, at war.</summary>
     (string Word, Color Color) Standing(Side a, Side b) =>
         Galaxies.Allied(G, a, b) || Galaxies.Teammates(G, a, b) ? ("alliés", Palette.Ok)
+        : Galaxies.TruceOf(G, a, b) is { Lasting: true } ? ("paix", Palette.Ok)
+        : Galaxies.TruceOf(G, a, b) is { Opening: true } ? ("paix", Palette.Accent)
         : Galaxies.AtPeace(G, a, b) ? ("trêve", Palette.Accent)
         : ("guerre", Palette.Danger);
 
@@ -285,6 +291,11 @@ public partial class GalaxyHud
         parts.Add(ProposalPart(r));
         parts.Add(SectionPart("Accords à part"));
         parts.Add(SpecialPart(r));
+        if (!Galaxies.AtWar(g, Player, r))
+        {
+            parts.Add(SectionPart("Échanges"));
+            parts.Add(ExchangePart(r));
+        }
         parts.Add(SectionPart("Historique"));
         parts.Add(HistoryPart(r));
         return parts;
@@ -305,7 +316,8 @@ public partial class GalaxyHud
     {
         var f = G.Factions[r];
         var kind = f.AI is { } ai ? $"IA {Personalities.Defs[ai.Personality].Name.ToLowerInvariant()}, {Worlds.Difficulties[ai.Difficulty].Name.ToLowerInvariant()}" : "Joueur";
-        ((Label)c.FindChild("what", true, false)).Text = $"{kind} · réputation {Signed(f.Reputation)} ({Repute(f.Reputation)})";
+        ((Label)c.FindChild("what", true, false)).Text = $"{kind} · réputation {Signed(f.Reputation)} ({Repute(f.Reputation)})"
+            + (f.Weariness >= 1 ? $" · lassitude de guerre {N(Math.Round(f.Weariness))} (revenu −{HudKit.Percent(Galaxies.WearyCost * f.Weariness / Galaxies.WearyMax)})" : "");
     });
 
     /// <summary>An AI's trust in the player, and what moved it lately: the larger first.</summary>
@@ -373,7 +385,7 @@ public partial class GalaxyHud
         var war = Galaxies.JointWarOf(g, Player, r);
         var tribute = Galaxies.TributeOf(g, Player, r);
         var promise = g.Promises.Find(p => p.Asker == r && p.Helper == Player);
-        var key = $"accords:{r}:{allied}:{truce is not null}:{trade}:{vision}:{war?.Target}:{tribute?.Payer}:{promise?.Planet}";
+        var key = $"accords:{r}:{allied}:{truce is not null}:{truce?.Opening}:{truce?.Lasting}:{trade}:{vision}:{war?.Target}:{tribute?.Payer}:{promise?.Planet}";
         return new Part(key, () =>
         {
             var col = Column(6);
@@ -388,8 +400,11 @@ public partial class GalaxyHud
                 col.AddChild(row);
             }
             if (allied) Line("alliance", "Alliance : vision partagée, aucun combat, victoire commune", () => ConfirmBreak(r, DealKind.Alliance), "Rompre", "Une trahison : la guerre après une courte trêve");
-            if (truce is not null) Line("truce", "", () => ConfirmBreak(r, DealKind.Truce), "Rompre", "Vos flottes pourront de nouveau se battre");
-            if (trade) Line("trade", $"Commerce : +{N(Galaxies.TradeRate(g, Player, r))}/s chacun", () => End(r, DealKind.Trade), "Arrêter");
+            // The opening peace binds everyone to its end: nothing to break. A lasting peace is denounced.
+            if (truce is { Opening: true }) Line("truce", "");
+            else if (truce is { Lasting: true }) Line("truce", "", () => ConfirmBreak(r, DealKind.Peace), "Dénoncer", $"La guerre {Minutes(Galaxies.NoticeTime)} après");
+            else if (truce is not null) Line("truce", "", () => ConfirmBreak(r, DealKind.Truce), "Rompre", "Vos flottes pourront de nouveau se battre");
+            if (trade) Line("trade", "", () => End(r, DealKind.Trade), "Arrêter");
             if (vision) Line("vision", "Vision partagée : chacun voit ce que voit l'autre", () => End(r, DealKind.Vision), "Arrêter", "Elle le prendra un peu mal");
             if (war is { Target: Side t }) Line("war", "", () => End(r, DealKind.JointWar), "Se retirer", $"La laisser seule contre {NameOf(t)} : elle t'en voudra");
             if (tribute is not null)
@@ -407,8 +422,16 @@ public partial class GalaxyHud
             {
                 if (c.FindChild(name, true, false) is Label l) l.Text = text;
             }
-            if (Galaxies.TruceOf(G, Player, r) is { } t) Set("truce", t.Renewed ? $"Trêve : encore {Left(t.Remaining)}, déjà prolongée" : $"Trêve : encore {Left(t.Remaining)}");
+            if (Galaxies.TruceOf(G, Player, r) is { } t) Set("truce", t.Opening ? $"Paix de départ : encore {Left(t.Remaining)}, nul ne peut la rompre{(t.Lasting ? " ; une paix durable lui succédera" : "")}"
+                : t.Lasting ? $"Paix durable : sans fin ; la dénoncer laisse {Minutes(Galaxies.NoticeTime)} avant la guerre"
+                : t.Renewed ? $"Trêve : encore {Left(t.Remaining)}, déjà prolongée" : $"Trêve : encore {Left(t.Remaining)}");
             if (Galaxies.JointWarOf(G, Player, r) is { Target: Side aim } w) Set("war", $"Guerre commune contre {NameOf(aim)} : encore {Left(w.Remaining)}");
+            if (Galaxies.PactOf(G, DealKind.Trade, Player, r) is { } pact)
+            {
+                var age = G.Time - pact.Since;
+                Set("trade", $"Commerce : +{N(Math.Round(Galaxies.TradeRate(G, Player, r), 1))}/s chacun"
+                    + (age < Galaxies.TradeMaturity ? $", il grandit encore {Left(Galaxies.TradeMaturity - age)}" : ", à son plein"));
+            }
             if (Galaxies.TributeOf(G, Player, r) is { } tr)
             {
                 Set("tribute", tr.Payer == Player ? $"Tu lui paies {Credits(tr.PerMinute, true)}, encore {Left(tr.Remaining)}"
@@ -577,7 +600,7 @@ public partial class GalaxyHud
         var g = G;
         var thirds = g.Factions.Values.Where(t => !t.Eliminated && t.Id != r && t.Id != Player).Select(t => t.Id).ToList();
         var planets = g.Planets.Where(p => Galaxies.CanDemandPlanet(g, Player, r, p.Id).Ok).Select(p => p.Id).ToList();
-        var key = $"special:{r}:{Standing(Player, r).Word}:{string.Join(",", thirds)}:{string.Join(",", planets)}";
+        var key = $"special:{r}:{Standing(Player, r).Word}:{Galaxies.TruceOf(g, Player, r)?.Lasting}:{string.Join(",", thirds)}:{string.Join(",", planets)}";
         return new Part(key, () =>
         {
             var col = Column(8);
@@ -596,6 +619,7 @@ public partial class GalaxyHud
                 row.AddChild(l);
                 col.AddChild(row);
             }
+            Act("Paix durable", $"Une paix sans fin, qui ne se rompt pas : on la dénonce, et la guerre vient {Minutes(Galaxies.NoticeTime)} après", DealKind.Peace, why: preview?.Peace);
             Act("Alliance", "Vision partagée, aucun combat, victoire commune ; la rompre est une trahison", DealKind.Alliance, why: preview?.Alliance);
             foreach (var t in thirds)
             {
@@ -616,6 +640,93 @@ public partial class GalaxyHud
             if (planets.Count > 0 && preview is { Cedes: true })
                 col.AddChild(Text("Elle ne cède qu'une planète secondaire pour elle, sans grande station.", Palette.Muted, 13, wrap: true));
             return col;
+        });
+    }
+
+    /// <summary>
+    /// Exchanges with a faction at peace: one of its planets or one of the player's (never a
+    /// capital), or a level of a tech where one is ahead, for a price to pick around what it is
+    /// worth (nothing: a gift). An AI answers at once, saying what it would want instead.
+    /// </summary>
+    Part ExchangePart(Side r)
+    {
+        var g = G;
+        var (me, them) = (g.Factions[Player], g.Factions[r]);
+        bool Tradable(Planet p) => p.Home != p.Owner && g.Planets.Count(o => o.Owner == p.Owner) > 1;
+        List<int> Best(Side owner) => g.Planets.Where(p => p.Owner == owner && Tradable(p)).OrderByDescending(p => Galaxies.PlanetValue(g, p)).Take(6).Select(p => p.Id).ToList();
+        var (mine, theirs) = (Best(Player), Best(r));
+        var techs = Techs.All.Where(t => me.Research[t] != them.Research[t]).ToList();
+        if (swapPlanet is int sp && !mine.Contains(sp) && !theirs.Contains(sp) || swapTech is TechId st && !techs.Contains(st)) (swapPlanet, swapTech) = (null, null);
+        var key = $"exchange:{r}:{swapPlanet}:{swapTech}:{swapPrice}:{string.Join(",", mine)}:{string.Join(",", theirs)}:"
+            + string.Join(",", techs.Select(t => $"{t}{me.Research[t]}{them.Research[t]}"));
+        // What the chosen item is worth, and whether the player pays for it.
+        var (worth, pays) = swapPlanet is int planet ? (Galaxies.PlanetValue(g, g.Planets[planet]), g.Planets[planet].Owner == r)
+            : swapTech is TechId tech ? (Galaxies.TechValue(Math.Min(me.Research[tech], them.Research[tech]), tech), them.Research[tech] > me.Research[tech])
+            : (0, false);
+        var kind = swapPlanet is not null ? DealKind.Planet : DealKind.Tech;
+        return new Part(key, () =>
+        {
+            var col = Column(8);
+            col.AddChild(Text("Une planète ou un niveau de technologie contre des crédits ; à 0, c'est un cadeau, qui réchauffe une IA. Une capitale ne se cède pas.",
+                Palette.Muted, 13, wrap: true));
+            var items = Flow(6);
+            void Pick(string label, int? p, TechId? t, string tip)
+            {
+                var b = Small(label, () =>
+                {
+                    (swapPlanet, swapTech) = (p, t);
+                    swapPrice = -1;
+                    RefreshDiplomacy();
+                }, tip);
+                Outline(b, swapPlanet == p && swapTech == t ? Palette.Accent : null);
+                items.AddChild(b);
+            }
+            foreach (var id in theirs) Pick($"Obtenir {PlanetName(id)}", id, null, $"Valeur estimée : {Credits(Galaxies.PlanetValue(g, g.Planets[id]), false)}");
+            foreach (var id in mine) Pick($"Céder {PlanetName(id)}", id, null, $"Valeur estimée : {Credits(Galaxies.PlanetValue(g, g.Planets[id]), false)}");
+            foreach (var t in techs)
+            {
+                var level = Math.Min(me.Research[t], them.Research[t]) + 1;
+                Pick($"{(me.Research[t] > them.Research[t] ? "Transmettre" : "Recevoir")} {Techs.Defs[t].Name} {level}", null, t,
+                    $"Valeur : {Credits(Galaxies.TechValue(level - 1, t), false)}");
+            }
+            if (items.GetChildCount() == 0) col.AddChild(Text("Rien à échanger pour l'instant.", Palette.Muted, 13));
+            col.AddChild(items);
+            if (swapPlanet is null && swapTech is null) return col;
+            if (swapPrice < 0) swapPrice = Math.Round(worth / 50) * 50;
+            var prices = Flow(6);
+            foreach (var share in new[] { 0, 0.5, 1, 1.5, 2 })
+            {
+                var amount = Math.Round(worth * share / 50) * 50;
+                var b = Small(amount <= 0 ? "Cadeau" : Credits(amount, false), () =>
+                {
+                    swapPrice = amount;
+                    RefreshDiplomacy();
+                }, share == 1 ? "Ce que ça vaut, à peu près" : "");
+                Outline(b, amount == swapPrice ? Palette.Accent : null);
+                prices.AddChild(b);
+            }
+            col.AddChild(prices);
+            col.AddChild(Text(pays ? "C'est toi qui paies." : "C'est elle qui paie.", Palette.Muted, 13));
+            var status = Text("", Palette.Muted, 13, wrap: true);
+            status.Name = "status";
+            col.AddChild(status);
+            var send = Small("Proposer l'échange", () =>
+            {
+                Propose(r, kind, swapPrice, planet: swapPlanet, tech: swapTech);
+                (swapPlanet, swapTech) = (null, null);
+            }, "", primary: true);
+            send.Name = "send";
+            send.SizeFlagsHorizontal = Control.SizeFlags.ShrinkBegin;
+            col.AddChild(send);
+            return col;
+        }, c =>
+        {
+            if (c.FindChild("send", true, false) is not Button send) return;
+            var can = Galaxies.CanPropose(G, Player, r, kind, swapPrice, planet: swapPlanet, tech: swapTech);
+            send.Disabled = !can.Ok;
+            send.TooltipText = can.Ok ? "" : can.Reason;
+            ((Label)c.FindChild("status", true, false)).Text = !can.Ok ? can.Reason
+                : G.Factions[r].AI is not null ? "Elle répond aussitôt, et dit ce qu'elle voudrait si elle refuse." : "Un joueur répond lui-même, dans le temps d'une offre.";
         });
     }
 
@@ -659,6 +770,9 @@ public partial class GalaxyHud
                 DealKind.Trade => "Accord commercial signé",
                 DealKind.Vision => "Vision partagée",
                 DealKind.JointWar => e.Extra >= 0 ? $"Guerre commune contre {NameOf(new Side(e.Extra))}" : "Guerre commune",
+                DealKind.Peace => "Paix durable signée",
+                DealKind.Planet => $"{Who(e.A)} cède {PlanetName(e.Extra)} à {Who(e.B)}{(e.Amount > 0 ? $" pour {Credits(e.Amount, false)}" : ", en cadeau")}",
+                DealKind.Tech => $"{Who(e.A)} transmet {Techs.Defs[(TechId)e.Extra].Name} à {Who(e.B)}{(e.Amount > 0 ? $" pour {Credits(e.Amount, false)}" : ", en cadeau")}",
                 _ => $"Tribut : {Who(e.A)} paie {Credits(e.Amount, false)}",
             },
             ChronicleKind.Expired => "Fin de la trêve, tenue jusqu'au bout",
@@ -673,6 +787,7 @@ public partial class GalaxyHud
                 DealKind.Trade => "Fin du commerce",
                 DealKind.Vision => "Fin de la vision partagée",
                 DealKind.JointWar => "Fin de la guerre commune",
+                DealKind.Peace => $"{by} dénonce la paix durable",
                 _ => "Fin du tribut",
             },
             ChronicleKind.Refused => $"{by} refuse {Noun(e.Deal)}",

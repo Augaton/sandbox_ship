@@ -220,8 +220,12 @@ public static partial class Galaxies
         Say(g, to, from, Remark.Defiant);
     }
 
-    /// <summary>A planet changes hands without a fight, its works kept; the former owner's fleets there leave for its nearest planet.</summary>
-    static void Cede(Galaxy g, Planet planet, Side to)
+    /// <summary>
+    /// A planet changes hands without a fight, its works kept; the former owner's fleets there
+    /// leave for its nearest planet. `ceded`: told as given up to an ultimatum (PlanetCeded); an
+    /// exchange tells itself (Concluded).
+    /// </summary>
+    static void Cede(Galaxy g, Planet planet, Side to, bool ceded = true)
     {
         var from = planet.Owner!.Value;
         planet.Owner = to;
@@ -235,7 +239,7 @@ public static partial class Galaxies
         {
             if (home is int h) SendFleet(g, f.Id, h);
         }
-        Note(g, new PlanetCeded(planet.Id, from, to));
+        if (ceded) Note(g, new PlanetCeded(planet.Id, from, to));
     }
 
     /// <summary>The planet of `side` fewest lanes from `from`, `from` itself left out.</summary>
@@ -367,14 +371,21 @@ public static partial class Galaxies
 
     /// <summary>
     /// Whether a chronicle line's extra is one its kind may have: a planet of the galaxy for a
-    /// cession, an ultimatum or a request for help, a side for a joint war, a known remark for
-    /// words said, none otherwise. The view looks them up: one out of range would bring it down.
+    /// cession, an ultimatum, a request for help or a planet traded, a known tech for a tech
+    /// traded, a side for a joint war, a known remark for words said, none otherwise. The view
+    /// looks them up: one out of range would bring it down.
     /// </summary>
     public static bool SaneEntry(DiploEntry e, Galaxy g) => e.Extra == -1 || e.Kind switch
     {
         ChronicleKind.Said => Enum.IsDefined((Remark)e.Extra),
         ChronicleKind.Ceded or ChronicleKind.Issued or ChronicleKind.Asked or ChronicleKind.Kept or ChronicleKind.Failed => (uint)e.Extra < (uint)g.Planets.Count,
-        _ => e.Deal == DealKind.JointWar && e.Extra is >= 0 and <= Lobby.MaxSeats,
+        _ => e.Deal switch
+        {
+            DealKind.JointWar => e.Extra is >= 0 and <= Lobby.MaxSeats,
+            DealKind.Planet => (uint)e.Extra < (uint)g.Planets.Count,
+            DealKind.Tech => Enum.IsDefined((TechId)e.Extra),
+            _ => false,
+        },
     };
 
     /// <summary>An AI speaks to a player; to another AI, it keeps its words.</summary>
@@ -412,6 +423,8 @@ public static partial class Galaxies
         PlanetCeded c => new() { Kind = ChronicleKind.Ceded, Deal = DealKind.Ultimatum, A = c.From, B = c.To, Extra = c.PlanetId },
         HelpAnswered h => new() { Kind = h.Kept ? ChronicleKind.Kept : ChronicleKind.Failed, Deal = DealKind.Help, A = h.Asker, B = h.Helper, Extra = h.PlanetId },
         AiSaid s => new() { Kind = ChronicleKind.Said, A = s.From, B = s.To, Extra = (int)s.What },
+        Concluded c => new() { Kind = ChronicleKind.Signed, Deal = c.Kind, A = c.From, B = c.To, Amount = c.Amount, Extra = c.Extra },
+        PeaceDenounced d => new() { Kind = ChronicleKind.Ended, Deal = DealKind.Peace, A = d.By, B = d.Other, By = d.By },
         _ => null,
     };
 }

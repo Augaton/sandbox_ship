@@ -20,6 +20,13 @@ public static class GalaxyGen
         "Ixion", "Calyx", "Aldane", "Bérénice", "Corvée", "Dravon", "Elyne", "Fargo", "Gélise", "Hesper", "Isaure",
         "Joran", "Kestel", "Lunaé", "Mirth", "Nérée", "Opale", "Pyros", "Quarre", "Rhéa", "Solenne", "Tyval", "Ulme",
     ];
+    /// <summary>More names for the immense galaxy alone: the shuffle of Names stays the web version's draws for the others.</summary>
+    static readonly string[] MoreNames =
+    [
+        "Albor", "Bastide", "Cendre", "Doria", "Écume", "Faëlle", "Grisol", "Hélis", "Ivoire", "Jaspe", "Korrin", "Lys",
+        "Mérac", "Nivôse", "Orphée", "Pernelle", "Quintil", "Rocaille", "Sirin", "Tanaïs", "Urbane", "Valmy", "Wyrd",
+        "Xanthe", "Yseult", "Zénith", "Aurige", "Balise", "Cyrène", "Délos", "Éther", "Fanal", "Gaïa", "Halcyon", "Ilion",
+    ];
     static readonly PlanetSpecial[] SpecialKinds = [PlanetSpecial.Rich, PlanetSpecial.Shipyard, PlanetSpecial.Fortress, PlanetSpecial.Archive];
     const double Margin = 90;
     const double MinGap = 165;
@@ -35,7 +42,15 @@ public static class GalaxyGen
         [MapSize.Small] = (1300, 850, 10, 12, 4),
         [MapSize.Medium] = (GalaxyMap.W, GalaxyMap.H, 12, 18, 4),
         [MapSize.Large] = (2200, 1350, 22, 30, 0),
+        // Not in the web version: regions joined by a few lanes (Regions).
+        [MapSize.Immense] = (3400, 2100, 54, 64, 0),
     };
+
+    /// <summary>The galaxy size a map size stands for: the very large battle map makes a large galaxy.</summary>
+    public static MapSize Fit(MapSize size) => Sizes.ContainsKey(size) ? size : MapSize.Large;
+
+    /// <summary>Whether galaxies come in this size.</summary>
+    public static bool Offers(MapSize size) => Sizes.ContainsKey(size);
 
     /// <summary>Deterministic random numbers in [0, 1) (mulberry32).</summary>
     public static Func<double> SeededRandom(int seed)
@@ -82,7 +97,8 @@ public static class GalaxyGen
     /// </summary>
     public static GalaxyLayout GenerateLayout(int seed, int players = 2, MapSize size = MapSize.Medium)
     {
-        var (w, h, min, max, perPlayer) = Sizes[size];
+        if (Fit(size) == MapSize.Immense) return Regions(seed, players);
+        var (w, h, min, max, perPlayer) = Sizes[Fit(size)];
         // Up to three players, the web version's draws.
         var extra = Math.Max(0, players - 3) * perPlayer;
         (min, max) = (min + extra, Math.Min(Names.Length, max + extra));
@@ -145,8 +161,17 @@ public static class GalaxyGen
             lanes.Add(new Lane(link.A, link.B));
         }
 
-        // Capitals: the pair furthest apart in lanes (then in distance), then each further one as
-        // far as possible from those already picked.
+        var capitals = Capitals(points, lanes, players);
+        foreach (var c in capitals) planets[c] = planets[c] with { Income = 6, MineSlots = 3, Special = null };
+        return new GalaxyLayout(planets, lanes, capitals, w, h);
+    }
+
+    /// <summary>
+    /// Capitals: the pair furthest apart in lanes (then in distance), then each further one as
+    /// far as possible from those already picked.
+    /// </summary>
+    static List<int> Capitals(List<Point> points, List<Lane> lanes, int players)
+    {
         var allHops = Enumerable.Range(0, points.Count).Select(i => Hops(lanes, points.Count, i)).ToList();
         double Apart(int a, int b) => allHops[a][b] * 10000 + Gap(points[a], points[b]);
         var capitals = new List<int> { 0, 1 };
@@ -168,6 +193,140 @@ public static class GalaxyGen
                 .OrderByDescending(i => capitals.Min(c => Apart(i, c))).First();
             capitals.Add(next);
         }
+        return capitals;
+    }
+
+    /// <summary>Width of the empty band between two regions of the immense galaxy.</summary>
+    const double RegionGap = 140;
+    /// <summary>A link between two regions longer than this is no neighbour's: it would cross the map.</summary>
+    const double RegionReach = 3.2 * MinGap;
+    /// <summary>Share of the region pairs past those that join them all which get a lane too: other ways round a choke point.</summary>
+    const double RegionLoops = 0.45;
+    /// <summary>Longest lane inside a region: past it, the lane would cross the region.</summary>
+    const double RegionLane = 2.5 * MinGap;
+    /// <summary>Smallest angle between two lanes leaving the same planet, in radians: closer, they would read as one.</summary>
+    const double LaneAngle = 0.35;
+
+    /// <summary>
+    /// The immense galaxy (not in the web version): seven to nine regions, each a cluster of
+    /// planets with lanes between near neighbours, an empty band between two regions, and one lane
+    /// only between two neighbouring regions: every region joined to the others, and some to more
+    /// than one, so that each choke point can be gone round, at length. Capitals as elsewhere.
+    /// </summary>
+    static GalaxyLayout Regions(int seed, int players)
+    {
+        var (w, h, min, max, _) = Sizes[MapSize.Immense];
+        var rnd = SeededRandom(seed);
+        var count = min + (int)Math.Floor(rnd() * (max - min + 1));
+        // Region centres, spread out.
+        var regions = 7 + (int)Math.Floor(rnd() * 3);
+        var centres = new List<Point>();
+        var spread = Math.Sqrt(w * h / regions) * 0.75;
+        for (var tries = 0; centres.Count < regions && tries < 5000; tries++)
+        {
+            var c = new Point(Margin + rnd() * (w - 2 * Margin), Margin + rnd() * (h - 2 * Margin));
+            if (centres.TrueForAll(q => Gap(c, q) >= spread)) centres.Add(c);
+        }
+        int RegionOf(Point p)
+        {
+            var best = 0;
+            for (var i = 1; i < centres.Count; i++) if (Gap(p, centres[i]) < Gap(p, centres[best])) best = i;
+            return best;
+        }
+        // Planets, out of the bands between regions: as near their own centre as the next one, a band's width apart.
+        var points = new List<Point>();
+        var region = new List<int>();
+        for (var tries = 0; points.Count < count && tries < 20000; tries++)
+        {
+            var p = new Point(Js.Round(Margin + rnd() * (w - 2 * Margin)), Js.Round(Margin + rnd() * (h - 2 * Margin)));
+            var r = RegionOf(p);
+            var next = Enumerable.Range(0, centres.Count).Where(i => i != r).Min(i => Gap(p, centres[i]));
+            if (next - Gap(p, centres[r]) < RegionGap || !points.TrueForAll(q => Gap(p, q) >= MinGap)) continue;
+            points.Add(p);
+            region.Add(r);
+        }
+        var names = Names.Concat(MoreNames).ToArray();
+        for (var i = names.Length - 1; i > 0; i--)
+        {
+            var j = (int)Math.Floor(rnd() * (i + 1));
+            (names[i], names[j]) = (names[j], names[i]);
+        }
+        var planets = points.Select((p, i) =>
+        {
+            var income = 2 + Math.Floor(rnd() * 5);
+            PlanetSpecial? special = rnd() < 0.3 ? SpecialKinds[(int)Math.Floor(rnd() * SpecialKinds.Length)] : null;
+            return new PlanetDef(names[i], p.X, p.Y, income, (int)Math.Min(3, 1 + Math.Floor(income / 2)), special);
+        }).ToList();
+
+        var lanes = new List<Lane>();
+        var degree = new int[points.Count];
+        bool Has(int a, int b) => lanes.Exists(l => (l.A == a && l.B == b) || (l.A == b && l.B == a));
+        bool Free(int a, int b) => lanes.TrueForAll(l => !Crosses(points[a], points[b], points[l.A], points[l.B]));
+        double Heading(int from, int to) => Math.Atan2(points[to].Y - points[from].Y, points[to].X - points[from].X);
+        bool Apart(int at, int to) => lanes.TrueForAll(l =>
+            (l.A != at && l.B != at) || Math.Abs(Math.IEEERemainder(Heading(at, l.A == at ? l.B : l.A) - Heading(at, to), 2 * Math.PI)) >= LaneAngle);
+        // Crossing no lane, and no lane leaving either end too close to it.
+        bool Clear(int a, int b) => Free(a, b) && Apart(a, b) && Apart(b, a);
+        void Add(int a, int b)
+        {
+            lanes.Add(new Lane(a, b));
+            degree[a]++;
+            degree[b]++;
+        }
+        // Inside each region, shortest first, to one of a planet's five nearest neighbours there.
+        var inside = new List<(int A, int B, double D)>();
+        for (var i = 0; i < points.Count; i++)
+        {
+            var near = Enumerable.Range(0, points.Count).Where(j => j != i && region[j] == region[i])
+                .Select(j => (J: j, D: Gap(points[i], points[j]))).OrderBy(x => x.D).Take(5);
+            foreach (var (j, d) in near) if (d <= RegionLane) inside.Add((Math.Min(i, j), Math.Max(i, j), d));
+        }
+        foreach (var (a, b, _) in inside.OrderBy(c => c.D))
+        {
+            if (!Has(a, b) && degree[a] < 4 && degree[b] < 4 && Clear(a, b)) Add(a, b);
+        }
+        // Between regions: the shortest crossing-free link of each neighbouring pair, then the
+        // pairs that join every region (shortest first), and a share of the others.
+        var links = new Dictionary<(int, int), (int A, int B, double D)>();
+        for (var a = 0; a < points.Count; a++)
+        {
+            for (var b = a + 1; b < points.Count; b++)
+            {
+                if (region[a] == region[b]) continue;
+                var d = Gap(points[a], points[b]);
+                var key = (Math.Min(region[a], region[b]), Math.Max(region[a], region[b]));
+                if (d <= RegionReach && (!links.TryGetValue(key, out var was) || d < was.D) && Clear(a, b)) links[key] = (a, b, d);
+            }
+        }
+        var group = Enumerable.Range(0, centres.Count).ToArray();
+        int Root(int r) => group[r] == r ? r : group[r] = Root(group[r]);
+        foreach (var ((ra, rb), (a, b, _)) in links.OrderBy(l => l.Value.D))
+        {
+            var joins = Root(ra) != Root(rb);
+            // The draw comes for every pair, so the loops do not shift what joins the regions.
+            var loop = rnd() < RegionLoops;
+            if ((!joins && !loop) || !Clear(a, b)) continue;
+            group[Root(ra)] = Root(rb);
+            Add(a, b);
+        }
+        // Join what is still apart with its shortest clear link, else crossing-free, else any.
+        for (;;)
+        {
+            var reach = Hops(lanes, points.Count, 0);
+            var out_ = Enumerable.Range(0, points.Count).Where(i => double.IsPositiveInfinity(reach[i])).ToList();
+            if (out_.Count == 0) break;
+            var join = new List<(int A, int B, double D)>();
+            for (var a = 0; a < points.Count; a++)
+            {
+                if (double.IsPositiveInfinity(reach[a])) continue;
+                foreach (var b in out_) join.Add((a, b, Gap(points[a], points[b])));
+            }
+            join = join.OrderBy(l => l.D).ToList();
+            var link = join.FirstOrDefault(l => Clear(l.A, l.B), join.FirstOrDefault(l => Free(l.A, l.B), join[0]));
+            Add(link.A, link.B);
+        }
+
+        var capitals = Capitals(points, lanes, players);
         foreach (var c in capitals) planets[c] = planets[c] with { Income = 6, MineSlots = 3, Special = null };
         return new GalaxyLayout(planets, lanes, capitals, w, h);
     }

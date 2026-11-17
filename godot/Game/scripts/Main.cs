@@ -278,7 +278,7 @@ public partial class Main : Node
         var me = net?.Side ?? lobby.SideOfPeer() ?? Lobby.SideOf(0);
         if (lobby.Mode == LobbyMode.Campaign)
         {
-            StartCampaign(new MenuChoice { Seats = lobby.Slots(), Me = me, Map = lobby.Map, Seed = lobby.Seed, Size = lobby.Size });
+            StartCampaign(new MenuChoice { Seats = lobby.Slots(), Me = me, Map = lobby.Map, Seed = lobby.Seed, Size = lobby.Size, Peace = lobby.Peace });
             return;
         }
         var o = lobby.Skirmish();

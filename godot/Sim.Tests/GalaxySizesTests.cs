@@ -65,6 +65,36 @@ public class GalaxySizesTests
     }
 
     [Fact]
+    public void The_immense_galaxy_has_regions_joined_by_choke_points()
+    {
+        foreach (var seed in new[] { 1, 2, 3, 10, 21, 55, 99, 12345 })
+        {
+            foreach (var players in new[] { 2, 3, 6 })
+            {
+                var layout = GalaxyGen.GenerateLayout(seed, players, MapSize.Immense);
+                var planets = layout.Planets;
+                Assert.InRange(planets.Count, 54, 64);
+                Assert.Equal((3400.0, 2100.0), (layout.W, layout.H));
+                Assert.All(planets, p => Assert.True(p.X > 0 && p.X < 3400 && p.Y > 0 && p.Y < 2100));
+                Assert.Equal(planets.Count, planets.Select(p => p.Name).Distinct().Count());
+                Assert.All(layout.Lanes, l => Assert.All(layout.Lanes, m => Assert.False(GalaxyGen.Crosses(
+                    new Point(planets[l.A].X, planets[l.A].Y), new Point(planets[l.B].X, planets[l.B].Y),
+                    new Point(planets[m.A].X, planets[m.A].Y), new Point(planets[m.B].X, planets[m.B].Y)))));
+                var slots = Enumerable.Range(0, players).Select(i => new Slot(Lobby.SideOf(i), (Faction)(i % 3))).ToList();
+                var g = CreateGalaxy(slots, seed, layout);
+                Assert.Equal(planets.Count, Reachable(g));
+                Assert.Equal(players, layout.Capitals.Distinct().Count());
+                // Far apart: two rivals six lanes apart at least, six rivals three.
+                foreach (var a in layout.Capitals)
+                {
+                    foreach (var b in layout.Capitals.Where(b => b != a)) Expect.GreaterOrEqual(FindPath(g, a, b)!.Count, players == 2 ? 6 : 3);
+                }
+                Assert.Equal(2, g.Planets.Count(p => p.Owner == Faction.Errant));
+            }
+        }
+    }
+
+    [Fact]
     public void Saves_keep_the_galaxy_size_and_older_saves_load_as_medium()
     {
         var large = CreateGalaxy(Faction.Klaed, [Faction.Nairan], true, 7, GalaxyGen.GenerateLayout(7, 2, MapSize.Large));
@@ -84,7 +114,8 @@ public class GalaxySizesTests
     public void AIs_alone_play_a_small_or_large_galaxy_to_the_end(MapSize size, int players, int seed)
     {
         var g = AiOnly(seed, GalaxyGen.GenerateLayout(seed, players, size));
-        for (var minute = 0; minute < 40 && g.Winner is null; minute++) RunGalaxy(g, 60);
+        // An hour at most: the AI waits for its edge and regroups between offensives (GalaxyAi.Regroup).
+        for (var minute = 0; minute < 60 && g.Winner is null; minute++) RunGalaxy(g, 60);
         Assert.NotNull(g.Winner);
     }
 

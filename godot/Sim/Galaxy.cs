@@ -35,7 +35,7 @@ public sealed class Occupation
     public double Remaining;
 }
 
-public sealed class Planet : IPoint
+public sealed partial class Planet : IPoint
 {
     public int Id;
     public string Name = "";
@@ -231,15 +231,17 @@ public static partial class Galaxies
     /// galaxy faction: they never build, research or move, and do not count for victory.
     /// </summary>
     public static Galaxy CreateGalaxy(Faction player, IReadOnlyList<Faction> enemies, bool enemyAI = true, long seed = 7,
-        GalaxyLayout? layout = null, Difficulty difficulty = Difficulty.Normal, bool errants = true, bool incidents = true) =>
-        CreateGalaxy([new Slot(player, player), .. enemies.Select(e => new Slot(e, e, 0, enemyAI ? difficulty : null))], seed, layout, errants, incidents);
+        GalaxyLayout? layout = null, Difficulty difficulty = Difficulty.Normal, bool errants = true, bool incidents = true, CampaignSetup? setup = null) =>
+        CreateGalaxy([new Slot(player, player), .. enemies.Select(e => new Slot(e, e, 0, enemyAI ? difficulty : null))], seed, layout, errants, incidents, setup);
 
     /// <summary>
     /// A galaxy for these seats, the local player's first (Player), each on a capital of the
     /// layout in turn: the layout needs one per seat (GalaxyGen.GenerateLayout places 2 to 6).
-    /// Side 3 is the Errants': seats take 0 to 2, then 4 and up. Otherwise as above.
+    /// Side 3 is the Errants': seats take 0 to 2, then 4 and up. Otherwise as above. `setup`: the
+    /// independents, fortified capitals and opening peace of a new campaign (none by default).
     /// </summary>
-    public static Galaxy CreateGalaxy(IReadOnlyList<Slot> slots, long seed = 7, GalaxyLayout? layout = null, bool errants = true, bool incidents = true)
+    public static Galaxy CreateGalaxy(IReadOnlyList<Slot> slots, long seed = 7, GalaxyLayout? layout = null, bool errants = true, bool incidents = true,
+        CampaignSetup? setup = null)
     {
         layout ??= GalaxyGen.Classic;
         if (slots.Count > layout.Capitals.Count) throw new ArgumentException("The layout has fewer capitals than seats.");
@@ -270,8 +272,10 @@ public static partial class Galaxies
             p.Mines = 1;
             AddShipsAt(g, side, capital, new ShipCounts { [ShipClass.Frigate] = 2, [ShipClass.Scout] = 2 });
         }
-        if (errants && ErrantSite(g, [.. layout.Capitals.Take(slots.Count)]) is int site)
+        var taken = layout.Capitals.Take(slots.Count).ToList();
+        for (var n = errants ? ErrantSites(g) : 0; n > 0 && ErrantSite(g, taken) is int site; n--)
         {
+            taken.Add(site);
             var p = g.Planets[site];
             p.Owner = Faction.Errant;
             p.Station = 3;
@@ -284,12 +288,17 @@ public static partial class Galaxies
                 [ShipClass.Colossus] = 1, [ShipClass.Dreadnought] = 1, [ShipClass.Battlecruiser] = 2, [ShipClass.Frigate] = 4,
             });
         }
+        Settle(g, [.. layout.Capitals.Take(slots.Count)], setup ?? CampaignSetup.None);
         return g;
     }
 
+    /// <summary>Planets the Errants hold: one, two on a galaxy of forty planets or more (the immense one).</summary>
+    public static int ErrantSites(Galaxy g) => g.Planets.Count >= 40 ? 2 : 1;
+
     /// <summary>
     /// The Errants' planet: the farthest in lanes from every capital, then the farthest from them
-    /// in distance. Never a capital, and next to one only on a map with nothing farther.
+    /// in distance. Never a capital, and next to one only on a map with nothing farther. A second
+    /// one is the farthest from the capitals and the first site alike.
     /// </summary>
     public static int? ErrantSite(Galaxy g, IReadOnlyList<int> capitals)
     {
@@ -752,6 +761,7 @@ public static partial class Galaxies
     static void Capture(Galaxy g, Planet planet, Side side)
     {
         var from = planet.Owner;
+        WearCapture(g, planet, from, side);
         planet.Owner = side;
         // Space structures are lost; mines and labs on the ground change hands.
         planet.Station = 0;
@@ -824,9 +834,12 @@ public static partial class Galaxies
                 value += v;
                 wear += v * f.Condition;
             }
+            // The independents fly the ships of their planet's people, in their own grey.
+            var independent = side == Independent;
             return new BattleSide
             {
-                Side = side, Race = RaceOf(g, side), Color = g.Factions.TryGetValue(side, out var gf) ? gf.Color : null,
+                Side = side, Race = independent ? IndependentRace(g.Planets[planetId]) : RaceOf(g, side),
+                Color = g.Factions.TryGetValue(side, out var gf) ? gf.Color : independent ? IndependentColor : null,
                 Ships = ships, Ranks = ranks, Heroes = heroes, Research = gf?.Research,
                 Condition = value > 0 ? wear / value : 1,
             };
@@ -879,7 +892,7 @@ public static partial class Galaxies
             var owner = planet.Owner;
             var defended = owner is Side o && (Fortified(planet) || present.Contains(o));
             var clash = Clash(g, here, defended ? owner : null);
-            var takers = present.Where(f => f != Faction.Errant && (owner is not Side o2 || f == o2 || AtWar(g, f, o2))).ToList();
+            var takers = present.Where(f => IsFaction(g, f) && (owner is not Side o2 || f == o2 || AtWar(g, f, o2))).ToList();
             if (!defended && clash is null && takers.Count > 0)
             {
                 var f = planet.Occupation is { } going && takers.Contains(going.Side) ? going.Side : takers[0];
@@ -925,8 +938,9 @@ public static partial class Galaxies
         var planet = g.Planets[b.PlanetId];
         if (b.Lane is not null || planet.Owner != b.Defender) return new BattleToll(att, def, null, null);
         var after = Battle.DefenseLeft(w, b.Defender);
-        // Taken, the planet keeps only what is on the ground (Capture); an Errant band takes nothing (Settle).
-        if (result == BattleResult.Attacker && RaceOf(g, b.Attacker) != Faction.Errant) after = new PlanetDefense { Mines = after.Mines };
+        // Lost, the planet keeps only what is on the ground: taken (Capture), or what stood in
+        // orbit falls with the defender (Settle); an Errant band takes nothing.
+        if (result == BattleResult.Attacker) after = new PlanetDefense { Mines = after.Mines };
         return new BattleToll(att, def, DefenseOf(planet), after);
     }
 
@@ -978,6 +992,7 @@ public static partial class Galaxies
         }
         else Settle(g, b, result, att, def, attCondition, defCondition, attHeroes, defHeroes);
         g.Events.Add(new BattleEnded(b.PlanetId, b.Attacker, b.Defender, result, b.Lane, toll));
+        WearBattle(g, b.Attacker, b.Defender, toll);
         // Each galaxy side brings back what it earned: the bounties of the ships it shot down
         // (a colossus' included), and the free tech level a fallen colossus teaches. The Errants,
         // no galaxy faction, keep nothing.
@@ -1013,6 +1028,10 @@ public static partial class Galaxies
             planet.RepairDock = left.RepairDock;
             planet.IonCannon = left.IonCannon;
             planet.PlatformTier = left.PlatformTier;
+            // Without a station or a ship, what is left in orbit holds nothing (Battle.Outcome):
+            // the defender lost, and it falls too. Left standing, it defended the planet again,
+            // and the same battle started at every step against a war band that never takes it.
+            if (result == BattleResult.Attacker) planet.Platforms = planet.IonCannon = planet.RepairDock = 0;
         }
         if (result == BattleResult.Attacker)
         {
@@ -1170,6 +1189,7 @@ public static partial class Galaxies
 
     /// <summary>Galaxy income per second for a side: planets, plus mines (more on rich deposits, more with research).</summary>
     /// <summary>What a side earns a second: its planets, and its trade agreements (not in the web version).</summary>
+    /// <summary>What a side earns each second: its planets and its trade, less what war weariness takes.</summary>
     public static double IncomeOf(Galaxy g, Side side)
     {
         double s = 0;
@@ -1177,7 +1197,8 @@ public static partial class Galaxies
         {
             if (p.Owner == side) s += PlanetIncome(g, p);
         }
-        return g.Pacts.Count > 0 ? s + TradeIncome(g, side) : s;
+        if (g.Pacts.Count > 0) s += TradeIncome(g, side);
+        return g.Factions.TryGetValue(side, out var f) && f.Weariness > 0 ? s * WearyIncome(f) : s;
     }
 
     /// <summary>What one planet pays its owner per second, mining research included.</summary>
@@ -1585,9 +1606,12 @@ public static partial class Galaxies
         }
         CancelLostRallies(g);
         UpdateProduction(g, dt);
+        RaiseCapitals(g, dt);
         UpdateLances(g, dt);
         UpdateResearch(g, dt);
         UpdateDiplomacy(g, dt);
+        UpdateWeariness(g, dt);
+        UpdateCourtships(g, dt);
         MoveFleets(g, dt);
         RepairFleets(g, dt);
         WearUnsupplied(g, dt);

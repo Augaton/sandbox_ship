@@ -404,6 +404,8 @@ public class CommandsTests
             new GalaxyCommand.ProposeAccord(new Side(1), DealKind.JointWar, Target: new Side(2)),
             new GalaxyCommand.ProposeAccord(new Side(2), DealKind.Ultimatum, Planet: 7),
             new GalaxyCommand.ProposeAccord(new Side(4), DealKind.Bundle, 120, true, Terms: DealTerms.Truce | DealTerms.Trade | DealTerms.Tribute),
+            new GalaxyCommand.ProposeAccord(new Side(1), DealKind.Tech, 400, Tech: TechId.Repair),
+            new GalaxyCommand.Court(9),
         ];
         foreach (var c in galaxy)
         {

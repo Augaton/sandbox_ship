@@ -474,7 +474,8 @@ public partial class Menu
         settings.AddThemeConstantOverride("separation", 12);
         var classic = l.Map == MapKind.Classic && !battle;
         settings.AddChild(Labelled(battle ? "Taille de la carte" : "Taille de la galaxie",
-            Group("size", Scenario.MapSizes.Select(s => (s.Key, s.Value.Name)), l.Size, v => Set(s => s with { Size = v }), _ => classic)));
+            Group("size", Scenario.MapSizes.Where(s => battle || GalaxyGen.Offers(s.Key)).Select(s => (s.Key, s.Value.Name)),
+                battle ? l.Size : GalaxyGen.Fit(l.Size), v => Set(s => s with { Size = v }), _ => classic)));
         var row = new HBoxContainer();
         row.AddThemeConstantOverride("separation", 14);
         var more = Btn(moreMap ? "Moins de réglages" : "Plus de réglages", () => Pick("act:more", () => moreMap = !moreMap), key: "act:more");
@@ -550,8 +551,9 @@ public partial class Menu
     }
 
     /// <summary>
-    /// The mode's own settings, the raid and the fog where they apply; over the network, the
-    /// spectators, and online the direct link. None for the campaign and the sandbox played alone.
+    /// The mode's own settings (the campaign's opening peace among them), the raid and the fog
+    /// where they apply; over the network, the spectators, and online the direct link. None for
+    /// the sandbox played alone.
     /// </summary>
     Control? RulesSection(Lobby l)
     {
@@ -575,6 +577,13 @@ public partial class Menu
             items.Add(Labelled("Vagues", Group("waves", Lobby.WaveStrengths.Select(v => (v, WavesName(v))), l.WaveStrength,
                 v => Set(s => s with { WaveStrength = v }))));
             if (l.WaveStrength != 100) items.Add(Note("Les records ne comptent que les parties aux vagues normales."));
+        }
+        if (l.Mode == LobbyMode.Campaign && !l.Resumed)
+        {
+            items.Add(Labelled("Paix de départ", Group("peace", CampaignSetup.PeaceMinutes.Order().Select(v => (v, v == 0 ? "Aucune" : $"{v} min")), l.Peace,
+                v => Set(s => s with { Peace = v }))));
+            items.Add(Note("Aucune attaque entre grands camps pendant ce temps. Les planètes libres sont tenues par des indépendants à vaincre, "
+                + "et chaque capitale relève ses plateformes."));
         }
         if (l.HasRaid)
         {
@@ -678,7 +687,7 @@ public partial class Menu
             LobbyMode.Assault => $"{Count(playing.Count(s => s.Team == 1), "défenseur")} contre {Count(playing.Count(s => s.Team == 2), "attaquant")}, {l.AssaultMinutes} min",
             _ => Camps(playing),
         };
-        var size = Scenario.MapSizes[l.Size].Name.ToLowerInvariant();
+        var size = Scenario.MapSizes[l.Mode == LobbyMode.Campaign ? GalaxyGen.Fit(l.Size) : l.Size].Name.ToLowerInvariant();
         var where = l.Mode == LobbyMode.Campaign
             ? l.Map == MapKind.Classic ? "galaxie classique" : $"galaxie {size}"
             : l.Map == MapKind.Classic ? $"carte {size} classique" : $"carte {size}";
@@ -686,6 +695,7 @@ public partial class Menu
         if (l.Mode == LobbyMode.Zones) more.Add($"objectif {l.ZoneTarget}");
         if (l.HasCredits && l.Credits != (int)Scenario.StartCredits) more.Add($"{HudKit.N(l.Credits)} crédits");
         if (l.Mode == LobbyMode.Survival && l.WaveStrength != 100) more.Add($"vagues à {l.WaveStrength} %");
+        if (l.Mode == LobbyMode.Campaign && !l.Resumed) more.Add(l.Peace == 0 ? "sans paix de départ" : $"{l.Peace} min de paix");
         if (l.HasRaid && l.Raid) more.Add("raid");
         if (l.HasFog && !l.Fog) more.Add("sans brouillard");
         if (l.HasTerrain && l.Terrain != TerrainDensity.Light) more.Add(l.Terrain == TerrainDensity.None ? "sans terrain" : "terrain dense");

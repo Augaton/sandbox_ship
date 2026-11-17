@@ -117,7 +117,7 @@ public partial class GalaxyScreen : Node
         }
         if (rivals.Count > 1)
         {
-            g.Truces.Add(new Truce { A = Player, B = rivals[1], Remaining = Galaxies.TruceTime });
+            if (Galaxies.TruceOf(g, Player, rivals[1]) is null) g.Truces.Add(new Truce { A = Player, B = rivals[1], Remaining = Galaxies.TruceTime });
             Sink.Send(new GalaxyCommand.ProposeDeal(rivals[1], DealKind.Trade));
             g.Offers.Add(new DealOffer { From = rivals[1], To = Player, Kind = DealKind.Demand, Amount = 60, PerMinute = true, Remaining = Galaxies.OfferTime });
             g.Events.Add(new DealOffered(rivals[1], Player, DealKind.Demand, 60, true));
@@ -136,7 +136,7 @@ public partial class GalaxyScreen : Node
         var layout = opts.Map == MapKind.Classic && slots.Count == 2
             ? GalaxyGen.Classic
             : GalaxyGen.GenerateLayout(opts.Seed, slots.Count, opts.Size);
-        Galaxy = saved ?? Galaxies.CreateGalaxy(slots, opts.Seed, layout);
+        Galaxy = saved ?? Galaxies.CreateGalaxy(slots, opts.Seed, layout, setup: CampaignSetup.Of(opts.Peace));
         // The player may sit at any seat of the lobby, not only the first.
         if (saved is null && opts.Me is Side me) Galaxy.Player = me;
         Sink = new LocalSink<GalaxyCommand>(c => Commands.Apply(Galaxy, Player, c));
@@ -694,8 +694,9 @@ public partial class GalaxyScreen : Node
             var sprite = planets[p.Id];
             sprite.Modulate = sprite.Modulate with { A = Galaxies.Known(Galaxy, Player, p, seen) ? 1 : 0.45f };
             var badge = emblems[p.Id];
-            badge.Visible = p.Owner is not null;
-            if (p.Owner is Side owner) badge.Texture = GalaxyHud.EmblemTexture(Galaxy, owner);
+            // The independents have no emblem: their grey ring says whose the planet is.
+            badge.Visible = p.Owner is Side o && o != Galaxies.Independent;
+            if (badge.Visible) badge.Texture = GalaxyHud.EmblemTexture(Galaxy, p.Owner!.Value);
         }
     }
 
@@ -763,6 +764,14 @@ public partial class GalaxyScreen : Node
                     o.DrawArc(new Vector2((float)x, (float)y), (float)(r + 7), -Mathf.Pi / 2, (float)(-Math.PI / 2 + done * Math.Tau),
                         Math.Max(4, (int)(done * 48)), Palette.Of(g, occ.Side), 4);
                 }
+            }
+            // Who is winning its independents over, and how far along.
+            foreach (var c in g.Courtships)
+            {
+                if (c.Planet != p.Id) continue;
+                var done = Math.Clamp(1 - c.Remaining / Galaxies.CourtTime, 0, 1);
+                o.DrawArc(new Vector2((float)x, (float)y), (float)(r + 11), -Mathf.Pi / 2, (float)(-Math.PI / 2 + done * Math.Tau),
+                    Math.Max(4, (int)(done * 48)), Palette.Of(g, c.Side) with { A = 0.8f }, 2);
             }
             if (Galaxies.BattleAt(g, p.Id))
             {

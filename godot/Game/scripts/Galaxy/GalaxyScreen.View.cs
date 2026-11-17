@@ -21,6 +21,8 @@ public partial class GalaxyScreen
     const float PanFast = 2.5f;
     /// <summary>How far, in pixels, the galaxy may leave the free part of the screen.</summary>
     const double ViewMargin = 80;
+    /// <summary>Scale under which the whole galaxy reads badly: the immense one opens zoomed in on the player's planets.</summary>
+    const double ReadableScale = 0.4;
     /// <summary>Pixels from a fleet marker within which a click picks it.</summary>
     const double FleetSlop = 12;
 
@@ -64,6 +66,12 @@ public partial class GalaxyScreen
         {
             cx = Galaxy.W / 2;
             cy = Galaxy.H / 2;
+            if (fitS < ReadableScale && Galaxy.Planets.Find(p => p.Owner == Galaxy.Player) is { } home)
+            {
+                zoom = Math.Min(MaxZoom, ReadableScale / fitS);
+                zoomGoal = (zoom, area.GetCenter());
+                (cx, cy) = (home.X, home.Y);
+            }
         }
         zoom = Math.Min(zoom, MaxZoom);
         zoomGoal = (Math.Min(zoomGoal.Zoom, MaxZoom), zoomGoal.At);

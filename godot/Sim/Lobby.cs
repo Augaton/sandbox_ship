@@ -43,6 +43,8 @@ public sealed class Seat
 public sealed class Lobby
 {
     public const int MaxSeats = 6, Teams = 3;
+    /// <summary>The highest side number anything may name: the last seat's (6, with side 3 the Errants'), then the campaign's independents (Galaxies.Independent).</summary>
+    public const int MaxSide = MaxSeats + 1;
     /// <summary>The host's peer: in a local game, the one who plays.</summary>
     public const int Host = 0;
     public static readonly IReadOnlyList<int> ZoneTargets = [50, 100, 200];
@@ -84,6 +86,8 @@ public sealed class Lobby
     public int Credits { get; set; } = (int)Scenario.StartCredits;
     /// <summary>Survival: the waves' strength, one of WaveStrengths.</summary>
     public int WaveStrength { get; set; } = 100;
+    /// <summary>Campaign: the minutes of peace the great factions start with, one of CampaignSetup.PeaceMinutes.</summary>
+    public int Peace { get; set; } = CampaignSetup.PeaceMinutes[0];
     /// <summary>Set up on a dedicated server: nobody plays on the host, so no seat is Host's (see Sim/Net/LobbyRoom.cs).</summary>
     public bool Dedicated { get; set; }
     /// <summary>Over the network: players may come in to watch, without a seat, the lobby as the battle.</summary>
@@ -269,6 +273,9 @@ public sealed class Lobby
         Credits = HasCredits ? Credits : Scenario.StartCredits, WaveStrength = Mode == LobbyMode.Survival ? WaveStrength : 100,
     };
 
+    /// <summary>A new campaign's setup: independents, fortified capitals and the peace chosen.</summary>
+    public CampaignSetup Setup() => CampaignSetup.Of(Peace);
+
     /// <summary>The campaign's galaxy, as GalaxyScreen makes it: the classic one for two, or one drawn from the seed with a capital per seat.</summary>
     public GalaxyLayout Layout() =>
         Map == MapKind.Classic && ClassicAllowed ? GalaxyGen.Classic : GalaxyGen.GenerateLayout(Seed, Math.Max(2, Playing.Count()), Size);
@@ -362,7 +369,7 @@ public sealed class Lobby
     public bool Sane() =>
         Enum.IsDefined(Mode) && Enum.IsDefined(Map) && Enum.IsDefined(Size) && Seed >= 1
         && ZoneTargets.Contains(ZoneTarget) && AssaultLengths.Contains(AssaultMinutes)
-        && StartCredits.Contains(Credits) && WaveStrengths.Contains(WaveStrength)
+        && StartCredits.Contains(Credits) && WaveStrengths.Contains(WaveStrength) && CampaignSetup.PeaceMinutes.Contains(Peace)
         && Seats is { Count: >= 1 and <= MaxSeats }
         && Seats.TrueForAll(s => s is not null && Enum.IsDefined(s.Kind) && Enum.IsDefined(s.Difficulty) && Factions.All.Contains(s.Race)
             && (s.Personality is not { } p || Enum.IsDefined(p))

@@ -97,13 +97,15 @@ public class DealsTests
         g.Truces.Add(new Truce { A = Klaed, B = Nairan, Remaining = TruceTime });
         var before = (IncomeOf(g, Klaed), IncomeOf(g, Nairan));
         Assert.True(ProposeDeal(g, Klaed, Nairan, DealKind.Trade).Ok);
-        Assert.Equal(TradeBase, TradeRate(g, Klaed, Nairan));
-        Assert.Equal(before.Item1 + TradeBase, IncomeOf(g, Klaed), 6);
-        Assert.Equal(before.Item2 + TradeBase, IncomeOf(g, Nairan), 6);
+        // Young, it pays half: the base and a share of the capitals' worth.
+        var young = (TradeBase + TradeShare * 6) * 0.5;
+        Assert.Equal(young, TradeRate(g, Klaed, Nairan), 6);
+        Assert.Equal(before.Item1 + young, IncomeOf(g, Klaed), 6);
+        Assert.Equal(before.Item2 + young, IncomeOf(g, Nairan), 6);
         // Planets side by side: a lane between them pays more.
         g.Planets[Id("Orin")].Owner = Klaed;
         g.Planets[Id("Kaldra")].Owner = Nairan;
-        Expect.Greater(TradeRate(g, Klaed, Nairan), TradeBase);
+        Expect.Greater(TradeRate(g, Klaed, Nairan), young);
         Assert.True(TradeRate(g, Klaed, Nairan) <= TradeMax);
         Assert.Equal(Result.Fail("Accord commercial déjà en cours"), ProposeDeal(g, Klaed, Nairan, DealKind.Trade));
         // The peace broken, the trade goes with it.

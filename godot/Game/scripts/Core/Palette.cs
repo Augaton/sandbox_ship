@@ -33,7 +33,7 @@ public static class Palette
     /// every machine and never the same for two sides.
     /// </summary>
     public static uint SideRgb(Side side, uint chosen) =>
-        Settings.Current.Colors == SideColors.Adapted ? Adapted[Math.Abs(side.Id) % Adapted.Length] : chosen;
+        Settings.Current.Colors == SideColors.Adapted && side != SandboxShip.Sim.Galaxies.Independent ? Adapted[Math.Abs(side.Id) % Adapted.Length] : chosen;
 
     /// <summary>Whether sides wear their mark (Draw.Mark) as well as their color: with adapted colors.</summary>
     public static bool Marked => Settings.Current.Colors == SideColors.Adapted;
@@ -52,7 +52,9 @@ public static class Palette
     /// <summary>A side's color on the galaxy map: planet rings, fleet markers, emblems.</summary>
     public static Color Of(SandboxShip.Sim.Galaxy g, Side side, float alpha = 1) => Hex(Rgb(g, side), alpha);
 
-    /// <summary>A side's color on the galaxy map, as 0xRRGGBB.</summary>
+    /// <summary>A side's color on the galaxy map, as 0xRRGGBB; the independents' grey.</summary>
     public static uint Rgb(SandboxShip.Sim.Galaxy g, Side side) =>
-        SideRgb(side, g.Factions.TryGetValue(side, out var f) ? f.Color : SandboxShip.Sim.Worlds.DefaultColor(side, SandboxShip.Sim.Galaxies.RaceOf(g, side)));
+        SideRgb(side, g.Factions.TryGetValue(side, out var f) ? f.Color
+            : side == SandboxShip.Sim.Galaxies.Independent ? SandboxShip.Sim.Galaxies.IndependentColor
+            : SandboxShip.Sim.Worlds.DefaultColor(side, SandboxShip.Sim.Galaxies.RaceOf(g, side)));
 }

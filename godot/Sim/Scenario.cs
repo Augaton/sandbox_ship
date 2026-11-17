@@ -4,7 +4,8 @@ using static SandboxShip.Sim.Worlds;
 
 namespace SandboxShip.Sim;
 
-public enum MapSize { Small, Medium, Large }
+/// <summary>Battle maps come in all five; galaxies in the first three (GalaxyGen.Fit).</summary>
+public enum MapSize { Small, Medium, Large, Huge, Immense }
 
 public sealed record MapSizeDef(double W, double H, string Name);
 
@@ -61,6 +62,9 @@ public static class Scenario
         [MapSize.Small] = new(4500, 3000, "Petite"),
         [MapSize.Medium] = new(6000, 4000, "Moyenne"),
         [MapSize.Large] = new(8000, 5400, "Grande"),
+        // Not in the web version: room for long wars, six sides, far outposts.
+        [MapSize.Huge] = new(10000, 6700, "Très grande"),
+        [MapSize.Immense] = new(13000, 8700, "Immense"),
     };
 
     public const double StartCredits = 1500;

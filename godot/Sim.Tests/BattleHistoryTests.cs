@@ -226,7 +226,7 @@ public class BattleHistoryTests
             w.Write(5.0);
             w.Write7BitEncodedInt(0);
             w.Write7BitEncodedInt(1);
-            w.Write7BitEncodedInt(Lobby.MaxSeats + 1);
+            w.Write7BitEncodedInt(Lobby.MaxSide + 1);
         }));
     }
 }

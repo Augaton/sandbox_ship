@@ -60,6 +60,9 @@ public partial class GalaxyHud : CanvasLayer
     /// <summary>Parts of the panel updated in place: progress of the first build and research, fleet condition, occupation.</summary>
     ColorRect? buildBar, researchBar;
     Label? condition, occupation;
+    /// <summary>Winning over an independent planet: what it costs or how it goes, and the button to start.</summary>
+    Label? courtLabel;
+    Button? courtButton;
 
     public GalaxyHud(GalaxyScreen scene) => this.scene = scene;
 
@@ -71,6 +74,7 @@ public partial class GalaxyHud : CanvasLayer
     /// <summary>A side as the panels name it: by its race; over the network, another player's by its name too, "Bob (Nairan)".</summary>
     string NameOf(Side side)
     {
+        if (side == Galaxies.Independent) return "Indépendants";
         var race = Factions.Defs[Galaxies.RaceOf(G, side)].Name;
         return side != Player && G.Humans.TryGetValue(side, out var name) ? $"{name} ({race})" : race;
     }
@@ -103,6 +107,7 @@ public partial class GalaxyHud : CanvasLayer
     {
         null => "Neutre",
         Side o when o == Faction.Errant => $"{Factions.Defs[Faction.Errant].Name}, neutres",
+        Side o when o == Galaxies.Independent => $"Indépendants ({Factions.Defs[Galaxies.IndependentRace(p)].Name})",
         Side o => NameOf(o),
     };
 
@@ -473,7 +478,11 @@ public partial class GalaxyHud : CanvasLayer
         var f = g.Factions[player];
         var n = g.Planets.Count(p => p.Owner == player);
         credits.Text = N(Math.Floor(f.Credits));
-        income.Text = $"+{N(Js.Round(Galaxies.IncomeOf(g, player)))}/s";
+        income.Text = $"+{N(Js.Round(Galaxies.IncomeOf(g, player)))}/s"
+            + (f.Weariness >= 1 ? $" (lassitude −{HudKit.Percent(Galaxies.WearyCost * f.Weariness / Galaxies.WearyMax)})" : "");
+        income.TooltipText = f.Weariness >= 1
+            ? $"Lassitude de guerre : {N(Math.Round(f.Weariness))} sur {N(Galaxies.WearyMax)}. Les pertes et les fronts tenus contre d'autres grands camps l'augmentent ; la paix la fait retomber."
+            : "";
         owned.Text = $"{n} planète{(n > 1 ? "s" : "")}";
         var job = f.Researching;
         var waiting = f.ResearchQueue.Count;
@@ -507,7 +516,7 @@ public partial class GalaxyHud : CanvasLayer
             ? $"{string.Join(",", scene.Selection)}/{OwnTargets().Count}/"
                 + string.Join(";", scene.Selection.SelectMany(id => Galaxies.FleetsAt(g, id, Player)).Select(fl => DescribeShips(fl.Ships, fl.Heroes)))
             : "";
-        return string.Join("|", tab, p.Id, visible, p.Owner, p.Station, p.Mines, p.Platforms, p.PlatformTier, p.Lab, p.RepairDock, p.IonCannon, fleets,
+        return string.Join("|", tab, p.Id, visible, p.Owner, p.Station, p.Mines, p.Platforms, p.PlatformTier, p.Lab, p.RepairDock, p.IonCannon, fleets, Courted(p),
             string.Join(",", p.Units.Select(q => q.Kind)), string.Join(",", p.Buildings.Select(q => q.Kind)), battle, p.Occupation?.Side, research, selection, DepthSignature(p));
     }
 
@@ -528,6 +537,8 @@ public partial class GalaxyHud : CanvasLayer
         sendHeroes.Clear();
         buildBar = researchBar = null;
         condition = occupation = null;
+        courtLabel = null;
+        courtButton = null;
         eta = rallyLabel = null;
         rallySet = rallyClear = null;
         if (tab is Tab.Buildings or Tab.Ships && !own) tab = Tab.Planet;
@@ -592,6 +603,30 @@ public partial class GalaxyHud : CanvasLayer
             body.AddChild(Notice("Site de raid neutre",
                 "Les Errants gardent cette planète sans jamais en bouger, ni construire ; ils ne comptent pas pour la victoire. "
                 + $"{RaidBounty(ColossusAt(g, p))} Vaincus, ils laissent la planète au vainqueur.", Palette.Of(Faction.Errant)));
+        }
+        if (p.Owner == Galaxies.Independent)
+        {
+            body.AddChild(Notice("Planète indépendante",
+                "Sa garnison ne quitte jamais la planète et ne compte pas pour la victoire. Elle se défend contre quiconque l'attaque : "
+                + "vaincue, elle laisse la planète au vainqueur. Plus une planète est riche et loin des capitales, plus sa garnison est forte.",
+                Palette.Of(g, Galaxies.Independent)));
+            courtLabel = Text("", wrap: true);
+            body.AddChild(courtLabel);
+            var planet = p.Id;
+            courtButton = Btn("", () =>
+            {
+                var r = scene.Sink.Send(new GalaxyCommand.Court(planet));
+                if (!r.Ok) Toast(r.Reason);
+                RefreshSoon();
+            });
+            body.AddChild(courtButton);
+        }
+        if (p.Home is Side home)
+        {
+            body.AddChild(Notice(home == p.Owner ? "Capitale fortifiée" : $"Capitale {(home == player ? "perdue" : $"de : {NameOf(home)}")}",
+                home == p.Owner
+                    ? $"Tant que {(home == player ? "tu la tiens" : "son camp la tient")} avec sa station, ses plateformes détruites se relèvent seules : une toutes les {N(Galaxies.RaiseTime)} s, jusqu'à {Galaxies.CapitalPlatforms}."
+                    : "Reprise par son camp, ses plateformes se relèveraient seules.", Palette.Accent));
         }
         if (p.Special is PlanetSpecial special)
         {
@@ -787,11 +822,36 @@ public partial class GalaxyHud : CanvasLayer
         body.AddChild(flow);
     }
 
+    /// <summary>Who is winning over the planet's independents, for the panel's signature.</summary>
+    string Courted(Planet p) => string.Join(",", G.Courtships.Where(c => c.Planet == p.Id).Select(c => c.Side));
+
+    /// <summary>The courtship lines of an independent planet: its price and how, or who is winning it over and how long it has left.</summary>
+    void UpdateCourt(Planet p)
+    {
+        if (courtLabel is null || courtButton is null) return;
+        var g = G;
+        var player = Player;
+        var mine = g.Courtships.Find(c => c.Side == player && c.Planet == p.Id);
+        var rivals = g.Courtships.Where(c => c.Planet == p.Id && c.Side != player).Select(c => $"{NameOf(c.Side)} aussi, encore {N(Math.Ceiling(c.Remaining))} s").ToList();
+        var price = Galaxies.CourtPrice(g, player, p);
+        courtLabel.Text = (mine is not null
+            ? $"Négociation en cours : la planète te rejoint dans {N(Math.Ceiling(mine.Remaining))} s, sauf si on la prend avant."
+            : $"Convaincre ses indépendants de te rejoindre sans combat : {N(price)} crédits et {N(Galaxies.CourtTime)} s. Garnison et plateformes passent de ton côté ; "
+                + "une meilleure réputation coûte moins cher. L'attaquer met fin à la négociation.")
+            + (rivals.Count > 0 ? $" En course : {string.Join(" ; ", rivals)}." : "");
+        courtButton.Visible = mine is null;
+        var r = Galaxies.CanCourt(g, player, p.Id);
+        courtButton.Text = $"Convaincre ({N(price)} cr)";
+        courtButton.Disabled = !r.Ok;
+        courtButton.TooltipText = r.Ok ? "" : r.Reason;
+    }
+
     void UpdatePanel(Planet? p)
     {
         var g = G;
         var player = Player;
         var f = g.Factions[player];
+        if (p is not null) UpdateCourt(p);
         if (p is not null)
         {
             foreach (var (b, build) in buttons)
@@ -882,6 +942,7 @@ public partial class GalaxyHud : CanvasLayer
         var p = g.Planets[id];
         var lines = new List<string> { p.Name, OwnerName(p) };
         if (p.Owner == Faction.Errant) lines.Add(ColossusAt(g, p) ? $"Site de raid : le Colosse vaut {N(Raids.Bounty)} crédits" : "Site de raid : le Colosse est tombé");
+        if (p.Home is Side home && home == p.Owner) lines.Add("Capitale fortifiée");
         if (p.Special is PlanetSpecial sp) lines.Add(GalaxyMap.Specials[sp].Name);
         foreach (var (title, _, _) in DepthNotes(p)) lines.Add(title);
         if (!Galaxies.Known(g, Player, p)) lines.Add("Hors de portée de tes capteurs");
@@ -984,6 +1045,7 @@ public partial class GalaxyHud : CanvasLayer
                 }
                 else if (c.From == player) Alert($"{planet.Name} perdue", planet.Id);
                 else if (c.From == Faction.Errant) Notify($"{planet.Name} : les Errants tombent devant {NameOf(c.Side)}", planet.Id);
+                else if (c.From == Galaxies.Independent && Galaxies.Known(g, player, planet)) Notify($"{planet.Name} : les indépendants tombent devant {NameOf(c.Side)}", planet.Id);
                 break;
             // Production loops make ships all the time: counted together, and left out of the log.
             case PlanetBuilt b when b.Side == player && b.Ship:
@@ -1191,7 +1253,7 @@ public partial class GalaxyHud : CanvasLayer
         if (def.Platforms > 0) theirs.Insert(0, $"{def.Platforms} plateforme{(def.Platforms > 1 ? "s" : "")}");
         var (p, box) = Dialog();
         box.AddChild(Heading(Galaxies.BattleName(g, b.PlanetId, b.Lane), enemy, 22));
-        var them = enemy == Faction.Errant ? "les Errants" : NameOf(enemy);
+        var them = enemy == Faction.Errant ? "les Errants" : enemy == Galaxies.Independent ? "les indépendants de la planète" : NameOf(enemy);
         box.AddChild(HudKit.Para(b.Lane is not null ? $"Ta flotte croise une flotte {NameOf(enemy)} en chemin : impossible de passer sans combattre."
             : $"{(b.Attacker == player ? "Tu attaques" : "Tu es attaqué par")} {them}."));
         if (enemy == Faction.Errant) box.AddChild(HudKit.Para(RaidBounty(foe.Ships.Of(ShipClass.Colossus) > 0), Palette.Muted));
@@ -1286,7 +1348,13 @@ public partial class GalaxyHud : CanvasLayer
         box.AddChild(scroll);
         content.AddChild(Controls.List(Controls.Galaxy));
         if (scene.Opts.Net is null) content.AddChild(HudKit.Para($"La galaxie démarre en pause : donne tes premiers ordres, puis lance le temps ({Bindings.Label(Bindings.Pause)}). Le menu et l'aide l'arrêtent aussi.", Palette.Muted));
-        content.AddChild(HudKit.Para($"Une flotte seule prend une planète sans défense en {N(GalaxyRules.CaptureTime)} s ({N(GalaxyRules.NeutralCaptureTime)} s si elle est neutre). "
+        content.AddChild(HudKit.Para("Les planètes libres sont tenues par des indépendants, dont la garnison se défend : plus la planète est riche et loin des capitales, plus elle est forte. "
+            + $"On peut aussi les convaincre de te rejoindre sans combat depuis une planète voisine : des crédits et {N(Galaxies.CourtTime)} s, garnison comprise, moins cher avec une bonne réputation. "
+            + "La guerre entre grands camps use : pertes, planètes perdues et fronts tenus font monter la lassitude, qui ronge le revenu ; la paix la fait retomber, et une IA lasse cherche la paix. "
+            + "Une paix durable ne finit jamais d'elle-même et ne se rompt pas : on la dénonce, avec un préavis. Le commerce grandit avec la paix, et l'on peut échanger planètes et technologies contre des crédits. "
+            + $"Chaque capitale démarre avec une station niveau {Galaxies.CapitalStation} et relève seule ses plateformes. "
+            + "Au début, une paix de départ (réglée au salon) interdit toute attaque entre grands camps ; elle ne se rompt pas. "
+            + $"Une flotte seule prend une planète sans défense en {N(GalaxyRules.CaptureTime)} s ({N(GalaxyRules.NeutralCaptureTime)} s si elle est neutre). "
             + "Quand deux camps se rencontrent, la bataille se commande dans la vue tactique ou se résout seule. "
             + "Les flottes traversent les planètes neutres ou alliées et s'arrêtent aux planètes ennemies. Tu perds quand tu n'as plus de planète. "
             + "Chaque planète a deux files : bâtiments et vaisseaux. Certaines planètes ont un bonus. "

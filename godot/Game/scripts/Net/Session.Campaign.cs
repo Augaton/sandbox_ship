@@ -57,7 +57,7 @@ public sealed partial class Session
     {
         var room = Room!;
         var lobby = room.Lobby;
-        var g = resume ?? Galaxies.CreateGalaxy(lobby.Slots(), lobby.Seed, lobby.Layout());
+        var g = resume ?? Galaxies.CreateGalaxy(lobby.Slots(), lobby.Seed, lobby.Layout(), setup: lobby.Setup());
         resume = null;
         lobby.Seat(g, room.NameOf);
         campaign = new GalaxyHost(g, net.Send);

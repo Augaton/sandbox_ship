@@ -22,12 +22,12 @@ public static class Wire
 
     /// <summary>
     /// A side, as the game numbers them: the races' own 0 to 3 (the Errants 3), then the seats
-    /// beyond the third from 4, up to Lobby.MaxSeats.
+    /// beyond the third from 4, up to Lobby.MaxSeats, and the campaign's independents (Lobby.MaxSide).
     /// </summary>
     public static Side ReadSide(this BinaryReader r)
     {
         var id = r.ReadVarint();
-        return id is >= 0 and <= Lobby.MaxSeats ? new Side(id) : throw new InvalidDataException($"Camp inconnu : {id}");
+        return id is >= 0 and <= Lobby.MaxSide ? new Side(id) : throw new InvalidDataException($"Camp inconnu : {id}");
     }
 
     /// <summary>Which numbers T has values for, worked out once: no value is boxed to ask.</summary>

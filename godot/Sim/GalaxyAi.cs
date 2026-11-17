@@ -17,11 +17,15 @@ public sealed partial class GalaxyAIState
     public double Idle;
     /// <summary>Credits set aside for its next big project (GalaxyAi.Project), out of reach of its other purchases unless a planet is in danger.</summary>
     public double Fund;
+    /// <summary>Galaxy seconds before the AI strikes a rival faction's planet again: its fleets regroup and mend between two offensives.</summary>
+    public double Regroup;
 }
 
 public static partial class GalaxyAi
 {
     const double ThinkInterval = 2;
+    /// <summary>Galaxy seconds an AI lets pass between two strikes on rival factions' planets (Regroup); the easy AI hardly waits.</summary>
+    const double RegroupTime = 90, ClumsyRegroup = 20;
     const string NoCredits = "Crédits insuffisants";
 
 
@@ -79,7 +83,8 @@ public static partial class GalaxyAi
         // still face them, ready for when the truce runs out.
         // Allies are never one.
         var peace = g.Factions.Keys.Any(f => AtWar(g, side, f) && !g.Factions[f].Eliminated);
-        bool Rival(Side? f) => f is Side other && other != Faction.Errant && !Allies(g, side, other) && (!peace || !AtPeace(g, side, other));
+        // The Errants and the independents are no rival: they never leave their planets.
+        bool Rival(Side? f) => f is Side other && IsFaction(g, other) && !Allies(g, side, other) && (!peace || !AtPeace(g, side, other));
         var frontier = g.Planets
             .Where(p => Rival(p.Owner) || (seen.Contains(p.Id) && FleetsAt(g, p.Id).Exists(f => Rival(f.Side))))
             .Select(p => p.Id);
@@ -117,10 +122,10 @@ public static partial class GalaxyAi
         return (all - fleets) * 0.6 + fleets * 1.3 + near * 0.5;
     }
 
-    /// <summary>Whether a fleet the faction sees can strike it: not its own, not an ally's or a truce partner's, not the Errants' guard, which never leaves its planet.</summary>
+    /// <summary>Whether a fleet the faction sees can strike it: not its own, not an ally's or a truce partner's, not the guard of the Errants' or the independents' planet, which never leaves it.</summary>
     static bool Hostile(Galaxy g, Side side, Fleet f, HashSet<int> seen) =>
         AtWar(g, side, f.Side) && FleetVisible(g, side, f, seen)
-        && !(f.Side == Faction.Errant && f.At is int at && g.Planets[at].Owner == Faction.Errant);
+        && !(!IsFaction(g, f.Side) && f.At is int at && g.Planets[at].Owner == f.Side);
 
     /// <summary>Whether the faction is at war with a planet's owner: a rival galaxy faction, neither ally nor truce partner, or the Errants.</summary>
     static bool EnemyPlanet(Galaxy g, Side side, Planet p) => p.Owner is Side o && AtWar(g, side, o);
@@ -359,6 +364,9 @@ public static partial class GalaxyAi
     static ShipClass Cheapest(Fleet f) => Ships.All.Where(c => f.Ships.Of(c) > 0).OrderBy(c => Ships.Defs[c].Cost).First();
 
     /// <summary>What a planet brings to its owner: its special included, ruins most of all, for whoever gets there first.</summary>
+    /// <summary>What a planet brings, as the AI weighs it: for exchanges (Galaxies.PlanetValue).</summary>
+    internal static double WorthOf(Planet p) => Worth(p);
+
     static double Worth(Planet p) => p.Income + p.Mines * GalaxyRules.MineIncome + p.Station * 5 + p.Special switch
     {
         PlanetSpecial.Ruins => 15,
@@ -369,10 +377,11 @@ public static partial class GalaxyAi
     };
 
     /// <summary>
-    /// The edge an attack on a rival waits for: 40 %, down to 10 % after six idle minutes, × its
-    /// personality's. The easy AI goes in well short of that, and often loses its fleet.
+    /// The edge an attack waits for: 50 %, down to 20 % after ten idle minutes, × its personality's
+    /// (40 % down to 10 % after six minutes before campaigns were made to last). The easy AI goes
+    /// in well short of that, and often loses its fleet.
     /// </summary>
-    static double Edge(GalaxyAIState ai) => Math.Max(1.1, 1.4 - ai.Idle / 1200) * Personalities.Defs[ai.Personality].Edge * (Clumsy(ai) ? 0.5 : Cunning(ai) ? 0.75 : 1);
+    static double Edge(GalaxyAIState ai) => Math.Max(1.2, 1.5 - ai.Idle / 2000) * Personalities.Defs[ai.Personality].Edge * (Clumsy(ai) ? 0.5 : Cunning(ai) ? 0.75 : 1);
 
     /// <summary>Planets within two lanes of a planet, itself included.</summary>
     static HashSet<int> Around(Galaxy g, int planetId)
@@ -441,21 +450,26 @@ public static partial class GalaxyAi
     }
 
     /// <summary>
-    /// The next offensive: a rival planet next to one of the faction's, where its fleets gather.
-    /// It holds while both stay what they are; then the most valuable planet for what guards it.
-    /// The hard AI weighs it anew all the time, and gladly turns to a planet whose owner has its
-    /// hands full elsewhere: its capital, more often than not, stripped of its fleet.
+    /// The next offensive: a rival planet next to one of the faction's, or of an ally's, where its
+    /// fleets gather: a rival walled off behind an ally is still within reach, or two factions
+    /// allied to the same third would never end the war between them. It holds while both stay
+    /// what they are; then the most valuable planet for what guards it, its own staging planets
+    /// first. The hard AI weighs it anew all the time, and gladly turns to a planet whose owner
+    /// has its hands full elsewhere: its capital, more often than not, stripped of its fleet.
     /// </summary>
     static (int Staging, int Target)? Offensive(Galaxy g, Side side, GalaxyAIState ai, List<Planet> own)
     {
         bool Rival(Planet t) => t.Owner is Side o && g.Factions.ContainsKey(o) && AtWar(g, side, o);
-        var held = ai.Staging is int s0 && ai.Target is int t0 && g.Planets[s0].Owner == side && Rival(g.Planets[t0]) && !StormOn(g, s0, t0) ? (s0, t0) : ((int, int)?)null;
+        bool Base(Planet p) => p.Owner is Side o && Allies(g, side, o);
+        var held = ai.Staging is int s0 && ai.Target is int t0 && Base(g.Planets[s0]) && Rival(g.Planets[t0]) && !StormOn(g, s0, t0) ? (s0, t0) : ((int, int)?)null;
         if (held is not null && !Cunning(ai)) return held;
         // A faction it swore a joint war against comes first: its partner counts on it.
         double Score(Planet t) => Worth(t) / (Threat(g, t, side) + 1000) * (Cunning(ai) && BusyElsewhere(g, t.Owner!.Value, side) ? 2 : 1)
             * (Sworn(g, side, t.Owner!.Value) ? 2.5 : 1);
-        var best = own.SelectMany(s => Neighbours(g, s.Id).Where(id => !StormOn(g, s.Id, id)).Select(id => g.Planets[id]).Where(Rival).Select(t => (Staging: s, Target: t)))
-            .OrderByDescending(x => Score(x.Target))
+        var bases = g.Pacts.Count > 0 || g.Factions.Values.Any(f => f.Id != side && f.Team != 0 && Teammates(g, f.Id, side)) ? g.Planets.Where(Base).ToList() : own;
+        var best = bases.SelectMany(s => Neighbours(g, s.Id).Where(id => !StormOn(g, s.Id, id)).Select(id => g.Planets[id]).Where(Rival).Select(t => (Staging: s, Target: t)))
+            .OrderByDescending(x => x.Staging.Owner == side)
+            .ThenByDescending(x => Score(x.Target))
             .ThenByDescending(x => x.Staging.Station)
             .Select(x => ((int, int)?)(x.Staging.Id, x.Target.Id)).FirstOrDefault();
         // Not for a trifle: fleets on the way would turn back for nothing.
@@ -475,11 +489,17 @@ public static partial class GalaxyAi
     {
         foreach (var t in g.Truces.ToList())
         {
-            if ((t.A != side && t.B != side) || t.Paid) continue;
+            if ((t.A != side && t.B != side) || t.Paid || t.Opening) continue;
             var other = t.A == side ? t.B : t.A;
             var wants = (Might(g, side) >= Might(g, other) * 1.3 || BusyElsewhere(g, other, side)) && g.Fleets.Values.Any(f => f.Side == side && f.At is int at
                 && f.BattleId is null && f.Condition >= 0.5 && Neighbours(g, at).Exists(n =>
                 g.Planets[n].Owner == other && !StormOn(g, at, n) && FleetStrength(f) >= DefenseValue(g, g.Planets[n]) * Edge(ai) + 300));
+            // A lasting peace is denounced, its notice standing for the warning.
+            if (t.Lasting)
+            {
+                if (wants) Denounce(g, side, other);
+                continue;
+            }
             if (ai.Breaking.TryGetValue(other, out var at))
             {
                 if (!wants) ai.Breaking.Remove(other);
@@ -505,6 +525,47 @@ public static partial class GalaxyAi
         }
     }
 
+    /// <summary>
+    /// An AI keeps a lasting peace while it has a war to wage elsewhere and its partner does not
+    /// dominate the galaxy; otherwise it denounces it, with its notice: against the faction that
+    /// dominates, or, at war with nobody left, against its weakest partner, for the campaign to end.
+    /// </summary>
+    static void Reconsider(Galaxy g, Side side)
+    {
+        var lasting = g.Truces.Where(t => t.Lasting && !t.Opening && (t.A == side || t.B == side)).Select(t => t.A == side ? t.B : t.A).ToList();
+        if (lasting.Count == 0) return;
+        var leader = Leader(g);
+        if (leader is Side top && lasting.Contains(top))
+        {
+            Denounce(g, side, top);
+            return;
+        }
+        if (g.Factions.Values.Any(o => !o.Eliminated && o.Id != side && AtWar(g, side, o.Id))) return;
+        Denounce(g, side, lasting.OrderBy(o => Might(g, o)).First());
+    }
+
+    /// <summary>
+    /// Wins over the independents of a neighbouring planet, one at a time, when its credits allow
+    /// it beside its project: the planet that brings most for its price. The aggressive AI would
+    /// rather take it by force, unless rich; the easy AI never thinks of it.
+    /// </summary>
+    static void Woo(Galaxy g, Side side, GalaxyAIState ai)
+    {
+        if (Clumsy(ai) || g.Courtships.Exists(c => c.Side == side)) return;
+        var spare = g.Factions[side].Credits - ai.Fund;
+        var margin = ai.Personality == Personality.Aggressive ? 2.5 : 1.2;
+        Planet? best = null;
+        var score = 0.0;
+        foreach (var p in g.Planets)
+        {
+            if (p.Owner != Independent || !CanCourt(g, side, p.Id).Ok) continue;
+            var price = CourtPrice(g, side, p);
+            if (spare < price * margin || Worth(p) / price <= score) continue;
+            (best, score) = (p, Worth(p) / price);
+        }
+        if (best is not null) Court(g, side, best.Id);
+    }
+
     /// <summary>The nearest planet of the faction with a station, where a worn fleet mends fastest; any of its planets without one.</summary>
     static Planet? Home(Galaxy g, Side side, int from)
     {
@@ -523,6 +584,10 @@ public static partial class GalaxyAi
         var sent = Clumsy(ai) ? new HashSet<int>() : Defend(g, side, own, seen);
         var plan = Offensive(g, side, ai, own);
         var struck = false;
+        var rival = false;
+        // Lanes to the staging planet through the faction's planets and its allies', worked out once if needed.
+        Dictionary<int, int>? route = null;
+        bool Friendly(Planet p) => p.Owner is Side o && Allies(g, o, side);
         var derelicts = g.Ongoing.Where(i => i.Kind == IncidentKind.Derelict).Select(i => i.Planet).ToList();
         foreach (var fleet in g.Fleets.Values.ToList())
         {
@@ -532,7 +597,7 @@ public static partial class GalaxyAi
             var value = FleetStrength(fleet);
             // A worn fleet stays home to mend, unless its own planet needs it; the easy AI hardly
             // waits, the hard one mends well before it goes back, where it can.
-            var worn = fleet.Condition < (clumsy ? 0.25 : cunning && Supplied(g, fleet) ? 0.7 : 0.5);
+            var worn = fleet.Condition < (clumsy ? 0.3 : cunning && Supplied(g, fleet) ? 0.75 : 0.65);
             var home = g.Planets[at].Owner == side;
 
             // Defend first: an own planet with enemies on it.
@@ -548,13 +613,17 @@ public static partial class GalaxyAi
             // door that would come back for it, and goes first for what is worth the most for
             // what guards it.
             double Guard(Planet p) => Cunning(ai) ? Odds(g, side, p, seen) : Threat(g, p, side);
+            // A rival faction's planet waits for the fleets to have regrouped since the last strike.
+            bool Rival(Planet p) => p.Owner is Side o && IsFaction(g, o);
             var target = near
-                .Where(p => (EnemyPlanet(g, side, p) || Threat(g, p, side) > 0)
+                .Where(p => (EnemyPlanet(g, side, p) || Threat(g, p, side) > 0) && (ai.Regroup <= 0 || !Rival(p))
+                    && !g.Courtships.Exists(c => c.Side == side && c.Planet == p.Id)
                     && value >= Guard(p) * (p.Owner == Faction.Errant ? 1.4 : Edge(ai)) + 300)
                 .OrderByDescending(p => cunning ? Worth(p) / (Guard(p) + 500) : Worth(p)).FirstOrDefault();
             if (target is not null && !worn && SendFleet(g, fleet.Id, target.Id).Ok)
             {
                 struck |= target.Owner is not null;
+                rival |= Rival(target);
                 continue;
             }
 
@@ -583,12 +652,21 @@ public static partial class GalaxyAi
             }
             if (worn && home) continue;
 
-            // Gather for the offensive at its staging planet, from the faction's own planets; at
-            // the staging planet, wait for the edge (the strike itself is the attack above). The
-            // easy AI never gathers: each fleet moves up and strikes on its own.
-            if (plan is { } p0 && home && !Clumsy(ai))
+            // Gather for the offensive at its staging planet, from the faction's own planets or its
+            // allies'; at the staging planet, wait for the edge (the strike itself is the attack
+            // above). Without a safe way there at once, one planet nearer at a time through friendly
+            // ones: a fleet left at an ally's planet, or behind a rival's, stayed there for good.
+            // The easy AI never gathers: each fleet moves up and strikes on its own.
+            if (plan is { } p0 && Friendly(g.Planets[at]) && !Clumsy(ai))
             {
                 if (at != p0.Staging && SafeRoute(g, side, at, p0.Staging, seen)) SendFleet(g, fleet.Id, p0.Staging);
+                else if (at != p0.Staging)
+                {
+                    route ??= Hops(g, [p0.Staging], Friendly);
+                    var left = route.GetValueOrDefault(at, int.MaxValue);
+                    var step = near.Where(p => Friendly(p) && route.GetValueOrDefault(p.Id, int.MaxValue) < left).OrderBy(p => route[p.Id]).FirstOrDefault();
+                    if (step is not null) SendFleet(g, fleet.Id, step.Id);
+                }
                 continue;
             }
 
@@ -602,6 +680,8 @@ public static partial class GalaxyAi
             if (closer is not null && here > 1 && home) SendFleet(g, fleet.Id, closer.Id);
         }
         ai.Idle = struck ? 0 : ai.Idle + ThinkInterval;
+        // Every fleet ready struck together this time; the next strike on a rival waits.
+        if (rival) ai.Regroup = clumsy ? ClumsyRegroup : RegroupTime;
     }
 
     /// <summary>What a faction could bring to a war: its fleets, and a minute of its income.</summary>
@@ -617,7 +697,7 @@ public static partial class GalaxyAi
     }
 
     /// <summary>Whether two factions face each other: planets two lanes apart at most, or a battle between them.</summary>
-    static bool Contact(Galaxy g, Side a, Side b)
+    internal static bool Contact(Galaxy g, Side a, Side b)
     {
         foreach (var x in g.Battles)
         {
@@ -663,13 +743,16 @@ public static partial class GalaxyAi
         foreach (var f in g.Factions.Values)
         {
             if (f.AI is null || f.Eliminated) continue;
+            f.AI.Regroup = Math.Max(0, f.AI.Regroup - dt);
             f.AI.Timer -= dt;
             if (f.AI.Timer > 0) continue;
             var interval = ThinkInterval * (Worlds.Difficulties[f.AI.Difficulty].Think / Worlds.Difficulties[Difficulty.Normal].Think);
             f.AI.Timer = interval;
             var hops = HopsToEnemy(g, f.Id);
             if (Cunning(f.AI)) BreakTruces(g, f.Id, f.AI);
+            Reconsider(g, f.Id);
             if (!Clumsy(f.AI)) OfferDeals(g, f.Id);
+            Woo(g, f.Id, f.AI);
             Spend(g, f.Id, hops, interval);
             Command(g, f.Id, hops);
         }
