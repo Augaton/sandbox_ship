@@ -175,6 +175,60 @@ public class BattleSaveTests(ITestOutputHelper output)
         Assert.Contains("autre version", e.Message);
     }
 
+    /// <summary>How deep a type's name nests, as StateWire reads it: one level per collection's items and per array.</summary>
+    static int Depth(string name)
+    {
+        int deepest = 0, open = 0;
+        foreach (var c in name)
+        {
+            if (c == '<') deepest = Math.Max(deepest, ++open);
+            else if (c == '>') open--;
+        }
+        return deepest + (name.Length - name.Replace("[]", "").Length) / 2;
+    }
+
+    /// <summary>A world's bytes whose table holds one type, named so, and nothing after it.</summary>
+    static byte[] Table(string name)
+    {
+        using var ms = new MemoryStream();
+        using (var bw = new BinaryWriter(ms, System.Text.Encoding.UTF8, true))
+        {
+            bw.Write7BitEncodedInt(1);
+            bw.Write(name);
+        }
+        return ms.ToArray();
+    }
+
+    [Fact]
+    public void A_type_name_nested_past_the_bound_is_refused_before_the_stack_overflows()
+    {
+        // The names the battle state really writes go three deep at most: well within the bound.
+        var raw = StateWire.Write(Battle(BattleMode.Regicide, 4));
+        var r = new BinaryReader(new MemoryStream(raw));
+        var names = new List<string>();
+        for (var n = r.Read7BitEncodedInt(); n > 0; n--)
+        {
+            names.Add(r.ReadString());
+            for (var f = r.Read7BitEncodedInt(); f > 0; f--) names.Add(r.ReadString() + " " + r.ReadString());
+        }
+        Assert.InRange(names.Max(Depth), 1, 3);
+        static string Lists(int depth) => string.Concat(Enumerable.Repeat("List<", depth)) + "System.Int32" + new string('>', depth);
+        // Forged within the 64 Kio a name may take: ten thousand lists, or thirty thousand arrays, one inside the other.
+        string[] forged = [Lists(10_000), "System.Int32" + string.Concat(Enumerable.Repeat("[]", 30_000)), Lists(StateWire.MaxNameDepth + 1)];
+        foreach (var name in forged)
+        {
+            Assert.True(name.Length < 1 << 16);
+            var e = Assert.Throws<InvalidDataException>(() => StateWire.Read<World>(Table(name)));
+            Assert.Contains("trop imbriqué", e.Message);
+        }
+        // At the bound, the name reads (the bytes then end, which is another refusal).
+        var atBound = Record.Exception(() => StateWire.Read<World>(Table(Lists(StateWire.MaxNameDepth))));
+        Assert.True(atBound is EndOfStreamException or InvalidDataException && !atBound.Message.Contains("trop imbriqué"), atBound?.ToString());
+        // A name the assembly would read by a grammar of its own is no type of the table.
+        Assert.Throws<InvalidDataException>(() => StateWire.Read<World>(Table("SandboxShip.Sim.World, System.Private.CoreLib")));
+        Assert.Throws<InvalidDataException>(() => StateWire.Read<World>(Table("SandboxShip.Sim.Order[[System.Int32]]")));
+    }
+
     [Fact]
     public void Only_a_battle_made_from_a_lobby_and_undecided_is_saved()
     {

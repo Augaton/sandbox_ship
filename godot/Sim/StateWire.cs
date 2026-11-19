@@ -90,22 +90,30 @@ public static class StateWire
         return $"{name}<{string.Join(",", t.GetGenericArguments().Select(Name))}>";
     }
 
+    /// <summary>
+    /// Types within a type's name, at most: an array's items, a collection's (the battle state goes
+    /// three deep, "Dictionary&lt;Side,List&lt;HistoryPoint&gt;&gt;"). A forged name of thousands would
+    /// have the reading recurse until the stack overflows, which no exception handler catches.
+    /// </summary>
+    public const int MaxNameDepth = 8;
+
     /// <summary>The type a name of the table stands for, among those a state may hold; InvalidDataException for any other.</summary>
-    static Type Resolve(string name)
+    static Type Resolve(string name, int depth = 0)
     {
-        if (name.EndsWith("[]", StringComparison.Ordinal)) return Resolve(name[..^2]).MakeArrayType();
+        if (depth > MaxNameDepth) throw new InvalidDataException("Sauvegarde abîmée : type trop imbriqué.");
+        if (name.EndsWith("[]", StringComparison.Ordinal)) return Resolve(name[..^2], depth + 1).MakeArrayType();
         if (Primitives.TryGetValue(name, out var p)) return p;
         var open = name.IndexOf('<');
         if (open < 0)
         {
-            return Own.GetType(name, false) is { IsGenericTypeDefinition: false, IsPointer: false, IsByRef: false } t && !typeof(Delegate).IsAssignableFrom(t)
+            return Plain(name) && Own.GetType(name, false) is { IsGenericTypeDefinition: false, IsPointer: false, IsByRef: false } t && !typeof(Delegate).IsAssignableFrom(t)
                 ? t : throw new InvalidDataException($"Type inconnu : {name}");
         }
         if (!name.EndsWith('>')) throw new InvalidDataException($"Type mal formé : {name}");
-        var args = Split(name[(open + 1)..^1]).Select(Resolve).ToArray();
+        var args = Split(name[(open + 1)..^1]).Select(a => Resolve(a, depth + 1)).ToArray();
         var head = name[..open];
         var def = Generics.GetValueOrDefault(head) ?? Generics.GetValueOrDefault($"{head}`{args.Length}")
-            ?? Own.GetType($"{head}`{args.Length}", false) ?? throw new InvalidDataException($"Type inconnu : {name}");
+            ?? (Plain(head) ? Own.GetType($"{head}`{args.Length}", false) : null) ?? throw new InvalidDataException($"Type inconnu : {name}");
         if (!def.IsGenericTypeDefinition || def.GetGenericArguments().Length != args.Length) throw new InvalidDataException($"Type mal formé : {name}");
         try
         {
@@ -116,6 +124,13 @@ public static class StateWire
             throw new InvalidDataException($"Type mal formé : {name}");
         }
     }
+
+    /// <summary>
+    /// A name the assembly is asked for as it is: letters, digits, dots, '+' of a nested type, '_'.
+    /// Assembly.GetType reads a grammar of its own (brackets, commas, assembly names) that a file
+    /// has no business reaching.
+    /// </summary>
+    static bool Plain(string name) => name.Length is > 0 and <= 256 && name.All(c => char.IsAsciiLetterOrDigit(c) || c is '.' or '+' or '_');
 
     /// <summary>"A,B<C,D>,E" → "A", "B<C,D>", "E".</summary>
     static IEnumerable<string> Split(string list)

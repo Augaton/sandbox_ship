@@ -878,7 +878,8 @@ tests de `FixtureTests` et `CrossTests` les listent.
 - Sauvegarde des batailles (2026-11-19, à la demande de l'utilisateur) : une escarmouche dure 44 min en médiane entre IA, et la
   quitter faisait tout perdre. Une bataille d'un salon jouée seul (escarmouche, survie, contrôle de zone, assaut, régicide, bac à
   sable) se sauvegarde et se reprend à l'identique ; ni le réseau, ni une rediffusion, ni le didacticiel, ni la bataille du menu.
-  Les batailles de campagne restent couvertes par la sauvegarde de campagne, inchangée.
+  Les batailles de campagne restent couvertes par la sauvegarde de campagne, inchangée ; celles du didacticiel de campagne en sont,
+  et n'en font aucune (pas de « Sauvegarder », rien d'écrit en partant).
   - L'état entier, pas la rediffusion : rejouer depuis le début une bataille de 60 min à 6 IA sur carte immense (250 à 400
     entités) prend 187 s en Release sur une machine chargée, 216 000 pas à 0,5–0,65 ms ; la bataille de mesure (3 ms par pas)
     passerait 10 min. `Sim/StateWire.cs` écrit par réflexion tout ce qu'on atteint depuis le monde, champs privés compris, sans
@@ -920,8 +921,10 @@ tests de `FixtureTests` et `CrossTests` les listent.
     ou inconnue du profil (un autre profil, un fichier venu d'ailleurs) : plus rien d'elle ne compte, ni sa fin, ni Titan,
     Colosse, Lance, vagues, ni record de survie ; seul le temps de jeu réel. Un avis le dit à la reprise. Tests : `BattleSaveTests`.
   - Sécurité : lecture bornée (monde de 512 Mio au plus et 50 fois sa taille compressée, comptes bornés par ce qui reste à
-    lire, textes de 64 Kio, 64 niveaux d'objets), seuls les types de la simulation, textes, nombres et collections simples sont
-    faits, énumérations vérifiées ; condensat SHA-256 ; le contrôle des nuls de la campagne (`GalaxySave.Complete`) ; taille de
+    lire, textes de 64 Kio, 64 niveaux d'objets, noms de type de 8 niveaux au plus : l'état en a 3, et un nom forgé de dix mille
+    `List<` faisait déborder la pile, ce qu'aucune exception n'attrape), seuls les types de la simulation, textes, nombres et
+    collections simples sont faits, un nom n'est demandé à l'assemblage qu'en lettres, chiffres, points, `+` et `_` (sa
+    grammaire à lui, crochets et virgules, reste hors d'atteinte), énumérations vérifiées ; condensat SHA-256 ; le contrôle des nuls de la campagne (`GalaxySave.Complete`) ; taille de
     carte, entités sur la carte avec un type connu et un camp présent, index cohérent, valeurs finies ; puis 60 pas joués sur une
     copie : une sauvegarde forgée qui casse la bataille est refusée à la lecture, jamais une fois affichée. `FuzzTests` couvre le
     fichier, son en-tête seul, et un monde forgé puis rescellé d'un condensat juste, joué ensuite 120 pas.
