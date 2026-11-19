@@ -224,6 +224,38 @@ public class AiLevelsTests
         Assert.False(Goes(3));
     }
 
+    // Its waves.
+
+    [Fact]
+    public void Siege_guns_on_a_wave_shell_the_platforms_they_know_from_out_of_their_reach()
+    {
+        var w = Game(7);
+        var f = w.Factions[Bot];
+        f.AI!.WaveValue = 1e9;
+        var st = StationOf(w, Bot)!;
+        var enemy = StationOf(w, Player)!;
+        var platforms = w.Entities.Where(e => e.Side == Player && e.Type == "platform").ToList();
+        Assert.Equal(2, platforms.Count);
+        var b = Math.Atan2(enemy.Y - st.Y, enemy.X - st.X);
+        // Six siege guns already on their way, halfway there.
+        var mid = Dist(st, enemy) / 2;
+        var guns = Enumerable.Range(0, 6).Select(i => SpawnShip(w, Bot, ShipClass.Artillery, st.X + Math.Cos(b) * mid + i % 3 * 60, st.Y + Math.Sin(b) * mid + i / 3 * 60, b)).ToList();
+        foreach (var e in guns) e.Stance = Stance.Aggressive;
+        Movement.IssueMove(w, guns.Select(e => e.Id), enemy.X, enemy.Y, true);
+        var nearest = double.PositiveInfinity;
+        for (var t = 0; t < 240 && platforms.Exists(p => w.Entities.Has(p.Id)); t++)
+        {
+            Run(w, 1, 1.0 / 30);
+            foreach (var e in guns)
+                foreach (var p in platforms)
+                    if (w.Entities.Has(e.Id) && w.Entities.Has(p.Id)) nearest = Math.Min(nearest, Gap(p, e.X, e.Y) - e.Radius);
+        }
+        // Both platforms down, no gun lost, none ever within a platform's reach.
+        Assert.DoesNotContain(platforms, p => w.Entities.Has(p.Id));
+        Assert.All(guns, e => Assert.True(w.Entities.Has(e.Id)));
+        Expect.Greater(nearest, platforms[0].Range);
+    }
+
     // Easy.
 
     [Fact]

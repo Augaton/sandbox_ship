@@ -383,6 +383,8 @@ public sealed class AIState(Difficulty difficulty, Personality personality = Per
     public int? FocusId;
     /// <summary>Hard: no new wave before this time (one was just called back), no new raid, no new look around.</summary>
     public double NextWave, NextRaid, NextScout;
+    /// <summary>Its siege guns holding a spot out of reach of a foe's defenses, shelling them (Ai.Siege).</summary>
+    public readonly HashSet<int> Besiegers = [];
 }
 
 /// <summary>A faction's record over a battle, for the end screen.</summary>

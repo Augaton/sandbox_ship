@@ -211,9 +211,9 @@ public static class Ai
             weights[ShipClass.Frigate] += 4;
             weights[ShipClass.Corvette] += 2;
         }
-        // Siege guns against defenses, the more of them it knows the more (one each, six at most):
-        // platforms three times as sturdy as before outlasted the waves that came at them.
-        if (intel.Structures >= 2) weights[ShipClass.Artillery] += Math.Min(6, intel.Structures);
+        // Siege guns against defenses, the more of them it knows the more (two each, twelve at most,
+        // six before the guns shelled them from out of reach, Siege): platforms outlasted the waves.
+        if (intel.Structures >= 2) weights[ShipClass.Artillery] += Math.Min(12, 2 * intel.Structures);
         if (intel.Medium >= 4) weights[ShipClass.Battlecruiser] += 3;
         if (intel.Large >= 2)
         {
@@ -275,7 +275,7 @@ public static class Ai
         var heading = ships.Exists(e => e.Order is { } o && o.Type != OrderType.Attack && Hypot(o.X - at.X, o.Y - at.Y) < near);
         if (heading) return Result.Fail(EscortOnTheWay);
         var spot = new Point(at.X, at.Y);
-        var escort = ships.Where(e => e.Order is null && !Modes.Kept(world, e)).OrderBy(e => Dist(e, spot)).FirstOrDefault();
+        var escort = ships.Where(e => e.Order is null && !Modes.Kept(world, e) && !f.AI!.Besiegers.Contains(e.Id)).OrderBy(e => Dist(e, spot)).FirstOrDefault();
         if (escort is null) return Result.Fail("Aucune escorte");
         // It holds the spot rather than chase what passes by (not in the web version).
         escort.Stance = Stance.Hold;
@@ -843,7 +843,7 @@ public static class Ai
         var level = Difficulties[ai.Difficulty];
         var def = Personalities.Defs[ai.Personality];
         var ships = Warships(world, f);
-        var ready = ships.Where(e => Ready(world, e)).ToList();
+        var ready = ships.Where(e => Ready(world, e) && !ai.Besiegers.Contains(e.Id)).ToList();
         var threat = ThreatTo(world, f, station, level);
         if (threat is null) ai.ThreatSeen = -1;
         else if (ai.ThreatSeen < 0) ai.ThreatSeen = world.Time;
@@ -860,7 +860,7 @@ public static class Ai
         {
             // The whole army once nothing is out; while a wave is out, or if it sees little
             // to stop it, reinforcements by the group, not one by one as they come out of the shipyard.
-            var home = ships.Where(e => e.Order?.Type != OrderType.AttackMove && !Modes.Kept(world, e)).ToList();
+            var home = ships.Where(e => e.Order?.Type != OrderType.AttackMove && !Modes.Kept(world, e) && !ai.Besiegers.Contains(e.Id)).ToList();
             var out_ = home.Count < ships.Count;
             var needed = ai.WaveValue * (out_ || army > intel.Army * 1.5 ? ReinforceShare : AllInShare);
             if (home.Count > 0 && home.Sum(ShipValue) >= needed) Send(world, home, enemy, Stance.Aggressive);
@@ -926,6 +926,65 @@ public static class Ai
         Movement.IssueMove(world, ships.Select(e => e.Id), at.X, at.Y, true);
     }
 
+    /// <summary>How near a foe's station its siege guns set up, how near it the defenses they shell stand, and how far into their reach they stop.</summary>
+    const double SiegeReach = 2200, BaseReach = 1300, SiegeMargin = 0.9;
+
+    /// <summary>
+    /// Siege guns sent at a foe's station stop short of the defenses they know around it, on their
+    /// own station's side, where they still see them (their sight is shorter than their reach) and
+    /// out of the defenses' own reach, and shell them holding the spot while the rest of the wave
+    /// goes in; with no such defense left there, they go in too. One that reaches further than
+    /// that spot (an ion cannon) is left to the wave. Not in an assault, whose attackers have the
+    /// clock against them and win by the first rush: sieging, they took 3 fortresses of 36 instead of 9.
+    /// </summary>
+    static void Siege(World world, FactionState f, Entity home)
+    {
+        if (world.Mode.Kind == BattleMode.Assault) return;
+        var ai = f.AI!;
+        ai.Besiegers.RemoveWhere(id => !world.Entities.Has(id));
+        foreach (var e in Warships(world, f))
+        {
+            if (e.Cls != ShipClass.Artillery || Modes.Kept(world, e)) continue;
+            var sieging = ai.Besiegers.Contains(e.Id);
+            if (!sieging && !(e.Order?.Type == OrderType.AttackMove && e.Stance == Stance.Aggressive)) continue;
+            var station = NearestEnemyStation(world, f, e);
+            var guard = station is null || Dist(e, station) > SiegeReach ? null : NearestDefense(world, f, e, station);
+            if (guard is null)
+            {
+                if (!sieging) continue;
+                ai.Besiegers.Remove(e.Id);
+                if (station is not null) Send(world, [e], station, Stance.Aggressive);
+                else e.Stance = Stance.Defensive;
+                continue;
+            }
+            var d = Math.Max(1, Dist(home, guard));
+            var reach = Standoff(e, guard);
+            var spot = new Point(guard.X + (home.X - guard.X) / d * reach, guard.Y + (home.Y - guard.Y) / d * reach);
+            ai.Besiegers.Add(e.Id);
+            var aim = e.Order is { } o ? new Point(o.X, o.Y) : new Point(e.X, e.Y);
+            if (e.Stance == Stance.Hold && Hypot(aim.X - spot.X, aim.Y - spot.Y) < 100) continue;
+            e.Stance = Stance.Hold;
+            Movement.IssueMove(world, [e.Id], spot.X, spot.Y);
+        }
+    }
+
+    /// <summary>How far from a defense's centre a siege gun takes its spot: within its sight and its reach.</summary>
+    static double Standoff(Entity gun, Entity defense) => defense.Radius + Math.Min(gun.Range, Vision.VisionOf(gun)) * SiegeMargin;
+
+    /// <summary>The foe's defense it knows of nearest `e`, around that foe's station, that does not reach as far as `e` would stand.</summary>
+    static Entity? NearestDefense(World world, FactionState f, Entity e, Entity station)
+    {
+        Entity? best = null;
+        foreach (var s in world.Grid.Near(station.X, station.Y, BaseReach))
+        {
+            if (s.Kind != EntityKind.Structure || s.Weapons.Count == 0 || s.Side != station.Side || Dist(s, station) >= BaseReach) continue;
+            if (s.Range + e.Radius >= Standoff(e, s)) continue;
+            if (!Vision.IsVisible(world, f.Id, s) && !Vision.WasSeen(world, f.Id, s)) continue;
+            if (best is null || Dist(s, e) < Dist(best, e) || Dist(s, e) == Dist(best, e) && s.Id < best.Id) best = s;
+        }
+        return best;
+    }
+
     /// <summary>A nebula this close to the station hides its fleet; the fleet waits on the station's side of it.</summary>
     const double HideoutReach = 1800;
 
@@ -954,6 +1013,7 @@ public static class Ai
         var enemy = NearestEnemyStation(world, f, station);
         RetreatDamaged(world, f);
         var defensive = Command(world, f, station, Modes.WaveTarget(world, f, enemy));
+        Siege(world, f, station);
         Save(world, f, station, defensive, Difficulties[ai.Difficulty].Think);
         PursueBig(world, f, station, enemy);
         Work(world, f, station, enemy, defensive);

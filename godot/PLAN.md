@@ -956,6 +956,23 @@ tests de `FixtureTests` et `CrossTests` les listent.
     armées qui se battent entre elles dans son coin, et aucune structure. Il n'est jamais abattu entre IA : leurs
     armées (2 000 à 16 000 cr toute la partie) sont loin du compte ; la chasse sert contre un joueur, ou sur un
     Colosse affaibli. Sans Colosse, rien ne change (36 parties identiques). Tests : `RaidTests`.
+  - Escarmouches longues : les 36 parties habituelles tombaient bien (2 nuls) ; sur 72 (graines 1 à 12), 12 nuls
+    sans Colosse, 13 avec, après le raid. Dans ces nuls, aucune coque de station n'est touchée en 60 min (les
+    boucliers absorbent tout) : chaque camp perd 50 000 à 77 000 cr de vaisseaux chez l'autre, dont la moitié
+    tués par la station et les plateformes (14 000 à 37 000 cr en 30 min), et les plateformes entamées se
+    réparent entre deux vagues. Les armées restent entre 1 000 et 15 000 cr, presque toujours en attaque :
+    ni flotte oisive, ni épargne (sauf pour un héros). L'artillerie d'une vague s'arrête maintenant devant les
+    défenses connues de la station visée, là où elle les voit encore (sa vue, 800, est plus courte que sa
+    portée, 950) et hors de leur portée (plateforme 520), en position tenue, et les pilonne pendant que le reste
+    entre ; plus de défense à pilonner, elle entre aussi (`Ai.Siege`). Le canon ionique (900) reste à la vague.
+    L'IA prend deux artilleries par défense connue, douze au plus (une et six avant). Après : 8 nuls sur 72 avec
+    Colosse, 7 sans (25 → 15 sur 144), Kla'ed 39 %, Nairan 50 %, Nautolan 46 % (40, 38, 47 avant), médiane 43
+    à 44 min (41 à 43). Pas en assaut : l'assaillant y gagne à la première ruée, et en siège il ne prenait
+    plus que 3 forteresses sur 36 au lieu de 9 (exempté : 10). Essais écartés : renforts du tout-pour-le-tout
+    par groupes de 60 % de la vague au lieu de 30 % (26 nuls sur 72), les mêmes avec une vague attendue qui
+    grossit encore après chaque envoi (22), renforts dès 15 % (17), le siège sans plus d'artillerie (8 et 13
+    nuls : 21 sur 144, les canons trop peu nombreux mouraient avant d'avoir fini). Attaquer plus gros, c'est
+    attaquer plus rarement, et les défenses se réparent entre-temps. Tests : `AiLevelsTests` (siège).
 - Sécurité (2026-11-03) : ce qu'un inconnu peut envoyer au serveur en ligne, à un hôte ou au jeu, et les fichiers du joueur.
   Chaque lecteur exposé passe un test de robustesse à graine fixe (`FuzzTests` : trames du relais, messages du jeu, ordres,
   instantanés de bataille entiers et en parties, galaxie, rediffusions, sauvegardes), et chaque correction a son test
