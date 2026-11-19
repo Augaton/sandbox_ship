@@ -211,6 +211,8 @@ public sealed partial class Galaxy
     public Side? Winner;
     /// <summary>The fleet cap of its battles (Reserves.CapPoints), chosen in the lobby: Normal in older saves.</summary>
     public FleetCap FleetCap;
+    /// <summary>The campaign tutorial's galaxy (TutorialGalaxy): never saved, never written in place of a save (GalaxySave.Save).</summary>
+    public bool Tutorial;
 }
 
 public static partial class Galaxies

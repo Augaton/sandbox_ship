@@ -107,9 +107,10 @@ public partial class GalaxyScreen
 
     /// <summary>
     /// A battle the player is almost sure to win, with the option on, asks nothing. Never one the
-    /// player might fall back from, nor in a dev run that answers its prompts (--choose).
+    /// player might fall back from, nor in a dev run that answers its prompts (--choose), nor in the
+    /// tutorial, whose prompt is a step.
     /// </summary>
-    bool ResolvesAlone(GalaxyBattle b) => Settings.Current.AutoResolveWon && Dev.Choose.Length == 0 && Galaxies.OutlookOf(b, Player) == BattleOutlook.CertainVictory;
+    bool ResolvesAlone(GalaxyBattle b) => Settings.Current.AutoResolveWon && !Opts.Tutorial && Dev.Choose.Length == 0 && Galaxies.OutlookOf(b, Player) == BattleOutlook.CertainVictory;
 
     /// <summary>The choice goes out for the player alone: over the network, another side in the battle still chooses for itself.</summary>
     void ResolveAlone(GalaxyBattle b)

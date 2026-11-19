@@ -105,6 +105,7 @@ public partial class Main : Node
             case "sandbox" or "gallery" or "jumps": StartBattle(new BattleOptions { Player = Faction.Klaed, Slots = BattleOptions.Versus(Faction.Klaed, [Faction.Nairan]), Mode = GameMode.Sandbox, Size = Dev.Size, Terrain = Dev.Terrain ?? TerrainDensity.None }); break;
             case "campaign": StartCampaign(DevCampaign()); break;
             case "tutorial": StartBattle(Ui.Tutorial.Options()); break;
+            case "campaign-tutorial": StartCampaignTutorial(); break;
             case "replay" when Dev.Replay is string file && ReplayStore.Load(file, out _) is { } replay: StartBattle(BattleOptions.Watch(replay)); break;
             // With --host, the lobby first: the battle is served (Session.Launch).
             case "stress" when !Dev.Host: StartBattle(new BattleOptions { Player = Faction.Klaed, Slots = BattleOptions.Versus(Faction.Klaed, [Faction.Nairan, Faction.Nautolan]), Size = MapSize.Large, Seed = 7, Terrain = Dev.Terrain ?? TerrainDensity.None }); break;
@@ -303,6 +304,9 @@ public partial class Main : Node
         Show(next);
         galaxy = next;
     }
+
+    /// <summary>The campaign tutorial, on its own fixed galaxy: no save of the player's is read, written or cleared.</summary>
+    public void StartCampaignTutorial() => StartCampaign(new MenuChoice { Tutorial = true });
 
     /// <summary>What a campaign battle decided here costs, for its end screen: nothing has changed on the galaxy map yet.</summary>
     public IReadOnlyList<string>? CampaignToll(int battleId, BattleResult result) => galaxy?.TollLines(battleId, result);

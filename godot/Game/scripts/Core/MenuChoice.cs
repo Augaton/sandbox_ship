@@ -17,6 +17,8 @@ public sealed record MenuChoice
     public Side? Me { get; init; }
     /// <summary>Continue the most recent saved campaign instead of starting a new one.</summary>
     public bool Resume { get; init; }
+    /// <summary>The campaign tutorial, on its fixed galaxy (TutorialGalaxy), never saved; the rest is unused.</summary>
+    public bool Tutorial { get; init; }
     /// <summary>The save to load instead, picked on the "Charger une partie" screen (its path).</summary>
     public string? Load { get; init; }
     /// <summary>The galaxy of a new game: generated from the seed, or the hand-made classic one (two players).</summary>
@@ -153,6 +155,8 @@ public static class Dev
     public static bool Armada;
     /// <summary>--codex=WHAT: the codex opened on WHAT (Codex.Open: "frigate", "hero-admiral", "race-nairan", "nairan:frigate"), with --menu=codex or over a battle of --start.</summary>
     public static string? Codex;
+    /// <summary>--coach=N: the campaign tutorial (--start=campaign-tutorial) starts at its step N (CampaignTutorial.DevSkip).</summary>
+    public static int Coach;
 
     /// <summary>The fleet points of --fleet-cap: 0 for none.</summary>
     public static int FleetCapPoints => FleetCap is null or "none" ? 0 : Reserves.CapPoints(Enum.Parse<Sim.FleetCap>(FleetCap, true));
@@ -234,6 +238,7 @@ public static class Dev
                 case "--fleet-cap" when value == "none" || Enum.TryParse<Sim.FleetCap>(value, true, out _): FleetCap = value.ToLowerInvariant(); break;
                 case "--armada": Armada = true; break;
                 case "--codex": Codex = value; break;
+                case "--coach": Coach = int.Parse(value); break;
             }
         }
         if (Relay && !port) Port = Sim.Net.Relay.DefaultPort;

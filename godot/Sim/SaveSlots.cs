@@ -20,6 +20,18 @@ public static class SaveSlots
 
     public static string PathOf(string dir, string id) => System.IO.Path.Combine(dir, id + ".json");
 
+    /// <summary>
+    /// Where a campaign is saved as it goes, if anywhere (GalaxyScreen.SaveFile): the tutorial's,
+    /// nowhere; a player's replica over the network, nowhere; a host's, `netPath`; alone, the
+    /// automatic save in `dir`. A capture run leaves the player's saves alone, unless it names a
+    /// file of its own for the host (`ownFile`). Nowhere also means that no save is moved aside for
+    /// it (KeepAuto) nor cleared when it ends.
+    /// </summary>
+    public static string? CampaignFile(bool tutorial, bool network, bool replica, bool capture, bool ownFile, string dir, string netPath) =>
+        tutorial || replica ? null
+        : network ? !capture || ownFile ? netPath : null
+        : !capture ? PathOf(dir, Auto) : null;
+
     /// <summary>The saves that can be read, the most recent first; the others (another version, damaged) are left out.</summary>
     public static List<Slot> List(string dir)
     {

@@ -193,9 +193,14 @@ public static class GalaxySave
         return g;
     }
 
-    /// <summary>Returns false when the file cannot be written (disk full, no rights). `name`: the one the player gave it, if any.</summary>
+    /// <summary>
+    /// Returns false when the file cannot be written (disk full, no rights), and for the tutorial's
+    /// galaxy, which never takes the place of a save. `name`: the one the player gave it, if any.
+    /// </summary>
     public static bool Save(Galaxy g, string path, string? name = null, long? savedAt = null)
     {
+        // A real save was once lost to a tutorial that wrote over it: this is the last line before the disk.
+        if (g.Tutorial) return false;
         try
         {
             // Written aside first, then moved over: a crash mid-write never eats the old save.

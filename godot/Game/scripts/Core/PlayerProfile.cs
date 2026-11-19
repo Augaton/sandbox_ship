@@ -1,7 +1,7 @@
 // The player's profile on this machine (Sim's Profiles): fed what the local player does, kept in
 // user://profile.json, written whole through a file set aside first. Only the local player
 // counts, each machine for its own in a network game; nothing counts in a capture (unless
-// --profile names a file of its own), a replay, the menu's backdrop, the tutorial's battle, or
+// --profile names a file of its own), a replay, the menu's backdrop, the tutorials (battle and campaign), or
 // for a spectator.
 using Godot;
 using SandboxShip.Battle;
@@ -56,7 +56,7 @@ public static class PlayerProfile
 
     /// <summary>Whether what happens on a battle screen counts for the player on this machine.</summary>
     public static bool Counts(BattleScreen s) =>
-        Enabled && !s.Opts.Demo && s.Opts.Replay is null && !s.Opts.Tutorial && s.Opts.Net?.Watching != true
+        Enabled && !s.Opts.Demo && s.Opts.Replay is null && !s.Opts.Tutorial && s.Opts.Coach is null && s.Opts.Net?.Watching != true
         && Network.Session.Current?.Watching != true && s.World.Factions.ContainsKey(s.Opts.Player);
 
     /// <summary>What mode a battle is played in, as the lobby names them; a campaign battle's is Campaign.</summary>
@@ -150,7 +150,7 @@ public static class PlayerProfile
         var playing = screen switch
         {
             BattleScreen b => Counts(b),
-            Campaign.GalaxyScreen => Enabled,
+            Campaign.GalaxyScreen g => Enabled && !g.Opts.Tutorial,
             _ => false,
         };
         if (!playing) return;

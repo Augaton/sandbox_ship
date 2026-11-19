@@ -126,13 +126,15 @@ public partial class Menu
         var grid = Grid();
         foreach (var m in Modes.Where(m => m.Mode is not (LobbyMode.Campaign or LobbyMode.Skirmish or LobbyMode.Sandbox))) grid.AddChild(ModeCard(m));
         body.AddChild(Section("Bataille", ModeCard(Modes.First(m => m.Mode == LobbyMode.Skirmish)), grid));
-        // Alone, to learn or to try: neither is hosted.
+        // Alone, to learn or to try: none is hosted. The two tutorials side by side, the sandbox across under them.
         if (!hosting)
         {
             var training = Grid();
-            training.AddChild(TutorialCard());
-            training.AddChild(ModeCard(Modes.First(m => m.Mode == LobbyMode.Sandbox)));
-            body.AddChild(Section("Entraînement", training));
+            training.AddChild(TrainingCard("tutorial", "Didacticiel", "Une bataille guidée, une chose à la fois : sélectionner, produire, attaquer.",
+                () => Main.Instance.StartBattle(Tutorial.Options()), Assets.ShipSprite(Faction.Nautolan, ShipClass.Scout)));
+            training.AddChild(TrainingCard("campaign-tutorial", "Didacticiel de campagne", "La galaxie pas à pas : flottes, renforts, diplomatie. Ne touche pas à tes sauvegardes.",
+                Main.Instance.StartCampaignTutorial, Assets.Planet));
+            body.AddChild(Section("Entraînement", training, ModeCard(Modes.First(m => m.Mode == LobbyMode.Sandbox))));
         }
         if (hosting && hostError is not null) body.AddChild(Paragraph(hostError, Palette.Danger, 14));
         footer.AddChild(Btn("Retour", Back));
@@ -146,19 +148,18 @@ public partial class Menu
         return grid;
     }
 
-    /// <summary>The tutorial, as a card beside the sandbox: a battle that teaches one thing at a time.</summary>
-    Control TutorialCard()
+    /// <summary>A tutorial, as a card above the sandbox: one thing taught at a time.</summary>
+    Control TrainingCard(string key, string title, string about, Action start, string? art)
     {
-        const string about = "Une bataille guidée, une chose à la fois : sélectionner, produire, attaquer.";
-        var tile = Tile("tutorial", false, () => Main.Instance.StartBattle(Tutorial.Options()), $"Didacticiel, 1 joueur : {about}", col =>
+        var tile = Tile(key, false, start, $"{title}, 1 joueur : {about}", col =>
         {
-            var name = UiTheme.Text("Didacticiel");
+            var name = UiTheme.Text(title);
             name.AddThemeFontOverride("font", Bold);
             col.AddChild(name);
             var line = Small(about);
             line.CustomMinimumSize = new Vector2(0, 36);
             col.AddChild(line);
-        }, Assets.ShipSprite(Faction.Nautolan, ShipClass.Scout));
+        }, art);
         tile.AddChild(Corner("1 joueur"));
         return tile;
     }

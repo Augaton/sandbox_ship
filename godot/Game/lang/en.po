@@ -896,6 +896,10 @@ msgid "canon ionique"
 msgstr "ion cannon"
 
 #: Game/scripts/Galaxy/GalaxyHud.cs
+msgid "laboratoire"
+msgstr "laboratory"
+
+#: Game/scripts/Galaxy/GalaxyHud.cs
 msgid "Flottes de la sélection"
 msgstr "Fleets of the selection"
 
@@ -6210,8 +6214,8 @@ msgid "Une bataille guidée, une chose à la fois : sélectionner, produire, att
 msgstr "A guided battle, one thing at a time: select, build, attack."
 
 #: Game/scripts/Ui/Menu.Lobby.cs
-msgid "Didacticiel, 1 joueur : {0}"
-msgstr "Tutorial, 1 player: {0}"
+msgid "{0}, 1 joueur : {1}"
+msgstr "{0}, 1 player: {1}"
 
 #: Game/scripts/Ui/Menu.Lobby.cs
 #: Game/scripts/Ui/Menu.Lobby.cs
@@ -8745,3 +8749,99 @@ msgstr "Who beats whom: each class, its weapons and its counters"
 #: Game/scripts/Ui/Menu.cs
 msgid "Qui bat qui : chaque classe, ses armes et ses contres. Échap : retour"
 msgstr "Who beats whom: each class, its weapons and its counters. Esc: back"
+
+#: Game/scripts/Galaxy/GalaxyHud.cs
+msgid "Le didacticiel ne se sauvegarde pas : tes sauvegardes de campagne restent telles quelles."
+msgstr "The tutorial is never saved: your campaign saves stay as they are."
+
+#: Game/scripts/Ui/CampaignTutorial.cs
+msgid "(voir « Aide »)"
+msgstr "(see \"Help\")"
+
+#: Game/scripts/Ui/CampaignTutorial.cs
+msgid "Tu connais l'essentiel de la campagne. Cette galaxie ne se sauvegarde pas : continue-la si tu veux, puis lance la tienne depuis « Nouvelle partie »."
+msgstr "You know the essentials of the campaign. This galaxy is never saved: play on if you like, then start your own from \"New game\"."
+
+#: Game/scripts/Ui/CampaignTutorial.cs
+msgid "La carte galactique"
+msgstr "The galaxy map"
+
+#: Game/scripts/Ui/CampaignTutorial.cs
+msgid "Zoome ({0}), puis déplace la vue ({1}). {2} montre de nouveau toute la galaxie."
+msgstr "Zoom ({0}), then move the view ({1}). {2} shows the whole galaxy again."
+
+#: Game/scripts/Ui/CampaignTutorial.cs
+msgid "Clique sur ta capitale, {0}, puis sur l'onglet « Vaisseaux » du panneau de droite : commande un vaisseau. Chaque planète a deux files, ses bâtiments et ses vaisseaux."
+msgstr "Click your capital, {0}, then the \"Ships\" tab of the panel on the right: order a ship. Each planet has two queues, its buildings and its ships."
+
+#: Game/scripts/Ui/CampaignTutorial.cs
+msgid "Le temps"
+msgstr "Time"
+
+#: Game/scripts/Ui/CampaignTutorial.cs
+msgid "La galaxie démarre en pause : {0} lance le temps, ×1, ×2 et ×4 en haut règlent sa vitesse. Le menu et l'aide l'arrêtent."
+msgstr "The galaxy starts paused: {0} sets time going, ×1, ×2 and ×4 at the top set its speed. The menu and the help stop it."
+
+#: Game/scripts/Ui/CampaignTutorial.cs
+msgid "Le ravitaillement"
+msgstr "Supply"
+
+#: Game/scripts/Ui/CampaignTutorial.cs
+msgid "À plus de {0} voies de tes stations, une flotte est hors ravitaillement : elle perd {1} de son état par minute, jusqu'à {2}, et ne se répare plus. Ouvre la liste des flottes ({3}) : elle dit l'état de chacune."
+msgstr "More than {0} lanes from your stations, a fleet is out of supply: it loses {1} of its condition a minute, down to {2}, and no longer mends. Open the list of fleets ({3}): it tells each one's condition."
+
+#: Game/scripts/Ui/CampaignTutorial.cs
+msgid "Envoyer une flotte"
+msgstr "Send a fleet"
+
+#: Game/scripts/Ui/CampaignTutorial.cs
+msgid "Ta capitale sélectionnée, l'onglet « Planète » montre ta flotte et combien en envoyer. Clic droit sur {0}, la planète indépendante voisine : ta flotte part par la voie."
+msgstr "With your capital selected, the \"Planet\" tab shows your fleet and how much of it to send. Right-click {0}, the independent planet next door: your fleet leaves along the lane."
+
+#: Game/scripts/Ui/CampaignTutorial.cs
+msgid "L'invite de bataille"
+msgstr "The battle prompt"
+
+#: Game/scripts/Ui/CampaignTutorial.cs
+msgid "Une rencontre arrête la galaxie : « Commander la bataille » ouvre la vue tactique, « Résolution automatique » la règle sans toi. En bataille, « Laisser l'IA finir », dans le menu, te rend la carte. Commande celle-ci."
+msgstr "An encounter stops the galaxy: \"Command the battle\" opens the tactical view, \"Auto-resolve\" settles it without you. In battle, \"Let the AI finish\", in the menu, brings you back to the map. Command this one."
+
+#: Game/scripts/Ui/CampaignTutorial.cs
+msgid "Plafond de flotte et renforts"
+msgstr "Fleet cap and reinforcements"
+
+#: Game/scripts/Ui/CampaignTutorial.cs
+msgid "Sur le terrain, ta flotte tient au plus {0} points : « Flotte », en tête du panneau de réserve, les compte. Le reste attend en réserve. Quand un vaisseau tombe, une place se libère : glisse un vaisseau de la réserve sur la carte."
+msgstr "On the field, your fleet holds {0} points at most: \"Fleet\", at the top of the reserve panel, counts them. The rest waits in reserve. When a ship falls, room frees up: drag a ship from the reserve onto the map."
+
+#: Game/scripts/Ui/CampaignTutorial.cs
+msgid "La recherche"
+msgstr "Research"
+
+#: Game/scripts/Ui/CampaignTutorial.cs
+msgid "Onglet « Recherche » : lance une technologie. Il faut un laboratoire sur une de tes planètes ; ta capitale en a un."
+msgstr "\"Research\" tab: start a technology. It takes a laboratory on one of your planets; your capital has one."
+
+#: Game/scripts/Ui/CampaignTutorial.cs
+msgid "Les indépendants"
+msgstr "The independents"
+
+#: Game/scripts/Ui/CampaignTutorial.cs
+msgid "Une planète indépendante peut te rejoindre sans combat. Sélectionne {0}, voisine de ta capitale, puis « Convaincre » dans son panneau : des crédits, et elle est à toi dans {1} s."
+msgstr "An independent planet can join you without a fight. Select {0}, next to your capital, then \"Convince\" in its panel: some credits, and it is yours in {1} s."
+
+#: Game/scripts/Ui/CampaignTutorial.cs
+msgid "La diplomatie"
+msgstr "Diplomacy"
+
+#: Game/scripts/Ui/CampaignTutorial.cs
+msgid "{0} ouvre la diplomatie : l'humeur de chaque camp et cinq intentions, la paix, le commerce, l'alliance, exiger et la guerre. Choisis-en une et propose : l'IA accepte, refuse en disant pourquoi, ou fait une contre-offre."
+msgstr "{0} opens diplomacy: each side's mood and five intentions, peace, trade, alliance, demands and war. Pick one and propose: the AI accepts, refuses and says why, or makes a counter-offer."
+
+#: Game/scripts/Ui/Menu.Lobby.cs
+msgid "Didacticiel de campagne"
+msgstr "Campaign tutorial"
+
+#: Game/scripts/Ui/Menu.Lobby.cs
+msgid "La galaxie pas à pas : flottes, renforts, diplomatie. Ne touche pas à tes sauvegardes."
+msgstr "The galaxy step by step: fleets, reinforcements, diplomacy. Leaves your saves alone."

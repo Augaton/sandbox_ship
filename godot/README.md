@@ -32,9 +32,11 @@ npm run fixtures                            # références et apparences tirées
 manquant, le bouton « Build » (marteau, en haut à droite) le compile.
 
 Options pour vérifier un écran sans passer par le menu, après `--` :
-`--start=menu|battle|sandbox|campaign|gallery|jumps` (`gallery` : chaque classe de vaisseau et chaque
+`--start=menu|battle|sandbox|campaign|gallery|jumps|tutorial|campaign-tutorial` (`gallery` : chaque classe de vaisseau et chaque
 niveau de plateforme, en pause ; `jumps` : des vaisseaux de la réserve en hyperespace à chaque stade,
-un qui en sort parmi des chasseurs, un autre en main sous le pointeur), `--skip=SECONDES` (partie jouée d'avance par l'IA), `--zoom=Z`,
+un qui en sort parmi des chasseurs, un autre en main sous le pointeur ; `campaign-tutorial` : le didacticiel de campagne, que
+`--coach=N` commence à l'étape N : à la 6e et la 7e, la flotte part pour Orin, et avec `--choose=command` la bataille est
+commandée ; à la 10e, la diplomatie s'ouvre), `--skip=SECONDES` (partie jouée d'avance par l'IA), `--zoom=Z`,
 `--at=X,Y` (centre la vue de bataille), `--menu=home|new|controls|credits|options|codex|lobby-MODE` (`new` : les
 modes ; `lobby-skirmish`, `lobby-campaign`, `lobby-assault`… : le salon de ce mode, que `--seats=N` remplit
 d'IA et où `--teams=1,2,…` place les équipes dans l'ordre des places),
@@ -53,8 +55,8 @@ la mesure du plafond, `none` pour la même bataille sans lui), `--armada` (une c
 une flotte de la bataille de mesure : 192 vaisseaux, 376 points ; avec `--raid=1 --choose=command --answer=no`, une bataille où
 sa réserve attend sous le plafond), `--codex=QUOI` (le codex ouvert sur une classe, `frigate`, un héros, `hero-admiral`, ou
 une race, `race-nairan`, précédés au besoin de la race à montrer, `nairan:titan` ; avec `--menu=codex`, ou au-dessus d'une
-bataille de `--start`, ouvert depuis le menu Échap). Pour une capture en 1280×720 : `--resolution 1280x720` avant `--`, et
-`-H 720 -h 720` pour gamescope. Ajouter `--disable-vsync`
+bataille de `--start`, ouvert depuis le menu Échap, ou de la galaxie de `--start=campaign`, depuis l'aide). Pour une capture
+en 1280×720 : `--resolution 1280x720` avant `--`, et `-H 720 -h 720` pour gamescope. Ajouter `--disable-vsync`
 avant `--` si la fenêtre est cachée : sinon le compositeur la ralentit. Avec `--shot`, la
 fenêtre ne prend pas le clavier, et ni les réglages ni la sauvegarde de campagne ne sont touchés.
 Pour une capture sans aucune fenêtre à l'écran (gamescope, déjà installé) :

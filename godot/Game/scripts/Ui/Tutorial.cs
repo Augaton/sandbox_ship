@@ -1,8 +1,7 @@
 // The guided first battle: a small fleet to start with, a foe on the far side that does nothing but
-// defend its station, and a card at the top left that teaches one thing at a time. Each step is
-// done by doing it, seen in the commands the player sends or in the battle; each can be passed,
-// and the tutorial left at any moment. The keys it names come from the list of controls (Controls.cs).
-using Godot;
+// defend its station, and a card at the top left that teaches one thing at a time (Guide.cs). Each
+// step is done by doing it, seen in the commands the player sends or in the battle. The keys it
+// names come from the list of controls (Controls.cs).
 using SandboxShip.Battle;
 using SandboxShip.Core;
 using SandboxShip.Sim;
@@ -10,7 +9,7 @@ using SandboxShip.Sim.Data;
 
 namespace SandboxShip.Ui;
 
-public partial class Tutorial : CanvasLayer
+public partial class Tutorial : Guide
 {
     /// <summary>Credits to start with: enough for a mine, a frigate and a few more.</summary>
     public const double Credits = 5000;
@@ -22,19 +21,9 @@ public partial class Tutorial : CanvasLayer
         Map = MapKind.Classic, Size = MapSize.Small, Fog = false, Raid = false, Seed = 1, Tutorial = true,
     };
 
-    /// <summary>What a step asks, and how the tutorial knows it is done.</summary>
-    sealed record Step(string Title, string Text, Func<bool> Done);
-
     readonly BattleScreen scene;
-    readonly List<Step> steps = [];
-    /// <summary>What the player has done, from the commands that went through: move, attack, mine, frigate, deploy, ability.</summary>
-    readonly HashSet<string> did = [];
-    int current;
-    Vector2 startCenter;
+    Godot.Vector2 startCenter;
     float startZoom;
-    PanelContainer card = null!;
-    Label count = null!, title = null!, text = null!;
-    Button pass = null!;
 
     public Tutorial(BattleScreen scene) => this.scene = scene;
 
@@ -42,68 +31,47 @@ public partial class Tutorial : CanvasLayer
     static string Key(string action) =>
         Controls.Battle.FirstOrDefault(c => c.Action.StartsWith(action, StringComparison.Ordinal)).Keys ?? "(voir « Commandes »)";
 
+    protected override string Ending =>
+        "Tu connais l'essentiel. Toutes les commandes sont dans le menu, « Commandes » ; la suite se joue en escarmouche ou en campagne.";
+
+    protected override void Leave() => scene.ToMenu();
+
+    protected override void Finished() => PlayerProfile.Moment(Profiles.Moment.Tutorial);
+
     public override void _Ready()
     {
-        Layer = 2;
         startCenter = scene.Center;
         startZoom = scene.Zoom;
         Fleet();
-        steps.AddRange(
+        Steps.AddRange(
         [
             new("La vue", $"Déplace la vue ({Key("Déplacer la vue")}) et zoome ({Key("Zoom")}).",
                 () => scene.Center.DistanceTo(startCenter) > 300 && Math.Abs(scene.Zoom - startZoom) > 0.1f),
             new("Sélectionner", $"{Key("Sélectionner")} sur tes vaisseaux, près de ta station : glisser trace un rectangle autour de plusieurs.",
                 () => scene.Selected.Count > 0),
             new("Déplacer", $"{Key("Déplacer, ou attaquer")} sur un point libre : les vaisseaux sélectionnés y vont, en formation.",
-                () => did.Contains("move")),
+                () => Did.Contains("move")),
             new("Une mine", "Les mines rapportent des crédits. Onglet « Bâtiments » en bas, choisis la mine, puis clique sur un champ d'astéroïdes près de ta station.",
-                () => did.Contains("mine")),
+                () => Did.Contains("mine")),
             new("Produire", "Onglet « Vaisseaux » : commande une frégate. Une fois prête, elle attend en réserve, dans le panneau au-dessus des groupes.",
-                () => did.Contains("frigate")),
+                () => Did.Contains("frigate")),
             new("La réserve", "Glisse la frégate de la réserve sur la carte, près de ta station ou de tes vaisseaux : elle arrive par l'hyperespace.",
-                () => did.Contains("deploy")),
+                () => Did.Contains("deploy")),
             new("Attaquer", $"Vaisseaux sélectionnés, {Key("Déplacer, ou attaquer")} sur un ennemi l'attaque ; {Key("Attaque-mouvement")} engage tout ce qui croise la route.",
-                () => did.Contains("attack")),
+                () => Did.Contains("attack")),
             new("Postures et ordres", $"{Key("Posture suivante")} change la posture des vaisseaux sélectionnés : agressive, défensive, tenir la position ou passive. "
                 + $"{Key("Patrouille")} les fait patrouiller, {Key("Garder")} garde un allié, {Key("Ordre en file")} met un ordre à la suite des autres. "
                 + "Le panneau de sélection a les mêmes boutons.",
-                () => did.Contains("orders")),
+                () => Did.Contains("orders")),
             new("Une capacité", $"Chaque vaisseau a une capacité : sélectionne une frégate et appuie sur {Key("Capacité")}. Le panneau de sélection dit ce qu'elle fait.",
-                () => did.Contains("ability")),
+                () => Did.Contains("ability")),
             new("Un groupe", $"{Key("Créer un groupe")} garde la sélection sous un chiffre ; {Key("Rappeler un groupe")} la rappelle.",
                 () => scene.Controls.GroupSizes().Count > 0),
             new("La victoire", "Détruis la station ennemie, à l'autre bout de la carte : ses tourelles d'abord, puis sa coque. Produis des renforts au besoin.",
                 () => Worlds.Won(scene.World, scene.Opts.Player)),
         ]);
-
-        var root = new Control { Theme = UiTheme.Get(), MouseFilter = Control.MouseFilterEnum.Ignore };
-        root.SetAnchorsPreset(Control.LayoutPreset.FullRect);
-        AddChild(root);
-        card = HudKit.Panel(16, 12, Palette.Accent with { A = 0.6f });
-        card.Position = new Vector2(8, 64);
-        card.CustomMinimumSize = new Vector2(400, 0);
-        root.AddChild(card);
-        var column = new VBoxContainer();
-        column.AddThemeConstantOverride("separation", 6);
-        card.AddChild(column);
-        count = HudKit.Text("", Palette.Muted, 13);
-        column.AddChild(count);
-        title = HudKit.Text("", Palette.Accent, 17, bold: true);
-        column.AddChild(title);
-        text = HudKit.Text("", wrap: true);
-        text.CustomMinimumSize = new Vector2(368, 0);
-        column.AddChild(text);
-        var buttons = new HBoxContainer();
-        buttons.AddThemeConstantOverride("separation", 8);
-        column.AddChild(buttons);
-        pass = HudKit.Button("Passer", Next, "Passer cette étape", 34);
-        buttons.AddChild(pass);
-        buttons.AddChild(HudKit.Button("Quitter le didacticiel", scene.ToMenu, "Retour au menu", 34));
-        ShowStep();
+        BuildCard();
     }
-
-    /// <summary>Where the card ends, down the screen: the battle's toasts come under it.</summary>
-    public float Bottom => card.Position.Y + card.Size.Y;
 
     /// <summary>A few ships in front of the station, between it and the middle of the map.</summary>
     void Fleet()
@@ -133,45 +101,13 @@ public partial class Tutorial : CanvasLayer
         if (!r.Ok) return;
         switch (c)
         {
-            case Command.SetStance or Command.Patrol or Command.Guard or Command.Move { Queued: true } or Command.Attack { Queued: true }: did.Add("orders"); break;
-            case Command.Move m: did.Add(m.AttackMove ? "attack" : "move"); break;
-            case Command.Attack: did.Add("attack"); break;
-            case Command.PlaceStructure { Type: BuildableType.Mine }: did.Add("mine"); break;
-            case Command.EnqueueShip { Cls: ShipClass.Frigate }: did.Add("frigate"); break;
-            case Command.Deploy: did.Add("deploy"); break;
-            case Command.UseAbility: did.Add("ability"); break;
+            case Command.SetStance or Command.Patrol or Command.Guard or Command.Move { Queued: true } or Command.Attack { Queued: true }: Did.Add("orders"); break;
+            case Command.Move m: Did.Add(m.AttackMove ? "attack" : "move"); break;
+            case Command.Attack: Did.Add("attack"); break;
+            case Command.PlaceStructure { Type: BuildableType.Mine }: Did.Add("mine"); break;
+            case Command.EnqueueShip { Cls: ShipClass.Frigate }: Did.Add("frigate"); break;
+            case Command.Deploy: Did.Add("deploy"); break;
+            case Command.UseAbility: Did.Add("ability"); break;
         }
-    }
-
-    public override void _Process(double delta)
-    {
-        if (current < steps.Count && steps[current].Done()) Next();
-    }
-
-    void Next()
-    {
-        if (current >= steps.Count) return;
-        current++;
-        Sfx.Play(Sound.Built, 0, 0.5);
-        ShowStep();
-    }
-
-    void ShowStep()
-    {
-        if (current >= steps.Count)
-        {
-            count.Text = "Didacticiel terminé";
-            PlayerProfile.Moment(Profiles.Moment.Tutorial);
-            title.Text = "Bravo";
-            text.Text = "Tu connais l'essentiel. Toutes les commandes sont dans le menu, « Commandes » ; la suite se joue en escarmouche ou en campagne.";
-            pass.Visible = false;
-        }
-        else
-        {
-            count.Text = $"Didacticiel, étape {current + 1} sur {steps.Count}";
-            title.Text = steps[current].Title;
-            text.Text = steps[current].Text;
-        }
-        HudKit.FadeIn(card, 0.2);
     }
 }

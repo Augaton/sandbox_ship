@@ -989,6 +989,14 @@ public partial class GalaxyHud : CanvasLayer
         {
             HoldTime();
             box.AddChild(Heading("Menu", null, 22));
+            // The tutorial's galaxy is never saved: no save of the player's is touched, none is offered.
+            if (G.Tutorial)
+            {
+                box.AddChild(HudKit.Para("Le didacticiel ne se sauvegarde pas : tes sauvegardes de campagne restent telles quelles.", Palette.Muted, max: 460));
+                box.AddChild(Actions(Btn("Options", () => OpenModal(Options.Panel(ConfirmMenu), ConfirmMenu)), Btn("Annuler", CloseModal), Btn("Menu principal", scene.ToMenu, primary: true)));
+                OpenModal(p);
+                return;
+            }
             box.AddChild(HudKit.Para("La campagne se sauvegarde seule ; « Continuer la campagne » reprend la sauvegarde la plus récente. "
                 + "Tu peux aussi en garder une sous le nom de ton choix.", Palette.Muted, max: 460));
             var row = HudKit.Row(8);
@@ -1304,7 +1312,8 @@ public partial class GalaxyHud : CanvasLayer
             return;
         }
         Music.Sting(won);
-        PlayerProfile.CampaignEnded(won);
+        // The tutorial counts for nothing, as the battle's does not.
+        if (!G.Tutorial) PlayerProfile.CampaignEnded(won);
         var (p, box) = Dialog();
         box.AddChild(Heading(won ? "Victoire" : "Défaite", Player, 22));
         box.AddChild(HudKit.Para(won ? "Plus aucune faction rivale n'a de planète." : "Tu n'as plus aucune planète."));
@@ -1323,7 +1332,7 @@ public partial class GalaxyHud : CanvasLayer
         {
             defeatTold = true;
             Music.Sting(false);
-            PlayerProfile.CampaignEnded(false);
+            if (!G.Tutorial) PlayerProfile.CampaignEnded(false);
         }
         var (p, box) = Dialog();
         box.AddChild(Heading(allies ? "Éliminé" : "Défaite", Player, 22));
@@ -1332,6 +1341,13 @@ public partial class GalaxyHud : CanvasLayer
         if (scene.Opts.Net is { Replica: false }) box.AddChild(HudKit.Para("Retourner au menu termine la partie pour tous les joueurs.", Palette.Muted));
         box.AddChild(Actions(Btn("Regarder la suite", CloseModal, primary: true), Btn("Quitter", scene.ToMenu)));
         OpenModal(p);
+    }
+
+    /// <summary>The codex (Ui/Codex.cs), over the help: time stays still behind both, and closing it goes back to the help. `open`: what it shows first (--codex).</summary>
+    public void ShowCodex(string? open = null)
+    {
+        if (modal is null) ShowHelp();
+        OpenModal(Ui.Codex.Panel(Race, ShowHelp, open), ShowHelp);
     }
 
     void ShowHelp()
@@ -1365,7 +1381,7 @@ public partial class GalaxyHud : CanvasLayer
             + $"Chaque vaisseau abattu rapporte {HudKit.Percent(Worlds.KillShare)} de sa valeur ; le Colosse, {N(Raids.Bounty)} crédits et un niveau de recherche. "
             + "La campagne se sauvegarde toute seule ; « Continuer la campagne » la reprend depuis le menu.", Palette.Muted));
         // The codex comes back here when it is closed: time stays still until the help closes too.
-        box.AddChild(Actions(Btn("Codex", () => OpenModal(Ui.Codex.Panel(Race, ShowHelp), ShowHelp)), Btn("Fermer", CloseModal, primary: true)));
+        box.AddChild(Actions(Btn("Codex", () => ShowCodex()), Btn("Fermer", CloseModal, primary: true)));
         OpenModal(p);
         // Wrapped lines know their height once laid out: the scroll takes it then, up to what the window leaves.
         Callable.From(() =>

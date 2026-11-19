@@ -96,7 +96,7 @@ public partial class Codex : VBoxContainer
         detailScroll.SizeFlagsHorizontal = SizeFlags.ExpandFill;
         panes.AddChild(detailScroll);
         if (open is not null) Open(open);
-        Rebuild();
+        Rebuild(false);
     }
 
     /// <summary>
@@ -155,8 +155,13 @@ public partial class Codex : VBoxContainer
         return b;
     }
 
-    void Rebuild()
+    /// <summary>The list's line on, which has the focus again after a rebuild from the keyboard.</summary>
+    LabelButton? selected;
+
+    /// <summary>Fills the tabs, the list and the detail anew; `refocus`, after the player's choice, gives the focus back on the menu.</summary>
+    void Rebuild(bool refocus = true)
     {
+        selected = null;
         foreach (var box in new Control[] { kinds, races, list, detail })
         {
             foreach (var child in box.GetChildren())
@@ -200,6 +205,7 @@ public partial class Codex : VBoxContainer
                 break;
         }
         detailScroll.ScrollVertical = 0;
+        if (refocus && focusable && selected is not null && selected.IsInsideTree()) selected.GrabFocus();
     }
 
     void Show(Kind k)
@@ -235,6 +241,7 @@ public partial class Codex : VBoxContainer
         b.Marked = on;
         b.Paint();
         Outline(b, on ? Palette.Accent : null, false);
+        if (on) selected = b;
         b.Pressed += () => Callable.From(() =>
         {
             pick();

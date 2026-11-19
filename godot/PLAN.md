@@ -841,8 +841,40 @@ tests de `FixtureTests` et `CrossTests` les listent.
     les petits ; torpilleurs et artillerie battent les grosses coques ; le brouilleur (ions) bat Rempart, cuirassé et Titan.
     Tests : `CountersTests`.
   - Vérification : `--menu=codex`, et `--codex=QUOI` (`frigate`, `hero-admiral`, `race-nairan`, précédé d'une race :
-    `nairan:titan`) au menu, ou au-dessus d'une bataille de `--start` (ouvert depuis le menu Échap). Captures en 1280×800 et
-    1280×720 (`--resolution 1280x720` avant `--`), en français et en anglais.
+    `nairan:titan`) au menu, au-dessus d'une bataille de `--start` (ouvert depuis le menu Échap) ou de la galaxie de
+    `--start=campaign` (depuis l'aide). Captures en 1280×800 et 1280×720 (`--resolution 1280x720` avant `--`), en français
+    et en anglais.
+- Didacticiel de campagne (2026-11-19, à la demande de l'utilisateur) : la campagne, qui a le plus de règles, n'avait aucun
+  guide. Une carte « Didacticiel de campagne » à côté du didacticiel de bataille, dans « Entraînement » (le bac à sable passe
+  en dessous, sur toute la largeur). La carte des étapes est celle du didacticiel de bataille, mise en commun (`Ui/Guide.cs` :
+  étapes `Step(Title, Text, Done)`, chacune validée par l'action du joueur, passable, le didacticiel quittable à tout moment).
+  - Galaxie petite et fixe (`Sim/TutorialGalaxy.cs`) : la classique, le joueur kla'ed à Vesper, une IA nairan facile et
+    défensive à Ostra, une paix de départ d'une heure, aucun événement, le plafond de flotte Faible (150). Le joueur a 20 000
+    crédits, un laboratoire et une flotte de 170 points (plus que le plafond) ; ses deux voisines, Orin et Maru, sont
+    indépendantes et mieux gardées que d'ordinaire (2 plateformes, un croiseur, six frégates, quatre corvettes, un soutien).
+    Mesuré : une IA équilibrée prenait Maru en 4 min (10 avec cette garnison), une défensive pas en 30 min.
+  - Dix étapes : la carte (zoomer puis déplacer la vue), produire (une commande à la capitale), le temps (la galaxie démarre en
+    pause), le ravitaillement (ouvrir la liste des flottes, F), envoyer une flotte (clic droit sur Orin), l'invite de bataille
+    (commander, résoudre seule, laisser l'IA finir ; jamais résolue seule ici), le plafond de flotte et les renforts (en
+    bataille : « Flotte X / 150 », glisser un vaisseau de la réserve, ou la bataille finie), la recherche, les indépendants à
+    convaincre (Maru, « Convaincre »), la diplomatie (T : humeur, cinq intentions, réplique ou contre-offre ; une proposition
+    ou une réponse). La carte reste à l'écran pendant les batailles de sa galaxie (`GalaxyScreen.Sleep` la garde, elle tourne
+    sans pause) et y voit les ordres de bataille (`BattleOptions.Coach`) ; sur la carte galactique, elle est en bas à gauche, la
+    galaxie ajustée au-dessus (`GalaxyScreen.MakeRoom`) ; en bataille, en haut à gauche, les avis sous elle.
+  - Sauvegardes : le didacticiel n'en lit, n'en écrit ni n'en efface aucune (une vraie sauvegarde a déjà été perdue par une
+    partie qui écrivait à sa place). Sans garde, un départ de campagne met de côté la sauvegarde automatique
+    (`SaveSlots.KeepAuto`), puis l'écrase toutes les 20 s et l'efface à la fin de la partie. Gardes : `SaveSlots.CampaignFile` (la décision de `GalaxyScreen.SaveFile`, sortie de l'écran pour
+    être testée) ne donne aucun fichier au didacticiel, quel que soit le lancement : rien à écrire, rien à mettre de côté au
+    départ, rien à effacer à la fin ; `GalaxyScreen.Begin` le crée avant toute lecture de sauvegarde ; `SaveAs` refuse et le
+    menu de la galaxie n'offre pas de sauvegarder ; en dernier recours, `GalaxySave.Save` refuse une galaxie marquée
+    `Galaxy.Tutorial` (jamais sérialisé). Ni le profil ni les succès ne comptent le didacticiel (`PlayerProfile.Counts`, temps
+    de jeu, fin de campagne). Tests : `TutorialGalaxyTests` (une sauvegarde automatique et une nommée gardent leurs octets
+    après 10 min de didacticiel et chaque tentative d'écriture ; la galaxie, sa première bataille avec réserve, l'IA qui
+    laisse le joueur tranquille 20 min). Vérifié aussi dans le jeu, hors capture (`--shot` ne sauvegarde jamais), dans un
+    dossier de données à part : une campagne ordinaire écrit sa sauvegarde automatique en 75 s ; le didacticiel, 75 s avec
+    une bataille commandée, laisse les deux fichiers identiques, octet pour octet et date comprise.
+  - Vérification : `--start=campaign-tutorial`, et `--coach=N` pour commencer à l'étape N (à la 6e et la 7e, la flotte part
+    pour Orin, le temps en marche ; avec `--choose=command`, la bataille est commandée ; à la 10e, la diplomatie s'ouvre).
 - Sécurité (2026-11-03) : ce qu'un inconnu peut envoyer au serveur en ligne, à un hôte ou au jeu, et les fichiers du joueur.
   Chaque lecteur exposé passe un test de robustesse à graine fixe (`FuzzTests` : trames du relais, messages du jeu, ordres,
   instantanés de bataille entiers et en parties, galaxie, rediffusions, sauvegardes), et chaque correction a son test

@@ -99,6 +99,8 @@ public partial class GalaxyScreen : Node
         Click(home >= 0 ? home : null, false);
         Build();
         if (Dev.Deals && opts.Net is null) DevDeals();
+        // Checking the codex over the galaxy (--codex): from the help, as a player opens it.
+        if (Dev.Codex is { } codex && opts.Net is null) Hud.ShowCodex(codex);
     }
 
 
@@ -156,9 +158,25 @@ public partial class GalaxyScreen : Node
         if (Dev.DealsView == "relations") Hud.ShowRelations();
     }
 
-    /// <summary>A galaxy of its own: new, loaded from a save (the most recent one to continue), or played ahead (--skip).</summary>
+    /// <summary>The campaign tutorial's card, in its galaxy only.</summary>
+    public CampaignTutorial? Coach { get; private set; }
+
+    /// <summary>A galaxy of its own: new, loaded from a save (the most recent one to continue), played ahead (--skip), or the tutorial's.</summary>
     void Begin(MenuChoice opts)
     {
+        // The tutorial's fixed galaxy, which reads no save and never touches one: no file is moved
+        // aside for it (KeepAuto below), none written nor cleared (SaveFile is null for it).
+        if (opts.Tutorial)
+        {
+            Galaxy = TutorialGalaxy.Create();
+            Sink = new LocalSink<GalaxyCommand>(c =>
+            {
+                var r = Commands.Apply(Galaxy, Player, c);
+                Coach?.Saw(c, r);
+                return r;
+            });
+            return;
+        }
         var file = opts.Load ?? (opts.Resume ? SaveSlots.Latest(SaveDir)?.Path : null);
         var saved = file is not null ? GalaxySave.Load(file) : null;
         // Another campaign is about to take the automatic save: the one there keeps a file of its own.
@@ -228,6 +246,11 @@ public partial class GalaxyScreen : Node
 
         Hud = new GalaxyHud(this);
         AddChild(Hud);
+        if (Opts.Tutorial)
+        {
+            Coach = new CampaignTutorial(this);
+            AddChild(Coach);
+        }
     }
 
     /// <summary>Checking the screen (--skip): the galaxy plays ahead with the player on the AI, its battles resolved on their own.</summary>
@@ -250,7 +273,8 @@ public partial class GalaxyScreen : Node
         box = null;
         panFrom = null;
         ProcessMode = ProcessModeEnum.Disabled;
-        foreach (var layer in GetChildren().OfType<CanvasLayer>()) layer.Visible = false;
+        // The tutorial's card stays: it teaches the fleet cap in the battle.
+        foreach (var layer in GetChildren().OfType<CanvasLayer>()) layer.Visible = layer == Coach;
     }
 
     /// <summary>Back from the battle view.</summary>
@@ -543,12 +567,11 @@ public partial class GalaxyScreen : Node
 
     /// <summary>
     /// Where this campaign is saved as it goes, if anywhere: alone, the automatic save; over the
-    /// network, the host's own (a player keeps none). A capture run (--shot) leaves the player's
-    /// saves as they were, unless --save names a file of its own.
+    /// network, the host's own (a player keeps none); the tutorial, nowhere. A capture run (--shot)
+    /// leaves the player's saves as they were, unless --save names a file of its own.
     /// </summary>
-    string? SaveFile => Opts.Net is { Replica: true } ? null
-        : Opts.Net is not null ? Dev.Shot is null || Dev.SavePath is not null ? NetSavePath : null
-        : Dev.Shot is null ? SaveSlots.PathOf(SaveDir, SaveSlots.Auto) : null;
+    string? SaveFile => SaveSlots.CampaignFile(Opts.Tutorial || Galaxy?.Tutorial == true, Opts.Net is not null, Opts.Net is { Replica: true },
+        Dev.Shot is not null, Dev.SavePath is not null, SaveDir, NetSavePath);
 
     /// <summary>Alone and out of the game: the campaign is over for the player, whoever fights on.</summary>
     bool OverAlone => Opts.Net is null && Galaxy.Factions[Player].Eliminated;
@@ -570,7 +593,7 @@ public partial class GalaxyScreen : Node
     /// </summary>
     public bool SaveAs(string name)
     {
-        if (Opts.Net is not null || Dev.Shot is not null || Galaxy.Winner is not null || OverAlone) return false;
+        if (Opts.Net is not null || Dev.Shot is not null || Opts.Tutorial || Galaxy.Winner is not null || OverAlone) return false;
         return SaveSlots.SaveAs(Galaxy, SaveDir, name.Trim().Length > 0 ? name : DefaultSaveName()) is not null;
     }
 
@@ -605,6 +628,7 @@ public partial class GalaxyScreen : Node
             Player = player,
             Mode = GameMode.Campaign,
             Campaign = new CampaignBattle(b.World, battleId, Galaxies.BattleName(Galaxy, b.PlanetId, b.Lane), b.Attacker, b.Defender),
+            Coach = Coach,
         };
         Save();
         Main.Instance.StartBattle(opts);

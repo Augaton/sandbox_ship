@@ -24,6 +24,8 @@ public partial class GalaxyHud
     ];
 
     Drawer drawer;
+    /// <summary>The list open in the drawer, None when it is closed: the campaign tutorial asks whether the fleets were looked at.</summary>
+    public Drawer ShownDrawer => drawer;
     PanelContainer drawerPanel = null!;
     Label drawerTitle = null!;
     VBoxContainer drawerBody = null!;

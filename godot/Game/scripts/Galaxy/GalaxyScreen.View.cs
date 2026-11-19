@@ -28,6 +28,9 @@ public partial class GalaxyScreen
 
     /// <summary>A fleet of the player's on the move, shown in the panel; no planet is selected meanwhile.</summary>
     public int? SelectedFleet { get; private set; }
+    /// <summary>The zoom over the whole galaxy (1), and the map point at the middle of the view: the tutorial watches them move.</summary>
+    public double ViewZoom => zoom;
+    public (double X, double Y) ViewCenter => (cx, cy);
     /// <summary>The next planet of the selected fleet: where to look for it once it docks and merges there.</summary>
     int? fleetBound;
     int? hoverFleet;
@@ -43,7 +46,18 @@ public partial class GalaxyScreen
     Vector2? panFrom;
 
     /// <summary>Screen space the HUD leaves for the map: under the top bar, left of the planet panel.</summary>
-    Rect2 MapArea() => new(24, Top + 16, Math.Max(1, laidOut.X - PanelW - 48), Math.Max(1, laidOut.Y - Top - 32));
+    Rect2 MapArea() => new(24, Top + 16, Math.Max(1, laidOut.X - PanelW - 48), Math.Max(1, laidOut.Y - Top - 32 - bottomRoom));
+
+    /// <summary>Pixels kept free under the map: the campaign tutorial's card, at the bottom left.</summary>
+    float bottomRoom;
+
+    /// <summary>Keeps `pixels` free under the map, the galaxy fitted again above them.</summary>
+    public void MakeRoom(float pixels)
+    {
+        if (Math.Abs(pixels - bottomRoom) < 1) return;
+        bottomRoom = pixels;
+        if (laidOut != Vector2.Zero) Fit(false);
+    }
 
     /// <summary>The map area less what the open drawer covers: where a planet is centered.</summary>
     Rect2 FreeArea()

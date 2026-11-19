@@ -44,6 +44,8 @@ public sealed record BattleOptions
     public Replay? Replay { get; init; }
     /// <summary>The guided first battle (Ui/Tutorial.cs): a few ships to start with, a foe that does nothing but defend.</summary>
     public bool Tutorial { get; init; }
+    /// <summary>A battle of the campaign tutorial's galaxy: its card stays on screen and sees the battle's commands (Ui/CampaignTutorial.cs).</summary>
+    public Ui.CampaignTutorial? Coach { get; init; }
 
     /// <summary>The options to watch a replay: its battle as it was set up, through the eyes of whoever recorded it.</summary>
     public static BattleOptions Watch(Replay r) => new()

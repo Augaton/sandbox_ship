@@ -40,7 +40,7 @@ public partial class BattleScreen : Node
     const int SeekStepsPerFrame = 300;
     Ui.Tutorial? tutorial;
     /// <summary>Where the tutorial's card ends down the screen; null without a tutorial.</summary>
-    public float? TutorialBottom => tutorial?.Bottom;
+    public float? TutorialBottom => tutorial?.Bottom ?? (Opts.Coach is { } coach && IsInstanceValid(coach) ? coach.Bottom : null);
     static readonly Result Watching = Result.Fail("Rediffusion : aucun ordre possible");
 
     double acc;
@@ -94,6 +94,7 @@ public partial class BattleScreen : Node
         {
             var r = Commands.Apply(World, Opts.Player, c);
             tutorial?.Saw(c, r);
+            Opts.Coach?.Saw(c, r);
             return r;
         }));
         // A battle of a lobby, played alone or stepped here for everyone, keeps its commands for its replay.
@@ -150,6 +151,7 @@ public partial class BattleScreen : Node
             AddChild(new Ui.ReplayBar(this));
             return;
         }
+        o.Coach?.Attach(this);
         if (o.Tutorial)
         {
             tutorial = new Ui.Tutorial(this);
@@ -209,6 +211,8 @@ public partial class BattleScreen : Node
         // The battle's replay, as it stands when the player leaves it.
         if (World?.Log is not null && Replays.Of(World, Opts.Player, Ui.Menu.Version, DateTimeOffset.UtcNow.ToUnixTimeMilliseconds()) is { } replay)
             ReplayStore.Save(replay);
+        // Left to the menu, the tutorial's galaxy goes with its battle: the card may be gone already.
+        if (Opts.Coach is { } coach && IsInstanceValid(coach)) coach.Detach(this);
         if (Opts.Net is not { } net || net.Screen != this) return;
         net.Screen = null;
         // A campaign battle over the network: the session stops showing it here.
