@@ -171,6 +171,29 @@ public class FleetCapTests(ITestOutputHelper output)
     }
 
     [Fact]
+    public void The_battle_ai_calls_its_reinforcements_in_by_its_fleet_not_at_the_far_end()
+    {
+        var w = Fight(Mixed(), [], 60);
+        Steps.Run(w, Reserves.JumpTimeOf(ShipClass.Battlecruiser) + 0.1);
+        // Its fleet has crossed half the map; a few losses free room.
+        foreach (var e in ShipsOf(w, A)) e.X -= 1400;
+        foreach (var e in ShipsOf(w, A).Where(e => e.Cls == ShipClass.Frigate).Take(3).ToList()) w.Entities.Remove(e.Id);
+        // The battle AI thinks once a second: on the turn of one.
+        w.Time = Math.Floor(w.Time) + 1;
+        Battle.UpdateBattleAI(w, [A], 0.5);
+        var called = w.Jumps.Where(j => j.Side == A).ToList();
+        Assert.NotEmpty(called);
+        Assert.All(called, j => Assert.True(j.X < Battle.Width - 500 - Reserves.ArrivalReach, $"saut à {j.X:0}"));
+        // With nothing of its own on the field, at its end of the map.
+        foreach (var e in ShipsOf(w, A)) w.Entities.Remove(e.Id);
+        w.Jumps.Clear();
+        w.Time += 1;
+        Battle.UpdateBattleAI(w, [A], 0.5);
+        Assert.NotEmpty(w.Jumps);
+        Assert.All(w.Jumps, j => Assert.True(Worlds.Hypot(j.X - (Battle.Width - 500), j.Y - Battle.Height / 2) <= Reserves.ArrivalReach + 1));
+    }
+
+    [Fact]
     public void The_battle_ai_brings_its_reserve_in_as_room_frees_up_never_past_the_cap()
     {
         var w = Fight(Mixed(), Mixed(), 60);

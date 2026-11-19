@@ -411,6 +411,37 @@ public static class Battle
     }
 
     /// <summary>
+    /// Under a fleet cap, a side's reinforcements gather by its fleet on the field (its warship
+    /// nearest the middle of them all), where the reserve may come in, and not at its end of the
+    /// map: coming from there one after the other, they were beaten one at a time, and an AI
+    /// with the stronger fleet no longer took a fortified planet (a campaign between AIs went
+    /// from 37 to 208 minutes). With nothing of its own on the field, its arrival point.
+    /// </summary>
+    static void RallyAtFleet(World world, Side side)
+    {
+        if (!world.Factions.TryGetValue(side, out var f)) return;
+        double sx = 0, sy = 0;
+        var n = 0;
+        foreach (var e in world.Entities)
+        {
+            if (e.Kind != EntityKind.Ship || e.Side != side || e.Launched || e.Size == SizeClass.Small) continue;
+            (sx, sy, n) = (sx + e.X, sy + e.Y, n + 1);
+        }
+        Entity? lead = null;
+        if (n > 0)
+        {
+            var (cx, cy) = (sx / n, sy / n);
+            foreach (var e in world.Entities)
+            {
+                if (e.Kind != EntityKind.Ship || e.Side != side || e.Launched || e.Size == SizeClass.Small) continue;
+                if (lead is null || Hypot(e.X - cx, e.Y - cy) < Hypot(lead.X - cx, lead.Y - cy)) lead = e;
+            }
+        }
+        if (lead is not null) (f.RallyX, f.RallyY) = (lead.X, lead.Y);
+        else if (f.Arrival is Point at) (f.RallyX, f.RallyY) = (at.X, at.Y);
+    }
+
+    /// <summary>
     /// Once per second, each side calls in its reserve as far as the fleet cap leaves room, and
     /// its idle warships attack-move towards the nearest foe they can see; seeing none, towards a
     /// foe's station, or else to scout the middle.
@@ -420,6 +451,7 @@ public static class Battle
         if (Math.Floor(world.Time) == Math.Floor(world.Time - dt)) return;
         foreach (var side in sides)
         {
+            if (world.FleetCap > 0) RallyAtFleet(world, side);
             Reserves.CallAll(world, side);
             var idle = new List<Entity>();
             foreach (var e in world.Entities)

@@ -241,9 +241,15 @@ public static class Reserves
     {
         yield return (f.RallyX, f.RallyY);
         for (var i = 0; i < 6; i++) yield return (f.RallyX + Math.Cos(i * Math.Tau / 6) * 260, f.RallyY + Math.Sin(i * Math.Tau / 6) * 260);
-        if (station is null) yield break;
-        foreach (var k in new[] { 0.6, 0.3 }) yield return (station.X + (f.RallyX - station.X) * k, station.Y + (f.RallyY - station.Y) * k);
-        for (var i = 0; i < 8; i++) yield return (station.X + Math.Cos(i * Math.Tau / 8) * 450, station.Y + Math.Sin(i * Math.Tau / 8) * 450);
+        if (station is not null)
+        {
+            foreach (var k in new[] { 0.6, 0.3 }) yield return (station.X + (f.RallyX - station.X) * k, station.Y + (f.RallyY - station.Y) * k);
+            for (var i = 0; i < 8; i++) yield return (station.X + Math.Cos(i * Math.Tau / 8) * 450, station.Y + Math.Sin(i * Math.Tau / 8) * 450);
+        }
+        // A campaign battle's end of the map, when the fleet it gathers by is too near a foe's structure.
+        if (f.Arrival is not Point at) yield break;
+        yield return (at.X, at.Y);
+        for (var i = 0; i < 6; i++) yield return (at.X + Math.Cos(i * Math.Tau / 6) * 400, at.Y + Math.Sin(i * Math.Tau / 6) * 400);
     }
 
     /// <summary>How many ships of this class the side has in reserve or on their way.</summary>
