@@ -47,9 +47,10 @@ public static partial class GalaxySnapshot
     /// AI would answer the viewer and why it trusts it, the chronicle, promises of help. 6: the
     /// fortified capitals in the chart, the opening peace among the truces' flags; lasting peace,
     /// a pact's age, each side's weariness and the research of those at peace with the viewer,
-    /// tech deals' tech, what an AI answers a lasting peace, courtships, the new events.
+    /// tech deals' tech, what an AI answers a lasting peace, courtships, the new events. 7: an
+    /// AI's counter-offers (offers' and DealOffered's Counter), no more the peace price an AI asks.
     /// </summary>
-    public const ushort Version = 6;
+    public const ushort Version = 7;
     const uint Magic = 0x504E5347, ChartMagic = 0x54484347;
 
     /// <summary>What never changes in a campaign (see the layout above): sent once to each player, before its first snapshot.</summary>
@@ -167,6 +168,7 @@ public static partial class GalaxySnapshot
             w.Write7BitEncodedInt((o.Planet ?? -1) + 1);
             w.Write((byte)o.Terms);
             w.Write((byte)(o.Tech is TechId t ? (int)t + 1 : 0));
+            w.Write(o.Counter);
         }
         // The chronicle the viewer may read: what concerns it, and what all know of the others'
         // truces, alliances and joint wars. The latest ChronicleSent lines, counted from the end.
@@ -356,10 +358,8 @@ public static partial class GalaxySnapshot
                 // Worked out here: a replica sees only part of the AI's fleets and income, so one
                 // writes back what it was told rather than working it out again.
                 var talks = !own && !f.Eliminated && g.Factions.ContainsKey(viewer);
-                var mind = !talks ? default : ai.Asked is double asked && ai.Preview is { } told ? (Price: asked, Preview: told) : GalaxyAi.Mind(g, f.Id, viewer);
-                w.Write((float)mind.Price);
                 w.Write(talks);
-                if (talks) WriteMind(w, ai, viewer, mind.Preview!);
+                if (talks) WriteMind(w, ai, viewer, ai.Preview ?? GalaxyAi.Mind(g, f.Id, viewer));
             }
             if (!own) continue;
             w.Write(f.Credits);
@@ -615,6 +615,7 @@ public static partial class GalaxySnapshot
                 w.Write7BitEncodedInt((o.Planet ?? -1) + 1);
                 w.Write((byte)o.Terms);
                 w.Write((byte)(o.Tech is TechId tech ? (int)tech + 1 : 0));
+                w.Write(o.Counter);
                 break;
             case UltimatumEnded u:
                 w.Write((byte)Tag.UltimatumEnded);

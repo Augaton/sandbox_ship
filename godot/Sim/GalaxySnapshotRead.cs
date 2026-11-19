@@ -79,9 +79,9 @@ public static partial class GalaxySnapshot
         {
             replica.Offers.Add(new DealOffer
             {
-                From = SideOf(r), To = SideOf(r), Kind = Valid<DealKind>(r.ReadByte()), Amount = r.ReadSingle(), PerMinute = r.ReadBoolean(), Remaining = r.ReadSingle(),
+                From = SideOf(r), To = SideOf(r), Kind = Valid<DealKind>(r.ReadByte()), Amount = Price(r.ReadSingle()), PerMinute = r.ReadBoolean(), Remaining = Amount(r),
                 Target = OptionalSide(r), Planet = OptionalPlanet(r, replica), Terms = Terms(r.ReadByte()),
-                Tech = r.ReadByte() is var tech and > 0 ? Valid<TechId>((byte)(tech - 1)) : null,
+                Tech = r.ReadByte() is var tech and > 0 ? Valid<TechId>((byte)(tech - 1)) : null, Counter = r.ReadBoolean(),
             });
         }
         replica.Chronicle = [];
@@ -145,6 +145,12 @@ public static partial class GalaxySnapshot
         var v = r.ReadSingle();
         return float.IsFinite(v) && v >= 0 ? v : throw new InvalidDataException($"Valeur {v}");
     }
+
+    /// <summary>
+    /// What an offer asks or gives, as the screen shows it and weighs it against the viewer's
+    /// credits (a counter-offer's price): finite, from nothing to the largest tribute.
+    /// </summary>
+    static double Price(double v) => double.IsFinite(v) && v is >= 0 and <= Galaxies.MaxTribute ? v : throw new InvalidDataException($"Montant {v}");
 
     static Side SideOf(BinaryReader r) => r.ReadSide();
 
@@ -335,7 +341,6 @@ public static partial class GalaxySnapshot
                 bot.Personality = Valid<Personality>(r.ReadByte());
                 bot.Trust.Clear();
                 bot.Trust[viewer] = r.ReadSingle();
-                bot.Asked = Amount(r);
                 bot.Why.Clear();
                 bot.Preview = r.ReadBoolean() ? ReadMind(r, bot, viewer) : null;
             }
@@ -429,8 +434,8 @@ public static partial class GalaxySnapshot
         Tag.TechResearched => new TechResearched(SideOf(r), Valid<TechId>(r.ReadByte())),
         Tag.BountyPaid => new BountyPaid(PlanetOf(r, g), SideOf(r), r.ReadDouble(), OptionalTech(r), ReadLane(r, g)),
         Tag.GalaxyVictory => new GalaxyVictory(SideOf(r), r.ReadVarint()),
-        Tag.DealOffered => new DealOffered(SideOf(r), SideOf(r), Valid<DealKind>(r.ReadByte()), r.ReadDouble(), r.ReadBoolean(), OptionalSide(r), OptionalPlanet(r, g), Terms(r.ReadByte()),
-            r.ReadByte() is var tech and > 0 ? Valid<TechId>((byte)(tech - 1)) : null),
+        Tag.DealOffered => new DealOffered(SideOf(r), SideOf(r), Valid<DealKind>(r.ReadByte()), Price(r.ReadDouble()), r.ReadBoolean(), OptionalSide(r), OptionalPlanet(r, g), Terms(r.ReadByte()),
+            r.ReadByte() is var tech and > 0 ? Valid<TechId>((byte)(tech - 1)) : null, r.ReadBoolean()),
         Tag.UltimatumEnded => new UltimatumEnded(SideOf(r), SideOf(r), r.ReadBoolean()),
         Tag.PlanetCeded => new PlanetCeded(PlanetOf(r, g), SideOf(r), SideOf(r)),
         Tag.HelpAnswered => new HelpAnswered(SideOf(r), SideOf(r), OtherOf(r, g), r.ReadBoolean()),

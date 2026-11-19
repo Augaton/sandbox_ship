@@ -122,8 +122,9 @@ public static class Protocol
     /// 13: with commands 3 (Deploy) and battle snapshots 10 (the reserve and the jumps).
     /// 14: battle snapshots 11 (four ship classes more, the bastion).
     /// 15: the campaign's opening peace (Settings), its independents (side 7), galaxy snapshots 6.
+    /// 16: galaxy snapshots 7 (an AI's counter-offers).
     /// </summary>
-    public const int Version = 15;
+    public const int Version = 16;
     /// <summary>Where a host listens for players, unless told otherwise.</summary>
     public const int DefaultPort = 24680;
     /// <summary>Where hosts call out to the local network, and the join screen listens.</summary>

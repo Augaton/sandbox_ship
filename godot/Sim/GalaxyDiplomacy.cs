@@ -87,10 +87,16 @@ public sealed class DealOffer
     public DealTerms Terms;
     /// <summary>The tech a level of which a tech deal passes on.</summary>
     public TechId? Tech;
+    /// <summary>
+    /// An AI's answer to a deal a player proposed and it refused (GalaxyAi.Counter): the same
+    /// deal, the player paying `Amount` credits first; a planet or a tech, at that price.
+    /// </summary>
+    public bool Counter;
 }
 
+/// <summary>`From` offers `To` a deal; `Counter`, an AI's counter-offer to the one `To` proposed it.</summary>
 public sealed record DealOffered(Side From, Side To, DealKind Kind, double Amount, bool PerMinute, Side? Target = null, int? Planet = null, DealTerms Terms = DealTerms.None,
-    TechId? Tech = null) : GalaxyEvent;
+    TechId? Tech = null, bool Counter = false) : GalaxyEvent;
 /// <summary>`To` turned down what `From` offered: an AI says why, a player does not.</summary>
 public sealed record DealRefused(Side From, Side To, DealKind Kind, string Reason) : GalaxyEvent;
 public sealed record TruceSigned(Side A, Side B) : GalaxyEvent;
@@ -132,9 +138,6 @@ public sealed partial class GalaxyAIState
     public Dictionary<Side, double> BoughtTrust = [];
     /// <summary>Galaxy seconds before the AI signs a truce again with each AI it just came out of one with.</summary>
     public Dictionary<Side, double> TruceRest = [];
-    /// <summary>On a replica, what the snapshot told it asks the viewer for peace, in credits a minute; null on the host, who works it out (GalaxyAi.PeacePrice).</summary>
-    [JsonIgnore]
-    public double? Asked;
 }
 
 public static partial class Galaxies
@@ -165,6 +168,8 @@ public static partial class Galaxies
     /// a matter of time, gifts only shortening the wait. Below what any personality's alliance needs.
     /// </summary>
     public const double TrustBuyable = 15;
+    /// <summary>The credits a gift costs for each point of trust it buys an AI (BuyTrust).</summary>
+    public const double CreditsPerTrust = 40;
     /// <summary>
     /// What a second adds to an AI's trust in a faction it has a truce, a trade agreement or an
     /// alliance with; how fast trust drifts back to nothing without any; what a battle it is
@@ -373,15 +378,19 @@ public static partial class Galaxies
     public static Result CanOfferTruce(Galaxy g, Side from, Side to) => CanPropose(g, from, to, DealKind.Truce);
 
     /// <summary>
-    /// Offers a deal. An AI answers at once: Ok means signed, else the reason it refused. Anyone
-    /// else (a player) is left an offer to accept or refuse; the same offer they made already is
-    /// accepted.
+    /// Offers a deal. An AI answers at once: Ok means signed, else the reason it refused; to a
+    /// player, it may answer instead with what it would take (a counter-offer, GalaxyAi.Counter),
+    /// left to accept or refuse. Anyone else (a player) is left an offer to accept or refuse; the
+    /// same offer they made already is accepted.
     /// </summary>
     public static Result ProposeDeal(Galaxy g, Side from, Side to, DealKind kind, double amount = 0, bool perMinute = false,
         Side? target = null, int? planet = null, DealTerms terms = DealTerms.None, TechId? tech = null)
     {
         var r = CanPropose(g, from, to, kind, amount, perMinute, target, planet, terms, tech);
         if (!r.Ok) return r;
+        // Proposed again, a deal withdraws the counter-offer the AI made to the last one, which
+        // would otherwise be taken as accepted: the AI answers the new one.
+        g.Offers.RemoveAll(o => o.Counter && o.From == to && o.To == from && o.Kind == kind);
         if (kind is DealKind.Truce or DealKind.Alliance or DealKind.Trade or DealKind.Vision or DealKind.Peace && g.Offers.Exists(o => o.From == to && o.To == from && o.Kind == kind))
             return AcceptDeal(g, from, to, kind);
         // A threat is held against its maker, whatever comes of it.
@@ -390,6 +399,12 @@ public static partial class Galaxies
         {
             var answer = GalaxyAi.AnswerDeal(g, to, from, kind, amount, perMinute, target, planet, terms, tech);
             if (answer.Ok) answer = Conclude(g, from, to, kind, amount, perMinute, target, planet, terms, tech);
+            else if (g.Factions[from].AI is null && GalaxyAi.Counter(g, to, from, kind, amount, target, planet, tech) is { } counter)
+            {
+                g.Offers.Add(counter);
+                Note(g, new DealOffered(to, from, counter.Kind, counter.Amount, false, counter.Target, counter.Planet, Tech: counter.Tech, Counter: true));
+                return answer;
+            }
             if (!answer.Ok)
             {
                 Note(g, new DealRefused(from, to, kind, answer.Reason));
@@ -405,7 +420,10 @@ public static partial class Galaxies
 
     public static Result ProposeTruce(Galaxy g, Side from, Side to) => ProposeDeal(g, from, to, DealKind.Truce);
 
-    /// <summary>`side` accepts the deal of this kind `from` offered it, if it still holds.</summary>
+    /// <summary>
+    /// `side` accepts the deal of this kind `from` offered it, if it still holds. A counter-offer's
+    /// price is paid first, as a tribute paid once: a truce comes with it, if they were at war.
+    /// </summary>
     public static Result AcceptDeal(Galaxy g, Side side, Side from, DealKind kind)
     {
         var offer = g.Offers.Find(o => o.From == from && o.To == side && o.Kind == kind);
@@ -413,7 +431,13 @@ public static partial class Galaxies
         g.Offers.Remove(offer);
         // What changed since it was made may have undone it: a tribute nobody can pay, a trade without peace.
         var still = CanPropose(g, from, side, kind, offer.Amount, offer.PerMinute, offer.Target, offer.Planet, offer.Terms, offer.Tech);
-        return still.Ok ? Conclude(g, from, side, kind, offer.Amount, offer.PerMinute, offer.Target, offer.Planet, offer.Terms, offer.Tech) : Result.Fail("L'offre n'est plus valable");
+        if (!still.Ok) return Result.Fail("L'offre n'est plus valable");
+        if (offer.Counter && kind is not (DealKind.Planet or DealKind.Tech))
+        {
+            var paid = Conclude(g, side, from, DealKind.Tribute, offer.Amount, false, null, null);
+            if (!paid.Ok || kind == DealKind.Truce) return paid;
+        }
+        return Conclude(g, from, side, kind, offer.Amount, offer.PerMinute, offer.Target, offer.Planet, offer.Terms, offer.Tech);
     }
 
     public static Result AcceptTruce(Galaxy g, Side side, Side from) => AcceptDeal(g, side, from, DealKind.Truce);
@@ -519,7 +543,7 @@ public static partial class Galaxies
                     TruceOf(g, payer, payee)!.Paid = true;
                 }
                 // An AI paid warms to the payer; one made to pay resents it.
-                BuyTrust(g, payee, payer, (perMinute ? amount * TributeTime / 60 : amount) / 40);
+                BuyTrust(g, payee, payer, (perMinute ? amount * TributeTime / 60 : amount) / CreditsPerTrust);
                 if (kind == DealKind.Demand) Trusts(g, payer, payee, -10, cause: TrustCause.Demands);
                 else Say(g, payee, payer, Remark.Thanks);
                 Note(g, new TributeSigned(payer, payee, amount, perMinute));

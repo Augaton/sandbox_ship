@@ -303,7 +303,7 @@ public class FuzzTests
         Survives("GalaxySnapshot.Read", [snapshot, WithEvents(g), WithAccords(g)], bytes => GalaxySnapshot.Read(new BinaryReader(new MemoryStream(bytes)), replica));
     }
 
-    /// <summary>A snapshot carrying the diplomacy of this version: a joint war, shared vision, a bundle offered, a chronicle of every kind, a promise, an AI's reasons.</summary>
+    /// <summary>A snapshot carrying the diplomacy of this version: a joint war, shared vision, a bundle offered, a counter-offer, a chronicle of every kind, a promise, an AI's reasons.</summary>
     static byte[] WithAccords(Galaxy g)
     {
         var mine = g.Planets.First(p => p.Owner == Faction.Klaed).Id;
@@ -311,6 +311,7 @@ public class FuzzTests
         g.Pacts.Add(new Pact { Kind = DealKind.Vision, A = Faction.Klaed, B = Faction.Nairan });
         g.Offers.Add(new DealOffer { From = Faction.Nairan, To = Faction.Klaed, Kind = DealKind.Bundle, Terms = DealTerms.Truce | DealTerms.Tribute, Amount = 60, PerMinute = true, Remaining = 30 });
         g.Offers.Add(new DealOffer { From = Faction.Nairan, To = Faction.Klaed, Kind = DealKind.Help, Planet = mine, Remaining = 30 });
+        g.Offers.Add(new DealOffer { From = Faction.Nairan, To = Faction.Klaed, Kind = DealKind.Truce, Amount = 400, Remaining = 30, Counter = true });
         foreach (var kind in Enum.GetValues<ChronicleKind>())
         {
             var extra = kind switch { ChronicleKind.Said => (int)Remark.Threat, ChronicleKind.Ceded or ChronicleKind.Issued or ChronicleKind.Asked => mine, _ => -1 };
@@ -320,7 +321,7 @@ public class FuzzTests
         g.Factions[Faction.Nairan].Reputation = -12;
         g.Factions[Faction.Nairan].AI!.Why[Faction.Klaed] = new() { [TrustCause.Gifts] = 8, [TrustCause.Betrayal] = -30 };
         using var ms = new MemoryStream();
-        using (var w = new BinaryWriter(ms, Encoding.UTF8, true)) GalaxySnapshot.Write(g, Faction.Klaed, w, [], null, default);
+        using (var w = new BinaryWriter(ms, Encoding.UTF8, true)) GalaxySnapshot.Write(g, Faction.Klaed, w, [new DealOffered(Faction.Nairan, Faction.Klaed, DealKind.Truce, 400, false, Counter: true)], null, default);
         return ms.ToArray();
     }
 

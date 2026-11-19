@@ -103,26 +103,57 @@ public partial class GalaxyScreen : Node
 
 
     /// <summary>
-    /// Checking the diplomacy list (--deals): an alliance with the first AI, a truce and trade
-    /// with the second, which demands a tribute besides; the list open.
+    /// Checking the diplomacy screen (--deals, with --seats=3 for two AIs): the opening peace
+    /// lifted; the first AI far stronger, at war with the player, at peace with the other, trusting
+    /// the player a little, and demanding a tribute; trade with the second. The screen open on the
+    /// first, to which the player proposes a truce and an alliance, each answered by a
+    /// counter-offer; with --deals=open, nothing proposed yet, the peace intention open; with
+    /// --deals=accept, the truce's counter-offer accepted; with --deals=relations, the second tab.
     /// </summary>
     void DevDeals()
     {
         var g = Galaxy;
+        g.Truces.RemoveAll(t => t.Opening);
         var rivals = g.Factions.Values.Where(f => f.Id != Player && f.AI is not null).Select(f => f.Id).ToList();
-        if (rivals.Count > 0)
+        if (rivals.Count == 0) return;
+        var first = rivals[0];
+        Galaxies.AddShipsAt(g, first, g.Planets.First(p => p.Owner == first).Id, new ShipCounts { [ShipClass.Battlecruiser] = 20 });
+        // Balanced, it wants 40 of trust for an alliance: 10 short, its counter-offer asks 400 credits.
+        g.Factions[first].AI!.Personality = Personality.Balanced;
+        g.Factions[first].AI!.Trust[Player] = 30;
+        g.Factions[Player].Credits = Math.Max(g.Factions[Player].Credits, 3000);
+        foreach (var other in rivals.Skip(1))
         {
-            g.Factions[rivals[0]].AI!.Trust[Player] = 60;
-            Sink.Send(new GalaxyCommand.ProposeDeal(rivals[0], DealKind.Alliance));
+            g.Truces.Add(new Truce { A = first, B = other, Remaining = Galaxies.TruceTime });
+            g.Truces.Add(new Truce { A = Player, B = other, Remaining = Galaxies.TruceTime });
+            Sink.Send(new GalaxyCommand.ProposeAccord(other, DealKind.Trade));
         }
-        if (rivals.Count > 1)
+        void Drain()
         {
-            if (Galaxies.TruceOf(g, Player, rivals[1]) is null) g.Truces.Add(new Truce { A = Player, B = rivals[1], Remaining = Galaxies.TruceTime });
-            Sink.Send(new GalaxyCommand.ProposeDeal(rivals[1], DealKind.Trade));
-            g.Offers.Add(new DealOffer { From = rivals[1], To = Player, Kind = DealKind.Demand, Amount = 60, PerMinute = true, Remaining = Galaxies.OfferTime });
-            g.Events.Add(new DealOffered(rivals[1], Player, DealKind.Demand, 60, true));
+            foreach (var ev in g.Events) Hud.OnEvent(ev);
+            g.Events.Clear();
         }
-        Hud.OpenDiplomacy();
+        Drain();
+        Hud.OpenDiplomacy(first);
+        g.Offers.Add(new DealOffer { From = first, To = Player, Kind = DealKind.Demand, Amount = 60, PerMinute = true, Remaining = Galaxies.OfferTime });
+        g.Events.Add(new DealOffered(first, Player, DealKind.Demand, 60, true));
+        Drain();
+        if (Dev.DealsView == "open")
+        {
+            Hud.Intend(GalaxyHud.Intent.Peace);
+            return;
+        }
+        foreach (var kind in (ReadOnlySpan<DealKind>)[DealKind.Truce, DealKind.Alliance])
+        {
+            Hud.Propose(first, kind);
+            Drain();
+        }
+        if (Dev.DealsView == "accept")
+        {
+            Hud.Answer(first, DealKind.Truce, true);
+            Drain();
+        }
+        if (Dev.DealsView == "relations") Hud.ShowRelations();
     }
 
     /// <summary>A galaxy of its own: new, loaded from a save (the most recent one to continue), or played ahead (--skip).</summary>

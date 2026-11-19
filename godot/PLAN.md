@@ -709,6 +709,55 @@ tests de `FixtureTests` et `CrossTests` les listent.
     tombe maintenant avec le défenseur vaincu.
   - Réseau : protocole 15 (réglage `Peace`, camp 7), instantanés de galaxie 6, commande `Court`, `ProposeAccord` avec sa
     technologie. Tests : `EnduranceTests`, `RelationsTests`, `GalaxySizesTests`.
+- Diplomatie en dialogue (2026-11-19, à la demande de l'utilisateur, maquette validée avec lui) : l'écran (touche T),
+  jugé incompréhensible (un mur de boutons, une « réponse prévue » en rouge à côté de presque chacun), devient un
+  dialogue avec un camp à la fois. La liste des camps reste à gauche.
+  - En haut, le camp choisi : son humeur en un mot (amicale, bienveillante, réservée, méfiante, hostile,
+    `GalaxyAi.Attitude` : d'après sa considération, jamais mieux que méfiante tant qu'elle garde rancune), sa raison
+    dans ses mots (la cause qui a le plus fait bouger sa confiance dans ce sens ; sinon le camp qui domine, ta
+    réputation, son humeur ou sa personnalité) et la jauge de confiance.
+  - Cinq intentions : faire la paix (trêve, paix durable), commercer (accord commercial, vision partagée, échange
+    d'une planète ou d'une technologie), s'allier (alliance, guerre commune contre chaque tiers), exiger ou menacer
+    (tribut, ultimatum en crédits ou pour une planète), et une cinquième nommée d'après la paix en cours (rompre la
+    trêve ou l'alliance, dénoncer la paix ; « Déclarer la guerre », éteint en guerre et pendant la paix de départ).
+    Chacune porte un indice d'humeur, pas la réponse mot pour mot : ouverte, réticente, hostile, et pour les menaces
+    « elle te craint » ou non (`GalaxyAi.LeaningOf`, tiré de `PreviewFor` ; réticente si des crédits ou le temps
+    peuvent la décider, hostile pour une rancune, une guerre jurée, le camp qui domine, ou plus de confiance manquante
+    qu'un cadeau n'en achète). Elle s'ouvre sur ses formes, chacune avec son indice ou ce qui l'empêche ; un clic propose.
+  - À droite, le fil : ce que tu proposes, sa réplique (« D'accord. », « Non. » et sa raison, désormais à la première
+    personne, ou une contre-offre), ses offres et demandes (aide, ultimatum, tribut, trêve…) avec leurs boutons tant
+    qu'elles tiennent, ses paroles, et ce qui est signé, rompu ou fini, dit comme l'historique, qui te tutoie
+    désormais (« Tu romps la trêve »). La vue garde le fil de la partie en cours, 40 lignes par camp ; une offre faite
+    avant (une sauvegarde chargée) se répond au bout du fil. Une offre ne fait plus surgir sa fenêtre quand le fil de
+    son camp est à l'écran. Au second plan, l'onglet « Relations et historique » : le tableau de tous les camps et
+    l'historique avec le camp choisi.
+  - Contre-offre (`GalaxyAi.Counter`, appelée par `Galaxies.ProposeDeal` chez l'hôte) : une IA qui refuserait ce qu'un
+    joueur propose mais l'accepterait contre des crédits le dit par une offre en retour (`DealOffer.Counter`), au lieu
+    d'un refus : une trêve qu'elle se croit trop forte pour signer, à son prix de paix sur une trêve, payé d'un coup ;
+    une paix durable, une alliance, le commerce, la vision ou une guerre commune pour lesquels la confiance lui manque,
+    au prix de la confiance qu'un cadeau peut encore acheter (40 crédits le point, `CreditsPerTrust`, 15 points au
+    plus par trêve comme avant), si cela la décide ; une planète ou une technologie à son prix. Acceptée, le prix se
+    paie comme un tribut d'un coup (la trêve vient avec s'ils étaient en guerre, la confiance achetée aussi), puis
+    l'accord se conclut. Jamais entre IA, ni malgré une rancune, une guerre jurée ou le camp qui domine. Proposer de
+    nouveau le même accord retire la contre-offre, qui aurait sinon été prise pour acceptée ; l'IA répond à neuf.
+  - Supprimé : l'offre à composer (trêve, commerce, vision, tribut d'un bloc) et sa réponse prévue, les réponses
+    prévues des accords à part, le détail chiffré des causes de confiance, le prix de la paix envoyé au joueur
+    (`GalaxyAIState.Asked`, ce que la contre-offre dit maintenant). L'offre combinée (`DealKind.Bundle`) reste dans la
+    simulation et le réseau, mais l'interface ne la propose plus.
+  - Réseau : protocole 16, instantanés de galaxie 7 (le drapeau de contre-offre des offres et de `DealOffered`, plus de
+    prix de paix). Le montant d'une offre et de `DealOffered` se lit fini, de 0 à `MaxTribute` (le prix d'une
+    contre-offre s'affiche et se compare aux crédits du joueur), son temps fini et positif ; le fuzz couvre une
+    contre-offre dans l'instantané et dans ses événements. Les sauvegardes gardent le drapeau, les anciennes se
+    chargent sans. Tests : `AccordsTests` (contre-offres de trêve, d'alliance et de planète, sans les crédits,
+    jamais entre IA, retirée par une nouvelle proposition, sur une réplique et dans une sauvegarde ; humeur et indices).
+  - Vérification : `--deals` (avec `--seats=3`, deux IA) ouvre l'écran après une trêve et une alliance proposées à une
+    IA bien plus forte, chacune contre-offerte ; `--deals=open` avant toute proposition, `--deals=accept` la trêve
+    payée, `--deals=relations` l'onglet second. Captures en 1280×800 et 1280×720, en français et en anglais (aucun texte
+    affiché sans anglais). Une réplique entre guillemets se traduit dans la vue (`Lang.T`), les guillemets selon la
+    langue : un modèle « {0} » ne se traduisait pas, et « contre » d'une contre-offre devenait « versus ».
+  - Ouvert : le fil n'est pas sauvegardé (l'historique l'est) ; une contre-offre de trêve à son prix de paix peut
+    coûter cher (2 200 crédits contre une IA vingt croiseurs de bataille plus forte) ; aucune mesure d'équilibrage entre
+    IA n'a été refaite, rien n'ayant changé de ce qu'elles décident entre elles.
 - Sécurité (2026-11-03) : ce qu'un inconnu peut envoyer au serveur en ligne, à un hôte ou au jeu, et les fichiers du joueur.
   Chaque lecteur exposé passe un test de robustesse à graine fixe (`FuzzTests` : trames du relais, messages du jeu, ordres,
   instantanés de bataille entiers et en parties, galaxie, rediffusions, sauvegardes), et chaque correction a son test

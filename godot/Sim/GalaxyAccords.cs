@@ -78,9 +78,9 @@ public sealed partial class GalaxyAIState
     public double AskWait, ThreatWait;
     /// <summary>Galaxy seconds during which the AI, having given in to each faction's ultimatum, will not again (UltimatumMemory).</summary>
     public Dictionary<Side, double> Yielded = [];
-    /// <summary>On the host, what the AI would answer each viewer and its peace price, worked out at a galaxy time: a snapshot reuses them for a second.</summary>
+    /// <summary>On the host, what the AI would answer each viewer, worked out at a galaxy time: a snapshot reuses it for a while (GalaxyAi.Mind).</summary>
     [JsonIgnore]
-    internal Dictionary<Side, (double At, int Changes, double Price, DealPreview Preview)> Minds = [];
+    internal Dictionary<Side, (double At, int Changes, DealPreview Preview)> Minds = [];
     /// <summary>On a replica, what the AI would answer the viewer (sent by the host, who works it out); null on the host.</summary>
     [JsonIgnore]
     public DealPreview? Preview;
@@ -400,14 +400,14 @@ public static partial class Galaxies
     {
         g.Events.Add(ev);
         g.DiploChanges++;
-        if (Entry(g, ev) is not { } e) return;
+        if (Entry(ev) is not { } e) return;
         e.Time = g.Time;
         g.Chronicle.Add(e);
         if (g.Chronicle.Count > ChronicleMax) g.Chronicle.RemoveRange(0, g.Chronicle.Count - ChronicleMax);
     }
 
-    /// <summary>The chronicle's line for a diplomatic event; none for an offer but an ultimatum or a request for help.</summary>
-    static DiploEntry? Entry(Galaxy g, GalaxyEvent ev) => ev switch
+    /// <summary>The chronicle's line for a diplomatic event; none for an offer but an ultimatum or a request for help. The diplomacy screen words its thread with it too.</summary>
+    public static DiploEntry? Entry(GalaxyEvent ev) => ev switch
     {
         DealOffered o when o.Kind is DealKind.Ultimatum or DealKind.Help =>
             new() { Kind = o.Kind == DealKind.Ultimatum ? ChronicleKind.Issued : ChronicleKind.Asked, Deal = o.Kind, A = o.From, B = o.To, Amount = o.Amount, Extra = o.Planet ?? -1 },

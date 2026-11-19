@@ -1,9 +1,10 @@
-// The diplomacy screen of the campaign (key T): where every faction stands with every other (a
-// table of relations), the factions on the left, and on the right the one chosen: its attitude
-// and why it trusts the player as it does, the accords in force and how to end them, the offers
-// and demands it made, a proposal to build (several terms at once) with the answer it would get,
-// the joint war, demand and ultimatum it may be made, and the chronicle of what passed between
-// them. Alone, time stops while it is open. What an AI says comes in its personality's words.
+// The diplomacy screen of the campaign (key T): a dialogue with one faction at a time. The
+// factions on the left; on the right, the one chosen: how it feels about the player and why, and
+// its trust; five intentions (make peace, trade, ally, demand, war), each with how the AI leans
+// towards it, opening on the forms it takes; the accords in force and how to end them; and the
+// thread of what passed between them: proposals, answers, counter-offers, and the offers and
+// demands it makes, answered there. The table of relations between all factions and the
+// chronicle are on a second tab. Alone, time stops while it is open.
 using Godot;
 using SandboxShip.Core;
 using SandboxShip.Sim;
@@ -15,18 +16,42 @@ namespace SandboxShip.Campaign;
 
 public partial class GalaxyHud
 {
-    /// <summary>The screen's layer while it is open; the faction it shows.</summary>
+    enum DiploTab { Talk, Relations }
+
+    /// <summary>The intentions that open on their forms; war opens nothing, it ends the peace there is.</summary>
+    internal enum Intent { None, Peace, Trade, Ally, Demand }
+
+    /// <summary>Shows the second tab, as a click on it does (the captures of --deals=relations).</summary>
+    internal void ShowRelations() => ShowTab(DiploTab.Relations);
+
+    /// <summary>Opens an intention on its forms, as a click on it does (the captures of --deals=open).</summary>
+    internal void Intend(Intent i)
+    {
+        diploIntent = i;
+        RefreshDiplomacy();
+    }
+
+    /// <summary>One form an intention takes: what the player proposes, and its terms.</summary>
+    sealed record Form(string Label, string Tip, DealKind Kind, Side? Target = null, int? Planet = null, double Amount = 0, bool PerMinute = false);
+
+    /// <summary>A line of the thread: said by `Speaker` (null: what happened), or an offer made to the player, answered there while it holds.</summary>
+    sealed record Line(Side? Speaker, string Text, DealOffered? Offer = null);
+
+    /// <summary>The screen's layer while it is open; the faction it shows, its tab, the intention open.</summary>
     Control? diplomacy;
     Side? diploSide;
-    VBoxContainer diploList = null!, diploDetail = null!;
+    DiploTab diploTab;
+    Intent diploIntent;
+    VBoxContainer diploList = null!, diploHead = null!, diploActions = null!, diploThread = null!, diploHistory = null!;
+    Control diploTalk = null!, diploRelations = null!;
     GridContainer diploMatrix = null!;
     Label diploReputation = null!;
-    ScrollContainer diploScroll = null!;
-    /// <summary>The proposal being built: its terms, and its tribute.</summary>
-    DealTerms diploTerms;
-    double diploAmount = 60;
-    bool diploPerMinute = true;
-    /// <summary>The exchange being put together: a planet or a tech, and its price in credits.</summary>
+    Button diploTalkTab = null!, diploRelationsTab = null!;
+    ScrollContainer diploScroll = null!, threadScroll = null!;
+    /// <summary>The thread's lines as last shown, and refreshes left to keep it scrolled to the newest.</summary>
+    int threadSeen = -1, threadDown;
+    /// <summary>The exchange being put together: open or not, a planet or a tech, and its price in credits.</summary>
+    bool swapOpen;
     int? swapPlanet;
     TechId? swapTech;
     double swapPrice;
@@ -34,6 +59,11 @@ public partial class GalaxyHud
     bool heldByDiplomacy;
     /// <summary>The matrix as last drawn: rebuilt when a relation changes.</summary>
     string diploMatrixKey = "";
+    /// <summary>What was said with each faction since the campaign was opened here, the oldest first (TalkMax at most).</summary>
+    readonly Dictionary<Side, List<Line>> talks = [];
+    /// <summary>The AIs the player just proposed a deal to: a deal signed next is their yes.</summary>
+    readonly HashSet<Side> awaiting = [];
+    const int TalkMax = 40;
 
     public bool DiplomacyOpen => diplomacy is not null;
 
@@ -65,38 +95,68 @@ public partial class GalaxyHud
         layer.AddChild(margin);
         var panel = Panel(16, 14);
         margin.AddChild(panel);
-        var col = Column(10);
+        var col = Column(12);
         panel.AddChild(col);
-        var head = Row(12);
-        var title = Text("Diplomatie", size: 22, bold: true);
-        head.AddChild(title);
+        var head = Row(10);
+        head.AddChild(Text("Diplomatie", size: 22, bold: true));
         diploReputation = Text("", Palette.Muted, 14);
         diploReputation.SizeFlagsHorizontal = Control.SizeFlags.ExpandFill;
         diploReputation.SizeFlagsVertical = Control.SizeFlags.ShrinkCenter;
         head.AddChild(diploReputation);
+        diploTalkTab = Small("Dialogue", () => ShowTab(DiploTab.Talk), "Ce que tu proposes à ce camp, et ce qu'il te répond");
+        diploRelationsTab = Small("Relations et historique", () => ShowTab(DiploTab.Relations), "Où en sont tous les camps entre eux, et ce qui s'est passé avec celui-ci");
+        head.AddChild(diploTalkTab);
+        head.AddChild(diploRelationsTab);
         var close = Button("×", () => CloseDiplomacy(), "Fermer (Échap)", height: 32);
         close.CustomMinimumSize = new Vector2(32, 32);
         head.AddChild(close);
         col.AddChild(head);
-        col.AddChild(Text("Relations entre les camps", Palette.Muted, 13));
-        diploMatrix = new GridContainer();
-        diploMatrix.AddThemeConstantOverride("h_separation", 14);
-        diploMatrix.AddThemeConstantOverride("v_separation", 4);
-        col.AddChild(diploMatrix);
         var body = Row(14);
         body.SizeFlagsVertical = Control.SizeFlags.ExpandFill;
         col.AddChild(body);
         diploList = Column(6);
         var listScroll = Scroll(diploList);
-        listScroll.CustomMinimumSize = new Vector2(250, 0);
+        listScroll.CustomMinimumSize = new Vector2(220, 0);
         listScroll.SizeFlagsVertical = Control.SizeFlags.ExpandFill;
         body.AddChild(listScroll);
-        diploDetail = Column(12);
-        diploDetail.SizeFlagsHorizontal = Control.SizeFlags.ExpandFill;
-        diploScroll = Scroll(diploDetail);
-        diploScroll.SizeFlagsHorizontal = Control.SizeFlags.ExpandFill;
+        // The dialogue: who it is and how it feels; what to tell it; what was said.
+        var talk = Column(12);
+        talk.SizeFlagsHorizontal = Control.SizeFlags.ExpandFill;
+        talk.SizeFlagsVertical = Control.SizeFlags.ExpandFill;
+        diploHead = Column(6);
+        talk.AddChild(diploHead);
+        var split = Row(16);
+        split.SizeFlagsVertical = Control.SizeFlags.ExpandFill;
+        talk.AddChild(split);
+        diploActions = Column(8);
+        diploScroll = Scroll(diploActions);
+        diploScroll.CustomMinimumSize = new Vector2(400, 0);
         diploScroll.SizeFlagsVertical = Control.SizeFlags.ExpandFill;
-        body.AddChild(diploScroll);
+        split.AddChild(diploScroll);
+        var threadBox = new PanelContainer { MouseFilter = Control.MouseFilterEnum.Stop };
+        threadBox.AddThemeStyleboxOverride("panel", UiTheme.Box(Palette.Bg with { A = 0.6f }, Palette.Line, 12));
+        threadBox.SizeFlagsHorizontal = Control.SizeFlags.ExpandFill;
+        threadBox.SizeFlagsVertical = Control.SizeFlags.ExpandFill;
+        diploThread = Column(12);
+        threadScroll = Scroll(diploThread);
+        threadBox.AddChild(threadScroll);
+        split.AddChild(threadBox);
+        body.AddChild(talk);
+        diploTalk = talk;
+        // The second tab: every faction with every other, and the chronicle with the one chosen.
+        var relations = Column(10);
+        relations.AddChild(Text("Relations entre les camps", Palette.Accent, 15, bold: true));
+        diploMatrix = new GridContainer();
+        diploMatrix.AddThemeConstantOverride("h_separation", 14);
+        diploMatrix.AddThemeConstantOverride("v_separation", 4);
+        relations.AddChild(diploMatrix);
+        diploHistory = Column(6);
+        relations.AddChild(diploHistory);
+        var relationsScroll = Scroll(relations);
+        relationsScroll.SizeFlagsHorizontal = Control.SizeFlags.ExpandFill;
+        relationsScroll.SizeFlagsVertical = Control.SizeFlags.ExpandFill;
+        body.AddChild(relationsScroll);
+        diploRelations = relationsScroll;
         // Under the dialogs, which come on top of it (an offer, a betrayal to confirm).
         root.AddChild(layer);
         if (modal is not null) root.MoveChild(layer, modal.GetIndex());
@@ -104,6 +164,7 @@ public partial class GalaxyHud
         Sfx.Play(Sound.Open);
         diplomacy = layer;
         diploMatrixKey = "";
+        threadSeen = -1;
         if (scene.Opts.Net is null && !scene.Paused)
         {
             scene.TogglePause();
@@ -137,27 +198,76 @@ public partial class GalaxyHud
     {
         if (diploSide == rival) return;
         diploSide = rival;
-        diploTerms = DealTerms.None;
-        diploAmount = 60;
-        diploPerMinute = true;
+        diploIntent = Intent.None;
+        (swapOpen, swapPlanet, swapTech) = (false, null, null);
+        threadSeen = -1;
         diploScroll?.SetDeferred(ScrollContainer.PropertyName.ScrollVertical, 0);
     }
 
+    void ShowTab(DiploTab tab)
+    {
+        diploTab = tab;
+        threadSeen = -1;
+        RefreshDiplomacy();
+    }
 
     void RefreshDiplomacy()
     {
         if (diplomacy is null) return;
         var me = G.Factions[Player];
         diploReputation.Text = $"Ta réputation : {Signed(me.Reputation)} ({Repute(me.Reputation)})";
-        RefreshMatrix();
+        Outline(diploTalkTab, diploTab == DiploTab.Talk ? Palette.Accent : null);
+        Outline(diploRelationsTab, diploTab == DiploTab.Relations ? Palette.Accent : null);
         Sync(diploList, [.. DiploRivals().Select(RivalPart)]);
-        Sync(diploDetail, diploSide is Side r && G.Factions.ContainsKey(r) ? DetailParts(r) : [TextPart("Aucun autre camp.", Palette.Muted)]);
+        diploTalk.Visible = diploTab == DiploTab.Talk;
+        diploRelations.Visible = diploTab == DiploTab.Relations;
+        var shown = diploSide is Side s && G.Factions.ContainsKey(s) ? s : (Side?)null;
+        if (diploTab == DiploTab.Relations)
+        {
+            RefreshMatrix();
+            Sync(diploHistory, shown is Side h ? [SectionPart($"Historique avec {NameOf(h)}"), HistoryPart(h)] : []);
+            return;
+        }
+        if (shown is not Side r)
+        {
+            Sync(diploHead, [TextPart("Aucun autre camp.", Palette.Muted)]);
+            Sync(diploActions, []);
+            Sync(diploThread, []);
+            return;
+        }
+        Sync(diploHead, HeadParts(r));
+        Sync(diploActions, ActionParts(r));
+        var thread = ThreadParts(r);
+        Sync(diploThread, thread);
+        // A line more: the newest is shown, once the thread is laid out again.
+        if (thread.Count != threadSeen) (threadSeen, threadDown) = (thread.Count, 3);
+        if (threadDown > 0)
+        {
+            threadDown--;
+            threadScroll.ScrollVertical = (int)threadScroll.GetVScrollBar().MaxValue;
+        }
     }
 
     static string Signed(double v) => v >= 0.5 ? $"+{N(Js.Round(v))}" : N(Js.Round(v));
 
     /// <summary>A reputation in a word.</summary>
     static string Repute(double r) => r >= 30 ? "très fiable" : r >= 8 ? "fiable" : r > -8 ? "neutre" : r > -30 ? "peu fiable" : "parjure";
+
+    static Part SectionPart(string title) => new($"section:{title}", () => Text(title, Palette.Accent, 15, bold: true));
+
+    /// <summary>
+    /// A label the view translates itself (Lang.T): what it shows is made after translating, quoted
+    /// or lowered. Its text comes once it is so: a label translates the text it is made with.
+    /// </summary>
+    static Label Own(Label l, string text = "")
+    {
+        l.AutoTranslateMode = Node.AutoTranslateModeEnum.Disabled;
+        l.Text = text;
+        return l;
+    }
+
+    /// <summary>Words said, in the language shown and its quotes.</summary>
+    static string Quote(string french) => Lang.Current == Lang.English ? $"“{Lang.T(french)}”" : $"« {french} »";
 
     // ── The table of relations ────────────────────────────────────────────────────────
 
@@ -256,7 +366,7 @@ public partial class GalaxyHud
         {
             var b = (LabelButton)c;
             var (word, _) = Standing(Player, r);
-            b.Line(1).Text = f.Eliminated ? "éliminée" : f.AI is not null ? $"{word} · confiance {Signed(Galaxies.TrustOf(G, r, Player))}" : $"{word} · joueur";
+            b.Line(1).Text = f.Eliminated ? "éliminée" : f.AI is not null ? $"{word}, confiance {Signed(Galaxies.TrustOf(G, r, Player))}" : $"{word}, joueur";
             // Its own line: the view translates whole texts, and a longer one would be read as the shorter's.
             var news = b.Line(2);
             news.Text = ultimatum ? "Ultimatum !" : offers > 1 ? $"{offers} offres en attente" : offers == 1 ? "Une offre en attente" : "";
@@ -264,117 +374,347 @@ public partial class GalaxyHud
         });
     }
 
-    // ── The faction chosen ───────────────────────────────────────────────────────────
+    // ── Who it is, and how it feels ──────────────────────────────────────────────────
 
-    List<Part> DetailParts(Side r)
+    List<Part> HeadParts(Side r)
     {
-        var g = G;
-        var f = g.Factions[r];
+        var f = G.Factions[r];
         var parts = new List<Part> { HeadPart(r) };
-        if (f.Eliminated)
-        {
-            parts.Add(TextPart("Ce camp a été éliminé.", Palette.Muted));
-            parts.Add(HistoryPart(r));
-            return parts;
-        }
-        if (f.AI is not null) parts.Add(AttitudePart(r));
-        parts.Add(SectionPart("Accords en cours"));
-        parts.Add(AccordsPart(r));
-        var offers = g.Offers.Where(o => o.From == r && o.To == Player).ToList();
-        if (offers.Count > 0)
-        {
-            parts.Add(SectionPart("Ses offres et demandes"));
-            foreach (var o in offers) parts.Add(OfferPart(o));
-        }
-        foreach (var o in g.Offers.Where(o => o.From == Player && o.To == r)) parts.Add(TextPart($"Ton offre ({Noun(o.Kind)}) : réponse sous {Left(o.Remaining)}", Palette.Muted, 13));
-        parts.Add(SectionPart("Proposer"));
-        parts.Add(ProposalPart(r));
-        parts.Add(SectionPart("Accords à part"));
-        parts.Add(SpecialPart(r));
-        if (!Galaxies.AtWar(g, Player, r))
-        {
-            parts.Add(SectionPart("Échanges"));
-            parts.Add(ExchangePart(r));
-        }
-        parts.Add(SectionPart("Historique"));
-        parts.Add(HistoryPart(r));
+        if (f.Eliminated) parts.Add(TextPart("Ce camp a été éliminé.", Palette.Muted));
+        else if (f.AI is not null) parts.Add(MoodPart(r));
+        else parts.Add(TextPart("Un joueur : il répond lui-même à tes offres, dans la minute.", Palette.Muted, 14));
         return parts;
     }
-
-    static Part SectionPart(string title) => new($"section:{title}", () => Text(title, Palette.Accent, 15, bold: true));
 
     /// <summary>Its emblem, name, what it is (an AI's personality, or a player), and its reputation.</summary>
     Part HeadPart(Side r) => new($"head:{r}", () =>
     {
-        var col = Column(4);
-        col.AddChild(Heading(NameOf(r), r, 22));
+        var row = Row(14);
+        row.AddChild(Heading(NameOf(r), r, 22));
         var what = Text("", Palette.Muted, 14, wrap: true);
         what.Name = "what";
-        col.AddChild(what);
-        return col;
+        row.AddChild(what);
+        return row;
     }, c =>
     {
         var f = G.Factions[r];
         var kind = f.AI is { } ai ? $"IA {Personalities.Defs[ai.Personality].Name.ToLowerInvariant()}, {Worlds.Difficulties[ai.Difficulty].Name.ToLowerInvariant()}" : "Joueur";
-        ((Label)c.FindChild("what", true, false)).Text = $"{kind} · réputation {Signed(f.Reputation)} ({Repute(f.Reputation)})"
-            + (f.Weariness >= 1 ? $" · lassitude de guerre {N(Math.Round(f.Weariness))} (revenu −{HudKit.Percent(Galaxies.WearyCost * f.Weariness / Galaxies.WearyMax)})" : "");
+        ((Label)c.FindChild("what", true, false)).Text = $"{kind} ; réputation {Signed(f.Reputation)} ({Repute(f.Reputation)})"
+            + (f.Weariness >= 1 ? $" ; lassitude de guerre {N(Math.Round(f.Weariness))}, revenu −{HudKit.Percent(Galaxies.WearyCost * f.Weariness / Galaxies.WearyMax)}" : "");
     });
 
-    /// <summary>An AI's trust in the player, and what moved it lately: the larger first.</summary>
-    Part AttitudePart(Side r)
+    /// <summary>An AI's mood towards the player in a word, its reason in its own words, and its trust.</summary>
+    Part MoodPart(Side r) => new($"mood:{r}", () =>
     {
-        var why = G.Factions[r].AI!.Why.GetValueOrDefault(Player) ?? [];
-        var causes = why.Where(c => Math.Abs(c.Value) >= 0.5).OrderByDescending(c => Math.Abs(c.Value)).Take(6).Select(c => c.Key).ToList();
-        return new Part($"attitude:{r}:{string.Join(",", causes)}", () =>
+        var col = Column(6);
+        var line = Row(12);
+        line.AddChild(Text("", size: 16, bold: true));
+        line.AddChild(Own(Text("", Palette.Text, 15, wrap: true)));
+        col.AddChild(line);
+        var gauge = Row(12);
+        var bar = new ProgressBar { ShowPercentage = false, MaxValue = 1, Step = 0, CustomMinimumSize = new Vector2(0, 8), MouseFilter = Control.MouseFilterEnum.Ignore };
+        bar.SizeFlagsHorizontal = Control.SizeFlags.ExpandFill;
+        bar.SizeFlagsVertical = Control.SizeFlags.ShrinkCenter;
+        var fill = UiTheme.Box(Palette.Ok, Palette.Ok, pad: 0);
+        fill.SetContentMarginAll(0);
+        var bg = UiTheme.Box(Palette.Danger with { A = 0.35f }, Palette.Danger with { A = 0.35f }, pad: 0);
+        bg.SetContentMarginAll(0);
+        bar.AddThemeStyleboxOverride("fill", fill);
+        bar.AddThemeStyleboxOverride("background", bg);
+        gauge.AddChild(bar);
+        var trust = Text("", Palette.Muted, 14);
+        trust.CustomMinimumSize = new Vector2(150, 0);
+        gauge.AddChild(trust);
+        col.AddChild(gauge);
+        return col;
+    }, c =>
+    {
+        var (mood, cause, weight) = GalaxyAi.Attitude(G, r, Player);
+        var line = c.GetChild(0);
+        var word = line.GetChild<Label>(0);
+        word.Text = MoodWord(mood);
+        Paint(word, mood >= Mood.Warm ? Palette.Ok : mood <= Mood.Distrustful ? Palette.Danger : Palette.Text);
+        line.GetChild<Label>(1).Text = Quote(Because(r, mood, cause, weight));
+        var trust = Galaxies.TrustOf(G, r, Player);
+        var gauge = c.GetChild(1);
+        gauge.GetChild<ProgressBar>(0).Value = Math.Clamp((trust + 100) / 200, 0, 1);
+        gauge.GetChild<Label>(1).Text = $"Confiance {Signed(trust)}";
+    });
+
+    static string MoodWord(Mood m) => m switch
+    {
+        Mood.Friendly => "Amicale",
+        Mood.Warm => "Bienveillante",
+        Mood.Reserved => "Réservée",
+        Mood.Distrustful => "Méfiante",
+        _ => "Hostile",
+    };
+
+    /// <summary>
+    /// Why an AI feels as it does, in its words: the faction it sees dominating, else what moved its
+    /// trust the most, else the player's word as all know it, else its mood, or its nature when it
+    /// has none yet.
+    /// </summary>
+    string Because(Side r, Mood mood, TrustCause? cause, double weight)
+    {
+        if (mood <= Mood.Reserved && PreviewOf(r)?.Peace == DealWhy.Leader) return "Tu deviens trop puissant.";
+        if (cause is TrustCause c) return Said(c, weight > 0);
+        var word = G.Factions[Player].Reputation;
+        if (word <= -8) return "On dit que ta parole ne vaut rien.";
+        if (word >= 8) return "On dit que tu tiens parole.";
+        if (mood >= Mood.Warm) return "Nous t'estimons.";
+        if (mood <= Mood.Distrustful) return "Nous nous méfions de toi.";
+        return G.Factions[r].AI!.Personality switch
         {
-            var col = Column(4);
-            col.AddChild(Text("", Palette.Text, 15, bold: true));
-            var bar = new ProgressBar { ShowPercentage = false, MaxValue = 1, Step = 0, CustomMinimumSize = new Vector2(0, 8), MouseFilter = Control.MouseFilterEnum.Ignore };
-            var fill = UiTheme.Box(Palette.Ok, Palette.Ok, pad: 0);
-            fill.SetContentMarginAll(0);
-            var bg = UiTheme.Box(Palette.Danger with { A = 0.35f }, Palette.Danger with { A = 0.35f }, pad: 0);
-            bg.SetContentMarginAll(0);
-            bar.AddThemeStyleboxOverride("fill", fill);
-            bar.AddThemeStyleboxOverride("background", bg);
-            col.AddChild(bar);
-            if (causes.Count > 0) col.AddChild(Text("Ce qui a compté :", Palette.Muted, 13));
-            foreach (var _ in causes) col.AddChild(Text("", Palette.Muted, 13));
-            col.AddChild(Text("", Palette.Muted, 13));
+            Personality.Aggressive => "Je ne respecte que la force.",
+            Personality.Defensive => "Nous restons sur nos gardes.",
+            Personality.Economic => "Tout se négocie.",
+            Personality.Technological => "Données insuffisantes à ton sujet.",
+            _ => "Nous ne te connaissons pas encore.",
+        };
+    }
+
+    /// <summary>What an AI says of what moved its trust, for better (`good`) or worse.</summary>
+    static string Said(TrustCause c, bool good) => (c, good) switch
+    {
+        (TrustCause.Peace, _) => "La paix entre nous tient bon.",
+        (TrustCause.Trade, true) => "Nos échanges nous profitent.",
+        (TrustCause.Trade, false) => "Tu as rompu nos échanges.",
+        (TrustCause.Alliance, _) => "Notre alliance tient.",
+        (TrustCause.JointWar, _) => "Nous avons combattu côte à côte.",
+        (TrustCause.Gifts, _) => "Tes présents ne sont pas oubliés.",
+        (TrustCause.Demands, _) => "Tu nous as fait payer tribut.",
+        (TrustCause.Attacks, _) => "Tu nous as attaqués.",
+        (TrustCause.Betrayal, _) => "Tu as trahi ta parole.",
+        (TrustCause.Witness, _) => "Nous t'avons vu trahir les autres.",
+        (TrustCause.Help, true) => "Tu es venu à notre aide.",
+        (TrustCause.Help, false) => "Tu nous as laissés seuls.",
+        _ => "Tes menaces ne s'oublient pas.",
+    };
+
+    /// <summary>What an AI would answer the player, worked out here on the host, sent by it to a replica; null for a player.</summary>
+    DealPreview? PreviewOf(Side r) => G.Factions[r].AI is { } ai ? ai.Preview ?? GalaxyAi.Mind(G, r, Player) : null;
+
+    // ── What to tell it ──────────────────────────────────────────────────────────────
+
+    List<Part> ActionParts(Side r)
+    {
+        var parts = new List<Part>();
+        if (G.Factions[r].Eliminated) return parts;
+        parts.Add(SectionPart("Tes intentions"));
+        foreach (var i in (ReadOnlySpan<Intent>)[Intent.Peace, Intent.Trade, Intent.Ally, Intent.Demand])
+        {
+            parts.Add(IntentPart(r, i));
+            if (i == Intent.Trade && diploIntent == Intent.Trade && swapOpen && !Galaxies.AtWar(G, Player, r)) parts.Add(ExchangePart(r));
+        }
+        parts.Add(WarPart(r));
+        parts.Add(SectionPart("Accords en cours"));
+        parts.Add(AccordsPart(r));
+        return parts;
+    }
+
+    static string IntentName(Intent i) => i switch
+    {
+        Intent.Peace => "Faire la paix",
+        Intent.Trade => "Commercer",
+        Intent.Ally => "S'allier",
+        _ => "Exiger, menacer",
+    };
+
+    /// <summary>The forms an intention takes with `r`: the deals it may propose.</summary>
+    List<Form> FormsOf(Side r, Intent i)
+    {
+        var g = G;
+        switch (i)
+        {
+            case Intent.Peace:
+                return [new($"Trêve de {Minutes(Galaxies.TruceTime)}", "Aucun combat entre vous pendant ce temps, ni flotte envoyée chez l'autre", DealKind.Truce),
+                    new("Paix durable", $"Une paix sans fin, qui ne se rompt pas : on la dénonce, et la guerre vient {Minutes(Galaxies.NoticeTime)} après", DealKind.Peace)];
+            case Intent.Trade:
+                return [new($"Accord commercial, +{N(Math.Round(Galaxies.TradeRate(g, Player, r), 1))}/s chacun", "Des crédits pour vous deux tant que dure la paix", DealKind.Trade),
+                    new("Vision partagée", "Chacun voit ce que voit l'autre, sans alliance ; la guerre y met fin", DealKind.Vision)];
+            case Intent.Ally:
+                var forms = new List<Form> { new("Alliance", "Vision partagée, aucun combat, victoire commune ; la rompre est une trahison", DealKind.Alliance) };
+                foreach (var t in g.Factions.Values.Where(t => !t.Eliminated && t.Id != r && t.Id != Player).Select(t => t.Id))
+                {
+                    forms.Add(new($"Guerre commune contre {NameOf(t)}",
+                        $"{Minutes(Galaxies.JointWarTime)} de guerre menée ensemble ; faire la paix avec {NameOf(t)} pendant ce temps est une trahison", DealKind.JointWar, t));
+                }
+                return forms;
+            default:
+                var demand = Math.Max(30, Math.Round(Galaxies.IncomeOf(g, r) * 60 * 0.25 / 10) * 10);
+                var ransom = Math.Max(200, Math.Round(Galaxies.IncomeOf(g, r) * 120 / 10) * 10);
+                var threats = new List<Form>
+                {
+                    new($"Exiger {Credits(demand, true)}", "Un tribut contre une trêve : elle paie si elle te craint", DealKind.Demand, Amount: demand, PerMinute: true),
+                    new($"Ultimatum : {Credits(ransom, false)}", $"Payer, ou la guerre : elle a {Left(Galaxies.UltimatumTime)} pour répondre. Ta réputation en souffre", DealKind.Ultimatum, Amount: ransom),
+                };
+                foreach (var p in g.Planets.Where(p => Galaxies.CanDemandPlanet(g, Player, r, p.Id).Ok))
+                    threats.Add(new($"Ultimatum : {p.Name}", $"Céder {p.Name}, ou la guerre ; elle ne cède qu'une planète secondaire pour elle. Ta réputation en souffre", DealKind.Ultimatum, Planet: p.Id));
+                return threats;
+        }
+    }
+
+    Result CanPropose(Side r, Form f) => Galaxies.CanPropose(G, Player, r, f.Kind, f.Amount, f.PerMinute, f.Target, f.Planet);
+
+    /// <summary>How the AI `r` leans towards a form, from what it would answer; null for a player, who answers for themselves.</summary>
+    Leaning? LeaningOf(Side r, Form f)
+    {
+        if (PreviewOf(r) is not { } p) return null;
+        var why = f.Kind switch
+        {
+            DealKind.Truce => p.Truce,
+            DealKind.Peace => p.Peace,
+            DealKind.Trade => p.Trade,
+            DealKind.Vision => p.Vision,
+            DealKind.Alliance => p.Alliance,
+            DealKind.JointWar => p.JointWar.GetValueOrDefault(f.Target!.Value, DealWhy.NoThreat),
+            DealKind.Demand => p.DemandLimit <= 0 ? DealWhy.NotAfraid : f.Amount <= p.DemandLimit ? DealWhy.Yes : DealWhy.NoMeans,
+            _ => !p.Cedes ? DealWhy.NotAfraid : f.Planet is not null || f.Amount <= p.YieldLimit ? DealWhy.Yes : DealWhy.NoMeans,
+        };
+        return GalaxyAi.LeaningOf(G, r, Player, f.Kind, why);
+    }
+
+    /// <summary>A leaning in a word and its color; a threat says whether it is feared.</summary>
+    static (string Text, Color Color) LeaningWord(Leaning? l, bool threat) => (l, threat) switch
+    {
+        (null, _) => ("", Palette.Muted),
+        (Leaning.Open, true) => ("elle te craint", Palette.Ok),
+        (_, true) => ("elle ne te craint pas", Palette.Danger),
+        (Leaning.Open, _) => ("ouverte", Palette.Ok),
+        (Leaning.Reluctant, _) => ("réticente", Palette.Accent),
+        _ => ("hostile", Palette.Danger),
+    };
+
+    /// <summary>
+    /// An intention: its button, how the AI leans towards the best of its forms (or why none is
+    /// possible), and once open, its forms, each proposed in one click, with how the AI leans
+    /// towards it or why it cannot go.
+    /// </summary>
+    Part IntentPart(Side r, Intent i)
+    {
+        var forms = FormsOf(r, i);
+        var open = diploIntent == i;
+        var threat = i == Intent.Demand;
+        var key = $"intent:{r}:{i}:{open}:{(open && swapOpen)}:{string.Join("|", forms.Select(f => f.Label))}";
+        return new Part(key, () =>
+        {
+            var col = Column(6);
+            var row = Row(12);
+            var b = Small(IntentName(i), () =>
+            {
+                diploIntent = open ? Intent.None : i;
+                swapOpen = false;
+                RefreshDiplomacy();
+            });
+            b.CustomMinimumSize = new Vector2(190, 36);
+            b.Alignment = HorizontalAlignment.Left;
+            Outline(b, open ? Palette.Accent : null);
+            row.AddChild(b);
+            row.AddChild(Own(Text("", Palette.Muted, 14, wrap: true)));
+            col.AddChild(row);
+            if (!open) return col;
+            var indent = Ignore(new MarginContainer());
+            indent.AddThemeConstantOverride("margin_left", 20);
+            var box = Column(4);
+            indent.AddChild(box);
+            foreach (var f in forms)
+            {
+                var line = Row(10);
+                var send = Small(f.Label, () => Propose(r, f.Kind, f.Amount, f.PerMinute, f.Target, f.Planet), f.Tip);
+                line.AddChild(send);
+                line.AddChild(Own(Text("", Palette.Muted, 13, wrap: true)));
+                box.AddChild(line);
+            }
+            if (i == Intent.Trade)
+            {
+                var swap = Small("Échanger une planète ou une technologie", () =>
+                {
+                    swapOpen = !swapOpen;
+                    (swapPlanet, swapTech) = (null, null);
+                    RefreshDiplomacy();
+                }, "Une planète ou un niveau de technologie contre des crédits, ou en cadeau");
+                swap.Name = "swap";
+                Outline(swap, swapOpen ? Palette.Accent : null);
+                swap.SizeFlagsHorizontal = Control.SizeFlags.ShrinkBegin;
+                box.AddChild(swap);
+            }
+            col.AddChild(indent);
             return col;
         }, c =>
         {
-            var trust = Galaxies.TrustOf(G, r, Player);
-            c.GetChild<Label>(0).Text = $"Confiance en toi : {Signed(trust)} sur 100";
-            c.GetChild<ProgressBar>(1).Value = Math.Clamp((trust + 100) / 200, 0, 1);
-            var i = causes.Count > 0 ? 3 : 2;
-            var now = G.Factions[r].AI!.Why.GetValueOrDefault(Player) ?? [];
-            foreach (var cause in causes)
+            var hint = c.GetChild(0).GetChild<Label>(1);
+            var cans = forms.Select(f => CanPropose(r, f)).ToList();
+            var possible = forms.Where((_, k) => cans[k].Ok).ToList();
+            var (text, color) = possible.Count == 0 ? (forms.Count > 0 ? cans[0].Reason : "", Palette.Muted)
+                : LeaningWord(possible.Select(f => LeaningOf(r, f)).Min(), threat);
+            hint.Text = Lower(Lang.T(text));
+            Paint(hint, color);
+            if (!open) return;
+            var box = c.GetChild(1).GetChild(0);
+            for (var k = 0; k < forms.Count; k++)
             {
-                var v = now.GetValueOrDefault(cause);
-                var l = c.GetChild<Label>(i++);
-                l.Text = $"{Cause(cause)} : {Signed(v)}";
-                Paint(l, v >= 0 ? Palette.Ok : Palette.Danger);
+                var line = box.GetChild(k);
+                line.GetChild<Button>(0).Disabled = !cans[k].Ok;
+                var l = line.GetChild<Label>(1);
+                var (t, tc) = !cans[k].Ok ? (cans[k].Reason, Palette.Muted) : LeaningWord(LeaningOf(r, forms[k]), threat);
+                l.Text = Lower(Lang.T(t));
+                Paint(l, tc);
             }
-            c.GetChild<Label>(i).Text = $"Ta réputation compte aussi : {Signed(G.Factions[Player].Reputation * Galaxies.ReputationWeight)}";
+            if (box.FindChild("swap", false, false) is Button swap)
+            {
+                var war = Galaxies.AtWar(G, Player, r);
+                swap.Disabled = war;
+                swap.TooltipText = war ? "Il faut d'abord la paix" : "Une planète ou un niveau de technologie contre des crédits, ou en cadeau";
+            }
         });
     }
 
-    static string Cause(TrustCause c) => c switch
+    /// <summary>
+    /// The fifth intention: ending the peace there is, named after it (breaking a truce or an
+    /// alliance, denouncing a lasting peace), with what it brings; nothing to end at war, nor in
+    /// the opening peace, which nobody breaks.
+    /// </summary>
+    Part WarPart(Side r)
     {
-        TrustCause.Peace => "La paix entre vous",
-        TrustCause.Trade => "Le commerce",
-        TrustCause.Alliance => "L'alliance",
-        TrustCause.JointWar => "La guerre menée ensemble",
-        TrustCause.Gifts => "Tes dons et tributs",
-        TrustCause.Demands => "Les tributs exigés",
-        TrustCause.Attacks => "Les batailles que tu lui as ouvertes",
-        TrustCause.Betrayal => "Tes trahisons",
-        TrustCause.Witness => "Les trahisons qu'elle t'a vu commettre",
-        TrustCause.Help => "L'aide donnée ou refusée",
-        _ => "Tes ultimatums",
-    };
+        var g = G;
+        var truce = Galaxies.TruceOf(g, Player, r);
+        (string Label, DealKind? Kind) end = Galaxies.Allied(g, Player, r) ? ("Rompre l'alliance", DealKind.Alliance)
+            : truce is { Opening: false, Lasting: true } ? ("Dénoncer la paix", DealKind.Peace)
+            : truce is { Opening: false } ? ("Rompre la trêve", DealKind.Truce)
+            : ("Déclarer la guerre", null);
+        var (label, kind) = end;
+        return new Part($"war:{r}:{label}:{kind}", () =>
+        {
+            var row = Row(12);
+            var b = Small(label, () =>
+            {
+                if (kind is DealKind k) ConfirmBreak(r, k);
+            });
+            b.CustomMinimumSize = new Vector2(190, 36);
+            b.Alignment = HorizontalAlignment.Left;
+            b.Disabled = kind is null;
+            row.AddChild(b);
+            row.AddChild(Text("", Palette.Muted, 14, wrap: true));
+            return row;
+        }, c =>
+        {
+            var hint = c.GetChild<Label>(1);
+            var (text, color) = kind switch
+            {
+                DealKind.Alliance or DealKind.Truce => ("une trahison", Palette.Danger),
+                DealKind.Peace => ($"la guerre {Minutes(Galaxies.NoticeTime)} après", Palette.Accent),
+                _ => Galaxies.TruceOf(G, Player, r) is { Opening: true } t ? ($"paix de départ, encore {Left(t.Remaining)}", Palette.Muted) : ("déjà en guerre", Palette.Muted),
+            };
+            hint.Text = text;
+            Paint(hint, color);
+        });
+    }
 
-    /// <summary>The accords in force with `r`, each with how long it holds and how to end it.</summary>
+    /// <summary>
+    /// The accords in force with `r`, each with how long it holds and how to end what may be ended
+    /// apart; a truce, a lasting peace and an alliance end by the fifth intention.
+    /// </summary>
     Part AccordsPart(Side r)
     {
         var g = G;
@@ -399,11 +739,8 @@ public partial class GalaxyHud
                 if (end is not null) row.AddChild(Small(endText, end, tip));
                 col.AddChild(row);
             }
-            if (allied) Line("alliance", "Alliance : vision partagée, aucun combat, victoire commune", () => ConfirmBreak(r, DealKind.Alliance), "Rompre", "Une trahison : la guerre après une courte trêve");
-            // The opening peace binds everyone to its end: nothing to break. A lasting peace is denounced.
-            if (truce is { Opening: true }) Line("truce", "");
-            else if (truce is { Lasting: true }) Line("truce", "", () => ConfirmBreak(r, DealKind.Peace), "Dénoncer", $"La guerre {Minutes(Galaxies.NoticeTime)} après");
-            else if (truce is not null) Line("truce", "", () => ConfirmBreak(r, DealKind.Truce), "Rompre", "Vos flottes pourront de nouveau se battre");
+            if (allied) Line("alliance", "Alliance : vision partagée, aucun combat, victoire commune");
+            if (truce is not null) Line("truce", "");
             if (trade) Line("trade", "", () => End(r, DealKind.Trade), "Arrêter");
             if (vision) Line("vision", "Vision partagée : chacun voit ce que voit l'autre", () => End(r, DealKind.Vision), "Arrêter", "Elle le prendra un peu mal");
             if (war is { Target: Side t }) Line("war", "", () => End(r, DealKind.JointWar), "Se retirer", $"La laisser seule contre {NameOf(t)} : elle t'en voudra");
@@ -442,211 +779,10 @@ public partial class GalaxyHud
         });
     }
 
-    /// <summary>An offer or a demand `o` made the player: what it means, its time left, and the answers.</summary>
-    Part OfferPart(DealOffer o)
-    {
-        var (from, kind) = (o.From, o.Kind);
-        return new Part($"offer:{from}:{kind}:{o.Target}:{o.Planet}:{o.Terms}:{o.Amount}", () =>
-        {
-            var p = Panel(10, 8, kind == DealKind.Ultimatum ? Palette.Danger : Palette.Accent);
-            var col = Column(6);
-            p.AddChild(col);
-            col.AddChild(Text(OfferTitle(o), Palette.Text, 15, bold: true, wrap: true));
-            col.AddChild(Text(OfferText(o), Palette.Muted, 13, wrap: true));
-            var left = Text("", Palette.Muted, 13);
-            left.Name = "left";
-            col.AddChild(left);
-            var row = Row(8);
-            row.AddChild(Small(kind == DealKind.Ultimatum ? "Céder" : "Accepter", () => Answer(from, kind, true), "", primary: true));
-            row.AddChild(Small(kind == DealKind.Ultimatum ? "Refuser : la guerre" : "Refuser", () => Answer(from, kind, false)));
-            col.AddChild(row);
-            return p;
-        }, c =>
-        {
-            if (G.Offers.Find(x => x.From == from && x.To == Player && x.Kind == kind) is { } now)
-                ((Label)c.FindChild("left", true, false)).Text = kind == DealKind.Ultimatum ? $"Réponds sous {Left(now.Remaining)}, sinon la guerre" : $"Réponse sous {Left(now.Remaining)}";
-        });
-    }
-
-    // ── Proposals ─────────────────────────────────────────────────────────────────────
-
-    /// <summary>What an AI would answer the player, worked out here on the host, sent by it to a replica.</summary>
-    DealPreview? PreviewOf(Side r) => G.Factions[r].AI is { } ai ? ai.Preview ?? GalaxyAi.Mind(G, r, Player).Preview : null;
-
-    /// <summary>The peace price an AI asks of the player, in credits a minute.</summary>
-    double PriceOf(Side r) => G.Factions[r].AI is { } ai ? ai.Asked ?? GalaxyAi.Mind(G, r, Player).Price : 0;
-
-    /// <summary>"Réponse prévue : …", in words and colors; null for a player, who answers for themselves.</summary>
-    (string Text, Color Color)? Forecast(Side r, DealWhy? why, double price = 0) => why is not DealWhy w ? null
-        : w == DealWhy.Yes ? ("Réponse prévue : elle accepterait", Palette.Ok)
-        : ($"Réponse prévue : elle refuserait. {GalaxyAi.Reason(w, price)}", Palette.Danger);
-
-    /// <summary>What the AI would answer the proposal being built.</summary>
-    DealWhy? BundleForecast(Side r)
-    {
-        if (PreviewOf(r) is not { } p) return null;
-        var price = PriceOf(r);
-        var worth = diploPerMinute ? diploAmount : diploAmount * 60 / Galaxies.TruceTime;
-        var tribute = Galaxies.TruceOf(G, Player, r) is not null || !Galaxies.AtWar(G, Player, r) || worth >= price ? DealWhy.Yes : DealWhy.Price;
-        return GalaxyAi.BundleWhy(p.Truce, p.Trade, p.Vision, tribute, price, diploTerms, diploAmount, diploPerMinute);
-    }
-
-    /// <summary>The plain kind a proposal of one term is, Bundle for several.</summary>
-    DealKind ProposalKind => diploTerms switch
-    {
-        DealTerms.Truce => DealKind.Truce,
-        DealTerms.Trade => DealKind.Trade,
-        DealTerms.Vision => DealKind.Vision,
-        DealTerms.Tribute => DealKind.Tribute,
-        _ => DealKind.Bundle,
-    };
-
-    /// <summary>
-    /// The proposal: terms to tick (a truce, trade, shared vision, a tribute of so much, once or a
-    /// minute), the answer the AI would give, and the button that sends it, or why it cannot go.
-    /// </summary>
-    Part ProposalPart(Side r)
-    {
-        var g = G;
-        var price = PriceOf(r);
-        var key = $"proposal:{r}:{diploTerms}:{diploAmount}:{diploPerMinute}:{Standing(Player, r).Word}:{price}";
-        return new Part(key, () =>
-        {
-            var col = Column(8);
-            col.AddChild(Text("Coche ce que tu proposes : tout part en une seule offre, acceptée ou refusée d'un bloc.", Palette.Muted, 13, wrap: true));
-            var terms = Flow(6);
-            void Term(DealTerms t, string label, string tip)
-            {
-                var b = Small(label, () =>
-                {
-                    diploTerms ^= t;
-                    RefreshDiplomacy();
-                }, tip);
-                Outline(b, (diploTerms & t) != 0 ? Palette.Accent : null);
-                terms.AddChild(b);
-            }
-            Term(DealTerms.Truce, "Trêve", $"{Minutes(Galaxies.TruceTime)} sans aucun combat entre vous");
-            Term(DealTerms.Trade, "Commerce", $"+{N(Galaxies.TradeRate(g, Player, r))}/s chacun tant que dure la paix");
-            Term(DealTerms.Vision, "Vision partagée", "Chacun voit ce que voit l'autre, sans alliance");
-            Term(DealTerms.Tribute, "Tribut", "Des crédits pour elle, contre la paix ou sa confiance");
-            col.AddChild(terms);
-            if ((diploTerms & DealTerms.Tribute) != 0)
-            {
-                var amounts = Flow(6);
-                double[] choices = diploPerMinute ? [30, 60, 120, 250] : [200, 500, 1000, 2500];
-                var asked = diploPerMinute ? price : Math.Ceiling(price * Galaxies.TruceTime / 60 / 10) * 10;
-                foreach (var a in asked > 0 && !choices.Contains(asked) ? [.. choices, asked] : choices)
-                {
-                    var amount = a;
-                    var b = Small(Credits(amount, diploPerMinute), () =>
-                    {
-                        diploAmount = amount;
-                        RefreshDiplomacy();
-                    }, amount == asked ? "Le prix qu'elle demande pour la paix" : "");
-                    Outline(b, amount == diploAmount ? Palette.Accent : null);
-                    amounts.AddChild(b);
-                }
-                var mode = Small(diploPerMinute ? "par minute" : "en une fois", () =>
-                {
-                    diploPerMinute = !diploPerMinute;
-                    diploAmount = diploPerMinute ? 60 : 500;
-                    RefreshDiplomacy();
-                }, "Une somme en une fois, ou tant par minute pendant la trêve");
-                amounts.AddChild(mode);
-                col.AddChild(amounts);
-                if (price > 0) col.AddChild(Text($"Elle demande {Credits(price, true)} pour la paix.", Palette.Muted, 13));
-            }
-            var forecast = Text("", Palette.Muted, 14, wrap: true);
-            forecast.Name = "forecast";
-            col.AddChild(forecast);
-            var send = Small("Envoyer l'offre", () => Propose(r, ProposalKind, diploAmount, diploPerMinute, terms: diploTerms), "", primary: true);
-            send.Name = "send";
-            send.SizeFlagsHorizontal = Control.SizeFlags.ShrinkBegin;
-            col.AddChild(send);
-            return col;
-        }, c =>
-        {
-            var can = diploTerms == DealTerms.None ? Result.Fail("Coche au moins un terme")
-                : Galaxies.CanPropose(G, Player, r, ProposalKind, diploAmount, diploPerMinute, terms: diploTerms);
-            var send = (Button)c.FindChild("send", true, false);
-            send.Disabled = !can.Ok;
-            send.TooltipText = can.Ok ? "" : can.Reason;
-            var forecast = (Label)c.FindChild("forecast", true, false);
-            if (!can.Ok)
-            {
-                forecast.Text = can.Reason;
-                Paint(forecast, Palette.Muted);
-            }
-            else if (Forecast(r, BundleForecast(r), PriceOf(r)) is var (text, color))
-            {
-                forecast.Text = text;
-                Paint(forecast, color);
-            }
-            else
-            {
-                forecast.Text = "Un joueur répond lui-même, dans le temps d'une offre.";
-                Paint(forecast, Palette.Muted);
-            }
-        });
-    }
-
-    /// <summary>
-    /// What stands apart from the proposal: an alliance, a joint war against each third faction,
-    /// a tribute demanded, an ultimatum (credits, or a planet of theirs next to the player's);
-    /// each with the answer the AI would give.
-    /// </summary>
-    Part SpecialPart(Side r)
-    {
-        var g = G;
-        var thirds = g.Factions.Values.Where(t => !t.Eliminated && t.Id != r && t.Id != Player).Select(t => t.Id).ToList();
-        var planets = g.Planets.Where(p => Galaxies.CanDemandPlanet(g, Player, r, p.Id).Ok).Select(p => p.Id).ToList();
-        var key = $"special:{r}:{Standing(Player, r).Word}:{Galaxies.TruceOf(g, Player, r)?.Lasting}:{string.Join(",", thirds)}:{string.Join(",", planets)}";
-        return new Part(key, () =>
-        {
-            var col = Column(8);
-            var preview = PreviewOf(r);
-            void Act(string label, string tip, DealKind kind, Side? target = null, int? planet = null, double amount = 0, bool perMinute = false, DealWhy? why = null)
-            {
-                var row = Row(10);
-                var can = Galaxies.CanPropose(G, Player, r, kind, amount, perMinute, target, planet);
-                var b = Small(label, () => Propose(r, kind, amount, perMinute, target, planet), can.Ok ? tip : can.Reason);
-                b.Disabled = !can.Ok;
-                row.AddChild(b);
-                var (text, color) = !can.Ok ? (can.Reason, Palette.Muted) : Forecast(r, why) ?? ("", Palette.Muted);
-                var l = Text(text, color, 13, wrap: true);
-                l.SizeFlagsHorizontal = Control.SizeFlags.ExpandFill;
-                l.SizeFlagsVertical = Control.SizeFlags.ShrinkCenter;
-                row.AddChild(l);
-                col.AddChild(row);
-            }
-            Act("Paix durable", $"Une paix sans fin, qui ne se rompt pas : on la dénonce, et la guerre vient {Minutes(Galaxies.NoticeTime)} après", DealKind.Peace, why: preview?.Peace);
-            Act("Alliance", "Vision partagée, aucun combat, victoire commune ; la rompre est une trahison", DealKind.Alliance, why: preview?.Alliance);
-            foreach (var t in thirds)
-            {
-                Act($"Guerre commune contre {NameOf(t)}", $"{Minutes(Galaxies.JointWarTime)} de guerre menée ensemble ; faire la paix avec {NameOf(t)} pendant ce temps est une trahison",
-                    DealKind.JointWar, t, why: preview?.JointWar.GetValueOrDefault(t, DealWhy.NoThreat));
-            }
-            var demand = Math.Max(30, Math.Round(Galaxies.IncomeOf(G, r) * 60 * 0.25 / 10) * 10);
-            Act($"Exiger {Credits(demand, true)}", "Un tribut contre une trêve : elle paie si elle te craint", DealKind.Demand, amount: demand, perMinute: true,
-                why: preview is { } dp ? dp.DemandLimit <= 0 ? DealWhy.NotAfraid : demand <= dp.DemandLimit ? DealWhy.Yes : DealWhy.NoMeans : null);
-            var ransom = Math.Max(200, Math.Round(Galaxies.IncomeOf(G, r) * 120 / 10) * 10);
-            Act($"Ultimatum : {Credits(ransom, false)}", $"Payer, ou la guerre : elle a {Left(Galaxies.UltimatumTime)} pour répondre. Ta réputation en souffre", DealKind.Ultimatum,
-                amount: ransom, why: preview is { } up ? !up.Cedes ? DealWhy.NotAfraid : ransom <= up.YieldLimit ? DealWhy.Yes : DealWhy.NoMeans : null);
-            foreach (var p in planets)
-            {
-                Act($"Ultimatum : {PlanetName(p)}", $"Céder {PlanetName(p)}, ou la guerre. Ta réputation en souffre", DealKind.Ultimatum, planet: p,
-                    why: preview is { } cp ? cp.Cedes ? DealWhy.Yes : DealWhy.NotAfraid : null);
-            }
-            if (planets.Count > 0 && preview is { Cedes: true })
-                col.AddChild(Text("Elle ne cède qu'une planète secondaire pour elle, sans grande station.", Palette.Muted, 13, wrap: true));
-            return col;
-        });
-    }
-
     /// <summary>
     /// Exchanges with a faction at peace: one of its planets or one of the player's (never a
     /// capital), or a level of a tech where one is ahead, for a price to pick around what it is
-    /// worth (nothing: a gift). An AI answers at once, saying what it would want instead.
+    /// worth (nothing: a gift). An AI answers at once, or names its price.
     /// </summary>
     Part ExchangePart(Side r)
     {
@@ -666,9 +802,10 @@ public partial class GalaxyHud
         var kind = swapPlanet is not null ? DealKind.Planet : DealKind.Tech;
         return new Part(key, () =>
         {
+            var indent = Ignore(new MarginContainer());
+            indent.AddThemeConstantOverride("margin_left", 40);
             var col = Column(8);
-            col.AddChild(Text("Une planète ou un niveau de technologie contre des crédits ; à 0, c'est un cadeau, qui réchauffe une IA. Une capitale ne se cède pas.",
-                Palette.Muted, 13, wrap: true));
+            indent.AddChild(col);
             var items = Flow(6);
             void Pick(string label, int? p, TechId? t, string tip)
             {
@@ -689,9 +826,9 @@ public partial class GalaxyHud
                 Pick($"{(me.Research[t] > them.Research[t] ? "Transmettre" : "Recevoir")} {Techs.Defs[t].Name} {level}", null, t,
                     $"Valeur : {Credits(Galaxies.TechValue(level - 1, t), false)}");
             }
-            if (items.GetChildCount() == 0) col.AddChild(Text("Rien à échanger pour l'instant.", Palette.Muted, 13));
+            if (items.GetChildCount() == 0) col.AddChild(Text("Rien à échanger pour l'instant. Une capitale ne se cède pas.", Palette.Muted, 13, wrap: true));
             col.AddChild(items);
-            if (swapPlanet is null && swapTech is null) return col;
+            if (swapPlanet is null && swapTech is null) return indent;
             if (swapPrice < 0) swapPrice = Math.Round(worth / 50) * 50;
             var prices = Flow(6);
             foreach (var share in new[] { 0, 0.5, 1, 1.5, 2 })
@@ -701,16 +838,12 @@ public partial class GalaxyHud
                 {
                     swapPrice = amount;
                     RefreshDiplomacy();
-                }, share == 1 ? "Ce que ça vaut, à peu près" : "");
+                }, share == 1 ? "Ce que ça vaut, à peu près" : amount <= 0 ? "Un cadeau réchauffe une IA" : "");
                 Outline(b, amount == swapPrice ? Palette.Accent : null);
                 prices.AddChild(b);
             }
             col.AddChild(prices);
-            col.AddChild(Text(pays ? "C'est toi qui paies." : "C'est elle qui paie.", Palette.Muted, 13));
-            var status = Text("", Palette.Muted, 13, wrap: true);
-            status.Name = "status";
-            col.AddChild(status);
-            var send = Small("Proposer l'échange", () =>
+            var send = Small(pays ? "Proposer d'acheter" : "Proposer de céder", () =>
             {
                 Propose(r, kind, swapPrice, planet: swapPlanet, tech: swapTech);
                 (swapPlanet, swapTech) = (null, null);
@@ -718,16 +851,170 @@ public partial class GalaxyHud
             send.Name = "send";
             send.SizeFlagsHorizontal = Control.SizeFlags.ShrinkBegin;
             col.AddChild(send);
-            return col;
+            return indent;
         }, c =>
         {
             if (c.FindChild("send", true, false) is not Button send) return;
             var can = Galaxies.CanPropose(G, Player, r, kind, swapPrice, planet: swapPlanet, tech: swapTech);
             send.Disabled = !can.Ok;
-            send.TooltipText = can.Ok ? "" : can.Reason;
-            ((Label)c.FindChild("status", true, false)).Text = !can.Ok ? can.Reason
-                : G.Factions[r].AI is not null ? "Elle répond aussitôt, et dit ce qu'elle voudrait si elle refuse." : "Un joueur répond lui-même, dans le temps d'une offre.";
+            send.TooltipText = can.Reason;
         });
+    }
+
+    // ── What was said ────────────────────────────────────────────────────────────────
+
+    /// <summary>
+    /// The thread with `r`: what was said, the newest last; each offer it made the player that
+    /// still holds, answered on its line (after the thread if it was made before the screen knew
+    /// of it); the player's own offers to a player, waiting.
+    /// </summary>
+    List<Part> ThreadParts(Side r)
+    {
+        var lines = talks.GetValueOrDefault(r) ?? [];
+        var pending = G.Offers.Where(o => o.From == r && o.To == Player).ToList();
+        var parts = new List<Part>();
+        for (var k = 0; k < lines.Count; k++)
+        {
+            // An offer is answered on the newest line that made one of its kind.
+            DealOffer? live = null;
+            if (lines[k].Offer is { } o && !lines.Skip(k + 1).Any(l => l.Offer?.Kind == o.Kind) && pending.Find(p => p.Kind == o.Kind) is { } still)
+            {
+                live = still;
+                pending.Remove(still);
+            }
+            parts.Add(LinePart($"line:{r}:{k}:{live is not null}", lines[k], live));
+        }
+        foreach (var o in pending)
+        {
+            var offered = new DealOffered(o.From, o.To, o.Kind, o.Amount, o.PerMinute, o.Target, o.Planet, o.Terms, o.Tech, o.Counter);
+            parts.Add(LinePart($"offer:{r}:{o.Kind}", new Line(r, "", offered), o));
+        }
+        foreach (var o in G.Offers.Where(o => o.From == Player && o.To == r))
+            parts.Add(TextPart($"Ton offre ({Noun(o.Kind)}) attend sa réponse : encore {Left(o.Remaining)}", Palette.Muted, 13));
+        if (parts.Count == 0) parts.Add(TextPart("Rien de neuf entre vous. Choisis une intention : sa réponse viendra ici.", Palette.Muted, 14));
+        return parts;
+    }
+
+    /// <summary>A line of the thread: who says it and what, in quotes; an offer with its answers while it holds; what happened, muted.</summary>
+    Part LinePart(string key, Line line, DealOffer? live) => new(key, () =>
+    {
+        var row = Row(10);
+        var mine = line.Speaker == Player;
+        var who = Text(line.Speaker is Side s ? (mine ? "Toi" : NameOf(s)) : "", mine ? Palette.Accent : Palette.Text, 14, bold: true);
+        who.CustomMinimumSize = new Vector2(110, 0);
+        who.SizeFlagsVertical = Control.SizeFlags.ShrinkBegin;
+        row.AddChild(who);
+        var col = Column(6);
+        col.SizeFlagsHorizontal = Control.SizeFlags.ExpandFill;
+        row.AddChild(col);
+        if (line.Offer is not { } o)
+        {
+            col.AddChild(line.Speaker is null ? Text(line.Text, Palette.Muted, 14, wrap: true) : Own(Text("", Palette.Text, 14, wrap: true), Quote(line.Text)));
+            return row;
+        }
+        var ultimatum = o.Kind == DealKind.Ultimatum;
+        if (o.Counter) col.AddChild(Own(Text("", Palette.Text, 14, wrap: true), Quote(CounterText(o))));
+        else
+        {
+            col.AddChild(Text(OfferTitle(o), ultimatum ? Palette.Danger : Palette.Text, 14, bold: true, wrap: true));
+            col.AddChild(Text(OfferText(o), Palette.Muted, 13, wrap: true));
+        }
+        if (live is null) return row;
+        var answers = Row(8);
+        var yes = Small(ultimatum ? "Céder" : "Accepter", () => Answer(o.From, o.Kind, true), "", primary: true);
+        yes.Name = "yes";
+        answers.AddChild(yes);
+        answers.AddChild(Small(ultimatum ? "Refuser : la guerre" : "Refuser", () => Answer(o.From, o.Kind, false)));
+        var left = Text("", Palette.Muted, 13);
+        left.Name = "left";
+        answers.AddChild(left);
+        col.AddChild(answers);
+        return row;
+    }, live is null ? null : c =>
+    {
+        if (G.Offers.Find(x => x.From == live.From && x.To == Player && x.Kind == live.Kind) is not { } now) return;
+        ((Label)c.FindChild("left", true, false)).Text = now.Kind == DealKind.Ultimatum ? $"encore {Left(now.Remaining)}, sinon la guerre" : $"encore {Left(now.Remaining)}";
+        // A counter-offer's price is paid at once.
+        var yes = (Button)c.FindChild("yes", true, false);
+        var broke = now.Counter && now.Kind is not (DealKind.Planet or DealKind.Tech) && G.Factions[Player].Credits < now.Amount;
+        yes.Disabled = broke;
+        yes.TooltipText = broke ? "Crédits insuffisants" : "";
+    });
+
+    /// <summary>What the player says, proposing a deal.</summary>
+    string Proposal(Side to, DealKind kind, double amount, bool perMinute, Side? target, int? planet, TechId? tech) => kind switch
+    {
+        DealKind.Truce => $"Je te propose une trêve de {Minutes(Galaxies.TruceTime)}.",
+        DealKind.Peace => "Je te propose une paix durable.",
+        DealKind.Trade => "Je te propose un accord commercial.",
+        DealKind.Vision => "Je te propose de partager la vision.",
+        DealKind.Alliance => "Je te propose une alliance.",
+        DealKind.JointWar => $"Faisons la guerre ensemble à {(target is Side t ? NameOf(t) : "?")}.",
+        DealKind.Demand => $"Paie-moi {Credits(amount, perMinute)}, et la trêve est à toi.",
+        DealKind.Ultimatum => planet is int p ? $"Cède-moi {PlanetName(p)}, ou c'est la guerre." : $"Paie-moi {Credits(amount, false)}, ou c'est la guerre.",
+        DealKind.Planet when planet is int p => G.Planets[p].Owner == Player ? $"Je te cède {PlanetName(p)}{For(amount, true)}." : $"Cède-moi {PlanetName(p)}{For(amount)}.",
+        DealKind.Tech when tech is TechId t => G.Factions[Player].Research[t] > G.Factions[to].Research[t]
+            ? $"Je te transmets {Techs.Defs[t].Name}{For(amount, true)}." : $"Transmets-moi {Techs.Defs[t].Name}{For(amount)}.",
+        _ => $"Je te propose {Noun(kind)}.",
+    };
+
+    /// <summary>What an AI says, offering the deal it would take instead of the one proposed.</summary>
+    string CounterText(DealOffered o)
+    {
+        var price = Credits(o.Amount, false);
+        return o.Kind switch
+        {
+            DealKind.Truce => $"Une trêve, oui, contre {price}.",
+            DealKind.Peace => $"Une paix durable, oui, contre {price}.",
+            DealKind.Alliance => $"Une alliance, oui, contre {price}.",
+            DealKind.Trade => $"Un accord commercial, oui, contre {price}.",
+            DealKind.Vision => $"Partager la vision, oui, contre {price}.",
+            DealKind.JointWar => $"La guerre contre {(o.Target is Side t ? NameOf(t) : "?")}, oui, contre {price}.",
+            DealKind.Planet when o.Planet is int p => G.Planets[p].Owner == o.From ? $"{PlanetName(p)}, oui, pour {price}." : $"Pour {PlanetName(p)}, nous t'en donnons {price}.",
+            DealKind.Tech when o.Tech is TechId t => G.Factions[o.From].Research[t] > G.Factions[Player].Research[t]
+                ? $"{Techs.Defs[t].Name}, oui, pour {price}." : $"Pour {Techs.Defs[t].Name}, nous t'en donnons {price}.",
+            _ => $"Oui, contre {price}.",
+        };
+    }
+
+    /// <summary>A line said with `rival`, kept with what was said before.</summary>
+    void Talk(Side rival, Line line)
+    {
+        if (!talks.TryGetValue(rival, out var lines)) talks[rival] = lines = [];
+        lines.Add(line);
+        if (lines.Count > TalkMax) lines.RemoveRange(0, lines.Count - TalkMax);
+    }
+
+    /// <summary>
+    /// What an event adds to the thread with the faction it concerns: an offer made to the player,
+    /// a refusal of the player's offer with its reason, an AI's words; a deal signed, broken or
+    /// ended, as the chronicle tells it, after an AI's yes to what the player just proposed.
+    /// </summary>
+    void Converse(GalaxyEvent ev)
+    {
+        var me = Player;
+        switch (ev)
+        {
+            case DealOffered o:
+                if (o.To != me) return;
+                awaiting.Remove(o.From);
+                Talk(o.From, new Line(o.From, "", o));
+                return;
+            case DealRefused r:
+                if (r.From != me) return;
+                awaiting.Remove(r.To);
+                Talk(r.To, new Line(r.To, r.Reason.Length > 0 ? $"Non. {r.Reason}." : "Non."));
+                return;
+            case AiSaid s:
+                if (s.To == me) Talk(s.From, new Line(s.From, RemarkText(s.From, s.What)));
+                return;
+        }
+        if (Galaxies.Entry(ev) is not { } e || (e.A != me && e.B != me) || e.Kind is ChronicleKind.Refused or ChronicleKind.Said or ChronicleKind.Issued or ChronicleKind.Asked) return;
+        var other = e.A == me ? e.B : e.A;
+        // Whatever came of the proposal, it is answered; a deal signed is its yes.
+        if (awaiting.Remove(other) && e.Kind == ChronicleKind.Signed) Talk(other, new Line(other, "D'accord."));
+        e.Time = G.Time;
+        Talk(other, new Line(null, Chronicled(e)));
     }
 
     // ── The chronicle ─────────────────────────────────────────────────────────────────
@@ -735,7 +1022,7 @@ public partial class GalaxyHud
     /// <summary>The last things that passed between the player and `r`, the newest first.</summary>
     Part HistoryPart(Side r)
     {
-        var lines = G.Chronicle.Where(e => (e.A == r && e.B == Player) || (e.A == Player && e.B == r)).TakeLast(14).Reverse().ToList();
+        var lines = G.Chronicle.Where(e => (e.A == r && e.B == Player) || (e.A == Player && e.B == r)).TakeLast(30).Reverse().ToList();
         return new Part($"history:{r}:{lines.Count}:{(lines.Count > 0 ? lines[0].Time : 0)}", () =>
         {
             var col = Column(4);
@@ -756,11 +1043,13 @@ public partial class GalaxyHud
         });
     }
 
-    /// <summary>A line of the chronicle in words.</summary>
+    /// <summary>A line of the chronicle in words, the player addressed as "tu".</summary>
     string Chronicled(DiploEntry e)
     {
         string Who(Side s) => s == Player ? "Toi" : NameOf(s);
+        var me = Player;
         var by = e.By is Side b ? Who(b) : "";
+        var mine = e.By == me;
         return e.Kind switch
         {
             ChronicleKind.Signed => e.Deal switch
@@ -771,34 +1060,39 @@ public partial class GalaxyHud
                 DealKind.Vision => "Vision partagée",
                 DealKind.JointWar => e.Extra >= 0 ? $"Guerre commune contre {NameOf(new Side(e.Extra))}" : "Guerre commune",
                 DealKind.Peace => "Paix durable signée",
-                DealKind.Planet => $"{Who(e.A)} cède {PlanetName(e.Extra)} à {Who(e.B)}{(e.Amount > 0 ? $" pour {Credits(e.Amount, false)}" : ", en cadeau")}",
-                DealKind.Tech => $"{Who(e.A)} transmet {Techs.Defs[(TechId)e.Extra].Name} à {Who(e.B)}{(e.Amount > 0 ? $" pour {Credits(e.Amount, false)}" : ", en cadeau")}",
-                _ => $"Tribut : {Who(e.A)} paie {Credits(e.Amount, false)}",
+                DealKind.Planet => e.A == me ? $"Tu cèdes {PlanetName(e.Extra)} à {NameOf(e.B)}{Paid(e.Amount)}"
+                    : e.B == me ? $"{NameOf(e.A)} te cède {PlanetName(e.Extra)}{Paid(e.Amount)}" : $"{NameOf(e.A)} cède {PlanetName(e.Extra)} à {NameOf(e.B)}{Paid(e.Amount)}",
+                DealKind.Tech => e.A == me ? $"Tu transmets {Techs.Defs[(TechId)e.Extra].Name} à {NameOf(e.B)}{Paid(e.Amount)}"
+                    : e.B == me ? $"{NameOf(e.A)} te transmet {Techs.Defs[(TechId)e.Extra].Name}{Paid(e.Amount)}"
+                    : $"{NameOf(e.A)} transmet {Techs.Defs[(TechId)e.Extra].Name} à {NameOf(e.B)}{Paid(e.Amount)}",
+                _ => e.A == me ? $"Tribut : tu paies {Credits(e.Amount, false)}" : e.B == me ? $"Tribut : {NameOf(e.A)} te paie {Credits(e.Amount, false)}"
+                    : $"Tribut : {NameOf(e.A)} paie {Credits(e.Amount, false)}",
             },
             ChronicleKind.Expired => "Fin de la trêve, tenue jusqu'au bout",
             ChronicleKind.Broken => e.Deal switch
             {
-                DealKind.Alliance => $"{by} rompt l'alliance",
-                DealKind.JointWar => $"{by} trahit la guerre commune",
-                _ => $"{by} rompt la trêve",
+                DealKind.Alliance => mine ? "Tu romps l'alliance" : $"{by} rompt l'alliance",
+                DealKind.JointWar => mine ? "Tu trahis la guerre commune" : $"{by} trahit la guerre commune",
+                _ => mine ? "Tu romps la trêve" : $"{by} rompt la trêve",
             },
             ChronicleKind.Ended => e.Deal switch
             {
                 DealKind.Trade => "Fin du commerce",
                 DealKind.Vision => "Fin de la vision partagée",
                 DealKind.JointWar => "Fin de la guerre commune",
-                DealKind.Peace => $"{by} dénonce la paix durable",
+                DealKind.Peace => mine ? "Tu dénonces la paix durable" : $"{by} dénonce la paix durable",
                 _ => "Fin du tribut",
             },
-            ChronicleKind.Refused => $"{by} refuse {Noun(e.Deal)}",
-            ChronicleKind.Defaulted => $"{Who(e.A)} cesse de payer le tribut",
-            ChronicleKind.Issued => e.Extra >= 0 ? $"Ultimatum de {Who(e.A)} : {PlanetName(e.Extra)}" : $"Ultimatum de {Who(e.A)} : {Credits(e.Amount, false)}",
-            ChronicleKind.Accepted => $"{Who(e.B)} cède à l'ultimatum",
-            ChronicleKind.Defied => $"{Who(e.B)} défie l'ultimatum",
-            ChronicleKind.Ceded => $"{PlanetName(e.Extra)} cédée par {Who(e.A)}",
+            ChronicleKind.Refused => mine ? $"Tu refuses {Noun(e.Deal)}" : $"{by} refuse {Noun(e.Deal)}",
+            ChronicleKind.Defaulted => e.A == me ? "Tu cesses de payer le tribut" : $"{Who(e.A)} cesse de payer le tribut",
+            ChronicleKind.Issued => e.A == me ? e.Extra >= 0 ? $"Ton ultimatum : {PlanetName(e.Extra)}" : $"Ton ultimatum : {Credits(e.Amount, false)}"
+                : e.Extra >= 0 ? $"Ultimatum de {Who(e.A)} : {PlanetName(e.Extra)}" : $"Ultimatum de {Who(e.A)} : {Credits(e.Amount, false)}",
+            ChronicleKind.Accepted => e.B == me ? "Tu cèdes à l'ultimatum" : $"{Who(e.B)} cède à l'ultimatum",
+            ChronicleKind.Defied => e.B == me ? "Tu défies l'ultimatum" : $"{Who(e.B)} défie l'ultimatum",
+            ChronicleKind.Ceded => e.A == me ? $"Tu cèdes {PlanetName(e.Extra)}" : $"{PlanetName(e.Extra)} cédée par {Who(e.A)}",
             ChronicleKind.Asked => e.Extra >= 0 ? $"{Who(e.A)} demande de l'aide pour {PlanetName(e.Extra)}" : $"{Who(e.A)} demande {Credits(e.Amount, false)}",
-            ChronicleKind.Kept => $"{Who(e.B)} est venu à l'aide",
-            ChronicleKind.Failed => $"{Who(e.B)} n'est pas venu à l'aide",
+            ChronicleKind.Kept => e.B == me ? "Tu es venu à l'aide" : $"{Who(e.B)} est venu à l'aide",
+            ChronicleKind.Failed => e.B == me ? "Tu n'es pas venu à l'aide" : $"{Who(e.B)} n'est pas venu à l'aide",
             // The speaker has a label of its own (HistoryPart): its words are translated whole.
             _ => RemarkText(e.A, (Remark)e.Extra),
         };

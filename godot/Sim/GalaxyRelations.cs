@@ -234,7 +234,7 @@ public static partial class Galaxies
         g.Factions[giver].Credits += amount;
         var worth = PlanetValue(g, p);
         Cede(g, p, taker, ceded: false);
-        if (amount < worth) BuyTrust(g, taker, giver, (worth - amount) / 40);
+        if (amount < worth) BuyTrust(g, taker, giver, (worth - amount) / CreditsPerTrust);
         Note(g, new Concluded(DealKind.Planet, giver, taker, amount, planet));
         return Result.OK;
     }
@@ -249,7 +249,7 @@ public static partial class Galaxies
         t.Credits -= amount;
         g.Factions[giver].Credits += amount;
         t.Research[tech]++;
-        if (amount < worth) BuyTrust(g, taker, giver, (worth - amount) / 40);
+        if (amount < worth) BuyTrust(g, taker, giver, (worth - amount) / CreditsPerTrust);
         Note(g, new Concluded(DealKind.Tech, giver, taker, amount, (int)tech));
         return Result.OK;
     }

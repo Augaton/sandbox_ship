@@ -118,7 +118,7 @@ public class DiplomacyTests
         Assert.Equal(Result.Fail("Trêve déjà en cours"), ProposeTruce(g, Faction.Klaed, Faction.Nairan));
         var strong = CreateGalaxy(Faction.Klaed, [Faction.Nairan], true, errants: false, incidents: false);
         AddShipsAt(strong, Faction.Nairan, Id("Ostra"), new ShipCounts { [ShipClass.Battlecruiser] = 8 });
-        Assert.Equal(Result.Fail("Elle se croit la plus forte"), ProposeTruce(strong, Faction.Klaed, Faction.Nairan));
+        Assert.Equal(Result.Fail("Nous sommes les plus forts"), ProposeTruce(strong, Faction.Klaed, Faction.Nairan));
         Assert.Empty(strong.Truces);
     }
 
@@ -149,7 +149,7 @@ public class DiplomacyTests
         Assert.False(AtPeace(g, Faction.Klaed, Faction.Nairan));
         var ai = g.Factions[Faction.Nairan].AI!;
         Assert.Equal(GrudgeTime, ai.Grudges[Faction.Klaed]);
-        Assert.Equal(Result.Fail("Elle n'a pas oublié la trêve rompue"), ProposeTruce(g, Faction.Klaed, Faction.Nairan));
+        Assert.Equal(Result.Fail("Nous n'avons pas oublié la trêve rompue"), ProposeTruce(g, Faction.Klaed, Faction.Nairan));
         // The grudge fades with time.
         ai.Grudges[Faction.Klaed] = 1;
         RunGalaxy(g, 2);

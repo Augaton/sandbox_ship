@@ -1,7 +1,7 @@
-// What this version adds to the campaign, as the HUD shows it: the diplomacy list in the drawer
-// (truces, alliances, trade and tributes with each rival, an AI's personality and trust), the
-// dialogs of an offer made to the player, of a tribute and of a betrayal, the messages of
-// diplomacy, random events and ruins, the notes they leave on a planet, and supply.
+// What this version adds to the campaign, as the HUD shows it: proposing and answering deals
+// (the diplomacy screen is GalaxyHud.DiplomacyScreen.cs), the dialogs of an offer made to the
+// player and of a betrayal, the messages of diplomacy, random events and ruins, the notes they
+// leave on a planet, and supply.
 using Godot;
 using SandboxShip.Core;
 using SandboxShip.Sim;
@@ -118,20 +118,24 @@ public partial class GalaxyHud
         _ => $"Tu lui paierais {Credits(amount, perMinute)} contre une trêve de {Minutes(Galaxies.TruceTime)}. Refuser, c'est rester en guerre.",
     };
 
-    void Propose(Side rival, DealKind kind, double amount = 0, bool perMinute = false, Side? target = null, int? planet = null, DealTerms terms = DealTerms.None,
-        TechId? tech = null)
+    /// <summary>
+    /// The player proposes `rival` a deal, said in the thread. An AI answers at once (a deal
+    /// signed, a refusal or a counter-offer, each an event); another player in their own time.
+    /// </summary>
+    internal void Propose(Side rival, DealKind kind, double amount = 0, bool perMinute = false, Side? target = null, int? planet = null, TechId? tech = null)
     {
-        var can = Galaxies.CanPropose(G, Player, rival, kind, amount, perMinute, target, planet, terms, tech);
+        var can = Galaxies.CanPropose(G, Player, rival, kind, amount, perMinute, target, planet, tech: tech);
         if (!can.Ok)
         {
             Notify(can.Reason);
             return;
         }
-        var r = scene.Sink.Send(new GalaxyCommand.ProposeAccord(rival, kind, amount, perMinute, target, planet, terms, tech));
-        // A deal signed says so itself (TruceSigned, PactSigned, TributeSigned), an AI's refusal too (DealRefused).
-        // Over the network, another player answers in their own time.
-        if (r.Ok && G.Factions[rival].AI is null) Notify($"Offre faite à {NameOf(rival)} : réponse sous {Left(kind == DealKind.Ultimatum ? Galaxies.UltimatumTime : Galaxies.OfferTime)}");
-        if (r.Ok) diploTerms = DealTerms.None;
+        Talk(rival, new Line(Player, Proposal(rival, kind, amount, perMinute, target, planet, tech)));
+        var ai = G.Factions[rival].AI is not null;
+        if (ai) awaiting.Add(rival);
+        var r = scene.Sink.Send(new GalaxyCommand.ProposeAccord(rival, kind, amount, perMinute, target, planet, Tech: tech));
+        if (r.Ok && !ai) Notify($"Offre faite à {NameOf(rival)} : réponse sous {Left(kind == DealKind.Ultimatum ? Galaxies.UltimatumTime : Galaxies.OfferTime)}");
+        diploIntent = Intent.None;
         RefreshSoon();
     }
 
@@ -143,11 +147,13 @@ public partial class GalaxyHud
         return b;
     }
 
-    void Answer(Side rival, DealKind kind, bool yes)
+    /// <summary>The player answers an offer `rival` made, said in the thread.</summary>
+    internal void Answer(Side rival, DealKind kind, bool yes)
     {
+        Talk(rival, new Line(Player, !yes ? $"Je refuse {Noun(kind)}." : kind == DealKind.Ultimatum ? "Je cède à l'ultimatum." : $"J'accepte {Noun(kind)}."));
         var r = scene.Sink.Send(new GalaxyCommand.AnswerDeal(rival, kind, yes));
         if (yes && !r.Ok) Notify($"L'offre de {NameOf(rival)} n'est plus valable");
-        else if (!yes) Notify($"Offre de {NameOf(rival)} refusée");
+        else if (!yes && !Showing(rival)) Notify($"Offre de {NameOf(rival)} refusée");
         RefreshSoon();
     }
 
@@ -219,26 +225,40 @@ public partial class GalaxyHud
     /// <summary>Who receives in a planet or tech deal, "toi" for the player, and what was paid, for its notice.</summary>
     string Taker(Concluded c) => c.To == Player ? "toi" : NameOf(c.To);
 
-    static string Paid(Concluded c) => c.Amount > 0 ? $" pour {Credits(c.Amount, false)}" : ", en cadeau";
+    static string Paid(Concluded c) => Paid(c.Amount);
+
+    static string Paid(double amount) => amount > 0 ? $" pour {Credits(amount, false)}" : ", en cadeau";
 
     string Holder(Side? f) => f is Side o ? NameOf(o) : "neutre";
 
-    /// <summary>Messages for truces, random events and ruins; the rest is OnEvent's.</summary>
+    /// <summary>Whether the diplomacy screen shows its dialogue with `rival`: what it says needs no message besides.</summary>
+    bool Showing(Side rival) => DiplomacyOpen && diploTab == DiploTab.Talk && diploSide == rival;
+
+    /// <summary>Messages for truces, random events and ruins; the rest is OnEvent's. Diplomacy goes to the thread too.</summary>
     void OnDepthEvent(GalaxyEvent ev)
     {
         var player = Player;
+        Converse(ev);
         switch (ev)
         {
+            case DealOffered o when o.To == player && Showing(o.From):
+                Sfx.Play(Sound.Alert);
+                break;
+            case DealOffered { Counter: true } o when o.To == player:
+                Notify($"{NameOf(o.From)} te fait une contre-offre (Diplomatie, {Bindings.Label(Bindings.Diplomacy)})");
+                break;
             case DealOffered o when o.To == player:
                 Sfx.Play(Sound.Alert);
                 Notify(OfferTitle(o.From, o.Kind, o.Amount, o.PerMinute));
                 if (!DialogOpen) ShowOffer(o);
                 break;
+            case DealRefused r when r.From == player && Showing(r.To):
+                break;
             case DealRefused r when r.From == player && r.Kind == DealKind.Ultimatum:
-                Notify(r.Reason.Length > 0 ? $"{NameOf(r.To)} défie ton ultimatum. {r.Reason}." : $"{NameOf(r.To)} défie ton ultimatum");
+                Notify(r.Reason.Length > 0 ? $"{NameOf(r.To)} défie ton ultimatum : « {r.Reason}. »" : $"{NameOf(r.To)} défie ton ultimatum");
                 break;
             case DealRefused r when r.From == player:
-                Notify(r.Reason.Length > 0 ? $"{NameOf(r.To)} refuse {Noun(r.Kind)}. {r.Reason}." : $"{NameOf(r.To)} refuse {Noun(r.Kind)}");
+                Notify(r.Reason.Length > 0 ? $"{NameOf(r.To)} refuse {Noun(r.Kind)} : « {r.Reason}. »" : $"{NameOf(r.To)} refuse {Noun(r.Kind)}");
                 break;
             case UltimatumEnded u when u.To == player:
                 Notify(u.Accepted ? $"Tu as cédé à l'ultimatum de {NameOf(u.From)}" : $"Ultimatum de {NameOf(u.From)} rejeté : c'est la guerre");
@@ -260,7 +280,7 @@ public partial class GalaxyHud
                 // call for help is worth a look: the button opens the screen on who said it.
                 var (who, words) = (NameOf(s.From), RemarkText(s.From, s.What));
                 var urgent = s.What is Remark.Warning or Remark.Threat or Remark.AskHelp or Remark.Coalition;
-                toasts.Add(who, urgent ? () => OpenDiplomacy(s.From) : null, Palette.Accent, [words], life: 6000);
+                if (!Showing(s.From)) toasts.Add(who, urgent ? () => OpenDiplomacy(s.From) : null, Palette.Accent, [words], life: 6000);
                 Log(who, [words], null);
                 break;
             }
@@ -313,7 +333,7 @@ public partial class GalaxyHud
                 Notify(e.Kind == DealKind.Alliance ? $"Fin de l'alliance entre {NameOf(e.A)} et {NameOf(e.B)}" : $"Fin de la guerre commune entre {NameOf(e.A)} et {NameOf(e.B)}");
                 break;
             case TributeSigned tb when tb.Payer == player:
-                Notify($"Tribut à {NameOf(tb.Payee)} : {Credits(tb.Amount, tb.PerMinute)}, contre la paix");
+                Notify($"Tribut versé à {NameOf(tb.Payee)} : {Credits(tb.Amount, tb.PerMinute)}");
                 break;
             case TributeSigned tb when tb.Payee == player:
                 Notify($"Tribut de {NameOf(tb.Payer)} : {Credits(tb.Amount, tb.PerMinute)}, contre la paix");

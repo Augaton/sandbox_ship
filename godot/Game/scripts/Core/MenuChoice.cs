@@ -106,8 +106,13 @@ public static class Dev
     public static bool Campaign, Resume, Watch;
     /// <summary>--intro: the opening plays even for a capture or a start straight into a screen.</summary>
     public static bool Intro;
-    /// <summary>--deals: a campaign started with deals made and offered, the diplomacy list open, for its captures.</summary>
+    /// <summary>
+    /// --deals: a campaign started with deals proposed, countered and offered, the diplomacy screen
+    /// open, for its captures; --deals=open, the screen open before anything is proposed;
+    /// --deals=accept, a counter-offer accepted; --deals=relations, on its second tab.
+    /// </summary>
     public static bool Deals;
+    public static string DealsView = "";
     /// <summary>--no-hud: the battle without its interface, for captures of what is on the field.</summary>
     public static bool NoHud;
     /// <summary>--veterans[=one]: a dev battle shows veterans and fleet orders: the player's first warships promoted, the fleet (or the best of it) selected on a patrol.</summary>
@@ -200,7 +205,7 @@ public static class Dev
                 case "--raid": Raid = Ages(value); break;
                 case "--build": Build = Ages(value); break;
                 case "--choose": Choose = value.Split(','); break;
-                case "--deals": Deals = true; break;
+                case "--deals": Deals = true; DealsView = value; break;
                 case "--truce": Truce = double.Parse(value, System.Globalization.CultureInfo.InvariantCulture); break;
                 case "--answer": Answer = value; break;
                 case "--save": SavePath = value; break;

@@ -234,7 +234,7 @@ public class RelationsTests
         // Too little: the AI says what it wants.
         var low = ProposeDeal(g, Klaed, Nairan, DealKind.Planet, 50, planet: theirs.Id);
         Assert.False(low.Ok);
-        Assert.Contains("au moins", low.Reason);
+        Assert.Contains("moins de", low.Reason);
         Assert.True(ProposeDeal(g, Klaed, Nairan, DealKind.Planet, 1e4, planet: theirs.Id).Ok);
         Assert.Equal(Klaed, theirs.Owner);
         Assert.Equal(1e5 - 1e4, g.Factions[Klaed].Credits, 0);

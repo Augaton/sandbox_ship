@@ -56,7 +56,7 @@ public class DealsTests
     public void An_AI_allies_with_a_faction_it_trusts_or_against_a_common_foe_never_to_end_the_campaign()
     {
         var g = Three();
-        Assert.Equal(Result.Fail("Elle ne te fait pas encore assez confiance"), ProposeDeal(g, Klaed, Nairan, DealKind.Alliance));
+        Assert.Equal(Result.Fail("Nous ne te faisons pas encore assez confiance"), ProposeDeal(g, Klaed, Nairan, DealKind.Alliance));
         Assert.Contains(g.Events, e => e is DealRefused { From: var f, Kind: DealKind.Alliance } && f == Klaed);
         // A Nautolan armada facing it: an ally is welcome.
         Arm(g, Nautolan, 40);
@@ -65,7 +65,7 @@ public class DealsTests
         // With two factions left, an alliance would be a victory shared: refused.
         var two = CreateGalaxy(Faction.Klaed, [Faction.Nairan], true, errants: false, incidents: false);
         Trust(two, Nairan, Klaed, 100);
-        Assert.Equal(Result.Fail("Elle veut la galaxie pour elle seule"), ProposeDeal(two, Klaed, Nairan, DealKind.Alliance));
+        Assert.Equal(Result.Fail("Nous voulons la galaxie pour nous seuls"), ProposeDeal(two, Klaed, Nairan, DealKind.Alliance));
     }
 
     [Fact]
@@ -82,10 +82,10 @@ public class DealsTests
         Assert.Equal(2 * GrudgeTime, g.Factions[Nairan].AI!.Grudges[Klaed]);
         Assert.Equal(60 - 70, TrustOf(g, Nairan, Klaed), 6);
         Assert.Equal(20 - 15, TrustOf(g, Nautolan, Klaed), 6);
-        Assert.Equal(Result.Fail("Elle n'a pas oublié ta trahison"), ProposeDeal(g, Klaed, Nairan, DealKind.Alliance));
+        Assert.Equal(Result.Fail("Nous n'avons pas oublié ta trahison"), ProposeDeal(g, Klaed, Nairan, DealKind.Alliance));
         RunGalaxy(g, NoticeTime + 1);
         Assert.True(AtWar(g, Klaed, Nairan));
-        Assert.Equal(Result.Fail("Elle n'a pas oublié la trêve rompue"), ProposeDeal(g, Klaed, Nairan, DealKind.Truce));
+        Assert.Equal(Result.Fail("Nous n'avons pas oublié la trêve rompue"), ProposeDeal(g, Klaed, Nairan, DealKind.Truce));
         Assert.Equal(Result.Fail("Aucune alliance"), EndDeal(g, Klaed, Nairan, DealKind.Alliance));
     }
 
@@ -128,10 +128,10 @@ public class DealsTests
     public void A_tribute_by_the_minute_buys_peace_from_a_stronger_AI_at_its_price()
     {
         var g = StrongAi();
-        Assert.Equal(Result.Fail("Elle se croit la plus forte"), ProposeTruce(g, Klaed, Nairan));
+        Assert.Equal(Result.Fail("Nous sommes les plus forts"), ProposeTruce(g, Klaed, Nairan));
         var price = GalaxyAi.PeacePrice(g, Nairan, Klaed);
         Expect.Greater(price, 0);
-        Assert.Equal(Result.Fail($"Elle en veut au moins {(int)price} crédits par minute de trêve"), ProposeDeal(g, Klaed, Nairan, DealKind.Tribute, price - 10, true));
+        Assert.Equal(Result.Fail($"Pas à moins de {(int)price} crédits par minute de trêve"), ProposeDeal(g, Klaed, Nairan, DealKind.Tribute, price - 10, true));
         Assert.True(ProposeDeal(g, Klaed, Nairan, DealKind.Tribute, price, true).Ok);
         Assert.True(AtPeace(g, Klaed, Nairan));
         var t = Assert.Single(g.Tributes);
@@ -195,7 +195,7 @@ public class DealsTests
     {
         var weak = CreateGalaxy(Faction.Klaed, [Faction.Nairan], true, errants: false, incidents: false);
         AddShipsAt(weak, Klaed, Id("Vesper"), new ShipCounts { [ShipClass.Battlecruiser] = 8 });
-        Assert.Equal(Result.Fail("Elle n'a pas de quoi payer"), ProposeDeal(weak, Klaed, Nairan, DealKind.Demand, 900, true));
+        Assert.Equal(Result.Fail("Nous n'avons pas de quoi payer"), ProposeDeal(weak, Klaed, Nairan, DealKind.Demand, 900, true));
         Assert.True(ProposeDeal(weak, Klaed, Nairan, DealKind.Demand, 30, true).Ok);
         var t = Assert.Single(weak.Tributes);
         Assert.Equal((Nairan, Klaed), (t.Payer, t.Payee));
@@ -206,7 +206,7 @@ public class DealsTests
         Assert.True(AtPeace(weak, Klaed, Nairan));
 
         var strong = StrongAi();
-        Assert.Equal(Result.Fail("Elle ne te craint pas"), ProposeDeal(strong, Klaed, Nairan, DealKind.Demand, 30, true));
+        Assert.Equal(Result.Fail("Tu ne nous fais pas peur"), ProposeDeal(strong, Klaed, Nairan, DealKind.Demand, 30, true));
         Assert.Equal(Result.Fail("Montant invalide"), ProposeDeal(strong, Klaed, Nairan, DealKind.Demand, double.NaN));
         Assert.Equal(Result.Fail("Montant invalide"), ProposeDeal(strong, Klaed, Nairan, DealKind.Tribute, MaxTribute + 1));
     }
@@ -286,7 +286,7 @@ public class DealsTests
             g.Truces.Add(new Truce { A = Klaed, B = Nairan, Remaining = TruceTime });
             for (var gift = 0; gift < 5; gift++) ProposeDeal(g, Klaed, Nairan, DealKind.Tribute, 1000);
             Assert.Equal(TrustBuyable, TrustOf(g, Nairan, Klaed));
-            Assert.Equal(Result.Fail("Elle ne te fait pas encore assez confiance"), ProposeDeal(g, Klaed, Nairan, DealKind.Alliance));
+            Assert.Equal(Result.Fail("Nous ne te faisons pas encore assez confiance"), ProposeDeal(g, Klaed, Nairan, DealKind.Alliance));
         }
         // Spent, a gift that would buy nothing is turned down, and the credits stay.
         var h = Three();
@@ -294,7 +294,7 @@ public class DealsTests
         h.Truces.Add(new Truce { A = Klaed, B = Nairan, Remaining = TruceTime, Renewed = true });
         Assert.True(ProposeDeal(h, Klaed, Nairan, DealKind.Tribute, 1000).Ok);
         var credits = h.Factions[Klaed].Credits;
-        Assert.Equal(Result.Fail("Elle n'attend plus rien de toi pour l'instant"), ProposeDeal(h, Klaed, Nairan, DealKind.Tribute, 1000));
+        Assert.Equal(Result.Fail("Nous n'attendons plus rien de toi pour l'instant"), ProposeDeal(h, Klaed, Nairan, DealKind.Tribute, 1000));
         Assert.Equal(credits, h.Factions[Klaed].Credits);
         // Half a truce later, half of it can be bought again.
         h.Factions[Nairan].AI!.Timer = 1e9;
@@ -342,7 +342,7 @@ public class DealsTests
         g.Truces.Add(new Truce { A = Klaed, B = Nairan, Remaining = 1 });
         RunGalaxy(g, 2);
         Assert.Empty(g.Truces);
-        Assert.Equal(Result.Fail("Elle sort à peine d'une trêve avec toi"), ProposeDeal(g, Nautolan, Nairan, DealKind.Truce));
+        Assert.Equal(Result.Fail("Nous sortons à peine d'une trêve avec toi"), ProposeDeal(g, Nautolan, Nairan, DealKind.Truce));
         Assert.True(ProposeDeal(g, Klaed, Nairan, DealKind.Truce).Ok);
         RunGalaxy(g, RetruceTime);
         Assert.True(ProposeDeal(g, Nautolan, Nairan, DealKind.Truce).Ok);
@@ -415,7 +415,7 @@ public class DealsTests
         g.Tributes.Add(new Tribute { Payer = Nautolan, Payee = Nairan, PerMinute = 60, Remaining = 300 });
         g.Offers.Add(new DealOffer { From = Nautolan, To = Klaed, Kind = DealKind.Demand, Amount = 120, PerMinute = true, Remaining = 30 });
         g.Offers.Add(new DealOffer { From = Nautolan, To = Nairan, Kind = DealKind.Trade, Remaining = 30 });
-        var events = new List<GalaxyEvent> { new DealRefused(Klaed, Nautolan, DealKind.Alliance, "Elle se méfie de toi"), new TributeEnded(Nautolan, Nairan, null) };
+        var events = new List<GalaxyEvent> { new DealRefused(Klaed, Nautolan, DealKind.Alliance, "Nous nous méfions de toi"), new TributeEnded(Nautolan, Nairan, null) };
         using var ms = new MemoryStream();
         using (var w = new BinaryWriter(ms)) GalaxySnapshot.Write(g, Klaed, w, events);
         var replica = new Galaxy();
@@ -428,27 +428,21 @@ public class DealsTests
         Assert.Equal(Personality.Technological, replica.Factions[Nairan].AI!.Personality);
         Assert.Equal(60, TrustOf(replica, Nairan, Klaed), 3);
         Assert.Equal(-30, TrustOf(replica, Nautolan, Klaed), 3);
-        Assert.Contains(replica.Events, e => e is DealRefused { Reason: "Elle se méfie de toi" });
+        Assert.Contains(replica.Events, e => e is DealRefused { Reason: "Nous nous méfions de toi" });
         Assert.Contains(replica.Events, e => e is TributeEnded);
     }
 
     [Fact]
-    public void A_replica_knows_what_an_AI_asks_its_viewer_for_peace_and_a_truce_prolonged()
+    public void A_replica_knows_a_truce_prolonged()
     {
         var g = Three();
-        Arm(g, Nairan, 12);
         g.Truces.Add(new Truce { A = Klaed, B = Nautolan, Remaining = 300, Renewed = true });
-        var price = GalaxyAi.PeacePrice(g, Nairan, Klaed);
-        Expect.Greater(price, 0);
         using var ms = new MemoryStream();
         using (var w = new BinaryWriter(ms)) GalaxySnapshot.Write(g, Klaed, w);
         var replica = new Galaxy();
         GalaxySnapshot.ReadChart(new BinaryReader(new MemoryStream(GalaxySnapshot.Chart(g))), replica);
         Assert.NotNull(GalaxySnapshot.Read(new BinaryReader(new MemoryStream(ms.ToArray())), replica));
-        // Its fleets out of the viewer's sight: worked out there, the price would be wrong.
-        Assert.Equal(price, replica.Factions[Nairan].AI!.Asked!.Value, 3);
         Assert.True(Assert.Single(replica.Truces).Renewed);
-        Assert.Null(g.Factions[Nairan].AI!.Asked);
     }
 
     [Fact]
