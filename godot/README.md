@@ -35,7 +35,7 @@ Options pour vérifier un écran sans passer par le menu, après `--` :
 `--start=menu|battle|sandbox|campaign|gallery|jumps` (`gallery` : chaque classe de vaisseau et chaque
 niveau de plateforme, en pause ; `jumps` : des vaisseaux de la réserve en hyperespace à chaque stade,
 un qui en sort parmi des chasseurs, un autre en main sous le pointeur), `--skip=SECONDES` (partie jouée d'avance par l'IA), `--zoom=Z`,
-`--at=X,Y` (centre la vue de bataille), `--menu=home|new|controls|credits|options|lobby-MODE` (`new` : les
+`--at=X,Y` (centre la vue de bataille), `--menu=home|new|controls|credits|options|codex|lobby-MODE` (`new` : les
 modes ; `lobby-skirmish`, `lobby-campaign`, `lobby-assault`… : le salon de ce mode, que `--seats=N` remplit
 d'IA et où `--teams=1,2,…` place les équipes dans l'ordre des places),
 `--size=small|medium|large|huge|immense` (carte de `--start`, ou galaxie jusqu'à `large`), `--mode=survival|zones|assault|regicide`
@@ -51,7 +51,10 @@ sélectionnée, en position tenue, sur une patrouille suivie d'un déplacement e
 plus de mille vaisseaux au-dessus d'une planète fortifiée, sous ce plafond, les deux camps à l'IA de bataille de la campagne :
 la mesure du plafond, `none` pour la même bataille sans lui), `--armada` (une campagne neuve donne au joueur, à sa capitale,
 une flotte de la bataille de mesure : 192 vaisseaux, 376 points ; avec `--raid=1 --choose=command --answer=no`, une bataille où
-sa réserve attend sous le plafond). Ajouter `--disable-vsync`
+sa réserve attend sous le plafond), `--codex=QUOI` (le codex ouvert sur une classe, `frigate`, un héros, `hero-admiral`, ou
+une race, `race-nairan`, précédés au besoin de la race à montrer, `nairan:titan` ; avec `--menu=codex`, ou au-dessus d'une
+bataille de `--start`, ouvert depuis le menu Échap). Pour une capture en 1280×720 : `--resolution 1280x720` avant `--`, et
+`-H 720 -h 720` pour gamescope. Ajouter `--disable-vsync`
 avant `--` si la fenêtre est cachée : sinon le compositeur la ralentit. Avec `--shot`, la
 fenêtre ne prend pas le clavier, et ni les réglages ni la sauvegarde de campagne ne sont touchés.
 Pour une capture sans aucune fenêtre à l'écran (gamescope, déjà installé) :

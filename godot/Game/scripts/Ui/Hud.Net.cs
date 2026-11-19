@@ -31,6 +31,7 @@ public partial class Hud
         if (session.Leads && World.Winner is not null) Item("Retour au salon", session.BackToLobby);
         Item("Options", () => OpenModal(Options.Panel(CloseModal), back));
         Item("Commandes", () => ShowHelp(back));
+        Item("Codex", () => ShowCodex(back));
         if (campaign is not null && scene.Opts.Net!.Watching) Item("Retour à la carte", scene.StopWatching);
         else if (campaign is not null)
         {

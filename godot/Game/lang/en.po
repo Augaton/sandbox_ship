@@ -8569,3 +8569,179 @@ msgstr "larger fleets"
 #: Sim/Reserves.cs
 msgid "Plafond de flotte atteint"
 msgstr "Fleet cap reached"
+
+#: Game/scripts/Galaxy/GalaxyHud.cs
+msgid "Codex"
+msgstr "Codex"
+
+#: Game/scripts/Ui/Codex.cs
+msgid "Rapide et fragile : il part devant la flotte et harcèle les appareils."
+msgstr "Fast and fragile: it scouts ahead of the fleet and harries craft."
+
+#: Game/scripts/Ui/Codex.cs
+msgid "Appareil d'interception, nombreux et rapide, contre les petits vaisseaux."
+msgstr "An interceptor, numerous and fast, against small ships."
+
+#: Game/scripts/Ui/Codex.cs
+msgid "Torpilles contre les grosses coques et les bâtiments ; sans défense contre la flak."
+msgstr "Torpedoes against big hulls and buildings; defenseless against flak."
+
+#: Game/scripts/Ui/Codex.cs
+msgid "Répare les alliés autour de lui ; sa flak tient les appareils à distance."
+msgstr "Repairs the allies around it; its flak keeps craft at bay."
+
+#: Game/scripts/Ui/Codex.cs
+msgid "Torpilles lourdes à tête chercheuse : la réponse aux grosses coques."
+msgstr "Heavy homing torpedoes: the answer to big hulls."
+
+#: Game/scripts/Ui/Codex.cs
+msgid "Le vaisseau de ligne de base : rayon continu, flak et générateur de bouclier."
+msgstr "The basic ship of the line: a beam, flak and a shield generator."
+
+#: Game/scripts/Ui/Codex.cs
+msgid "Vaisseau de ligne lourd : laser, canon à rafales et flak."
+msgstr "A heavy ship of the line: laser, burst cannon and flak."
+
+#: Game/scripts/Ui/Codex.cs
+msgid "Un mur : solide comme un cuirassé pour moins cher, il attire le feu ennemi."
+msgstr "A wall: as tough as a dreadnought for less, it draws the enemy's fire."
+
+#: Game/scripts/Ui/Codex.cs
+msgid "Presque sans canons, mais deux grands hangars qui lancent sans cesse."
+msgstr "Next to no guns, but two big hangars that keep launching."
+
+#: Game/scripts/Ui/Codex.cs
+msgid "Le poids lourd de la ligne : rayon lourd, lasers, ions, flak et hangar."
+msgstr "The heavyweight of the line: heavy ray, lasers, ions, flak and a hangar."
+
+#: Game/scripts/Ui/Codex.cs
+msgid "Vaisseau capital : deux rayons lourds sur la quille, missiles et hangar."
+msgstr "A capital ship: two heavy rays down the keel, missiles and a hangar."
+
+#: Game/scripts/Ui/Codex.cs
+msgid "Au-dessus du Titan : batterie spinale, bordées sur les deux flancs, deux hangars."
+msgstr "Above the titan: a spinal battery, broadsides down both flanks, two hangars."
+
+#: Game/scripts/Ui/Codex.cs
+msgid "Le vaisseau ultime, au prix d'une flotte entière : ses quatre générateurs de bouclier sont la clé."
+msgstr "The ultimate ship, at the price of a whole fleet: its four shield generators are the key."
+
+#: Game/scripts/Ui/Codex.cs
+msgid "Obus de siège à très longue portée contre les défenses, perdu de près."
+msgstr "Very long-range siege shells against defenses, lost up close."
+
+#: Game/scripts/Ui/Codex.cs
+msgid "Rapide, par deux : son écran de flak abat appareils, torpilles et obus."
+msgstr "Fast, two at a time: its flak screen shoots down craft, torpedoes and shells."
+
+#: Game/scripts/Ui/Codex.cs
+msgid "À peine armé : son brouillage raccourcit la portée ennemie et coupe la recharge des boucliers."
+msgstr "Hardly armed: its jamming cuts the enemy's reach and stops shields recharging."
+
+#: Game/scripts/Ui/Codex.cs
+msgid "Invisible de loin tant qu'il ne tire pas : il chasse les mines et les avant-postes."
+msgstr "Unseen from afar until it fires: it hunts mines and outposts."
+
+#: Game/scripts/Ui/Codex.cs
+msgid "Petit vaisseau"
+msgstr "Small ship"
+
+#: Game/scripts/Ui/Codex.cs
+msgid "Vaisseau moyen"
+msgstr "Medium ship"
+
+#: Game/scripts/Ui/Codex.cs
+msgid "Grand vaisseau"
+msgstr "Large ship"
+
+#: Game/scripts/Ui/Codex.cs
+msgid "Qui bat qui : chaque classe, ses armes et ses contres."
+msgstr "Who beats whom: each class, its weapons and its counters."
+
+#: Game/scripts/Ui/Codex.cs
+msgid "Races"
+msgstr "Races"
+
+#: Game/scripts/Ui/Codex.cs
+msgid "Forte contre"
+msgstr "Strong against"
+
+#: Game/scripts/Ui/Codex.cs
+msgid "Aucune cible de prédilection"
+msgstr "No favorite target"
+
+#: Game/scripts/Ui/Codex.cs
+msgid "Faible contre"
+msgstr "Weak against"
+
+#: Game/scripts/Ui/Codex.cs
+msgid "Aucune faiblesse nette"
+msgstr "No clear weakness"
+
+#: Game/scripts/Ui/Codex.cs
+msgid "Défense ponctuelle : sa flak abat les torpilles, les missiles et les obus en vol."
+msgstr "Point defense: its flak shoots down torpedoes, missiles and shells in flight."
+
+#: Game/scripts/Ui/Codex.cs
+msgid "{0} contre les boucliers, {1} contre la coque ({2})."
+msgstr "{0} against shields, {1} against hulls ({2})."
+
+#: Game/scripts/Ui/Codex.cs
+msgid "Portée {0} : plus loin que toutes les défenses."
+msgstr "Range {0}: beyond every defense."
+
+#: Game/scripts/Ui/Codex.cs
+msgid "Portée {0} : plus loin que toutes les défenses sauf : {1}."
+msgstr "Range {0}: beyond every defense but one: {1}."
+
+#: Game/scripts/Ui/Codex.cs
+msgid "{0} : {1} cr, {2} s, station niveau {3}"
+msgstr "{0}: {1} cr, {2} s, station level {3}"
+
+#: Game/scripts/Ui/Codex.cs
+msgid "Coque"
+msgstr "Hull"
+
+#: Game/scripts/Ui/Codex.cs
+msgid "Bouclier"
+msgstr "Shield"
+
+#: Game/scripts/Ui/Codex.cs
+msgid "Vitesse"
+msgstr "Speed"
+
+#: Game/scripts/Ui/Codex.cs
+msgid "Portée"
+msgstr "Range"
+
+#: Game/scripts/Ui/Codex.cs
+msgid "Armes"
+msgstr "Weapons"
+
+#: Game/scripts/Ui/Codex.cs
+msgid "Capacités"
+msgstr "Abilities"
+
+#: Game/scripts/Ui/Codex.cs
+msgid "{0}, vaisseau : {1}"
+msgstr "{0}, ship: {1}"
+
+#: Game/scripts/Ui/Codex.cs
+msgid "{0} cr, {1} s, station niveau {2}. Reconstruit {3} s après sa perte"
+msgstr "{0} cr, {1} s, station level {2}. Rebuilt {3} s after it falls"
+
+#: Game/scripts/Ui/Codex.cs
+msgid "Pouvoir"
+msgstr "Power"
+
+#: Game/scripts/Ui/Codex.cs
+msgid "Commandement : à {0} ou moins de lui, les alliés font plus de dégâts et vont plus vite."
+msgstr "Command: within {0} of it, allies deal more damage and fly faster."
+
+#: Game/scripts/Ui/Hud.Dialogs.cs
+msgid "Qui bat qui : chaque classe, ses armes et ses contres"
+msgstr "Who beats whom: each class, its weapons and its counters"
+
+#: Game/scripts/Ui/Menu.cs
+msgid "Qui bat qui : chaque classe, ses armes et ses contres. Échap : retour"
+msgstr "Who beats whom: each class, its weapons and its counters. Esc: back"

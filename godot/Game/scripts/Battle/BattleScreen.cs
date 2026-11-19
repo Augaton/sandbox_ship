@@ -169,6 +169,12 @@ public partial class BattleScreen : Node
         }
         if (Dev.At is Vector2 at) CenterOn(at.X, at.Y);
         if (Dev.Veterans is { } which && own is not null && o.Net is null) ShowVeterans(own, which == "one");
+        // Checking the codex over a battle (--codex): from the pause menu, as a player opens it.
+        if (Dev.Codex is { } codex && Dev.Start != "menu") Callable.From(() =>
+        {
+            Hud.PauseMenu();
+            Hud.ShowCodex(Hud.PauseMenu, codex);
+        }).CallDeferred();
     }
 
     /// <summary>

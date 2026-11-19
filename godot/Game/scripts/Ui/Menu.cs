@@ -17,7 +17,7 @@ public partial class Menu : Node
     /// <summary>The game's version, as in package.json (which the web version reads at build time).</summary>
     public const string Version = "2.1.0";
 
-    enum Screen { Home, Modes, Lobby, Options, Controls, Credits, Multiplayer, Replays, Load, Profile }
+    enum Screen { Home, Modes, Lobby, Options, Controls, Credits, Multiplayer, Replays, Load, Profile, Codex }
 
     /// <summary>Width of the panel: the home column, the wider panel of the other screens, a little more for the lobby's six rows.</summary>
     const float HomeWidth = 420, Width = 780, LobbyWidth = 860;
@@ -130,6 +130,7 @@ public partial class Menu : Node
             "multiplayer" or "join" => Screen.Multiplayer,
             "replays" => Screen.Replays,
             "profile" => Screen.Profile,
+            "codex" => Screen.Codex,
             "skirmish" => Screen.Lobby,
             var m when m.StartsWith("lobby-", StringComparison.Ordinal) => Screen.Lobby,
             _ => Screen.Home,
@@ -268,7 +269,7 @@ public partial class Menu : Node
         veil.QueueRedraw();
     }
 
-    static float WidthOf(Screen s) => s switch { Screen.Home => HomeWidth, Screen.Lobby or Screen.Multiplayer => LobbyWidth, _ => Width };
+    static float WidthOf(Screen s) => s switch { Screen.Home => HomeWidth, Screen.Lobby or Screen.Multiplayer or Screen.Codex => LobbyWidth, _ => Width };
 
     /// <summary>How deep a screen is: home, a screen it opens, the lobby past the modes. Going deeper sounds as opening, back as closing.</summary>
     static int Depth(Screen s) => s switch { Screen.Home => 0, Screen.Lobby => 2, _ => 1 };
@@ -382,6 +383,12 @@ public partial class Menu : Node
             case Screen.Replays: ReplaysScreen(); break;
             case Screen.Profile: ProfileScreen(); break;
             case Screen.Load: LoadScreen(); break;
+            case Screen.Codex:
+                Titled("Codex", "Qui bat qui : chaque classe, ses armes et ses contres. Échap : retour");
+                // It fills the panel, and scrolls its list and its detail each on its own.
+                body.AddChild(new Codex(Faction.Klaed, true, Dev.Codex));
+                footer.AddChild(Btn("Retour", Back));
+                break;
             case Screen.Credits:
                 Titled("Crédits");
                 body.AddChild(Paragraph("Sprites : packs Void (flottes, environnement, vaisseau principal) de Foozle, et Space Breaker de zintoki, tous en CC0. Merci à eux."));
@@ -466,6 +473,7 @@ public partial class Menu : Node
         if (PlayerProfile.Current.Stats.Battles == 0) nav.AddChild(Nav("Didacticiel", () => Main.Instance.StartBattle(Tutorial.Options()), key: "tutorial"));
         nav.AddChild(Nav("Multijoueur", () => Open(Screen.Multiplayer, "multi"), key: "multi"));
         nav.AddChild(Nav("Profil", () => Open(Screen.Profile, "profile"), key: "profile"));
+        nav.AddChild(Nav("Codex", () => Open(Screen.Codex, "codex"), key: "codex"));
         nav.AddChild(Nav("Options", () => Open(Screen.Options, "options"), key: "options"));
         nav.AddChild(Nav("Quitter", Main.Instance.QuitGame));
         body.AddChild(nav);

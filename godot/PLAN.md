@@ -817,6 +817,32 @@ tests de `FixtureTests` et `CrossTests` les listent.
     et sa réserve en séries d'une même sorte (3 000 chasseurs tiennent en quelques octets, au lieu de deux par vaisseau). Bornes à
     la lecture : plafond et réserve à 65 536 au plus, séries d'au moins un vaisseau, point d'arrivée fini, ramené dans la carte.
     Sauvegardes : champ `fleetCap`, Normal s'il manque ; un nom inconnu refuse le fichier. Tests : `FleetCapTests`, `FuzzTests`.
+- Codex (2026-11-19, à la demande de l'utilisateur) : rien ne disait qui bat qui, sauf la bulle d'un bouton de production. Un
+  seul écran (`Ui/Codex.cs`), au menu principal (entrée « Codex », un écran du menu) et dans un dialogue du menu Échap en
+  bataille (en solo, le temps reste arrêté derrière, comme pour les options ; en réseau aussi, sans pause) et de l'aide de la
+  carte galactique (le temps y reste arrêté ; « Fermer » ramène à l'aide).
+  - Trois pages : Vaisseaux, Héros, Races ; une liste à gauche, le détail à droite, chacun défilant seul. Une rangée choisit la
+    race, celle du joueur d'abord : sprites, prix, héros, coque, bouclier et vitesse selon son trait.
+  - Par classe : le vaisseau comme en bataille (`--start=gallery`) : couches de la coque aux couleurs de la race et chaque pièce
+    sur son emplacement, proue à droite (`Assets.PartLook`) ; son rôle en une ligne (le seul texte écrit pour lui), sa taille, sa
+    limite, prix, temps et niveau de station, coque, bouclier, vitesse, portée, ses armes (`Names.Armament`, comme la bulle de
+    production), ses capacités (comme le panneau de sélection), « Forte contre » et « Faible contre » (un clic montre la classe),
+    et ce que les armes disent de plus : défense ponctuelle, ions, portée au-delà des défenses (toutes, ou toutes sauf une).
+    Héros : leur vaisseau, description, prix, délai de reconstruction, chiffres avec leurs multiplicateurs, pouvoir, le
+    commandement de l'amiral, les contres de leur vaisseau. Races : emblème, trait (le texte de la barre du haut), héros.
+  - Contres déduits des données (`Sim/Counters.cs`) : ce qu'une classe inflige par seconde à une autre (chaque arme, ses
+    multiplicateurs par taille et contre boucliers et coques selon la part de chacun chez la cible, les appareils de ses
+    hangars pour la moitié de leur nombre, torpilles, missiles et obus réduits de 40 % contre une défense ponctuelle), en
+    logarithmes ; on retire ce qu'elle inflige en général et ce que la cible encaisse en général (un Titan frappe tout fort,
+    un chasseur meurt de tout) : il reste ce qui est propre à la paire. Le score d'un duel est celui de l'un contre l'autre
+    moins l'inverse ; au-delà de 0,4 (environ une fois et demie), il est nommé, trois au plus. Les bâtiments sont une cible de
+    plus (ceux d'une station). La portée ne pèse presque pas dans ce calcul (elle est générale) : elle passe dans une note.
+    Résultat : la corvette bat bombardiers, torpilleurs et artillerie ; l'artillerie bat d'abord les bâtiments et perd contre
+    les petits ; torpilleurs et artillerie battent les grosses coques ; le brouilleur (ions) bat Rempart, cuirassé et Titan.
+    Tests : `CountersTests`.
+  - Vérification : `--menu=codex`, et `--codex=QUOI` (`frigate`, `hero-admiral`, `race-nairan`, précédé d'une race :
+    `nairan:titan`) au menu, ou au-dessus d'une bataille de `--start` (ouvert depuis le menu Échap). Captures en 1280×800 et
+    1280×720 (`--resolution 1280x720` avant `--`), en français et en anglais.
 - Sécurité (2026-11-03) : ce qu'un inconnu peut envoyer au serveur en ligne, à un hôte ou au jeu, et les fichiers du joueur.
   Chaque lecteur exposé passe un test de robustesse à graine fixe (`FuzzTests` : trames du relais, messages du jeu, ordres,
   instantanés de bataille entiers et en parties, galaxie, rediffusions, sauvegardes), et chaque correction a son test

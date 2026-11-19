@@ -145,6 +145,7 @@ public partial class Hud
         Item("Reprendre", CloseModal, primary: true);
         Item("Options", () => OpenModal(Options.Panel(CloseModal), back));
         Item("Commandes", () => ShowHelp(back));
+        Item("Codex", () => ShowCodex(back), "Qui bat qui : chaque classe, ses armes et ses contres");
         if (!inCampaign)
         {
             Item("Recommencer", () => Confirm("Recommencer ?", "La bataille repart du début, sur la même carte.", "Recommencer", () => scene.Restart(), back));
@@ -159,6 +160,9 @@ public partial class Hud
             if (scene.Paused) scene.TogglePause();
         });
     }
+
+    /// <summary>The codex (Codex.cs) in the player's race; `back` runs when it is closed, `open` names what it shows first.</summary>
+    public void ShowCodex(Action? back = null, string? open = null) => OpenModal(Codex.Panel(Race, CloseModal, open), back);
 
     /// <summary>Each faction's record: built, lost, destroyed, damage dealt, credits earned.</summary>
     Control StatsTable()

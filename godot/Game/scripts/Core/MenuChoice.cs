@@ -151,6 +151,8 @@ public static class Dev
     public static string? FleetCap;
     /// <summary>--armada: a new campaign of a dev run gives the player a fleet of the stress scene (192 ships, 376 fleet points) at its capital.</summary>
     public static bool Armada;
+    /// <summary>--codex=WHAT: the codex opened on WHAT (Codex.Open: "frigate", "hero-admiral", "race-nairan", "nairan:frigate"), with --menu=codex or over a battle of --start.</summary>
+    public static string? Codex;
 
     /// <summary>The fleet points of --fleet-cap: 0 for none.</summary>
     public static int FleetCapPoints => FleetCap is null or "none" ? 0 : Reserves.CapPoints(Enum.Parse<Sim.FleetCap>(FleetCap, true));
@@ -231,6 +233,7 @@ public static class Dev
                 case "--snap": Snap = value; break;
                 case "--fleet-cap" when value == "none" || Enum.TryParse<Sim.FleetCap>(value, true, out _): FleetCap = value.ToLowerInvariant(); break;
                 case "--armada": Armada = true; break;
+                case "--codex": Codex = value; break;
             }
         }
         if (Relay && !port) Port = Sim.Net.Relay.DefaultPort;

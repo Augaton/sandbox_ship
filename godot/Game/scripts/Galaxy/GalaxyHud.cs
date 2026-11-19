@@ -1364,7 +1364,8 @@ public partial class GalaxyHud : CanvasLayer
             + "Les Errants, neutres, gardent la planète la plus isolée avec leur Colosse : ils n'en bougent jamais et ne comptent pas pour la victoire. "
             + $"Chaque vaisseau abattu rapporte {HudKit.Percent(Worlds.KillShare)} de sa valeur ; le Colosse, {N(Raids.Bounty)} crédits et un niveau de recherche. "
             + "La campagne se sauvegarde toute seule ; « Continuer la campagne » la reprend depuis le menu.", Palette.Muted));
-        box.AddChild(Actions(Btn("Fermer", CloseModal, primary: true)));
+        // The codex comes back here when it is closed: time stays still until the help closes too.
+        box.AddChild(Actions(Btn("Codex", () => OpenModal(Ui.Codex.Panel(Race, ShowHelp), ShowHelp)), Btn("Fermer", CloseModal, primary: true)));
         OpenModal(p);
         // Wrapped lines know their height once laid out: the scroll takes it then, up to what the window leaves.
         Callable.From(() =>

@@ -387,6 +387,9 @@ public static class Assets
     /// <summary>How a class of a race looks: a jump's hologram shows it before the ship is there.</summary>
     public static Look ShipLook(Faction f, ShipClass c) => ships[(f, c)];
 
+    /// <summary>How a ship's part looks outside the battle (the codex): its race's, by its role and its first weapon; null if none was drawn.</summary>
+    public static Look? PartLook(Faction f, HardpointRole role, WeaponDef? weapon) => parts.GetValueOrDefault((f, role, ShipForge.GunOf(weapon, role)));
+
     public static string? ShipSprite(Faction f, ShipClass c) => ships[(f, c)].Tint ? null : ships[(f, c)].Layers[0].Key;
 
     public static bool Has(string key) => strips.ContainsKey(key);
