@@ -38,7 +38,7 @@ public class ProtocolTests
         yield return new Message.Ask(new LobbyRequest.SetPersonality(2, Personality.Technological));
         yield return new Message.Ask(new LobbyRequest.SetPersonality(2, null));
         yield return new Message.Ask(new LobbyRequest.Settings(new LobbySettings(MapKind.Random, MapSize.Large, 99, false, true, 50, 20, false, true,
-            TerrainDensity.Dense, 10000, 70)));
+            TerrainDensity.Dense, 10000, 70, 5, FleetCap.High)));
         yield return new Message.Launch();
         yield return new Message.Start(SomeLobby());
         yield return new Message.Order(new Command.Move([4, 8, 15], 1200.5, 800.25, true));
@@ -107,7 +107,8 @@ public class ProtocolTests
         Assert.Equal((SeatKind.Human, 77, true), (room.Lobby.Seats[1].Kind, room.Lobby.Seats[1].Peer, room.Lobby.Seats[1].Ready));
         Assert.Equal(200, room.Lobby.ZoneTarget);
         var ask = (Message.Ask)Protocol.Decode(Protocol.Encode(Every().OfType<Message.Ask>().First(a => a.Request is LobbyRequest.Settings)));
-        Assert.Equal((10000, 70), (((LobbyRequest.Settings)ask.Request).Values.Credits, ((LobbyRequest.Settings)ask.Request).Values.WaveStrength));
+        var values = ((LobbyRequest.Settings)ask.Request).Values;
+        Assert.Equal((10000, 70, 5, FleetCap.High), (values.Credits, values.WaveStrength, values.Peace, values.FleetCap));
         var hello = (Message.Hello)Protocol.Decode(Protocol.Encode(Protocol.Hello("0.3.0", "Aurélien")));
         Assert.Equal(Protocol.Hello("0.3.0", "Aurélien"), hello);
     }

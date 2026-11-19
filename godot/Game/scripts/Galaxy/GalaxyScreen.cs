@@ -167,9 +167,14 @@ public partial class GalaxyScreen : Node
         var layout = opts.Map == MapKind.Classic && slots.Count == 2
             ? GalaxyGen.Classic
             : GalaxyGen.GenerateLayout(opts.Seed, slots.Count, opts.Size);
-        Galaxy = saved ?? Galaxies.CreateGalaxy(slots, opts.Seed, layout, setup: CampaignSetup.Of(opts.Peace));
+        Galaxy = saved ?? Galaxies.CreateGalaxy(slots, opts.Seed, layout, setup: CampaignSetup.Of(opts.Peace, opts.FleetCap));
         // The player may sit at any seat of the lobby, not only the first.
         if (saved is null && opts.Me is Side me) Galaxy.Player = me;
+        // --armada: a fleet of the stress scene besides the player's own at its capital, for captures of the fleet cap.
+        if (Dev.Armada && saved is null && Galaxy.Planets.FindIndex(p => p.Owner == Galaxy.Player) is var capital and >= 0)
+        {
+            Galaxies.AddShipsAt(Galaxy, Galaxy.Player, capital, Stress.Armada());
+        }
         Sink = new LocalSink<GalaxyCommand>(c => Commands.Apply(Galaxy, Player, c));
         if (Dev.Skip > 0 && saved is null) PlayAhead(Dev.Skip);
     }

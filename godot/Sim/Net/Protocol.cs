@@ -123,8 +123,9 @@ public static class Protocol
     /// 14: battle snapshots 11 (four ship classes more, the bastion).
     /// 15: the campaign's opening peace (Settings), its independents (side 7), galaxy snapshots 6.
     /// 16: galaxy snapshots 7 (an AI's counter-offers).
+    /// 17: the campaign's fleet cap (Settings), battle snapshots 12 (the cap, the viewer's arrival point, the reserve in runs).
     /// </summary>
-    public const int Version = 16;
+    public const int Version = 17;
     /// <summary>Where a host listens for players, unless told otherwise.</summary>
     public const int DefaultPort = 24680;
     /// <summary>Where hosts call out to the local network, and the join screen listens.</summary>
@@ -324,6 +325,7 @@ public static class Protocol
                 w.Write7BitEncodedInt(v.Credits);
                 w.Write7BitEncodedInt(v.WaveStrength);
                 w.Write7BitEncodedInt(v.Peace);
+                w.Write((byte)v.FleetCap);
                 break;
             default: throw new ArgumentException($"Demande sans format : {q.GetType().Name}");
         }
@@ -339,7 +341,8 @@ public static class Protocol
         6 => new LobbyRequest.AddBot(),
         7 => new LobbyRequest.Remove(r.ReadVarint()),
         8 => new LobbyRequest.Settings(new LobbySettings(r.ReadEnum<MapKind>(), r.ReadEnum<MapSize>(), r.ReadVarint(), r.ReadBoolean(),
-            r.ReadBoolean(), r.ReadVarint(), r.ReadVarint(), r.ReadBoolean(), r.ReadBoolean(), r.ReadEnum<TerrainDensity>(), r.ReadVarint(), r.ReadVarint(), r.ReadVarint())),
+            r.ReadBoolean(), r.ReadVarint(), r.ReadVarint(), r.ReadBoolean(), r.ReadBoolean(), r.ReadEnum<TerrainDensity>(), r.ReadVarint(), r.ReadVarint(), r.ReadVarint(),
+            r.ReadEnum<FleetCap>())),
         9 => new LobbyRequest.SetPersonality(r.ReadVarint(), r.ReadEnumOrNone<Personality>()),
         var tag => throw new InvalidDataException($"Demande inconnue : {tag}"),
     };

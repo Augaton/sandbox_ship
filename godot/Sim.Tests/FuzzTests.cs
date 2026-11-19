@@ -255,6 +255,14 @@ public class FuzzTests
         Survives("Snapshot.Read (terrain, ordres, vétérans, réserve, sauts)", [rs.ToArray()], bytes => Snapshot.Read(new BinaryReader(new MemoryStream(bytes)), new World()));
         var roughParts = Snapshot.WriteParts(rough, Faction.Klaed, rough.Events.ToList(), null, new SnapshotFrames());
         Survives("Snapshot.ReadPart (terrain, ordres, vétérans)", roughParts.Take(4), bytes => Snapshot.ReadPart(new BinaryReader(new MemoryStream(bytes)), new World(), new SnapshotFrames()));
+        // A campaign battle under a fleet cap: the cap, the arrival point, a reserve in runs, the jumps.
+        var capped = Sim.Battle.CreatePlanetBattle(
+            new BattleSide { Side = Faction.Klaed, Ships = new ShipCounts { [ShipClass.Frigate] = 20, [ShipClass.Fighter] = 12 } },
+            new BattleSide { Side = Faction.Nairan, Ships = new ShipCounts { [ShipClass.Frigate] = 4 } }, PlanetDefense.None with { Station = 1 }, 5, fleetCap: 20);
+        Steps.Run(capped, 1);
+        using var cs = new MemoryStream();
+        using (var bw = new BinaryWriter(cs, Encoding.UTF8, true)) Snapshot.Write(capped, Faction.Klaed, bw, capped.Events.ToList());
+        Survives("Snapshot.Read (plafond de flotte, arrivée, réserve en séries)", [cs.ToArray()], bytes => Snapshot.Read(new BinaryReader(new MemoryStream(bytes)), new World()));
     }
 
     [Fact]

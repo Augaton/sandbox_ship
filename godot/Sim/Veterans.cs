@@ -79,6 +79,8 @@ public static class Veterans
             if (e.Kind != EntityKind.Ship || e.Side != side || e.Hero is not null || e.Launched || e.Rank == 0) continue;
             if (!Data.Ships.Defs[e.Cls].FromHangar) out_.Add(e.Cls, e.Rank);
         }
+        // The veterans that never came in, still in the reserve or in hyperspace (FactionState.ReserveRanks).
+        if (world.Factions.TryGetValue(side, out var f)) out_.AddAll(f.ReserveRanks);
         return out_;
     }
 }

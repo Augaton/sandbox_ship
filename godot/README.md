@@ -22,7 +22,8 @@ godot -e --path godot/Game                  # ouvre l'éditeur (F5 lance le jeu)
 dotnet test godot/SandboxShip.slnx          # tests de la simulation, sans Godot
 # mesures longues, à la demande : BALANCE=1 (escarmouches ; --filter AiLevelsBalance : les niveaux de l'IA
 # de bataille), CAMPAIGN=1 (campagnes entre IA), PERSONALITIES=1, DIFFICULTY=1 (niveaux de l'IA de
-# galaxie), OUTLOOK=1 (calibration de l'issue probable des invites ; -c Release --filter Measures_the_outlook)
+# galaxie), OUTLOOK=1 (calibration de l'issue probable des invites ; -c Release --filter Measures_the_outlook),
+# FLEETCAP=1 (coût des batailles de campagne à chaque plafond de flotte ; -c Release --filter Measures_the_fleet_cap)
 # dotnet test godot/Sim.Tests --filter Balance --logger "console;verbosity=detailed"
 npm run fixtures                            # références et apparences tirées de la version web
 ```
@@ -45,7 +46,12 @@ l'écran de démarrage), `--no-hud` (la bataille sans son interface, pour captur
 `--start=gallery` montre chaque vaisseau, puis pour chaque race ses stations des niveaux 1 à 4 et
 chacun de ses bâtiments à chacun de ses niveaux), `--veterans[=one]` (bataille locale : les trois
 premiers vaisseaux du joueur promus aux rangs 3, 2 et 1, la flotte, ou avec `one` le premier,
-sélectionnée, en position tenue, sur une patrouille suivie d'un déplacement en file). Ajouter `--disable-vsync`
+sélectionnée, en position tenue, sur une patrouille suivie d'un déplacement en file), `--fleet-cap=low|normal|high|none`
+(plafond de flotte des batailles de `--start=campaign` ; avec `--start=stress`, la scène devient une bataille de campagne de
+plus de mille vaisseaux au-dessus d'une planète fortifiée, sous ce plafond, les deux camps à l'IA de bataille de la campagne :
+la mesure du plafond, `none` pour la même bataille sans lui), `--armada` (une campagne neuve donne au joueur, à sa capitale,
+une flotte de la bataille de mesure : 192 vaisseaux, 376 points ; avec `--raid=1 --choose=command --answer=no`, une bataille où
+sa réserve attend sous le plafond). Ajouter `--disable-vsync`
 avant `--` si la fenêtre est cachée : sinon le compositeur la ralentit. Avec `--shot`, la
 fenêtre ne prend pas le clavier, et ni les réglages ni la sauvegarde de campagne ne sont touchés.
 Pour une capture sans aucune fenêtre à l'écran (gamescope, déjà installé) :

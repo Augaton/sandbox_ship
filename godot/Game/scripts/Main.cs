@@ -115,10 +115,11 @@ public partial class Main : Node
     /// <summary>The campaign of --start=campaign: the player against one AI, or with --seats against more, as a lobby seats them.</summary>
     static MenuChoice DevCampaign()
     {
-        if (Dev.Seats <= 2) return new MenuChoice { Size = Dev.Size };
+        var cap = Dev.FleetCap is { } named and not "none" ? Enum.Parse<FleetCap>(named, true) : FleetCap.Normal;
+        if (Dev.Seats <= 2) return new MenuChoice { Size = Dev.Size, FleetCap = cap };
         var lobby = Lobby.Create(LobbyMode.Campaign, 7);
         while (lobby.Seats.Count < Dev.Seats && lobby.AddBot() is not null) { }
-        return new MenuChoice { Size = Dev.Size, Seats = lobby.Slots(), Seed = lobby.Seed };
+        return new MenuChoice { Size = Dev.Size, Seats = lobby.Slots(), Seed = lobby.Seed, FleetCap = cap };
     }
 
     /// <summary>Leaves the game: the "Quitter" entry of the menu, and the end of a capture.</summary>
@@ -278,7 +279,7 @@ public partial class Main : Node
         var me = net?.Side ?? lobby.SideOfPeer() ?? Lobby.SideOf(0);
         if (lobby.Mode == LobbyMode.Campaign)
         {
-            StartCampaign(new MenuChoice { Seats = lobby.Slots(), Me = me, Map = lobby.Map, Seed = lobby.Seed, Size = lobby.Size, Peace = lobby.Peace });
+            StartCampaign(new MenuChoice { Seats = lobby.Slots(), Me = me, Map = lobby.Map, Seed = lobby.Seed, Size = lobby.Size, Peace = lobby.Peace, FleetCap = lobby.FleetCap });
             return;
         }
         var o = lobby.Skirmish();

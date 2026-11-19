@@ -584,6 +584,11 @@ public partial class Menu
                 v => Set(s => s with { Peace = v }))));
             items.Add(Note("Aucune attaque entre grands camps pendant ce temps. Les planètes libres sont tenues par des indépendants à vaincre, "
                 + "et chaque capitale relève ses plateformes."));
+            items.Add(Labelled("Plafond de flotte", Group("fleetcap", new[] { FleetCap.Low, FleetCap.Normal, FleetCap.High }.Select(v => (v, FleetCapName(v))),
+                l.FleetCap, v => Set(s => s with { FleetCap = v }))));
+            items.Add(Note($"En bataille, chaque camp a au plus {Reserves.CapPoints(l.FleetCap)} points de flotte sur le terrain (un chasseur 1, une frégate 2, "
+                + "un croiseur 4, un cuirassé 6, un Titan 12) ; le reste attend en réserve et saute dès qu'une place se libère. "
+                + "Faible pour une petite machine, élevé pour une grosse."));
         }
         if (l.HasRaid)
         {
@@ -675,6 +680,14 @@ public partial class Menu
         _ => $"Féroces ({strength} %)",
     };
 
+    /// <summary>A fleet cap as the lobby names it, with its points.</summary>
+    static string FleetCapName(FleetCap cap) => cap switch
+    {
+        FleetCap.Low => $"Faible ({Reserves.CapPoints(cap)})",
+        FleetCap.High => $"Élevé ({Reserves.CapPoints(cap)})",
+        _ => $"Normal ({Reserves.CapPoints(cap)})",
+    };
+
     /// <summary>The game the lobby makes, in one line beside the launch button.</summary>
     static string Summary(Lobby l)
     {
@@ -696,6 +709,7 @@ public partial class Menu
         if (l.HasCredits && l.Credits != (int)Scenario.StartCredits) more.Add($"{HudKit.N(l.Credits)} crédits");
         if (l.Mode == LobbyMode.Survival && l.WaveStrength != 100) more.Add($"vagues à {l.WaveStrength} %");
         if (l.Mode == LobbyMode.Campaign && !l.Resumed) more.Add(l.Peace == 0 ? "sans paix de départ" : $"{l.Peace} min de paix");
+        if (l.Mode == LobbyMode.Campaign && !l.Resumed && l.FleetCap != FleetCap.Normal) more.Add(l.FleetCap == FleetCap.Low ? "flottes réduites" : "flottes élargies");
         if (l.HasRaid && l.Raid) more.Add("raid");
         if (l.HasFog && !l.Fog) more.Add("sans brouillard");
         if (l.HasTerrain && l.Terrain != TerrainDensity.Light) more.Add(l.Terrain == TerrainDensity.None ? "sans terrain" : "terrain dense");

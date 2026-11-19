@@ -28,7 +28,7 @@ public class OutlookTests(ITestOutputHelper output)
             t += AutoDt;
             w.Events.Clear();
             if (Battle.Outcome(w, A, D) is BattleResult r) return r;
-            if (t >= GalaxyRules.AutoTimeout) return BattleResult.Retreat;
+            if (t >= GalaxyRules.AutoTimeout && !Reserves.AnyPending(w)) return BattleResult.Retreat;
         }
     }
 
@@ -141,7 +141,8 @@ public class OutlookTests(ITestOutputHelper output)
         if (station == 0) against = Math.Max(against, 100);
         var att = new BattleSide { Side = A, Race = ra, Ships = Fleet(rng, budget), Research = Levels(rng), Condition = Wear(rng) };
         var def = new BattleSide { Side = D, Race = rd, Ships = Fleet(rng, against), Research = Levels(rng), Condition = Wear(rng) };
-        return Battle.CreatePlanetBattle(att, def, defense, rng.Next(1, int.MaxValue));
+        // Under the campaign's usual fleet cap, as every campaign battle is fought.
+        return Battle.CreatePlanetBattle(att, def, defense, rng.Next(1, int.MaxValue), fleetCap: Reserves.CapPoints(FleetCap.Normal));
     }
 
     static double Wear(Random rng) => rng.NextDouble() < 0.7 ? 1 : 0.4 + rng.NextDouble() * 0.6;

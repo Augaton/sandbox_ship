@@ -64,6 +64,8 @@ public static class GalaxySave
         public string? Name;
         /// <summary>Independent planets being won over (none in older saves).</summary>
         public List<Courtship> Courtships = [];
+        /// <summary>The fleet cap of its battles: Normal in older saves.</summary>
+        public FleetCap FleetCap;
     }
 
     static readonly JsonSerializerOptions Options = new()
@@ -89,7 +91,7 @@ public static class GalaxySave
             Factions = [.. g.Factions.Values], NextId = g.NextId, Seed = g.Seed, Winner = g.Winner, Sides = true,
             Truces = g.Truces, Offers = g.Offers, Pacts = g.Pacts, Tributes = g.Tributes, Chronicle = g.Chronicle, Promises = g.Promises,
             Incidents = g.Incidents, NextIncident = g.NextIncident, IncidentSeed = g.IncidentSeed, Ongoing = g.Ongoing,
-            Humans = g.Humans, Name = name, Courtships = g.Courtships,
+            Humans = g.Humans, Name = name, Courtships = g.Courtships, FleetCap = g.FleetCap,
         };
         return JsonSerializer.Serialize(save, Options);
     }
@@ -169,7 +171,7 @@ public static class GalaxySave
             Time = s.Time, Player = s.Player, W = s.W, H = s.H, Planets = s.Planets, Lanes = s.Lanes, NextId = s.NextId, Seed = s.Seed, Winner = s.Winner,
             Truces = s.Truces, Offers = s.Offers, Pacts = s.Pacts, Tributes = s.Tributes, Chronicle = s.Chronicle, Promises = s.Promises,
             Incidents = s.Incidents, NextIncident = s.NextIncident, IncidentSeed = s.IncidentSeed, Ongoing = s.Ongoing,
-            Humans = s.Humans, Courtships = s.Courtships,
+            Humans = s.Humans, Courtships = s.Courtships, FleetCap = s.FleetCap,
         };
         foreach (var f in s.Fleets) g.Fleets[f.Id] = f;
         // Planets and sides out of range would bring down the view or the step that looks them up.

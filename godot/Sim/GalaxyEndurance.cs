@@ -9,9 +9,9 @@ namespace SandboxShip.Sim;
 /// How a new campaign starts. `Independents`: every free planet is held by a garrison of its own
 /// (Galaxies.Independent). `Fortified`: each capital starts with a level 2 station and two
 /// platforms, which rise again while its faction holds it. `OpeningPeace`: galaxy seconds no great
-/// faction may attack another, 0 for none.
+/// faction may attack another, 0 for none. `Cap`: the fleet cap of its battles (Galaxy.FleetCap).
 /// </summary>
-public sealed record CampaignSetup(bool Independents, bool Fortified, double OpeningPeace)
+public sealed record CampaignSetup(bool Independents, bool Fortified, double OpeningPeace, FleetCap Cap = FleetCap.Normal)
 {
     /// <summary>The galaxy as it was: free planets for the taking, bare capitals, war at once.</summary>
     public static readonly CampaignSetup None = new(false, false, 0);
@@ -19,8 +19,8 @@ public sealed record CampaignSetup(bool Independents, bool Fortified, double Ope
     /// <summary>The lobby's choices for the opening peace, in minutes; the first is its default.</summary>
     public static readonly IReadOnlyList<int> PeaceMinutes = [10, 0, 5, 15];
 
-    /// <summary>A new campaign's: independents, fortified capitals, and the peace chosen in the lobby.</summary>
-    public static CampaignSetup Of(int peaceMinutes) => new(true, true, Math.Clamp(peaceMinutes, 0, 60) * 60);
+    /// <summary>A new campaign's: independents, fortified capitals, and the peace and the fleet cap chosen in the lobby.</summary>
+    public static CampaignSetup Of(int peaceMinutes, FleetCap cap = FleetCap.Normal) => new(true, true, Math.Clamp(peaceMinutes, 0, 60) * 60, cap);
 }
 
 /// <summary>The opening peace is over: the great factions may attack each other.</summary>
@@ -103,6 +103,7 @@ public static partial class Galaxies
     /// </summary>
     static void Settle(Galaxy g, IReadOnlyList<int> capitals, CampaignSetup setup)
     {
+        g.FleetCap = setup.Cap;
         if (setup.Independents)
         {
             var hops = Hops(g, capitals);

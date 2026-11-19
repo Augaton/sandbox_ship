@@ -209,6 +209,8 @@ public sealed partial class Galaxy
     public long Seed;
     /// <summary>The side that won; its allies won with it (Galaxies.Won).</summary>
     public Side? Winner;
+    /// <summary>The fleet cap of its battles (Reserves.CapPoints), chosen in the lobby: Normal in older saves.</summary>
+    public FleetCap FleetCap;
 }
 
 public static partial class Galaxies
@@ -847,7 +849,7 @@ public static partial class Galaxies
         var att = SideOf(attacker, attackers);
         var def = SideOf(defender, defenders);
         var world = Battle.CreatePlanetBattle(att, def, defense, (int)Math.Floor(GalaxyRand(g) * 2147483646) + 1,
-            lane is null && g.Planets[planetId].Special == PlanetSpecial.Nebula);
+            lane is null && g.Planets[planetId].Special == PlanetSpecial.Nebula, Reserves.CapPoints(g.FleetCap));
         var status = Human(g, attacker) || Human(g, defender) ? BattleStatus.Pending : BattleStatus.Auto;
         Attacked(g, attacker, defender);
         g.Battles.Add(new GalaxyBattle
@@ -1169,7 +1171,9 @@ public static partial class Galaxies
                 Battle.UpdateBattleAI(b.World, [b.Attacker, b.Defender], AutoDt);
                 b.Elapsed += AutoDt;
                 result = Battle.Outcome(b.World, b.Attacker, b.Defender);
-                if (result is null && b.Elapsed >= GalaxyRules.AutoTimeout) result = BattleResult.Retreat;
+                // Too long, the attacker falls back; not while ships still wait to come in under the fleet cap: a
+                // battle of thousands of ships goes on wave after wave, and a quiet one falls back on its own (Stalemate).
+                if (result is null && b.Elapsed >= GalaxyRules.AutoTimeout && !Reserves.AnyPending(b.World)) result = BattleResult.Retreat;
             }
             b.World.Events.Clear();
             if (result is BattleResult r) ConcludeBattle(g, b.Id, r);

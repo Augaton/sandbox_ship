@@ -64,6 +64,8 @@ public class CampaignComfortTests
         Destroy(b, Klaed, IsShip, 2);
         Destroy(b, Klaed, e => e.Hero is not null);
         Destroy(b, Nairan, e => e.Kind == EntityKind.Ship);
+        // The attacker comes in by hyperspace (the fleet cap): those still on their way fall too.
+        b.World.Jumps.RemoveAll(j => j.Side == Nairan);
         Worlds.StationOf(b.World, Klaed)!.Level = 1;
 
         ConcludeBattle(g, b.Id, BattleResult.Defender);
@@ -144,6 +146,7 @@ public class CampaignComfortTests
         Destroy(b, Klaed, IsShip, 1);
         Destroy(b, Klaed, e => e.Hero is not null);
         Destroy(b, Nairan, e => e.Kind == EntityKind.Ship);
+        b.World.Jumps.RemoveAll(j => j.Side == Nairan);
         var hero = b.Heroes[Klaed][0];
         ConcludeBattle(g, b.Id, BattleResult.Defender);
         var sent = Assert.Single(g.Events.OfType<BattleEnded>());

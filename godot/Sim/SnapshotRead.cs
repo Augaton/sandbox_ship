@@ -65,6 +65,8 @@ public static partial class Snapshot
         replica.SandboxTools = (flags & 2) != 0;
         replica.Winner = (flags & 4) != 0 ? r.ReadSide() : null;
         replica.LastDamage = r.ReadDouble();
+        var cap = r.ReadVarint();
+        replica.FleetCap = cap is >= 0 and <= Reserves.MaxCap ? cap : throw new InvalidDataException($"Plafond de flotte de {cap}");
         ReadMode(r, replica.Mode);
         ReadSides(r, replica, viewer);
         ReadFields(r, replica);
@@ -114,7 +116,7 @@ public static partial class Snapshot
         return n is >= 0 and <= 1 << 20 ? n : throw new InvalidDataException($"Liste de {n} éléments");
     }
 
-    /// <summary>The length of a reserve or of the jumps under way, within reason (Reserves.MaxListed).</summary>
+    /// <summary>The length of the jumps under way, within reason (Reserves.MaxListed).</summary>
     static int Listed(BinaryReader r) => Count(r) is var n && n <= Reserves.MaxListed ? n : throw new InvalidDataException($"Liste de {n} vaisseaux");
 
     static int? Optional(BinaryReader r) => r.ReadVarint() is var id && id >= 0 ? id : null;
@@ -192,12 +194,12 @@ public static partial class Snapshot
             f.Stats.Kills = r.ReadVarint();
             f.Stats.Damage = r.ReadSingle();
             f.Stats.Earned = r.ReadSingle();
-            if ((flags & 4) != 0) ReadEconomy(r, f);
+            if ((flags & 4) != 0) ReadEconomy(r, f, replica);
         }
         foreach (var gone in replica.Factions.Keys.Where(s => !listed.Contains(s)).ToList()) replica.Factions.Remove(gone);
     }
 
-    static void ReadEconomy(BinaryReader r, FactionState f)
+    static void ReadEconomy(BinaryReader r, FactionState f, World replica)
     {
         f.Credits = r.ReadDouble();
         f.Bounties = r.ReadDouble();
@@ -220,7 +222,22 @@ public static partial class Snapshot
         f.HeroCooldowns.Clear();
         for (var n = Count(r); n > 0; n--) f.HeroCooldowns[ReadHero(r)] = r.ReadSingle();
         f.Reserve.Clear();
-        for (var n = Listed(r); n > 0; n--) f.Reserve.Add(new ReserveShip(r.ReadEnum<ShipClass>(), r.ReadBoolean() ? ReadHero(r) : null));
+        for (var runs = Count(r); runs > 0; runs--)
+        {
+            var ship = new ReserveShip(r.ReadEnum<ShipClass>(), r.ReadBoolean() ? ReadHero(r) : null);
+            var n = r.ReadVarint();
+            // As many as a campaign fleet could hold back, never a forged count to fill memory with.
+            if (n < 1 || n > Reserves.MaxReserve - f.Reserve.Count) throw new InvalidDataException($"Réserve de {f.Reserve.Count} + {n} vaisseaux");
+            for (; n > 0; n--) f.Reserve.Add(ship);
+        }
+        f.Arrival = null;
+        if (r.ReadBoolean())
+        {
+            var (x, y) = ((double)r.ReadSingle(), (double)r.ReadSingle());
+            // On the map: CanDeploy measures from it.
+            if (!double.IsFinite(x) || !double.IsFinite(y)) throw new InvalidDataException("Point d'arrivée invalide");
+            f.Arrival = new Point(Math.Clamp(x, 0, replica.Width), Math.Clamp(y, 0, replica.Height));
+        }
     }
 
     static List<QueueItem> ReadQueue(BinaryReader r)

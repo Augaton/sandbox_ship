@@ -8522,3 +8522,50 @@ msgstr "We will not arm anyone stronger than us"
 #: Sim/GalaxyAiDiplomacy.cs
 msgid "Nous ne traitons pas avec le camp qui domine la galaxie"
 msgstr "We do not deal with the side that dominates the galaxy"
+#: Game/scripts/Ui/Hud.cs
+msgid "Flotte {0} / {1} : plafond atteint, les renforts attendent une place"
+msgstr "Fleet {0} / {1}: cap reached, reinforcements wait for room"
+
+#: Game/scripts/Ui/Hud.cs
+msgid "Flotte {0} / {1} : glisse un renfort sur la carte"
+msgstr "Fleet {0} / {1}: drag a reinforcement onto the map"
+
+#: Game/scripts/Ui/Hud.cs
+msgid "{0} ({1} points de flotte) : plafond de flotte atteint, il attend qu'une place se libère sur le terrain."
+msgstr "{0} ({1} fleet points): fleet cap reached, it waits for room on the field."
+
+#: Game/scripts/Ui/Hud.cs
+msgid "{0} ({1} points de flotte sur {2}) : glisse-le sur la carte, ou clique ici puis sur la carte (Maj : plusieurs) ; clic droit : tous au point de ralliement. Il arrive par l'hyperespace près de tes forces ou à ton bord de la carte."
+msgstr "{0} ({1} fleet points of {2}): drag it onto the map, or click here then on the map (Shift: several); right click: all of them to the rally point. It arrives through hyperspace near your forces or at your edge of the map."
+
+#: Game/scripts/Ui/Menu.Lobby.cs
+msgid "Plafond de flotte"
+msgstr "Fleet cap"
+
+#: Game/scripts/Ui/Menu.Lobby.cs
+msgid "En bataille, chaque camp a au plus {0} points de flotte sur le terrain (un chasseur 1, une frégate 2, un croiseur 4, un cuirassé 6, un Titan 12) ; le reste attend en réserve et saute dès qu'une place se libère. Faible pour une petite machine, élevé pour une grosse."
+msgstr "In battle, each side fields at most {0} fleet points at once (a fighter 1, a frigate 2, a battlecruiser 4, a dreadnought 6, a Titan 12); the rest waits in reserve and jumps in as soon as there is room. Low for a small computer, high for a powerful one."
+
+#: Game/scripts/Ui/Menu.Lobby.cs
+msgid "Faible ({0})"
+msgstr "Low ({0})"
+
+#: Game/scripts/Ui/Menu.Lobby.cs
+msgid "Élevé ({0})"
+msgstr "High ({0})"
+
+#: Game/scripts/Ui/Menu.Lobby.cs
+msgid "Normal ({0})"
+msgstr "Normal ({0})"
+
+#: Game/scripts/Ui/Menu.Lobby.cs
+msgid "flottes réduites"
+msgstr "smaller fleets"
+
+#: Game/scripts/Ui/Menu.Lobby.cs
+msgid "flottes élargies"
+msgstr "larger fleets"
+
+#: Sim/Reserves.cs
+msgid "Plafond de flotte atteint"
+msgstr "Fleet cap reached"

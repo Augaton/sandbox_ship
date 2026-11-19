@@ -45,8 +45,10 @@ public static partial class Snapshot
     /// viewer's falling back to be repaired, in the top bit of its stance. 10: the viewer's reserve,
     /// and the jumps under way, seen by all. 11: four ship classes more (artillery, corvette, jammer,
     /// stealth cruiser) and the jammer's ability, the platform's fourth level and its turrets.
+    /// 12: a campaign battle's fleet cap and the viewer's arrival point; the reserve in runs of a kind,
+    /// for a campaign fleet may keep thousands of ships waiting.
     /// </summary>
-    public const ushort Version = 11;
+    public const ushort Version = 12;
     /// <summary>In a stance's byte: the ship is falling back to be repaired (Mending). The flags have no bit left, and few ships are.</summary>
     const byte MendingBit = 0x80;
     const uint Magic = 0x504E5353;
@@ -142,6 +144,7 @@ public static partial class Snapshot
         w.Write((byte)((world.Fog ? 1 : 0) | (world.SandboxTools ? 2 : 0) | (world.Winner is not null ? 4 : 0)));
         if (world.Winner is Side winner) w.Write7BitEncodedInt(winner.Id);
         w.Write(world.LastDamage);
+        w.Write7BitEncodedInt(world.FleetCap);
         // The battle mode's state, its length first: a reader checks it took all of it.
         var mode = ModeBytes(world.Mode);
         w.Write7BitEncodedInt(mode.Length);
@@ -341,11 +344,25 @@ public static partial class Snapshot
             WriteHero(w, hero);
             w.Write((float)wait);
         }
-        w.Write7BitEncodedInt(f.Reserve.Count);
-        foreach (var s in f.Reserve)
+        // In runs of one kind, in order: a campaign's reserve may hold thousands of ships, of few kinds.
+        var runs = 0;
+        for (var i = 0; i < f.Reserve.Count; i++) if (i == 0 || f.Reserve[i] != f.Reserve[i - 1]) runs++;
+        w.Write7BitEncodedInt(runs);
+        for (var i = 0; i < f.Reserve.Count;)
         {
+            var s = f.Reserve[i];
+            var n = 1;
+            while (i + n < f.Reserve.Count && f.Reserve[i + n] == s) n++;
             w.Write((byte)s.Cls);
             WriteHeroOrNone(w, s.Hero);
+            w.Write7BitEncodedInt(n);
+            i += n;
+        }
+        w.Write(f.Arrival is not null);
+        if (f.Arrival is Point arrival)
+        {
+            w.Write((float)arrival.X);
+            w.Write((float)arrival.Y);
         }
     }
 

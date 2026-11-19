@@ -88,6 +88,8 @@ public sealed class Lobby
     public int WaveStrength { get; set; } = 100;
     /// <summary>Campaign: the minutes of peace the great factions start with, one of CampaignSetup.PeaceMinutes.</summary>
     public int Peace { get; set; } = CampaignSetup.PeaceMinutes[0];
+    /// <summary>Campaign: the fleet cap of its battles, for every side (Galaxy.FleetCap).</summary>
+    public FleetCap FleetCap { get; set; }
     /// <summary>Set up on a dedicated server: nobody plays on the host, so no seat is Host's (see Sim/Net/LobbyRoom.cs).</summary>
     public bool Dedicated { get; set; }
     /// <summary>Over the network: players may come in to watch, without a seat, the lobby as the battle.</summary>
@@ -273,8 +275,8 @@ public sealed class Lobby
         Credits = HasCredits ? Credits : Scenario.StartCredits, WaveStrength = Mode == LobbyMode.Survival ? WaveStrength : 100,
     };
 
-    /// <summary>A new campaign's setup: independents, fortified capitals and the peace chosen.</summary>
-    public CampaignSetup Setup() => CampaignSetup.Of(Peace);
+    /// <summary>A new campaign's setup: independents, fortified capitals, the peace and the fleet cap chosen.</summary>
+    public CampaignSetup Setup() => CampaignSetup.Of(Peace, FleetCap);
 
     /// <summary>The campaign's galaxy, as GalaxyScreen makes it: the classic one for two, or one drawn from the seed with a capital per seat.</summary>
     public GalaxyLayout Layout() =>
@@ -367,7 +369,7 @@ public sealed class Lobby
     /// Teams. Fit and Problems take it from there.
     /// </summary>
     public bool Sane() =>
-        Enum.IsDefined(Mode) && Enum.IsDefined(Map) && Enum.IsDefined(Size) && Seed >= 1
+        Enum.IsDefined(Mode) && Enum.IsDefined(Map) && Enum.IsDefined(Size) && Enum.IsDefined(FleetCap) && Seed >= 1
         && ZoneTargets.Contains(ZoneTarget) && AssaultLengths.Contains(AssaultMinutes)
         && StartCredits.Contains(Credits) && WaveStrengths.Contains(WaveStrength) && CampaignSetup.PeaceMinutes.Contains(Peace)
         && Seats is { Count: >= 1 and <= MaxSeats }

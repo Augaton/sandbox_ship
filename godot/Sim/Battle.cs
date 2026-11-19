@@ -70,39 +70,110 @@ public static class Battle
     public static double FleetValue(ShipCounts ships, IEnumerable<HeroId>? heroes = null) =>
         Data.Ships.All.Sum(c => ships.Of(c) * Data.Ships.UnitValue(c)) + (heroes ?? []).Sum(h => Data.Heroes.Defs[h].Cost);
 
-    internal static void PlaceShips(World world, BattleSide side, double x, double y, double angle)
+    /// <summary>
+    /// A side's ships round (x, y), facing `angle`. Under the world's fleet cap, only those that
+    /// open the battle (Opening): the others wait in its reserve, with the veterans among them and
+    /// the fleet's wear. With `jump`, the opening ships come in by hyperspace instead, there.
+    /// </summary>
+    internal static void PlaceShips(World world, BattleSide side, double x, double y, double angle, bool jump = false)
     {
-        var list = side.Heroes.Select(h => (Cls: Data.Heroes.Defs[h].Base, Hero: (HeroId?)h))
-            .Concat(Data.Ships.All.SelectMany(c => Enumerable.Repeat((Cls: c, Hero: (HeroId?)null), side.Ships.Of(c))))
+        var list = side.Heroes.Select(h => new ReserveShip(Data.Heroes.Defs[h].Base, h))
+            .Concat(Data.Ships.All.SelectMany(c => Enumerable.Repeat(new ReserveShip(c), side.Ships.Of(c))))
             // Heavy ships in the middle, as for a move order.
             .OrderByDescending(k => Data.Ships.Defs[k.Cls].Radius).ToList();
-        var offsets = Movement.FormationOffsets(list.Count, 90).OrderBy(p => Hypot(p.X, p.Y)).ToList();
-        var placed = new ShipCounts();
-        for (var i = 0; i < list.Count; i++)
+        // Survival's waves and the assault's fleets come here too, never under a cap.
+        var quota = world.FleetCap > 0 ? Opening(side, world.FleetCap) : null;
+        var f = quota is not null ? world.Factions[side.Side] : null;
+        var opening = new List<ReserveShip>(list.Count);
+        var taken = new ShipCounts();
+        foreach (var k in list)
         {
-            var px = x + offsets[i].X;
-            var py = y + offsets[i].Y;
-            if (list[i].Hero is HeroId hero)
+            if (k.Hero is null && quota is not null && taken.Of(k.Cls) >= quota.Of(k.Cls)) f!.Reserve.Add(k);
+            else
+            {
+                opening.Add(k);
+                if (k.Hero is null) taken.Increase(k.Cls);
+            }
+        }
+        var offsets = Movement.FormationOffsets(opening.Count, 90).OrderBy(p => Hypot(p.X, p.Y)).ToList();
+        var placed = new ShipCounts();
+        for (var i = 0; i < opening.Count; i++)
+        {
+            var (px, py) = (x + offsets[i].X, y + offsets[i].Y);
+            if (jump)
+            {
+                Reserves.JumpIn(world, side.Side, opening[i], px, py, angle);
+                continue;
+            }
+            if (opening[i].Hero is HeroId hero)
             {
                 SpawnHero(world, side.Side, hero, px, py, angle);
                 continue;
             }
-            var s = SpawnShip(world, side.Side, list[i].Cls, px, py, angle);
-            Veterans.Promote(world, s, side.Ranks.RankOf(s.Cls, placed.Of(s.Cls)), news: false);
+            var s = SpawnShip(world, side.Side, opening[i].Cls, px, py, angle);
+            Enlist(world, s, side.Ranks.RankOf(s.Cls, placed.Of(s.Cls)), side.Condition);
             placed.Increase(s.Cls);
-            var c = Math.Max(0.05, side.Condition);
-            foreach (var part in ChildrenOf(world, s.Id).Prepend(s)) part.Hull = part.MaxHull * c;
         }
+        if (f is null) return;
+        // The best veterans of each class were placed first: the others wait, and come in with their rank (Reserves.Update).
+        f.ReserveRanks = side.Ranks.Clone();
+        f.ReserveRanks.Take(placed);
+        f.ReserveCondition = side.Condition;
+    }
+
+    /// <summary>A campaign ship comes into battle as its fleet left it: its veteran rank, and its hull (its parts too) worn to `condition`.</summary>
+    internal static void Enlist(World world, Entity ship, int rank, double condition)
+    {
+        Veterans.Promote(world, ship, rank, news: false);
+        var c = Math.Max(0.05, condition);
+        foreach (var part in ChildrenOf(world, ship.Id).Prepend(ship)) part.Hull = part.MaxHull * c;
+    }
+
+    /// <summary>
+    /// How many ships of each class open a battle under a fleet cap of `cap` points: the heroes
+    /// always (a few points at most); then each class in proportion to its share of the fleet's
+    /// points, so that the opening force looks like the fleet; then, while there is room, one more
+    /// of each class in turn, the heaviest first. The others wait in reserve.
+    /// </summary>
+    internal static ShipCounts Opening(BattleSide side, int cap)
+    {
+        var room = cap - side.Heroes.Sum(h => Reserves.Points(Data.Heroes.Defs[h].Base));
+        var classes = Data.Ships.All.Where(c => side.Ships.Of(c) > 0).OrderByDescending(c => Data.Ships.Defs[c].Radius).ToList();
+        var total = classes.Sum(c => Reserves.Points(c) * side.Ships.Of(c));
+        if (total <= room) return side.Ships.Clone();
+        var quota = new ShipCounts();
+        foreach (var c in classes)
+        {
+            quota[c] = room <= 0 ? 0 : (int)((long)side.Ships.Of(c) * room / total);
+        }
+        var left = room - classes.Sum(c => Reserves.Points(c) * quota[c]);
+        for (var more = true; more;)
+        {
+            more = false;
+            foreach (var c in classes)
+            {
+                if (quota[c] >= side.Ships.Of(c) || Reserves.Points(c) > left) continue;
+                quota[c]++;
+                left -= Reserves.Points(c);
+                more = true;
+            }
+        }
+        return quota;
     }
 
     /// <summary>
     /// Defender on the left around its station, attacker arriving from the right. Both sides
     /// bring their research, and the AI handles their ship abilities unless told otherwise.
+    /// Under a fleet cap of `fleetCap` points (a campaign's, World.FleetCap), the defender starts
+    /// with what fits on the field and the attacker comes in by hyperspace at once; the rest of
+    /// each fleet waits in its reserve, called in at its end of the map as room frees up.
     /// </summary>
-    public static World CreatePlanetBattle(BattleSide attacker, BattleSide defender, PlanetDefense defense, int seed = 1, bool nebula = false)
+    public static World CreatePlanetBattle(BattleSide attacker, BattleSide defender, PlanetDefense defense, int seed = 1, bool nebula = false,
+        int fleetCap = 0)
     {
         var w = CreateWorld(Width, Height, seed);
         w.Fog = true;
+        w.FleetCap = Math.Max(0, fleetCap);
         foreach (var side in new[] { defender, attacker })
         {
             var f = AddSide(w, side.Side, side.Race ?? (Faction)side.Side.Id, 0, color: side.Color);
@@ -127,15 +198,27 @@ public static class Battle
         }
         if (defense.RepairDock > 0) SpawnStructure(w, defender.Side, BuildableType.RepairDock, home.X - 260, home.Y + 260);
         if (defense.IonCannon > 0) SpawnStructure(w, defender.Side, BuildableType.IonCannon, home.X - 260, home.Y - 260);
-        PlaceShips(w, defender, home.X + 550, home.Y, 0);
-        PlaceShips(w, attacker, Width - 500, home.Y, Math.PI);
+        var (front, entry) = (new Point(home.X + 550, home.Y), new Point(Width - 500, home.Y));
+        if (w.FleetCap > 0)
+        {
+            // Each side's reserve comes in where its fleet stands, and gathers there.
+            foreach (var (side, at) in new[] { (defender.Side, front), (attacker.Side, entry) })
+            {
+                var f = w.Factions[side];
+                f.Arrival = at;
+                (f.RallyX, f.RallyY) = (at.X, at.Y);
+            }
+        }
+        PlaceShips(w, defender, front.X, front.Y, 0);
+        PlaceShips(w, attacker, entry.X, entry.Y, Math.PI, jump: w.FleetCap > 0);
         if (nebula) Terrains.PlanetNebula(w, home, new Point(Width - 500, home.Y));
         return w;
     }
 
     /// <summary>
     /// The defender holds while it keeps a station or a ship; the attacker while it keeps a ship.
-    /// Returns null while both sides still stand.
+    /// A ship still in its side's reserve or in hyperspace counts: it may yet come in. Returns
+    /// null while both sides still stand.
     /// </summary>
     public static BattleResult? Outcome(World world, Side attacker, Side defender)
     {
@@ -147,13 +230,20 @@ public static class Battle
             if (e.Side == attacker) att = true;
             else if (e.Side == defender) def = true;
         }
-        if (!att) return BattleResult.Defender;
-        if (!def) return BattleResult.Attacker;
+        if (!att && !Waits(world, attacker)) return BattleResult.Defender;
+        if (!def && !Waits(world, defender)) return BattleResult.Attacker;
         if (world.Time - world.LastDamage > Stalemate) return BattleResult.Retreat;
         return null;
     }
 
-    /// <summary>Ships that can go back to the galaxy map: hangar craft stay behind, heroes are counted apart.</summary>
+    /// <summary>Whether a side has ships in its reserve or in hyperspace.</summary>
+    static bool Waits(World world, Side side) =>
+        (world.Factions.TryGetValue(side, out var f) && f.Reserve.Count > 0) || world.Jumps.Exists(j => j.Side == side);
+
+    /// <summary>
+    /// Ships that can go back to the galaxy map: hangar craft stay behind, heroes are counted apart.
+    /// Those still in the reserve or in hyperspace go back as they came.
+    /// </summary>
     public static ShipCounts Survivors(World world, Side side)
     {
         var out_ = new ShipCounts();
@@ -162,10 +252,14 @@ public static class Battle
             if (e.Kind != EntityKind.Ship || e.Side != side || e.Hero is not null || e.Launched) continue;
             if (!Data.Ships.Defs[e.Cls].FromHangar) out_.Increase(e.Cls);
         }
+        foreach (var s in Reserves.Pending(world, side)) if (s.Hero is null) out_.Increase(s.Cls);
         return out_;
     }
 
-    /// <summary>Share of their hull the surviving ships keep, 1 when none survive.</summary>
+    /// <summary>
+    /// Share of their hull the surviving ships keep, 1 when none survive. Those that never came in
+    /// keep what they came with (FactionState.ReserveCondition), weighed by their hull.
+    /// </summary>
     public static double SurvivorCondition(World world, Side side)
     {
         double hull = 0, max = 0;
@@ -175,13 +269,23 @@ public static class Battle
             hull += Math.Max(0, e.Hull);
             max += e.MaxHull;
         }
+        double waiting = 0;
+        foreach (var s in Reserves.Pending(world, side)) if (s.Hero is null) waiting += Data.Ships.Defs[s.Cls].Hull;
+        if (waiting > 0 && world.Factions.TryGetValue(side, out var f))
+        {
+            waiting *= HullMult(world, side);
+            hull += waiting * f.ReserveCondition;
+            max += waiting;
+        }
         return max > 0 ? hull / max : 1;
     }
 
+    /// <summary>The heroes of a side still in the battle: on the field, in its reserve or in hyperspace.</summary>
     public static List<HeroId> HeroSurvivors(World world, Side side)
     {
         var out_ = new List<HeroId>();
         foreach (var e in world.Entities) if (e.Hero is HeroId h && e.Side == side) out_.Add(h);
+        foreach (var s in Reserves.Pending(world, side)) if (s.Hero is HeroId h) out_.Add(h);
         return out_;
     }
 
@@ -208,23 +312,27 @@ public static class Battle
     /// keeps up against what the foe is made of, times the hull and shields that stand in the way.
     /// As Outcome judges a battle, mines and docks neither fight nor have to fall, and do not count.
     /// What stands still counts for less (FixedHull, FixedRate): a fleet fights it last, out of reach
-    /// of most of it. Measured against the automatic resolution in OutlookTests.
+    /// of most of it. Measured against the automatic resolution in OutlookTests. The ships still in
+    /// a reserve or in hyperspace count as they will come in (Pending).
     /// </summary>
     public static double Power(World world, Side side, Side foe)
     {
+        var (scratch, times) = Pending(world, side, foe);
         double hull = 0, foeTotal = 0;
         var foeBySize = new Dictionary<SizeClass, double>();
-        foreach (var e in world.Entities)
+        void Weigh(World w, Entity e, int n)
         {
-            if (!Stands(e) || (e.Side != side && e.Side != foe)) continue;
-            var body = e.Hull + e.Shield;
-            if (e.Side == side) hull += body * (Moves(world, e) ? 1 : FixedHull);
+            if (!Stands(e) || (e.Side != side && e.Side != foe)) return;
+            var body = (e.Hull + e.Shield) * n;
+            if (e.Side == side) hull += body * (Moves(w, e) ? 1 : FixedHull);
             else
             {
                 foeBySize[e.Size] = foeBySize.GetValueOrDefault(e.Size) + body;
                 foeTotal += body;
             }
         }
+        foreach (var e in world.Entities) Weigh(world, e, 1);
+        if (scratch is not null) foreach (var e in scratch.Entities) Weigh(scratch, e, times[e.ParentId ?? e.Id]);
         double Against(WeaponDef w)
         {
             if (foeTotal <= 0) return Combat.Rate(w);
@@ -233,16 +341,44 @@ public static class Battle
             return Combat.Rate(w) * hit;
         }
         double rate = 0;
-        foreach (var e in world.Entities)
+        void Fire(World w, Entity e, int n)
         {
-            if (e.Side != side || e.Launched) continue;
-            var mult = Combat.DamageMult(world, e) * (Moves(world, e) ? 1 : FixedRate);
-            foreach (var w in e.Weapons) rate += Against(w.Def) * mult;
-            if (e.Hangar is not { } hangar) continue;
+            if (e.Side != side || e.Launched) return;
+            var mult = Combat.DamageMult(w, e) * (Moves(w, e) ? 1 : FixedRate) * n;
+            foreach (var weapon in e.Weapons) rate += Against(weapon.Def) * mult;
+            if (e.Hangar is not { } hangar) return;
             // A hangar keeps its craft up to its cap: the average of what it launches, that many times.
             rate += hangar.Def.Squadrons.Average(q => Data.Ships.Defs[q.Cls].Weapons.Sum(Against)) * hangar.Def.Cap * mult;
         }
+        foreach (var e in world.Entities) Fire(world, e, 1);
+        if (scratch is not null) foreach (var e in scratch.Entities) Fire(scratch, e, times[e.ParentId ?? e.Id]);
         return rate * hull;
+    }
+
+    /// <summary>
+    /// The ships of `side` and `foe` not on the field yet, each kind once, as it will come in (its
+    /// side's race, research and wear), in a world of their own; with, by the id of each, how many
+    /// of its kind wait. No world when none waits.
+    /// </summary>
+    static (World? Scratch, Dictionary<int, int> Times) Pending(World world, Side side, Side foe)
+    {
+        var times = new Dictionary<int, int>();
+        World? scratch = null;
+        var kinds = new Dictionary<(Side, ReserveShip), int>();
+        foreach (var s in new[] { side, foe })
+        {
+            foreach (var r in Reserves.Pending(world, s)) kinds[(s, r)] = kinds.GetValueOrDefault((s, r)) + 1;
+        }
+        foreach (var ((s, r), n) in kinds)
+        {
+            if (!world.Factions.TryGetValue(s, out var f)) continue;
+            if (scratch is null) scratch = CreateWorld(world.Width, world.Height);
+            if (!scratch.Factions.ContainsKey(s)) AddSide(scratch, s, f.Race, 0, f.Team, f.Color).Research = f.Research.Clone();
+            var e = r.Hero is HeroId hero ? SpawnHero(scratch, s, hero, 0, 0) : SpawnShip(scratch, s, r.Cls, 0, 0);
+            if (r.Hero is null) Enlist(scratch, e, 0, f.ReserveCondition);
+            times[e.Id] = n;
+        }
+        return (scratch, times);
     }
 
     /// <summary>Whether fire must go through it: a ship, the station, or what carries guns.</summary>
@@ -275,14 +411,16 @@ public static class Battle
     }
 
     /// <summary>
-    /// Once per second, idle warships of each side attack-move towards the nearest foe they can
-    /// see; seeing none, towards a foe's station, or else to scout the middle.
+    /// Once per second, each side calls in its reserve as far as the fleet cap leaves room, and
+    /// its idle warships attack-move towards the nearest foe they can see; seeing none, towards a
+    /// foe's station, or else to scout the middle.
     /// </summary>
     public static void UpdateBattleAI(World world, IEnumerable<Side> sides, double dt)
     {
         if (Math.Floor(world.Time) == Math.Floor(world.Time - dt)) return;
         foreach (var side in sides)
         {
+            Reserves.CallAll(world, side);
             var idle = new List<Entity>();
             foreach (var e in world.Entities)
             {

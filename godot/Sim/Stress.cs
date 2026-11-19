@@ -51,4 +51,25 @@ public static class Stress
         }
         return w;
     }
+
+    /// <summary>One faction's fleet of the scene, 192 ships and 376 fleet points (Reserves.Points): a campaign's dev runs give it to the player (--armada).</summary>
+    public static ShipCounts Armada() => new(Fleet.ToDictionary(k => k.Cls, k => k.Count));
+
+    /// <summary>
+    /// A campaign battle for measuring the fleet cap: two fleets of more than a thousand ships
+    /// between them (three times the scene's, a leviathan, two titans and a hero each) over a
+    /// fortified planet, Kla'ed attacking (side 0), Nairan defending (side 1), under a cap of
+    /// `fleetCap` points (0: none). The campaign's battle AI plays both (Battle.UpdateBattleAI).
+    /// </summary>
+    public static World Planet(int seed = 7, int fleetCap = 0)
+    {
+        static BattleSide Side(Faction race)
+        {
+            var ships = new ShipCounts();
+            foreach (var (cls, count) in Fleet) ships[cls] = cls switch { ShipClass.Leviathan => 1, ShipClass.Titan => 2, _ => count * 3 };
+            return new BattleSide { Side = race, Ships = ships, Heroes = [Heroes.Of(race).First().Id] };
+        }
+        var defense = new PlanetDefense { Station = 3, Platforms = 3, PlatformTier = 3, Mines = 2, RepairDock = 1, IonCannon = 1 };
+        return Battle.CreatePlanetBattle(Side(Faction.Klaed), Side(Faction.Nairan), defense, seed, fleetCap: fleetCap);
+    }
 }

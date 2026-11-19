@@ -25,6 +25,8 @@ public sealed record MenuChoice
     public MapSize Size { get; init; } = MapSize.Medium;
     /// <summary>A new game's minutes of peace between the great factions at the start (Lobby.Peace).</summary>
     public int Peace { get; init; } = CampaignSetup.PeaceMinutes[0];
+    /// <summary>A new game's fleet cap in its battles (Lobby.FleetCap).</summary>
+    public FleetCap FleetCap { get; init; }
     /// <summary>Without Seats, the enemies' AI; with --skip, the player's while the galaxy plays ahead.</summary>
     public Difficulty Difficulty { get; init; } = Difficulty.Normal;
     /// <summary>A campaign over the network: the host's galaxy, or a player's replica of it (Network.NetGalaxy); the rest is unused.</summary>
@@ -55,7 +57,11 @@ public sealed record MenuChoice
 /// --mode=survival|zones|assault|regicide (the rules of --start=battle; in an assault, the player defends),
 /// --wave=N (a survival game starts at wave N, the first a few seconds away: the late waves, or the end, without playing up to them),
 /// --end=SECONDS (the battle played ahead, every side on the AI, until decided or that old, then its end screen: a campaign
-/// battle's once decided; with --raid and --choose=command, a campaign alone reaches one).
+/// battle's once decided; with --raid and --choose=command, a campaign alone reaches one),
+/// --fleet-cap=low|normal|high|none (the fleet cap of --start=campaign's battles; with --start=stress, the scene is instead a
+/// campaign battle of more than a thousand ships over a fortified planet under that cap, both sides on the campaign's battle AI),
+/// --armada (a new campaign gives the player a fleet of the stress scene at its capital: with --raid and --choose=command, a battle
+/// whose reserve waits under the cap).
 /// Network (Network.Session): --host (hosts a lobby of --mode, a skirmish by default, with a seat open to a player, and launches
 /// once everyone is ready), --join=ADDRESS:PORT (joins it, and is ready once seated), --server (a dedicated server of --mode, with
 /// Godot's --headless), --port=N, --name=X (the player's, or the server's game), --order=SECONDS (the player's ships attack-move to
@@ -141,6 +147,13 @@ public static class Dev
     public static bool Spectate;
     /// <summary>--direct: through the online server, a dev run's game offers the direct link, and a dev run that joins accepts it.</summary>
     public static bool Direct;
+    /// <summary>--fleet-cap=low|normal|high|none: the cap of a dev run's campaign, or of the stress scene's campaign battle (none: no cap). Null: not given.</summary>
+    public static string? FleetCap;
+    /// <summary>--armada: a new campaign of a dev run gives the player a fleet of the stress scene (192 ships, 376 fleet points) at its capital.</summary>
+    public static bool Armada;
+
+    /// <summary>The fleet points of --fleet-cap: 0 for none.</summary>
+    public static int FleetCapPoints => FleetCap is null or "none" ? 0 : Reserves.CapPoints(Enum.Parse<Sim.FleetCap>(FleetCap, true));
 
     /// <summary>This run sets a campaign played alone going by itself: its flags act at galaxy ages that a paused galaxy would never reach.</summary>
     public static bool RunsClock => Speed > 0 || Pause > 0 || Truce > 0 || Attack.Length + Raid.Length + Build.Length + Choose.Length > 0;
@@ -216,6 +229,8 @@ public static class Dev
                 case "--watch": Watch = true; break;
                 case "--leave": Leave = double.Parse(value, System.Globalization.CultureInfo.InvariantCulture); break;
                 case "--snap": Snap = value; break;
+                case "--fleet-cap" when value == "none" || Enum.TryParse<Sim.FleetCap>(value, true, out _): FleetCap = value.ToLowerInvariant(); break;
+                case "--armada": Armada = true; break;
             }
         }
         if (Relay && !port) Port = Sim.Net.Relay.DefaultPort;

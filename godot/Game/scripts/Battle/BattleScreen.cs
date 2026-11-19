@@ -80,7 +80,7 @@ public partial class BattleScreen : Node
             Replay = new ReplayPlayer(recorded);
             World = Replay.World;
         }
-        else World = o.Net?.World ?? o.Campaign?.World ?? (Dev.Start == "stress" ? Stress.Create(o.Seed ?? 7, o.Terrain) : Scenario.CreateSkirmish(new SkirmishOptions
+        else World = o.Net?.World ?? o.Campaign?.World ?? (Dev.Start == "stress" ? StressScene(o) : Scenario.CreateSkirmish(new SkirmishOptions
         {
             // In the sandbox, nobody plays by itself: the others only do what the player spawns.
             Slots = [.. o.Slots.Select(s => sandbox ? s with { AI = null } : s)],
@@ -105,8 +105,9 @@ public partial class BattleScreen : Node
             World.Mode.Wave = World.Mode.Cleared = Dev.Wave - 1;
             World.Mode.NextWave = World.Time + 5;
         }
-        // A campaign battle's AI plays the side facing the player.
+        // A campaign battle's AI plays the side facing the player; in the stress scene's campaign battle, both sides.
         if (o.Campaign is { } cb) campaignFoe = [cb.Attacker == o.Player ? cb.Defender : cb.Attacker];
+        else if (Dev.Start == "stress" && Dev.FleetCap is not null && o.Net is null) campaignFoe = [.. World.Factions.Keys];
         // The player's ships use their abilities by themselves if the player wants so.
         var own = o.Demo || o.Replay is not null ? null : World.Factions.GetValueOrDefault(o.Player);
         if (own is not null) Sink.Send(new Command.SetAutoAbilities(Settings.Current.AutoAbilities));
@@ -289,11 +290,18 @@ public partial class BattleScreen : Node
         CenterOn(x0 + dx * 560, y0 + 40);
     }
 
+    /// <summary>--start=stress: the three fleets' scene, or with --fleet-cap a campaign battle of more than a thousand ships under that cap.</summary>
+    static World StressScene(BattleOptions o) =>
+        Dev.FleetCap is null ? Stress.Create(o.Seed ?? 7, o.Terrain) : Stress.Planet(o.Seed ?? 7, Dev.FleetCapPoints);
+
     Point FleetCenter(Side side)
     {
         var ships = World.Entities.Where(e => e.Side == side).ToList();
-        if (ships.Count == 0) return new Point(World.Width / 2, World.Height / 2);
-        return new Point(ships.Average(e => e.X), ships.Average(e => e.Y));
+        if (ships.Count > 0) return new Point(ships.Average(e => e.X), ships.Average(e => e.Y));
+        // A campaign attacker still in hyperspace: where it comes in.
+        var jumps = World.Jumps.Where(j => j.Side == side).ToList();
+        if (jumps.Count > 0) return new Point(jumps.Average(j => j.X), jumps.Average(j => j.Y));
+        return new Point(World.Width / 2, World.Height / 2);
     }
 
     public override void _Process(double delta)
@@ -318,7 +326,7 @@ public partial class BattleScreen : Node
                     replaying.Step();
                 }
                 else Steps.StepWorld(World);
-                if (Opts.Campaign is not null) Sim.Battle.UpdateBattleAI(World, campaignFoe, Steps.Step);
+                if (campaignFoe.Count > 0) Sim.Battle.UpdateBattleAI(World, campaignFoe, Steps.Step);
                 if (Opts.Demo && World.Time >= nextSteer) Steer();
                 acc -= Steps.Step;
                 n++;

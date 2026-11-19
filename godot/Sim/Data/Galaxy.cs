@@ -92,6 +92,6 @@ public static class GalaxyRules
     public const double NeutralCaptureTime = 5;
     /// <summary>Battles resolved automatically run this many times faster than the galaxy clock.</summary>
     public const double AutoSpeed = 15;
-    /// <summary>An automatic battle still undecided after this many seconds ends with the attacker falling back.</summary>
+    /// <summary>An automatic battle still undecided after this many seconds ends with the attacker falling back, once no reserve waits to come in.</summary>
     public const double AutoTimeout = 600;
 }

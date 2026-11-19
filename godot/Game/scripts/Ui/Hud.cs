@@ -49,6 +49,8 @@ public partial class Hud : CanvasLayer
     /// <summary>The reserve: large hulls built and waiting to be dragged onto the battlefield; hidden while empty.</summary>
     PanelContainer reservePanel = null!;
     HFlowContainer reserveRow = null!;
+    /// <summary>Its first line: what to do, and in a campaign battle the fleet points on the field against the cap.</summary>
+    Label reserveTitle = null!;
     /// <summary>How many ships the reserve held at the last refresh: one more is announced.</summary>
     int reserveSeen;
     /// <summary>The reserve by kind of ship, in the order first built, refilled at each refresh.</summary>
@@ -222,7 +224,8 @@ public partial class Hud : CanvasLayer
         reservePanel = Panel(8, 6);
         reservePanel.Visible = false;
         var reserveBox = Column(4);
-        reserveBox.AddChild(Text("Réserve : glisse un vaisseau sur la carte", Palette.Muted, 12));
+        reserveTitle = Text("Réserve : glisse un vaisseau sur la carte", Palette.Muted, 12);
+        reserveBox.AddChild(reserveTitle);
         reserveRow = Flow(4);
         reserveBox.AddChild(reserveRow);
         reservePanel.AddChild(reserveBox);
@@ -680,7 +683,8 @@ public partial class Hud : CanvasLayer
     /// <summary>
     /// The reserve, one button per kind of ship (a hero apart), with how many wait: pressed, the
     /// ship is picked up, to be let go over the battlefield or placed with a click there. A ship
-    /// come into the reserve is announced.
+    /// come into the reserve is announced. In a campaign battle, the fleet points on the field
+    /// against the cap; a ship there is no room for is greyed until some frees up.
     /// </summary>
     void RefreshReserve(FactionState f)
     {
@@ -693,6 +697,14 @@ public partial class Hud : CanvasLayer
         reserveSeen = f.Reserve.Count;
         reservePanel.Visible = f.Reserve.Count > 0;
         if (f.Reserve.Count == 0) return;
+        var cap = World.FleetCap;
+        var used = cap > 0 ? Reserves.Used(World, Player) : 0;
+        var room = cap > 0 ? cap - used : int.MaxValue;
+        var title = cap <= 0 ? "Réserve : glisse un vaisseau sur la carte"
+            : room <= 0 ? $"Flotte {used} / {cap} : plafond atteint, les renforts attendent une place"
+            : $"Flotte {used} / {cap} : glisse un renfort sur la carte";
+        if (reserveTitle.Text != title) reserveTitle.Text = title;
+        HudKit.Paint(reserveTitle, cap > 0 && room <= 0 ? Palette.Accent : Palette.Muted);
         var c = scene.Controls;
         var armed = c.Mode is DeployMode dm ? dm.Ship : (ReserveShip?)null;
         // Counted in one pass: a reserve holds few kinds.
@@ -727,8 +739,15 @@ public partial class Hud : CanvasLayer
             }, n =>
             {
                 var b = (LabelButton)n;
+                var points = Reserves.Points(ship.Cls);
                 b.Line(1).Text = count > 1 ? $"×{count}" : "prêt";
-                b.TooltipText = $"{name} : glisse-le sur la carte, ou clique ici puis sur la carte (Maj : plusieurs) ; clic droit : tous au point de ralliement. Il arrive par l'hyperespace près de tes forces, jamais près d'un bâtiment ennemi.";
+                // Whole texts, each translated as one.
+                b.TooltipText = cap <= 0
+                    ? $"{name} : glisse-le sur la carte, ou clique ici puis sur la carte (Maj : plusieurs) ; clic droit : tous au point de ralliement. Il arrive par l'hyperespace près de tes forces, jamais près d'un bâtiment ennemi."
+                    : points > room
+                    ? $"{name} ({points} points de flotte) : plafond de flotte atteint, il attend qu'une place se libère sur le terrain."
+                    : $"{name} ({points} points de flotte sur {cap}) : glisse-le sur la carte, ou clique ici puis sur la carte (Maj : plusieurs) ; clic droit : tous au point de ralliement. Il arrive par l'hyperespace près de tes forces ou à ton bord de la carte.";
+                b.Disabled = points > room;
                 b.Marked = held;
                 b.Paint();
             }));

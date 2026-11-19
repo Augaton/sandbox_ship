@@ -758,6 +758,50 @@ tests de `FixtureTests` et `CrossTests` les listent.
   - Ouvert : le fil n'est pas sauvegardé (l'historique l'est) ; une contre-offre de trêve à son prix de paix peut
     coûter cher (2 200 crédits contre une IA vingt croiseurs de bataille plus forte) ; aucune mesure d'équilibrage entre
     IA n'a été refaite, rien n'ayant changé de ce qu'elles décident entre elles.
+- Campagne, plafond de flotte (2026-11-19, à la demande de l'utilisateur, à la façon d'Empire at War) : au-delà d'un millier de
+  vaisseaux, une bataille de planète fatiguait l'ordinateur. Chaque camp aligne au plus N points de flotte à la fois, ses vaisseaux
+  sur le terrain et ceux en saut (`World.FleetCap`, `Reserves.Points`) ; le reste attend dans la réserve de la bataille et saute dès
+  qu'une place se libère. Points : petit 1 (éclaireur, chasseur, bombardier, corvette), moyen 2, croiseur et rempart 4,
+  transporteur et cuirassé 6 (leurs appareils et leurs tourelles), Titan 12, Léviathan et Colosse 20 ; un héros compte comme sa
+  coque. Le plafond se règle au salon de la campagne, en solo comme en réseau (l'hôte pour tous) : Faible 150, Normal 300 (par
+  défaut, et celui des anciennes sauvegardes), Élevé 500. L'escarmouche et les modes n'en ont pas (0).
+  - Ouverture (`Battle.CreatePlanetBattle`, `Battle.Opening`) : le défenseur commence placé, chaque classe en proportion de sa part
+    des points de sa flotte (les héros toujours), puis une de plus par classe, de la plus lourde à la plus légère, tant qu'il reste
+    de la place ; l'attaquant arrive en hyperespace dès le début, sa part en formation dans sa zone d'arrivée, à droite. Chaque
+    camp a un point d'arrivée (`FactionState.Arrival`, à 800 près) où sa réserve peut toujours sauter, même sans rien à lui sur
+    le terrain ; son point de ralliement y est mis.
+  - La garde est dans `Reserves.CanDeploy` (« Plafond de flotte atteint ») ; `Deploy` n'amène d'une escadrille que ce qui tient.
+    L'IA de bataille de la campagne (`Battle.UpdateBattleAI`) appelle sa réserve chaque seconde (`Reserves.CallAll`, qui ne tente
+    plus un vaisseau sans place, ni une sorte qui vient de ne trouver aucun point). Un camp qui n'a plus rien sur le terrain
+    appelle la sienne de lui-même, même commandé par un joueur : retenue, elle ne faisait que figer la bataille jusqu'au repli.
+  - Ce qui n'est jamais entré rentre tel quel sur la carte galactique : `Survivors`, `HeroSurvivors`, `SurvivorCondition`
+    (l'usure de la flotte, `ReserveCondition`) et les rangs (`ReserveRanks` : les meilleurs placés d'abord, chacun sortant de la
+    réserve avec le sien). Un camp qui a une réserve ou des sauts n'a pas perdu (`Outcome`). `Battle.Power` compte ce qui
+    attend comme il entrera (un exemplaire de chaque sorte, dans un monde à part) : la même puissance que la flotte entière posée,
+    d'où la même issue prévue. Une bataille résolue seule ne se replie plus au bout de 600 s tant qu'une réserve attend : la plus
+    grosse bataille de mesure en dure 887 au plafond Faible ; l'impasse (240 s sans un tir) reste la garde.
+  - HUD : « Flotte 289 / 300 » en tête du panneau de réserve, en orange une fois plein ; une carte sans place est grisée, avec
+    ses points et la raison dans la bulle. La vue s'ouvre sur les sauts d'un attaquant encore en hyperespace.
+  - Mesures (banc console en Release, `FLEETCAP=1 dotnet test Sim.Tests -c Release --filter Measures_the_fleet_cap`, deux passes,
+    machine chargée : charge 10 à 17 sur 4 cœurs) sur `Stress.Planet` : deux flottes de 570 vaisseaux (trois fois celle de la
+    bataille de mesure, 1 082 points chacune) au-dessus d'une planète fortifiée, 90 s de bataille, l'IA de la campagne des deux
+    côtés. Les entités ne dépendent pas de la machine, les temps si.
+
+    | Plafond | Entités (moyenne, au plus) | ms par pas (moyenne) | ms par pas (médiane) | Résolue seule |
+    |---|---|---|---|---|
+    | Faible 150 | 411, 451 | 0,58 à 0,78 | 0,35 à 0,42 | attaquant, 887 s |
+    | Normal 300 | 866, 973 | 0,92 à 1,32 | 0,85 à 1,05 | attaquant, 367 s |
+    | Élevé 500 | 1 517, 1 678 | 2,61 à 3,56 | 2,34 à 2,96 | défenseur, 339 s |
+    | Aucun | 1 929, 2 788 | 3,21 à 5,47 | 2,95 à 3,90 | attaquant, 249 s |
+
+    Normal reste sous mille entités, les deux tiers de la bataille de mesure (1 300 à 1 500, à 60 images/s aux passes de
+    performance), et coûte trois à quatre fois moins de simulation que la même bataille sans plafond ; Élevé vaut la bataille de
+    mesure, pour une machine qui la tient ; Faible en garde le tiers. Dans le jeu (`--start=stress --fleet-cap=normal`, gamescope
+    sans écran, même machine chargée) : 764 entités à 15 s, 16,9 ms par image en médiane (23,8 en moyenne), 5,5 ms de simulation.
+  - Réseau : protocole 17 (réglage `FleetCap` du salon), instantanés de bataille 12 : le plafond, le point d'arrivée du joueur,
+    et sa réserve en séries d'une même sorte (3 000 chasseurs tiennent en quelques octets, au lieu de deux par vaisseau). Bornes à
+    la lecture : plafond et réserve à 65 536 au plus, séries d'au moins un vaisseau, point d'arrivée fini, ramené dans la carte.
+    Sauvegardes : champ `fleetCap`, Normal s'il manque ; un nom inconnu refuse le fichier. Tests : `FleetCapTests`, `FuzzTests`.
 - Sécurité (2026-11-03) : ce qu'un inconnu peut envoyer au serveur en ligne, à un hôte ou au jeu, et les fichiers du joueur.
   Chaque lecteur exposé passe un test de robustesse à graine fixe (`FuzzTests` : trames du relais, messages du jeu, ordres,
   instantanés de bataille entiers et en parties, galaxie, rediffusions, sauvegardes), et chaque correction a son test

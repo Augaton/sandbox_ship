@@ -418,6 +418,18 @@ public sealed class FactionState : IResearcher
     public List<ShipClass> Repeat = [];
     /// <summary>Large hulls built and waiting to be called in by hyperspace (Reserves.cs), in the order they were built.</summary>
     public List<ReserveShip> Reserve = [];
+    /// <summary>
+    /// In a campaign battle: where its reserve may always come in, within Reserves.ArrivalReach,
+    /// even with nothing of its own on the field (its end of the map). Null elsewhere.
+    /// </summary>
+    public Point? Arrival;
+    /// <summary>
+    /// In a campaign battle: the veterans among the ships of its reserve and in hyperspace, by
+    /// class and rank, who come out with their rank, the best first; and the share of their hull
+    /// those ships come with, after earlier battles, as the fleet's. None and whole elsewhere.
+    /// </summary>
+    public RankCounts ReserveRanks = [];
+    public double ReserveCondition = 1;
     public BattleStats Stats = new();
     /// <summary>Seconds before each fallen hero can be built again.</summary>
     public Dictionary<HeroId, double> HeroCooldowns = [];
@@ -522,6 +534,11 @@ public sealed class World
     /// <summary>Ships of the reserve in hyperspace towards their point (Reserves.cs), and the next one's id.</summary>
     public List<Jump> Jumps = [];
     public int NextJumpId = 1;
+    /// <summary>
+    /// The fleet points each side may have on the field at once, its ships and those in hyperspace
+    /// (Reserves.Points): the rest waits in its reserve. A campaign battle's; 0 for none.
+    /// </summary>
+    public int FleetCap;
     /// <summary>World time of the last damage anyone dealt: a long quiet means a battle that cannot end.</summary>
     public double LastDamage;
     /// <summary>Fog of war: each side only sees and targets what its own units and its allies' see.</summary>

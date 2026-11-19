@@ -14,6 +14,12 @@ namespace SandboxShip.Sim;
 /// </summary>
 public readonly record struct ReserveShip(ShipClass Cls, HeroId? Hero = null);
 
+/// <summary>
+/// A campaign's fleet cap in its battles (World.FleetCap, Reserves.CapPoints), chosen in the
+/// lobby: low for a small machine, high for a big one. Normal first: the default, older saves'.
+/// </summary>
+public enum FleetCap { Normal, Low, High }
+
 /// <summary>A ship in hyperspace towards its point, facing `Angle`: it comes out when `Left` runs out.</summary>
 public sealed class Jump
 {
@@ -37,6 +43,11 @@ public static class Reserves
     /// hull every half-minute at best never comes near it, and a forged list is refused.
     /// </summary>
     public const int MaxListed = 4096;
+    /// <summary>
+    /// Most ships a snapshot may list in a reserve: a campaign fleet held back by the fleet cap
+    /// may keep thousands waiting. And the highest fleet cap one may give (CapPoints stays far under).
+    /// </summary>
+    public const int MaxReserve = 1 << 16, MaxCap = 1 << 16;
     /// <summary>Seconds in hyperspace: small craft, medium ships, the line's large hulls, and the capitals, who announce themselves longer.</summary>
     public const double SmallJumpTime = 1.5, MediumJumpTime = 2, JumpTime = 3, CapitalJumpTime = 6;
     /// <summary>Room between the craft of a squadron coming in together.</summary>
@@ -44,6 +55,57 @@ public static class Reserves
     /// <summary>A ship coming out throws craft aside within its girth and this much more, at this speed at most.</summary>
     public const double ShockReach = 220;
     const double ShockSpeed = 320;
+
+    /// <summary>How far round its arrival point (FactionState.Arrival) a side's reserve may come in.</summary>
+    public const double ArrivalReach = 800;
+
+    /// <summary>The fleet points of each cap, measured in PLAN.md (entities on the field, milliseconds a step).</summary>
+    public static int CapPoints(FleetCap cap) => cap switch
+    {
+        FleetCap.Low => 150,
+        FleetCap.High => 500,
+        _ => 300,
+    };
+
+    /// <summary>
+    /// What a ship weighs against the fleet cap, by its size and its weight: 1 for a small craft, 2
+    /// for a medium ship, 4 for a battlecruiser or a bulwark, 6 for a carrier or a dreadnought (their
+    /// craft and turrets), 12 for a titan, 20 for a leviathan or a colossus. A hero weighs as its hull.
+    /// </summary>
+    public static int Points(ShipClass cls) => cls switch
+    {
+        ShipClass.Titan => 12,
+        ShipClass.Leviathan or ShipClass.Colossus => 20,
+        ShipClass.Carrier or ShipClass.Dreadnought => 6,
+        _ => Ships.Defs[cls].Size switch { SizeClass.Small => 1, SizeClass.Medium => 2, _ => 4 },
+    };
+
+    /// <summary>The fleet points a side has on the field: its ships (not the craft their hangars launch) and those in hyperspace.</summary>
+    public static int Used(World world, Side side)
+    {
+        var n = 0;
+        foreach (var e in world.Entities) if (e.Kind == EntityKind.Ship && e.Side == side && !e.Launched) n += Points(e.Cls);
+        foreach (var j in world.Jumps) if (j.Side == side) n += Points(j.Cls);
+        return n;
+    }
+
+    /// <summary>The fleet points a side may still call in under the cap; without one, as many as it likes.</summary>
+    public static int Room(World world, Side side) => world.FleetCap > 0 ? Math.Max(0, world.FleetCap - Used(world, side)) : int.MaxValue;
+
+    /// <summary>Whether any side still has ships in its reserve or in hyperspace: a battle under a fleet cap is still being fought.</summary>
+    public static bool AnyPending(World world)
+    {
+        if (world.Jumps.Count > 0) return true;
+        foreach (var f in world.Factions.Values) if (f.Reserve.Count > 0) return true;
+        return false;
+    }
+
+    /// <summary>A side's ships not on the field yet: in its reserve, then in hyperspace.</summary>
+    public static IEnumerable<ReserveShip> Pending(World world, Side side)
+    {
+        if (world.Factions.TryGetValue(side, out var f)) foreach (var s in f.Reserve) yield return s;
+        foreach (var j in world.Jumps) if (j.Side == side) yield return new ReserveShip(j.Cls, j.Hero);
+    }
 
     public static bool Capital(ShipClass cls) => cls is ShipClass.Titan or ShipClass.Leviathan or ShipClass.Colossus;
 
@@ -73,6 +135,8 @@ public static class Reserves
     {
         if (!double.IsFinite(x) || !double.IsFinite(y)) return Result.Fail("Point invalide");
         if (!world.Factions.TryGetValue(side, out var f) || !f.Reserve.Contains(ship)) return Result.Fail("Pas en réserve");
+        // Under a fleet cap (a campaign battle), a ship waits for room on the field.
+        if (world.FleetCap > 0 && Points(ship.Cls) > Room(world, side)) return Result.Fail("Plafond de flotte atteint");
         var def = Ships.Defs[ship.Cls];
         var girth = def.Beam > 0 ? def.Beam : def.Radius;
         if (x < girth || y < girth || x > world.Width - girth || y > world.Height - girth) return Result.Fail("Hors de la carte");
@@ -82,7 +146,8 @@ public static class Reserves
             if (Hypot(j.X - x, j.Y - y) < girth + (other.Beam > 0 ? other.Beam : other.Radius)) return Result.Fail("Point d'arrivée déjà pris");
         }
         // One pass over the battle, nothing allocated: the AI tries several points, the view one a frame.
-        var near = false;
+        // A campaign battle's sides may always come in at their end of the map.
+        var near = f.Arrival is Point arrival && Hypot(arrival.X - x, arrival.Y - y) <= ArrivalReach;
         foreach (var e in world.Entities)
         {
             // Never on top of a building, one's own included: it could not get out.
@@ -105,21 +170,28 @@ public static class Reserves
         if (!r.Ok) return r;
         var reserve = world.Factions[side].Reserve;
         var many = ship.Hero is null ? Math.Min(Ships.Defs[ship.Cls].Squad ?? 1, reserve.Count(s => s == ship)) : 1;
-        var time = JumpTimeOf(ship.Cls);
+        // Under a cap, as many of the squadron as there is room for: CanDeploy found room for one.
+        if (world.FleetCap > 0) many = Math.Min(many, Room(world, side) / Points(ship.Cls));
         var angle = Heading(world, side, x, y);
         var (ax, ay) = (-Math.Sin(angle), Math.Cos(angle));
         for (var i = 0; i < many; i++)
         {
             reserve.Remove(ship);
             var off = (i - (many - 1) / 2.0) * SquadGap;
-            world.Jumps.Add(new Jump
-            {
-                Id = world.NextJumpId++, Side = side, Cls = ship.Cls, Hero = ship.Hero,
-                X = Math.Clamp(x + ax * off, 0, world.Width), Y = Math.Clamp(y + ay * off, 0, world.Height),
-                Angle = angle, Left = time, Total = time,
-            });
+            JumpIn(world, side, ship, x + ax * off, y + ay * off, angle);
         }
         return Result.OK;
+    }
+
+    /// <summary>A ship into hyperspace towards (x, y), facing `angle`: out after its class's jump time.</summary>
+    public static void JumpIn(World world, Side side, ReserveShip ship, double x, double y, double angle)
+    {
+        var time = JumpTimeOf(ship.Cls);
+        world.Jumps.Add(new Jump
+        {
+            Id = world.NextJumpId++, Side = side, Cls = ship.Cls, Hero = ship.Hero,
+            X = Math.Clamp(x, 0, world.Width), Y = Math.Clamp(y, 0, world.Height), Angle = angle, Left = time, Total = time,
+        });
     }
 
     /// <summary>
@@ -139,20 +211,29 @@ public static class Reserves
     /// <summary>
     /// Calls the whole reserve in where the side's fleet gathers: at the rally point or round it,
     /// else on the way there from the station, else by the station; a squadron at a time. A ship
-    /// with nowhere to go waits. The AI does so at every thought.
+    /// with nowhere to go, or no room under the fleet cap, waits. The AI does so at every thought.
     /// </summary>
     public static void CallAll(World world, Side side)
     {
         if (!world.Factions.TryGetValue(side, out var f) || f.Reserve.Count == 0) return;
         var station = StationOf(world, side);
+        // A campaign's reserve may hold hundreds of ships: one there is no room for is not tried,
+        // nor one of a kind that just found no point (nothing frees one meanwhile).
+        var room = Room(world, side);
+        List<ReserveShip>? stuck = null;
         foreach (var ship in f.Reserve.ToList())
         {
             // Gone already with its squadron.
-            if (!f.Reserve.Contains(ship)) continue;
+            if (Points(ship.Cls) > room || stuck?.Contains(ship) == true || !f.Reserve.Contains(ship)) continue;
+            var called = false;
             foreach (var (x, y) in Gathering(f, station))
             {
-                if (Deploy(world, side, ship, x, y).Ok) break;
+                if (!Deploy(world, side, ship, x, y).Ok) continue;
+                called = true;
+                break;
             }
+            if (!called) (stuck ??= []).Add(ship);
+            else if (world.FleetCap > 0) room = Room(world, side);
         }
     }
 
@@ -174,7 +255,11 @@ public static class Reserves
         return n;
     }
 
-    /// <summary>Jumps count down; a ship whose jump is over comes out, and the craft about it are thrown aside.</summary>
+    /// <summary>
+    /// Jumps count down; a ship whose jump is over comes out, and the craft about it are thrown
+    /// aside. Under a fleet cap, a side with nothing left on the field calls its reserve in by
+    /// itself: held back, it would only stall the battle until the attacker fell back.
+    /// </summary>
     public static void Update(World world, double dt)
     {
         for (var i = 0; i < world.Jumps.Count; i++)
@@ -183,10 +268,22 @@ public static class Reserves
             if ((j.Left -= dt) > 0) continue;
             world.Jumps.RemoveAt(i--);
             // A side out of the battle meanwhile loses the ship it was calling in.
-            if (!world.Factions.ContainsKey(j.Side)) continue;
+            if (!world.Factions.TryGetValue(j.Side, out var f)) continue;
             var s = j.Hero is HeroId hero ? SpawnHero(world, j.Side, hero, j.X, j.Y, j.Angle) : SpawnShip(world, j.Side, j.Cls, j.X, j.Y, j.Angle);
+            // A campaign fleet's veterans and worn hulls come in as they were; a hero comes in whole.
+            if (j.Hero is null && (f.ReserveRanks.Count > 0 || f.ReserveCondition < 1))
+            {
+                var rank = f.ReserveRanks.RankOf(s.Cls, 0);
+                f.ReserveRanks.Add(s.Cls, rank, -1);
+                Battle.Enlist(world, s, rank, f.ReserveCondition);
+            }
             world.Events.Add(new Delivered(s.Id));
             if (s.Size == SizeClass.Large) Shock(world, s);
+        }
+        if (world.FleetCap <= 0 || Math.Floor(world.Time) == Math.Floor(world.Time - dt)) return;
+        foreach (var f in world.Factions.Values)
+        {
+            if (f.Reserve.Count > 0 && Used(world, f.Id) == 0) CallAll(world, f.Id);
         }
     }
 
