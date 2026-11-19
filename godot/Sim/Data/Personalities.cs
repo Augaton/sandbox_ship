@@ -13,7 +13,8 @@ public enum Personality { Balanced, Aggressive, Defensive, Economic, Technologic
 /// odds of one more and, once they stand, of a level up for one; how many outposts and the odds of
 /// one more; the odds of a lab and of a research; the share of its income set aside for the next station level; how far its fleet
 /// leans to small, medium and large hulls (× the usual weights); the army and the odds before
-/// it builds its star lance. In the campaign: the edge an attack waits for (×), and how it leans
+/// it builds its star lance. `Edge`: the edge an attack waits for (×), in the campaign, and in
+/// battle before a hunt for the raid's colossus. In the campaign also: how it leans
 /// in diplomacy (1 as Balanced, less to refuse, more to seek): truces, alliances, trade, and
 /// demanding tribute from the weaker.
 /// </summary>

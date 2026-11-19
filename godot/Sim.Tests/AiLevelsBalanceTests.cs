@@ -3,7 +3,8 @@
 // asked,
 //   BALANCE=1 dotnet test Sim.Tests --filter AiLevelsBalance --logger "console;verbosity=detailed"
 // By default at equal income: what is left is what each level decides. SEEDS=N: N seeds per race
-// and pairing instead of 4. RAW=1: with the income each level has in the game.
+// and pairing instead of 4. RAW=1: with the income each level has in the game. PAIRING=Hard-Normal:
+// that pairing only.
 using SandboxShip.Sim.Data;
 using Xunit;
 using Xunit.Abstractions;
@@ -42,7 +43,8 @@ public class AiLevelsBalanceTests(ITestOutputHelper output)
     public void Measures_the_levels_against_each_other()
     {
         if (Environment.GetEnvironmentVariable("BALANCE") is null) return;
-        var pairings = new[] { (Difficulty.Hard, Difficulty.Normal), (Difficulty.Normal, Difficulty.Easy), (Difficulty.Hard, Difficulty.Easy) };
+        var pairings = new[] { (Difficulty.Hard, Difficulty.Normal), (Difficulty.Normal, Difficulty.Easy), (Difficulty.Hard, Difficulty.Easy) }
+            .Where(p => Environment.GetEnvironmentVariable("PAIRING") is not { } only || only == $"{p.Item1}-{p.Item2}").ToArray();
         var (one, two) = (Lobby.SideOf(0), Lobby.SideOf(1));
         var games = (from p in pairings from race in Factions.All from g in Enumerable.Range(0, Seeds * 2) select (p.Item1, p.Item2, race, g)).AsParallel().AsOrdered().Select(x =>
         {

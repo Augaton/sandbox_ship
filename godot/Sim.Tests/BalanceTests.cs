@@ -2,7 +2,8 @@
 // normal difficulty, each side taking each start in turn. Prints win rates, game lengths and
 // what got built. A measure, not a check, and a long one: it only runs when asked,
 //   BALANCE=1 dotnet test Sim.Tests --filter Balance --logger "console;verbosity=detailed"
-// TERRAIN=light or dense: the same games on that battle terrain (none by default).
+// TERRAIN=light or dense: the same games on that battle terrain (none by default). RAID=1: with
+// the raid's colossus, as the lobby has it by default. SEEDS=N: N seeds instead of 6.
 using SandboxShip.Sim.Data;
 using Xunit;
 using Xunit.Abstractions;
@@ -11,13 +12,16 @@ namespace SandboxShip.Sim.Tests;
 
 public class BalanceTests(ITestOutputHelper output)
 {
-    const int Seeds = 6;
+    /// <summary>Seeds per pair of races and side: SEEDS=N, 6 by default (36 games).</summary>
+    static readonly int Seeds = int.TryParse(Environment.GetEnvironmentVariable("SEEDS"), out var n) && n > 0 ? n : 6;
     // An hour: dearer station upgrades make games longer than in the web version (30 min there).
     const double Limit = 60 * 60;
     const double Dt = 1.0 / 30;
     /// <summary>The terrain of every measured game: TERRAIN=none|light|dense, none by default.</summary>
     internal static readonly TerrainDensity Terrain =
         Enum.TryParse<TerrainDensity>(Environment.GetEnvironmentVariable("TERRAIN"), true, out var t) ? t : TerrainDensity.None;
+    /// <summary>Whether every measured game has the raid's colossus, where its mode allows one: RAID=1.</summary>
+    internal static readonly bool Raid = Environment.GetEnvironmentVariable("RAID") == "1";
 
     [Fact]
     public void Measures_the_factions_against_each_other()
@@ -35,7 +39,7 @@ public class BalanceTests(ITestOutputHelper output)
                 if (a == b) continue;
                 for (var seed = 1; seed <= Seeds; seed++)
                 {
-                    var w = Scenario.CreateSkirmish(new SkirmishOptions { Player = a, Enemies = [b], EnemyAI = true, Seed = seed * 101, Terrain = Terrain });
+                    var w = Scenario.CreateSkirmish(new SkirmishOptions { Player = a, Enemies = [b], EnemyAI = true, Seed = seed * 101, Terrain = Terrain, Raid = Raid });
                     w.Factions[a].AI = Worlds.NewAI();
                     w.Factions[a].AutoAbilities = true;
                     var seen = new HashSet<int>();

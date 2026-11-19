@@ -2,8 +2,9 @@
 // seeds each: who wins, how, and how long it takes. A measure, not a check, and a long one: it
 // only runs when asked,
 //   BALANCE=1 dotnet test Sim.Tests --filter ModeBalance --logger "console;verbosity=detailed"
-// TERRAIN=light or dense: on that battle terrain (BalanceTests.Terrain). SEEDS=N: N seeds per
-// pair of races instead of 4, best for one series alone, e.g. the assault on 108 games:
+// TERRAIN=light or dense: on that battle terrain (BalanceTests.Terrain); RAID=1: with the raid's
+// colossus where the mode has one. SEEDS=N: N seeds per pair of races instead of 4 (2 for the
+// regicide's duels), best for one series alone, e.g. the assault on 108 games:
 //   BALANCE=1 SEEDS=18 dotnet test Sim.Tests --filter Measures_assault --logger "console;verbosity=detailed"
 using SandboxShip.Sim.Data;
 using Xunit;
@@ -21,6 +22,7 @@ public class ModeBalanceTests(ITestOutputHelper output)
     static World Play(SkirmishOptions o)
     {
         o.Terrain = BalanceTests.Terrain;
+        o.Raid = BalanceTests.Raid;
         var w = Scenario.CreateSkirmish(o);
         while (w.Winner is null && w.Time < Limit)
         {
@@ -104,7 +106,8 @@ public class ModeBalanceTests(ITestOutputHelper output)
     public void Measures_regicide()
     {
         if (Environment.GetEnvironmentVariable("BALANCE") is null) return;
-        var games = Pairs().Where(p => p.Seed <= 2).Select(p => (Game: $"{p.A} contre {p.B}, graine {p.Seed}", Slots: new List<Slot> { Seat(p.A, p.A), Seat(p.B, p.B) }, p.Seed))
+        var duels = Environment.GetEnvironmentVariable("SEEDS") is null ? 2 : Seeds;
+        var games = Pairs().Where(p => p.Seed <= duels).Select(p => (Game: $"{p.A} contre {p.B}, graine {p.Seed}", Slots: new List<Slot> { Seat(p.A, p.A), Seat(p.B, p.B) }, p.Seed))
             .Concat(Enumerable.Range(1, 3).Select(s => (Game: $"trois, graine {s}", Slots: Factions.All.Select(f => Seat(f, f)).ToList(), Seed: s)))
             .AsParallel().AsOrdered().Select(g =>
             {

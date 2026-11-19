@@ -146,7 +146,8 @@ tests de `FixtureTests` et `CrossTests` les listent.
 - Raid : en escarmouche (case du menu, cochée par défaut), un Colosse neutre (faction des
   Errants, non jouable) garde le point de la carte le plus loin des stations. Il frappe quiconque
   approche ; ses quatre générateurs de bouclier sont la clé. Le premier à l'abattre gagne
-  8 000 crédits et un niveau de recherche. L'IA ne le chasse pas encore.
+  8 000 crédits et un niveau de recherche. L'IA le chasse quand elle peut l'abattre et se tient
+  hors de son coin jusque-là (« IA et équilibre », 2026-11-19).
 - Rempart, Transporteur, Titan, Léviathan, Colosse, Artillerie, Corvette, Brouilleur et Croiseur
   furtif ont des sprites originaux, dessinés au démarrage par `Render/ShipForge.cs` dans la manière
   des packs (relief éclairé ramené à leurs palettes), avec leurs réacteurs, leur destruction et un
@@ -932,6 +933,29 @@ tests de `FixtureTests` et `CrossTests` les listent.
     cours (refusées avec la raison ; la campagne, elle, tolère les champs ajoutés). Entre deux minutes de jeu, un jeu tué net
     (pas fermé : fermer sauvegarde) laisse le profil croire la dernière sauvegarde la plus avancée. Pas encore essayé sur un
     export : la réflexion de `StateWire` suppose que rien n'est élagué (comme la sauvegarde de campagne, qui en use déjà).
+- IA et équilibre (2026-11-19), d'après la liste « Ouvert » des systèmes revus. Mesures entre IA de difficulté normale,
+  en Release (mêmes parties qu'en Debug, dix fois plus vite : les 36 escarmouches en 4 min). Le banc d'escarmouche
+  prend `RAID=1` (le Colosse du raid, coché par défaut au salon, n'y était pas) et `SEEDS=N` ; celui des modes prend
+  `RAID=1`, et `SEEDS` vaut aussi pour les duels du régicide ; celui des niveaux prend `PAIRING=Hard-Normal`.
+  - Raid : avec le Colosse, les escarmouches entre IA s'enlisaient : 17 nuls sur 72 (graines 1 à 12, Kla'ed 31 %,
+    Nairan 42 %, Nautolan 42 %), contre 2 sur 36 sans lui. Sur 36 parties, il mangeait 127 500 cr de vaisseaux et
+    73 structures : mines rebâties sur le champ à sa portée (14 dans une partie), escortes envoyées tenir ce champ,
+    flotte lancée sur ses chasseurs comme sur une menace. L'IA reconnaît maintenant le Colosse du raid (un Colosse
+    errant sans station errante, dans un mode à raid : pas celui d'une planète errante de campagne) et tient hors de
+    son coin (`Ai.BossReach`, 1 500) ses mines, avant-postes, escortes, éclaireurs et raids, et ne prend ses gardiens
+    pour une menace que chez elle. Elle le chasse (`Ai.Hunt`) quand un groupe tiré de sa flotte au repos, les plus
+    proches d'abord, vaut 0,8 fois ses gardiens, × l'audace de sa personnalité (`Edge`, celle de la campagne :
+    agressive 0,85, défensive 1,25), et que ce qui reste chez elle vaut encore 70 % de l'armée ennemie vue ; la
+    Facile ne le chasse jamais. La valeur compte la recherche, les traits et, vus, les dégâts (`Ai.Worth` : prix ×
+    √(dégâts × endurance)) : sans recherche, une flotte au mélange de l'IA l'abat avec 40 000 cr et en garde de 40 à
+    90 %, en perd tout avec 30 000 cinq fois sur six ; trois niveaux d'armes, coque et boucliers
+    suffisent avec 30 000 (20 000 perdent tout). Le Difficile ne rappelle pas une chasse. Le seuil de 0,8 vient
+    d'un essai à 0,65 : 30 bombardiers et 17 croiseurs, juste assez sur le papier, mouraient sans entamer la coque
+    (les rayons du Colosse déchirent les grosses coques). Après : 13 nuls sur 72, Kla'ed 44 %, Nairan 38 %,
+    Nautolan 42 %, médiane 41 min ; le Colosse ne mange plus que 46 500 cr de vaisseaux sur 36 parties, surtout des
+    armées qui se battent entre elles dans son coin, et aucune structure. Il n'est jamais abattu entre IA : leurs
+    armées (2 000 à 16 000 cr toute la partie) sont loin du compte ; la chasse sert contre un joueur, ou sur un
+    Colosse affaibli. Sans Colosse, rien ne change (36 parties identiques). Tests : `RaidTests`.
 - Sécurité (2026-11-03) : ce qu'un inconnu peut envoyer au serveur en ligne, à un hôte ou au jeu, et les fichiers du joueur.
   Chaque lecteur exposé passe un test de robustesse à graine fixe (`FuzzTests` : trames du relais, messages du jeu, ordres,
   instantanés de bataille entiers et en parties, galaxie, rediffusions, sauvegardes), et chaque correction a son test

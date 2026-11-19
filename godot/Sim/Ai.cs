@@ -68,6 +68,17 @@ public static class Ai
     const double RaidValue = 1500, RaidMin = 500, RaidEvery = 45, GunReach = 800;
     /// <summary>Hard: a look around for raids, every so often; how far a wave's fight is reckoned; how much stronger the foe must be for the wave to come home, and how long before the next.</summary>
     const double ScoutEvery = 25, FightReach = 900, LosingOdds = 1.6, WaveRest = 45;
+    /// <summary>Below this share of the army it saw of the enemy, the AI is outmatched: it digs in and holds back.</summary>
+    const double Outmatched = 0.7;
+    /// <summary>
+    /// The raid's colossus (Raids.cs): how far around it its guardians strike, a corner kept clear
+    /// of mines, errands and chases; and what a party must be worth against them (Worth), × its
+    /// personality's edge, to go for the bounty. Ships in the mix AIs build, without research, bring
+    /// it down with 40 000 credits (0.58 of its guardians' worth) and keep two thirds of them; with
+    /// 30 000, five times in six, they are lost to the last, the colossus barely scratched (two
+    /// seeds, each race). Below that, all is lost: 0.8 leaves room for a fleet that suits it less.
+    /// </summary>
+    const double BossReach = 1500, HuntEdge = 0.8;
 
     static readonly TechId[] TechOrder =
     [
@@ -229,10 +240,17 @@ public static class Ai
         weights[ShipClass.Scout] *= 0.3;
     }
 
+    /// <summary>Free fields out of the raid's colossus's corner: a mine there feeds it, and so does every escort sent to hold it.</summary>
+    static List<AsteroidField> FreeFields(World world)
+    {
+        var boss = RaidBoss(world);
+        return world.Fields.Where(fl => fl.MineId is null && !Haunted(boss, fl)).ToList();
+    }
+
     /// <summary>Fields the AI could mine now: near its station, or with an idle ship to send there.</summary>
     static bool MineableField(World world, FactionState f)
     {
-        var free = world.Fields.Where(fl => fl.MineId is null).ToList();
+        var free = FreeFields(world);
         var zones = MineZones(world, f);
         if (free.Exists(fl => InZones(zones, fl))) return true;
         return free.Count > 0 && Warships(world, f).Exists(e => e.Order is null);
@@ -247,7 +265,7 @@ public static class Ai
     static List<AsteroidField> FarFields(World world, FactionState f, Entity station)
     {
         var zones = MineZones(world, f);
-        return world.Fields.Where(fl => fl.MineId is null && !InZones(zones, fl)).OrderBy(fl => Dist(fl, station)).ToList();
+        return FreeFields(world).Where(fl => !InZones(zones, fl)).OrderBy(fl => Dist(fl, station)).ToList();
     }
 
     /// <summary>Sends the nearest idle warship to hold a spot, unless one is on its way already.</summary>
@@ -356,7 +374,7 @@ public static class Ai
     /// <summary>Nearest free field it may mine; far fields get an escort sent first.</summary>
     static Result PlaceMine(World world, FactionState f, Entity station)
     {
-        var free = world.Fields.Where(fl => fl.MineId is null).OrderBy(fl => Dist(fl, station)).Take(3).ToList();
+        var free = FreeFields(world).OrderBy(fl => Dist(fl, station)).Take(3).ToList();
         foreach (var field in free)
         {
             var r = PlaceStructure(world, f.Id, BuildableType.Mine, field.X, field.Y);
@@ -585,7 +603,8 @@ public static class Ai
 
     /// <summary>
     /// The foe it sees nearest its station among those close to it or, unless it cares only for
-    /// its home, to any of its structures.
+    /// its home, to any of its structures. The raid's guardians are a threat only at home: away
+    /// from it, they go back to their post, and chasing them leads into the colossus.
     /// </summary>
     static Entity? ThreatTo(World world, FactionState f, Entity station, DifficultyDef level)
     {
@@ -593,21 +612,22 @@ public static class Ai
         // closure for each ship, made the battle AI allocate twice what it did.
         Entity? threat = null;
         var nearest = double.PositiveInfinity;
-        Watch(world, f, station, station, Station.ConstructionRadius, ref threat, ref nearest);
+        Watch(world, f, station, station, Station.ConstructionRadius, false, ref threat, ref nearest);
         if (level.HomeOnly) return threat;
+        var boss = RaidBoss(world);
         foreach (var s in world.Entities)
         {
-            if (s.Kind == EntityKind.Structure && s.Side == f.Id && s != station) Watch(world, f, station, s, GuardRange, ref threat, ref nearest);
+            if (s.Kind == EntityKind.Structure && s.Side == f.Id && s != station && !Haunted(boss, s)) Watch(world, f, station, s, GuardRange, boss is not null, ref threat, ref nearest);
         }
         return threat;
     }
 
-    /// <summary>The foe ship it sees within `reach` of `around` nearest its station, if nearer than `nearest`.</summary>
-    static void Watch(World world, FactionState f, Entity station, Entity around, double reach, ref Entity? threat, ref double nearest)
+    /// <summary>The foe ship it sees within `reach` of `around` nearest its station, if nearer than `nearest`; the Errants' left alone if `raid`.</summary>
+    static void Watch(World world, FactionState f, Entity station, Entity around, double reach, bool raid, ref Entity? threat, ref double nearest)
     {
         foreach (var e in world.Grid.Near(around.X, around.Y, reach))
         {
-            if (e.Kind != EntityKind.Ship || Dist(around, e) >= reach) continue;
+            if (e.Kind != EntityKind.Ship || Dist(around, e) >= reach || (raid && e.Race == Faction.Errant)) continue;
             var d = Dist(e, station);
             // The same distance: the first in the world's order, as a walk over every entity found it.
             if (d > nearest || d == nearest && threat is not null && e.Id > threat.Id) continue;
@@ -634,6 +654,33 @@ public static class Ai
         e.Kind == EntityKind.Ship ? ShipValue(e) * (e.Hull + e.Shield) / Math.Max(1, e.MaxHull + e.MaxShield)
         : e.Type == "station" ? 1500 * e.Level
         : Ids.IsBuildable(e.Type, out var b) ? Buildables.Defs[b].Cost * e.Level : 0;
+
+    /// <summary>
+    /// What a ship is worth in a fight it must win outright: its value by the square root of its
+    /// damage and of its hull and shields against the plain class's, so that research, traits and,
+    /// if `seen`, wounds count (unseen, it counts whole). Against the raid's colossus, research
+    /// decides: three levels of weapons, armor and shields make 30 000 credits of ships enough.
+    /// </summary>
+    static double Worth(World world, Entity e, bool seen)
+    {
+        var def = Ships.Defs[e.Cls];
+        var endurance = (seen ? e.Hull + e.Shield : e.MaxHull + e.MaxShield) / Math.Max(1, def.Hull + def.Shield);
+        return ShipValue(e) * Math.Sqrt(Combat.DamageMult(world, e) * endurance);
+    }
+
+    /// <summary>The raid's colossus while it stands, where the mode has raids: an Errant one with no Errant station around (a campaign's Errant planet has one).</summary>
+    static Entity? RaidBoss(World world)
+    {
+        if (!Modes.AllowsRaid(world.Mode.Kind) || StationOf(world, Faction.Errant) is not null) return null;
+        foreach (var e in world.Entities)
+        {
+            if (e.Type == "colossus" && e.Race == Faction.Errant) return e;
+        }
+        return null;
+    }
+
+    /// <summary>Whether a spot lies in the corner the raid's colossus guards.</summary>
+    static bool Haunted(Entity? boss, IPoint at) => boss is not null && Hypot(at.X - boss.X, at.Y - boss.Y) < BossReach;
 
     /// <summary>
     /// Who answers a threat. At home everyone; far from home, a hard AI sends what it takes,
@@ -676,17 +723,54 @@ public static class Ai
         ai.FocusId = best?.Id;
     }
 
-    /// <summary>Hard: a wave up against much more than itself comes home to fight another day, while it can. Past the all-in, it goes on; so does an assault, on its clock.</summary>
+    /// <summary>
+    /// Hard: a wave up against much more than itself comes home to fight another day, while it
+    /// can. Past the all-in, it goes on; so does an assault, on its clock, and a hunt for the raid's
+    /// colossus, weighed with more care when it left (Hunt).
+    /// </summary>
     static void CallBackLosing(World world, FactionState f, Entity station, double allIn)
     {
         if (world.Time >= allIn || world.Mode.Kind == BattleMode.Assault) return;
-        var wave = Warships(world, f).Where(e => e.Order?.Type == OrderType.AttackMove && e.Stance == Stance.Aggressive && Dist(e, station) > Station.ConstructionRadius * 2).ToList();
+        var boss = RaidBoss(world);
+        var wave = Warships(world, f).Where(e => e.Order is { Type: OrderType.AttackMove } o && e.Stance == Stance.Aggressive && Dist(e, station) > Station.ConstructionRadius * 2
+            && !Haunted(boss, new Point(o.X, o.Y))).ToList();
         if (wave.Count == 0) return;
         var centre = new Point(wave.Average(e => e.X), wave.Average(e => e.Y));
         if (FoesAround(world, f, centre, FightReach) <= wave.Sum(Power) * LosingOdds) return;
         foreach (var e in wave) e.Stance = Stance.Defensive;
         Movement.IssueMove(world, wave.Select(e => e.Id), f.RallyX, f.RallyY);
         f.AI!.NextWave = world.Time + WaveRest;
+    }
+
+    /// <summary>
+    /// Goes for the raid's colossus once the ships waiting at home, the nearest to it first, are
+    /// worth enough against its guardians (Worth), × its personality's edge, and what stays home
+    /// still stands up to what it saw of the enemy: the bounty is not worth its station. One party
+    /// at a time. Returns whether one left.
+    /// </summary>
+    static bool Hunt(World world, FactionState f, Entity boss, List<Entity> ships, List<Entity> ready, Intel intel, PersonalityDef def)
+    {
+        if (ships.Exists(e => e.Order is { Type: OrderType.AttackMove } o && Haunted(boss, new Point(o.X, o.Y)))) return false;
+        var guard = 0.0;
+        foreach (var e in world.Entities)
+        {
+            if (e.Kind == EntityKind.Ship && !e.Launched && e.Race == Faction.Errant && Haunted(boss, e)) guard += Worth(world, e, Vision.IsVisible(world, f.Id, e));
+        }
+        var needed = guard * HuntEdge * def.Edge;
+        var party = new List<Entity>();
+        var worth = 0.0;
+        // Not the ships holding a spot for a mine.
+        foreach (var e in ready.Where(e => e.Stance != Stance.Hold).OrderBy(e => Dist(e, boss)))
+        {
+            if (worth >= needed) break;
+            party.Add(e);
+            worth += Worth(world, e, true);
+        }
+        if (worth < needed) return false;
+        var home = ships.Where(e => e.Order?.Type != OrderType.AttackMove).Sum(ShipValue) - party.Sum(ShipValue);
+        if (home < intel.Army * Outmatched) return false;
+        Send(world, party, boss, Stance.Aggressive);
+        return true;
     }
 
     /// <summary>
@@ -700,9 +784,10 @@ public static class Ai
         var light = ready.Where(e => e.Order is null && e.Stance != Stance.Hold && (e.Size == SizeClass.Small || (e.Size == SizeClass.Medium && Ships.Defs[e.Cls].Repair is null))).ToList();
         if (light.Sum(ShipValue) < RaidMin) return false;
         Entity? prey = null;
+        var boss = RaidBoss(world);
         foreach (var t in world.Entities)
         {
-            if (t.Kind != EntityKind.Structure || t.Type is not ("mine" or "outpost" or "repairDock" or "lab") || t.Race == Faction.Errant || !Foes(world, f.Id, t.Side)) continue;
+            if (t.Kind != EntityKind.Structure || t.Type is not ("mine" or "outpost" or "repairDock" or "lab") || t.Race == Faction.Errant || !Foes(world, f.Id, t.Side) || Haunted(boss, t)) continue;
             if (!Vision.IsVisible(world, f.Id, t) && !Vision.WasSeen(world, f.Id, t)) continue;
             if (prey is not null && Dist(t, light[0]) >= Dist(prey, light[0])) continue;
             if (!Guarded(world, f, t)) prey = t;
@@ -742,6 +827,7 @@ public static class Ai
         var scout = ready.Find(e => e.Order is null && e.Cls == ShipClass.Scout);
         if (scout is null) return;
         var field = world.Fields[(int)(Rand(world) * world.Fields.Count)];
+        if (Haunted(RaidBoss(world), field)) return;
         scout.Stance = Stance.Passive;
         Movement.IssueMove(world, [scout.Id], field.X, field.Y);
     }
@@ -764,7 +850,7 @@ public static class Ai
         var intel = UpdateIntel(world, f);
         var army = ships.Sum(ShipValue);
         // Weighing nothing, it is never outmatched: it neither digs in nor holds back.
-        var outmatched = level.WeighsOdds && intel.Army > 0 && army < intel.Army * 0.7;
+        var outmatched = level.WeighsOdds && intel.Army > 0 && army < intel.Army * Outmatched;
         if (level.Sharp)
         {
             PickFocus(world, f, ships);
@@ -807,6 +893,8 @@ public static class Ai
             ai.LastThreat = -1;
             return outmatched;
         }
+        // The raid's colossus, once it can be had without leaving home bare; an AI that weighs nothing never tries.
+        if (level.WeighsOdds && !outmatched && RaidBoss(world) is { } boss && Hunt(world, f, boss, ships, ready, intel, def)) return outmatched;
         // As the game drags on, the AI settles for smaller waves and a thinner edge: no endless standoff.
         var pressure = Math.Min(1, world.Time / PressureTime);
         var stronger = level.WeighsOdds && intel.Army > 0 && army > intel.Army * (1.4 - 0.3 * pressure) && value >= EdgeWave(world, f);
