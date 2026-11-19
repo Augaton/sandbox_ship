@@ -144,7 +144,7 @@ public class RegicideTests
     }
 
     [Fact]
-    public void Sudden_death_strips_the_flagships_shields_and_stops_every_repair()
+    public void Sudden_death_takes_most_of_the_flagships_shields_and_stops_every_repair()
     {
         var w = Regicide();
         var id = w.Mode.Flagships[Faction.Klaed];
@@ -161,10 +161,14 @@ public class RegicideTests
             w.Events.Clear();
         }
         Assert.Equal([SandboxShip.Sim.Regicide.Warning, 0.0], warnings);
-        Assert.Equal(0, flag.Shield);
-        var held = flag.Hull;
+        Assert.Equal(flag.MaxShield * SandboxShip.Sim.Regicide.SuddenShields, flag.Shield, 6);
+        // Shields knocked down stay down, as the hull does.
+        flag.Shield = 100;
+        Steps.StepWorld(w);
+        var (hull, shield) = (flag.Hull, flag.Shield);
+        Expect.Less(shield, 101);
         Steps.Run(w, 5);
-        Assert.Equal(0, flag.Shield);
-        Assert.True(flag.Hull <= held);
+        Assert.True(flag.Shield <= shield);
+        Assert.True(flag.Hull <= hull);
     }
 }

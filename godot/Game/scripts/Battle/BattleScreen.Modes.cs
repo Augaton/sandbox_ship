@@ -123,8 +123,8 @@ public partial class BattleScreen
                 break;
             case ClockWarning cw when World.Mode.Kind == BattleMode.Regicide:
                 Hud.Toast(cw.Left > 0
-                    ? $"Mort subite dans {cw.Left / 60:0} min : les vaisseaux amiraux perdront leurs boucliers et ne se répareront plus"
-                    : "Mort subite : les vaisseaux amiraux n'ont plus de bouclier et ne se réparent plus");
+                    ? $"Mort subite dans {cw.Left / 60:0} min : les vaisseaux amiraux perdront les trois quarts de leurs boucliers et ne se répareront plus"
+                    : "Mort subite : les vaisseaux amiraux n'ont plus qu'un quart de leurs boucliers et ne se réparent plus");
                 Sfx.Play(cw.Left > 0 ? Sound.Alert : Sound.Horn);
                 break;
             case ClockWarning cw:

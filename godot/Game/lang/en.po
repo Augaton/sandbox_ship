@@ -170,12 +170,12 @@ msgid "Vaisseau amiral des {0} abattu : leur flotte s'autodétruit"
 msgstr "The {0} flagship is down: their fleet self-destructs"
 
 #: Game/scripts/Battle/BattleScreen.Modes.cs
-msgid "Mort subite dans {0} min : les vaisseaux amiraux perdront leurs boucliers et ne se répareront plus"
-msgstr "Sudden death in {0} min: flagships will lose their shields and stop repairing"
+msgid "Mort subite dans {0} min : les vaisseaux amiraux perdront les trois quarts de leurs boucliers et ne se répareront plus"
+msgstr "Sudden death in {0} min: flagships will lose three quarters of their shields and stop repairing"
 
 #: Game/scripts/Battle/BattleScreen.Modes.cs
-msgid "Mort subite : les vaisseaux amiraux n'ont plus de bouclier et ne se réparent plus"
-msgstr "Sudden death: flagships have no shields left and no longer repair"
+msgid "Mort subite : les vaisseaux amiraux n'ont plus qu'un quart de leurs boucliers et ne se réparent plus"
+msgstr "Sudden death: flagships have only a quarter of their shields left and no longer repair"
 
 #: Game/scripts/Battle/BattleScreen.Modes.cs
 msgid "Assaut : plus que {0} min"

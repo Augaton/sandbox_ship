@@ -311,7 +311,8 @@ tests de `FixtureTests` et `CrossTests` les listent.
   avec un vaisseau amiral gagne, les stations ne décident rien. L'IA le garde à 900 de sa station, sur le flanc
   opposé aux ennemis, avec une escorte de 2 à 6 vaisseaux ; ses vagues plongent sur un vaisseau amiral ennemi en vue,
   et après 20 min elle y jette tout. Mort subite à 25 min (annoncée 2 min avant) : les vaisseaux amiraux perdent
-  leurs boucliers et plus rien ne répare leur coque. Entre IA : 13 parties sur 15 finies en 60 min (médiane 35 min),
+  les trois quarts de leurs boucliers (tous, avant le 2026-11-19) et plus rien ne répare ni leur coque ni leurs
+  boucliers. Entre IA : 13 parties sur 15 finies en 60 min (médiane 35 min),
   contre 9 avant tir concentré et mort subite ; les nulles restantes opposent Kla'ed et Nautolan.
 - Tir concentré (tous modes) : les tourelles d'un vaisseau tirent sur la cible qu'on lui a ordonné d'attaquer dès
   qu'elle est à leur portée, et non plus sur l'ennemi le plus proche.
@@ -617,6 +618,7 @@ tests de `FixtureTests` et `CrossTests` les listent.
     au-delà de 85). Le tir concentré, les raids et le choix des capacités du Difficile se voient sans gain mesurable ;
     son avance vient du rappel des vagues et de la recherche. Les seuils de temps de `FuzzTests` (1 s par entrée)
     lâchaient sous forte charge (2026-11-19 : une lecture lente est rejouée une fois, seule une seconde lenteur échoue).
+    Repris le 2026-11-19 (« IA et équilibre ») : régicide, escarmouches longues, Difficile, et le Colosse du raid.
 - Diplomatie revue (2026-11-16) : un écran dédié (touche T, `GalaxyHud.DiplomacyScreen.cs`) remplace la liste du volet.
   En solo, il arrête le temps. En haut, le tableau des relations de tous les camps, IA entre elles comprises : alliés,
   trêve ou guerre, et commerce, vision, guerre commune, tribut, guerre jurée. À gauche, les camps. À droite, le camp
@@ -983,6 +985,21 @@ tests de `FixtureTests` et `CrossTests` les listent.
     restent, avec les pièces visées bouclier tombé, le rappel des vagues, la flotte adaptée et la recherche ×1,75.
     À revenu égal (`AiLevelsBalanceTests`, 96 parties, après le siège) : Difficile bat Normale 81 fois avant
     (84 %, 8 nuls), 84 après (88 %, 2 nuls). Le salon décrit le Difficile sans le tir concentré.
+  - Régicide : le banc des modes ne joue que 12 duels ; avec `SEEDS=18`, 108 duels (et 3 parties à trois). Les
+    « Kla'ed 26 %, Nairan 45 % » de la liste ne se retrouvent pas sur ce banc : sur le code d'origine, Kla'ed 50 %,
+    Nairan 31 %, Nautolan 69 %, aucun nul, médiane 35 min ; après le raid, le siège et le Difficile, 51, 39 et 60 %.
+    La médiane passe la mort subite (25 min), qui ôtait aux vaisseaux amiraux tous leurs boucliers : celui des
+    Nairan tient par eux (×2,2, ×1,4 de race, 4 620 sur 8 876 points), la Mère-nef nautolane par sa coque
+    (6 160, qui se régénérait jusque-là). À la mort subite, un vaisseau amiral garde maintenant un quart de ses
+    boucliers, que rien ne recharge plus (`Regicide.SuddenShields`) : Kla'ed 49 %, Nairan 47 %, Nautolan 54 %,
+    aucun nul, médiane 38 min, 8 parties sur 108 à 50 min ou plus (3 avant). Essais écartés : boucliers gardés
+    entiers (47, 49, 46 %, mais 6 nuls, 15 parties à 50 min ou plus), la moitié (49, 53, 46 %, 2 nuls, 14),
+    Mère-nef à coque ×1,9 au lieu de 2,2 (56, 42, 53 %), dégâts kla'ed 1,15 → 1,2 (46, 46, 58 %). Ce dernier,
+    « jamais appliqué » d'après la liste, l'est depuis le 2026-11-03 à 1,15 (1,1 dans la version web) ; le pas
+    suivant, 1,2, a aussi été mesuré en escarmouche (72 parties, Colosse, après le siège) : Kla'ed 40 → 50 %,
+    Nairan 48 → 44 %, Nautolan 46 → 40 %, 8 nuls comme avant. Non appliqué : rien pour le régicide, et zones,
+    assaut et campagne restent à mesurer ; c'est la piste pour les Kla'ed, à 39 % en escarmouche sur 144 parties
+    (déjà 40 % avant ces chantiers : les 50 % de la mesure à 36 parties tenaient aux graines 1 à 6).
 - Sécurité (2026-11-03) : ce qu'un inconnu peut envoyer au serveur en ligne, à un hôte ou au jeu, et les fichiers du joueur.
   Chaque lecteur exposé passe un test de robustesse à graine fixe (`FuzzTests` : trames du relais, messages du jeu, ordres,
   instantanés de bataille entiers et en parties, galaxie, rediffusions, sauvegardes), et chaque correction a son test

@@ -26,11 +26,14 @@ public static class Regicide
     /// </summary>
     public const double AllIn = 1200;
     /// <summary>
-    /// Sudden death, after this many seconds: flagships lose their shields and nothing mends their
-    /// hull any more, so that a battle between flagships that heal faster than they are hurt still ends.
-    /// A warning comes two minutes before.
+    /// Sudden death, after this many seconds: flagships keep at most this share of their shields,
+    /// and nothing mends their hull or their shields any more, so that a battle between flagships
+    /// that heal faster than they are hurt still ends. A warning comes two minutes before. With no
+    /// shields left at all, the Nairan, whose admiral holds by its shields, won 39 % of 108 duels
+    /// between AIs and the Nautolan, whose admiral holds by its hull, 60 % (Kla'ed 51 %); with a
+    /// quarter, 47, 54 and 49 % (with half, 53, 46 and 49 %, but two drawn and longer games) (2026-11-19).
     /// </summary>
-    public const double SuddenDeath = 1500, Warning = 120;
+    public const double SuddenDeath = 1500, Warning = 120, SuddenShields = 0.25;
 
     public static void Setup(World world)
     {
@@ -59,7 +62,7 @@ public static class Regicide
             foreach (var id in m.Flagships.Values)
             {
                 if (world.Entities.Get(id) is not { } e) continue;
-                e.Shield = 0;
+                e.Shield = m.WornShields[id] = Math.Min(e.Shield, m.WornShields.GetValueOrDefault(id, e.MaxShield * SuddenShields));
                 e.Hull = m.Worn[id] = Math.Min(e.Hull, m.Worn.GetValueOrDefault(id, e.Hull));
             }
         }

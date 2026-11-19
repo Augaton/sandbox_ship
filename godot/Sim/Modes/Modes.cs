@@ -46,8 +46,8 @@ public sealed class ModeState
     public double Deadline = double.PositiveInfinity;
     /// <summary>Regicide: each side's flagship still flying, by entity id.</summary>
     public Dictionary<Side, int> Flagships = [];
-    /// <summary>Regicide, after sudden death: the hull each flagship is held down to, never mended again (the host's business, not the view's).</summary>
-    public Dictionary<int, double> Worn = [];
+    /// <summary>Regicide, after sudden death: the hull and the shields each flagship is held down to, never mended again (the host's business, not the view's).</summary>
+    public Dictionary<int, double> Worn = [], WornShields = [];
     /// <summary>Regicide: the ships each AI keeps around its flagship (the AI's own business, not the view's).</summary>
     public Dictionary<Side, List<int>> Escorts = [];
 }
