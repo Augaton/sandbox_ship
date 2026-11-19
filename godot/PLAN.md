@@ -786,7 +786,12 @@ tests de `FixtureTests` et `CrossTests` les listent.
     réserve avec le sien). Un camp qui a une réserve ou des sauts n'a pas perdu (`Outcome`). `Battle.Power` compte ce qui
     attend comme il entrera (un exemplaire de chaque sorte, dans un monde à part) : la même puissance que la flotte entière posée,
     d'où la même issue prévue. Une bataille résolue seule ne se replie plus au bout de 600 s tant qu'une réserve attend : la plus
-    grosse bataille de mesure en dure 887 au plafond Faible ; l'impasse (240 s sans un tir) reste la garde.
+    grosse bataille de mesure en dure 644 au plafond Faible (887 avec les renforts au bord de la carte) ; l'impasse (240 s sans
+    un tir) reste la garde.
+  - Issue prévue remesurée (`OUTLOOK=1`, les batailles tirées au sort sous le plafond Normal, les campagnes entre IA sous le
+    leur) : 1 200 et 1 129 batailles, « Victoire presque certaine » gagnée à 98,5 et 100 %, « Favorable » à 88 et 98,6 %,
+    « Indécise » à 43 et 47 %, « Défavorable » à 15,7 et 3,8 %, « Défaite presque certaine » à 1 et 0 % (97,6 et 48 % aux
+    mots extrêmes et indécis avant) : les seuils restent.
   - HUD : « Flotte 289 / 300 » en tête du panneau de réserve, en orange une fois plein ; une carte sans place est grisée, avec
     ses points et la raison dans la bulle. La vue s'ouvre sur les sauts d'un attaquant encore en hyperespace.
   - Mesures (banc console en Release, `FLEETCAP=1 dotnet test Sim.Tests -c Release --filter Measures_the_fleet_cap`, deux passes,
@@ -796,15 +801,18 @@ tests de `FixtureTests` et `CrossTests` les listent.
 
     | Plafond | Entités (moyenne, au plus) | ms par pas (moyenne) | ms par pas (médiane) | Résolue seule |
     |---|---|---|---|---|
-    | Faible 150 | 411, 451 | 0,58 à 0,78 | 0,35 à 0,42 | attaquant, 887 s |
-    | Normal 300 | 866, 973 | 0,92 à 1,32 | 0,85 à 1,05 | attaquant, 367 s |
-    | Élevé 500 | 1 517, 1 678 | 2,61 à 3,56 | 2,34 à 2,96 | défenseur, 339 s |
-    | Aucun | 1 929, 2 788 | 3,21 à 5,47 | 2,95 à 3,90 | attaquant, 249 s |
+    | Faible 150 | 410, 459 | 0,58 à 1,06 | 0,35 à 0,56 | défenseur, 644 s |
+    | Normal 300 | 868, 946 | 0,92 à 1,44 | 0,85 à 1,37 | attaquant, 324 s |
+    | Élevé 500 | 1 470, 1 616 | 2,61 à 4,50 | 2,34 à 4,05 | attaquant, 260 s |
+    | Aucun | 1 929, 2 788 | 3,21 à 6,78 | 2,95 à 5,52 | attaquant, 249 s |
 
-    Normal reste sous mille entités, les deux tiers de la bataille de mesure (1 300 à 1 500, à 60 images/s aux passes de
-    performance), et coûte trois à quatre fois moins de simulation que la même bataille sans plafond ; Élevé vaut la bataille de
-    mesure, pour une machine qui la tient ; Faible en garde le tiers. Dans le jeu (`--start=stress --fleet-cap=normal`, gamescope
-    sans écran, même machine chargée) : 764 entités à 15 s, 16,9 ms par image en médiane (23,8 en moyenne), 5,5 ms de simulation.
+    Entités et issues de la dernière passe (renforts près de la flotte), temps des trois. Normal reste sous mille entités, les
+    deux tiers de la bataille de mesure (1 300 à 1 500, à 60 images/s aux passes de performance), et coûte quatre à cinq fois
+    moins de simulation que la même bataille sans plafond, qui monte à 2 800 entités au premier choc ; Élevé vaut la bataille de
+    mesure, pour une machine qui la tient ; Faible en garde le tiers. Avec les renforts au bord de la carte, Élevé donnait la
+    bataille au défenseur, et Normal la gagnait en 367 s. Dans le jeu (`--start=stress --fleet-cap=normal`, gamescope sans écran,
+    même machine chargée, avant les renforts près de la flotte) : 764 entités à 15 s, 16,9 ms par image en médiane (23,8 en
+    moyenne), 5,5 ms de simulation.
   - Réseau : protocole 17 (réglage `FleetCap` du salon), instantanés de bataille 12 : le plafond, le point d'arrivée du joueur,
     et sa réserve en séries d'une même sorte (3 000 chasseurs tiennent en quelques octets, au lieu de deux par vaisseau). Bornes à
     la lecture : plafond et réserve à 65 536 au plus, séries d'au moins un vaisseau, point d'arrivée fini, ramené dans la carte.
