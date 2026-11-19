@@ -875,6 +875,60 @@ tests de `FixtureTests` et `CrossTests` les listent.
     une bataille commandée, laisse les deux fichiers identiques, octet pour octet et date comprise.
   - Vérification : `--start=campaign-tutorial`, et `--coach=N` pour commencer à l'étape N (à la 6e et la 7e, la flotte part
     pour Orin, le temps en marche ; avec `--choose=command`, la bataille est commandée ; à la 10e, la diplomatie s'ouvre).
+- Sauvegarde des batailles (2026-11-19, à la demande de l'utilisateur) : une escarmouche dure 44 min en médiane entre IA, et la
+  quitter faisait tout perdre. Une bataille d'un salon jouée seul (escarmouche, survie, contrôle de zone, assaut, régicide, bac à
+  sable) se sauvegarde et se reprend à l'identique ; ni le réseau, ni une rediffusion, ni le didacticiel, ni la bataille du menu.
+  Les batailles de campagne restent couvertes par la sauvegarde de campagne, inchangée.
+  - L'état entier, pas la rediffusion : rejouer depuis le début une bataille de 60 min à 6 IA sur carte immense (250 à 400
+    entités) prend 187 s en Release sur une machine chargée, 216 000 pas à 0,5–0,65 ms ; la bataille de mesure (3 ms par pas)
+    passerait 10 min. `Sim/StateWire.cs` écrit par réflexion tout ce qu'on atteint depuis le monde, champs privés compris, sans
+    liste à tenir à la main : un champ ajouté à la simulation se sauve avec le reste. Les références restent (deux ordres d'un
+    même groupe de flotte partagent encore leur groupe, un tir de défense ponctuelle vise toujours la même torpille), les
+    collections gardent leur ordre, une suite en lecture seule faite par une expression de collection s'écrit en liste. En tête,
+    la table des types écrits, chacun avec ses champs (nom et type) : une sauvegarde d'un jeu dont l'état de bataille diffère
+    d'un seul champ est refusée comme d'une autre version, jamais lue de travers. Fichier `.ssbattle` (`Sim/BattleSaves.cs`,
+    format 1) : un en-tête que la liste lit seul (version du jeu, date, nom, identifiant de la bataille, camp du joueur, bac à
+    sable ou non, options du salon, durée, vue : caméra, zoom et groupes de contrôle), puis le monde compressé (Brotli), sa
+    taille et son condensat SHA-256. Rien d'autre n'est gardé hors du monde : IA, épargnes, renseignement, vagues, recherche,
+    réserve et sauts, modes, brouillard, vétérans, historique de la fin, ordres de la rediffusion et générateur en font partie.
+  - Mesures (`BATTLESAVE=1`, Release, machine chargée : charge 24 sur 4 cœurs) : 60 min à 6 IA sur carte immense (253
+    entités) : 39 Kio (136 avant compression), écriture 82 ms, lecture complète 112 ms ; bataille de mesure à 15 s (1 248
+    entités, 258 tirs) : 113 Kio (500), écriture 190 ms, lecture 1,4 s, dont l'essai de 60 pas sur une copie (ci-dessous).
+  - Reprise exacte (`BattleSaveTests`) : dans chaque mode, toutes les places à l'IA, 4 à 7 min jouées, écriture, relecture,
+    puis 1 min 30 à 2 min sur l'original et sur la copie : le même état, champ par champ, et le même condensat de rediffusion ;
+    relue, la copie s'écrit au même octet près. Après la reprise, dictionnaires et ensembles se comparent par clé : un
+    dictionnaire qui a perdu des entrées met les suivantes à leur place, un dictionnaire relu n'a pas ces places, et leur ordre
+    peut se séparer sans rien changer à la bataille. La simulation ne parcourt aucun d'eux après une suppression suivie d'un ajout
+    (`EntityStore.byId` ne sert qu'aux recherches, `Seen` qu'à savoir si une structure a été vue) ; si elle le faisait un jour,
+    les valeurs se sépareraient et le test le verrait.
+  - Ce que voit le joueur : « Sauvegarder » dans le menu Échap (nom proposé : mode, race, durée, date). Quitter pour le menu,
+    ou fermer le jeu, sauvegarde d'elle-même une bataille de plus de 30 s, indécise, où le joueur est encore : une sauvegarde
+    automatique par bataille, les 5 dernières gardées, celles sous un nom jusqu'à ce que le joueur les supprime ; « Menu
+    principal » le dit. « Continuer » prend la plus récente, campagne ou bataille (« Continuer la bataille », avec mode, camps,
+    carte et durée) ; « Charger une partie » liste les deux, la plus récente en premier, une sauvegarde de bataille illisible
+    avec sa raison, et dit en haut pourquoi une sauvegarde n'a pu être reprise. La bataille reprise s'ouvre en pause, sur la vue
+    et les groupes sauvegardés. La fin d'une bataille efface sa sauvegarde automatique. Un dossier à part (`user://battles`) :
+    rien ne touche aux sauvegardes de campagne (`user://saves`). Une capture n'en écrit aucune, sauf avec `--battle-saves`.
+  - La rediffusion continue : la sauvegarde garde les ordres depuis le début (et les options du salon), la bataille reprise y
+    ajoute les siens ; sa rediffusion part du début et, la reprise étant exacte, rejoue la même bataille. Chaque départ laisse
+    sa rediffusion comme avant ; celle d'une bataille reprise remplace celles qu'elle avait laissées quand elles n'en sont que le
+    début (même graine, mêmes ordres jusqu'à leur fin), une autre tentative reste.
+  - Profil : une bataille compte une fois, et plus du tout une fois reprise en arrière. Le profil suit chaque bataille
+    sauvegardée (`BattleMark`, 100 au plus) : le pas le plus loin atteint (à chaque sauvegarde, à chaque minute de jeu et au
+    départ) et si sa fin a compté. Reprise à ce pas (la sauvegarde automatique laissée en partant), elle compte comme si on ne
+    l'avait pas quittée. Reprise d'avant (une sauvegarde plus ancienne, pour retenter), d'une bataille dont la fin a déjà compté,
+    ou inconnue du profil (un autre profil, un fichier venu d'ailleurs) : plus rien d'elle ne compte, ni sa fin, ni Titan,
+    Colosse, Lance, vagues, ni record de survie ; seul le temps de jeu réel. Un avis le dit à la reprise. Tests : `BattleSaveTests`.
+  - Sécurité : lecture bornée (monde de 512 Mio au plus et 50 fois sa taille compressée, comptes bornés par ce qui reste à
+    lire, textes de 64 Kio, 64 niveaux d'objets), seuls les types de la simulation, textes, nombres et collections simples sont
+    faits, énumérations vérifiées ; condensat SHA-256 ; le contrôle des nuls de la campagne (`GalaxySave.Complete`) ; taille de
+    carte, entités sur la carte avec un type connu et un camp présent, index cohérent, valeurs finies ; puis 60 pas joués sur une
+    copie : une sauvegarde forgée qui casse la bataille est refusée à la lecture, jamais une fois affichée. `FuzzTests` couvre le
+    fichier, son en-tête seul, et un monde forgé puis rescellé d'un condensat juste, joué ensuite 120 pas.
+  - Ouvert : une version du jeu qui change un seul type de l'état de bataille rend illisibles les sauvegardes de bataille en
+    cours (refusées avec la raison ; la campagne, elle, tolère les champs ajoutés). Entre deux minutes de jeu, un jeu tué net
+    (pas fermé : fermer sauvegarde) laisse le profil croire la dernière sauvegarde la plus avancée. Pas encore essayé sur un
+    export : la réflexion de `StateWire` suppose que rien n'est élagué (comme la sauvegarde de campagne, qui en use déjà).
 - Sécurité (2026-11-03) : ce qu'un inconnu peut envoyer au serveur en ligne, à un hôte ou au jeu, et les fichiers du joueur.
   Chaque lecteur exposé passe un test de robustesse à graine fixe (`FuzzTests` : trames du relais, messages du jeu, ordres,
   instantanés de bataille entiers et en parties, galaxie, rediffusions, sauvegardes), et chaque correction a son test

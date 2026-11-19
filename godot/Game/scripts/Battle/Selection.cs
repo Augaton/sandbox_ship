@@ -421,6 +421,17 @@ public partial class Selection : Node
         scene.CenterOn(s.X, s.Y);
     }
 
+    /// <summary>The control groups as a battle save keeps them: number, ships.</summary>
+    public Dictionary<int, int[]> Groups
+    {
+        get => groups.ToDictionary(g => g.Key, g => g.Value.ToArray());
+        set
+        {
+            groups.Clear();
+            foreach (var (digit, ships) in value) groups[digit] = [.. ships];
+        }
+    }
+
     /// <summary>Control groups that still have ships: number, ships alive.</summary>
     public List<(int Group, int Alive)> GroupSizes() =>
         groups.OrderBy(g => g.Key).Select(g => (g.Key, g.Value.Count(World.Entities.Has))).Where(g => g.Item2 > 0).ToList();

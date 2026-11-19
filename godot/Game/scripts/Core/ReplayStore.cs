@@ -19,25 +19,56 @@ public static class ReplayStore
 
     public static string Folder => Dev.Replays ?? ProjectSettings.GlobalizePath("user://replays");
 
-    /// <summary>Saves a battle's replay, then lets the oldest go; nothing during a capture. Never throws: a battle ends whatever the disk says.</summary>
-    public static void Save(Replay r)
+    /// <summary>
+    /// Saves a battle's replay, then lets the oldest go; nothing during a capture. Never throws: a
+    /// battle ends whatever the disk says. A saved battle (`battle`, its id) may be left more than
+    /// once, taken up again from its save each time: its replay from the start replaces those it
+    /// left before when they are only its beginning. One of another try (an earlier save loaded,
+    /// played otherwise) stays: it shows another battle.
+    /// </summary>
+    public static void Save(Replay r, string? battle = null)
     {
         if (Dev.Shot is not null || r.Length < MinSteps) return;
         try
         {
             Directory.CreateDirectory(Folder);
             var when = DateTimeOffset.FromUnixTimeMilliseconds(r.SavedAt).ToLocalTime();
-            var path = System.IO.Path.Combine(Folder, $"{when:yyyy-MM-dd_HH-mm-ss}{Extension}");
+            var tag = BattleSaves.IsBattleId(battle) ? $"_{battle}" : "";
+            var path = System.IO.Path.Combine(Folder, $"{when:yyyy-MM-dd_HH-mm-ss}{tag}{Extension}");
             // Written whole aside, then put in place: a battle cut short leaves no half file.
             var temp = path + ".tmp";
             using (var file = File.Create(temp)) Replays.Write(file, r);
             File.Move(temp, path, true);
+            if (tag.Length > 0)
+            {
+                foreach (var old in Directory.EnumerateFiles(Folder, $"*{tag}{Extension}"))
+                {
+                    if (old != path && Load(old, out _) is { } before && Begins(before, r)) File.Delete(old);
+                }
+            }
             foreach (var old in Files().Skip(Kept)) File.Delete(old);
         }
         catch (Exception e) when (e is IOException or UnauthorizedAccessException)
         {
             GD.PushWarning($"Rediffusion non enregistrée : {e.Message}");
         }
+    }
+
+    /// <summary>Whether `before` is the beginning of `after`: the same battle, no longer, the same commands up to its end.</summary>
+    static bool Begins(Replay before, Replay after)
+    {
+        if (before.Length > after.Length || before.Options.Seed != after.Options.Seed) return false;
+        var upTo = after.Commands.TakeWhile(c => c.Step <= before.Length).ToList();
+        return upTo.Count == before.Commands.Count && upTo.Zip(before.Commands).All(p => p.First.Step == p.Second.Step && p.First.Side == p.Second.Side
+            && Bytes(p.First.Command).AsSpan().SequenceEqual(Bytes(p.Second.Command)));
+    }
+
+    /// <summary>A command as the wire writes it: two alike have the same bytes (their arrays compare by reference otherwise).</summary>
+    static byte[] Bytes(Command c)
+    {
+        using var ms = new MemoryStream();
+        using (var w = new BinaryWriter(ms)) Commands.Write(w, c);
+        return ms.ToArray();
     }
 
     /// <summary>The replays, newest first, each with its header only.</summary>
@@ -87,21 +118,25 @@ public static class ReplayStore
         : [];
 
     /// <summary>What a replay was: its mode, then who fought whom, teams together ("Escarmouche : Kla'ed et Nairan contre Nautolan").</summary>
-    public static string Title(Replay r)
+    public static string Title(Replay r) => Title(r.Options, r.SandboxTools);
+
+    /// <summary>A battle's mode: "Escarmouche", "Survie", "Bac à sable"...</summary>
+    public static string Mode(SkirmishOptions o, bool sandbox) => sandbox ? "Bac à sable" : o.Mode switch
     {
-        var mode = r.SandboxTools ? "Bac à sable" : r.Options.Mode switch
-        {
-            BattleMode.Survival => "Survie",
-            BattleMode.Zones => "Contrôle de zone",
-            BattleMode.Assault => "Assaut",
-            BattleMode.Regicide => "Régicide",
-            _ => "Escarmouche",
-        };
-        var slots = r.Options.Slots;
+        BattleMode.Survival => "Survie",
+        BattleMode.Zones => "Contrôle de zone",
+        BattleMode.Assault => "Assaut",
+        BattleMode.Regicide => "Régicide",
+        _ => "Escarmouche",
+    };
+
+    /// <summary>What a battle is, from its lobby's options: its mode, then who fights whom (a replay's title, a battle save's).</summary>
+    public static string Title(SkirmishOptions o, bool sandbox)
+    {
         // Free for all: each on its own; with teams, each team together.
-        var camps = slots.GroupBy(s => s.Team == 0 ? -1 - s.Side.Id : s.Team)
+        var camps = o.Slots.GroupBy(s => s.Team == 0 ? -1 - s.Side.Id : s.Team)
             .Select(g => string.Join(" et ", g.Select(s => Factions.Defs[s.Race].Name)));
-        return $"{mode} : {string.Join(r.Options.Mode == BattleMode.Survival ? ", " : " contre ", camps)}";
+        return $"{Mode(o, sandbox)} : {string.Join(o.Mode == BattleMode.Survival ? ", " : " contre ", camps)}";
     }
 
     /// <summary>When, how long, how it ended: "02/11/2026 14:05, 12 min 30 s, victoire de Kla'ed".</summary>

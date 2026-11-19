@@ -447,6 +447,7 @@ public partial class Menu : Node
     {
         opener = null;
         var latest = SaveSlots.Latest(Campaign.GalaxyScreen.SaveDir);
+        var battle = BattleStore.Latest();
         body.AddChild(Spacer(1.3f));
         var logo = Picture(Logos.Logo(5), new Vector2(345, 45));
         logo.AccessibilityName = "Sandbox Ship";
@@ -458,18 +459,31 @@ public partial class Menu : Node
 
         var nav = new VBoxContainer();
         nav.AddThemeConstantOverride("separation", 0);
-        if (latest is not null)
+        // "Continuer" takes up the most recent save, a campaign's or a battle's.
+        if (latest is not null || battle is not null)
         {
-            nav.AddChild(Nav("Continuer la campagne", () => Main.Instance.StartCampaign(new MenuChoice { Load = latest.Path }), true));
-            var under = new MarginContainer();
-            under.AddThemeConstantOverride("margin_bottom", 12);
-            under.AddChild(Paragraph(SaveLine(latest), Palette.Muted, 13));
-            nav.AddChild(under);
+            var under = new VBoxContainer();
+            under.AddThemeConstantOverride("separation", 0);
+            if (battle?.Info is { } info && (latest is null || battle.SavedAt > latest.Info.SavedAt))
+            {
+                nav.AddChild(Nav("Continuer la bataille", () => LoadBattle(battle.Path), true));
+                under.AddChild(Paragraph(ReplayStore.Title(info.Options, info.Sandbox), Palette.Muted, 13));
+                under.AddChild(Paragraph(BattleStore.Line(info), Palette.Muted, 13));
+            }
+            else if (latest is not null)
+            {
+                nav.AddChild(Nav("Continuer la campagne", () => Main.Instance.StartCampaign(new MenuChoice { Load = latest.Path }), true));
+                under.AddChild(Paragraph(SaveLine(latest), Palette.Muted, 13));
+            }
+            var gap = new MarginContainer();
+            gap.AddThemeConstantOverride("margin_bottom", 12);
+            gap.AddChild(under);
+            nav.AddChild(gap);
             nav.AddChild(Nav("Charger une partie", () => Open(Screen.Load, "load"), key: "load"));
         }
         // The tutorial is with the modes, the replays in the profile, the keys in the options;
         // the tutorial shows here too until a first battle is played.
-        nav.AddChild(Nav("Nouvelle partie", () => OpenModes(false), latest is null, "new"));
+        nav.AddChild(Nav("Nouvelle partie", () => OpenModes(false), latest is null && battle is null, "new"));
         if (PlayerProfile.Current.Stats.Battles == 0) nav.AddChild(Nav("Didacticiel", () => Main.Instance.StartBattle(Tutorial.Options()), key: "tutorial"));
         nav.AddChild(Nav("Multijoueur", () => Open(Screen.Multiplayer, "multi"), key: "multi"));
         nav.AddChild(Nav("Profil", () => Open(Screen.Profile, "profile"), key: "profile"));
@@ -516,59 +530,108 @@ public partial class Menu : Node
         return string.IsNullOrWhiteSpace(s.Info.Name) ? what : $"« {s.Info.Name.Trim()} », {what}";
     }
 
-    /// <summary>The save whose "Supprimer" was pressed once: a second press deletes it.</summary>
+    /// <summary>The save whose "Supprimer" was pressed once ("campaign:id", "battle:id"): a second press deletes it.</summary>
     string? deleting;
+    /// <summary>Why the battle save last chosen could not be taken up.</summary>
+    string? loadProblem;
 
-    /// <summary>The saves, the most recent first: a click on one loads it; "Supprimer", twice, deletes it.</summary>
+    /// <summary>
+    /// The saves, the campaign's and the battles', the most recent first: a click on one loads it;
+    /// "Supprimer", twice, deletes it. A battle save that cannot be read is listed with why.
+    /// </summary>
     void LoadScreen()
     {
         Titled("Charger une partie", "La plus récente en premier. Échap : retour");
-        var slots = SaveSlots.List(Campaign.GalaxyScreen.SaveDir);
-        if (slots.Count == 0)
+        if (loadProblem is not null) body.AddChild(Paragraph(loadProblem, Palette.Danger, 14));
+        var campaigns = SaveSlots.List(Campaign.GalaxyScreen.SaveDir);
+        var battles = BattleStore.List();
+        if (campaigns.Count == 0 && battles.Count == 0)
         {
-            body.AddChild(Paragraph("Aucune sauvegarde. Une campagne se sauvegarde seule en cours de partie ; « Sauvegarder », dans son menu, en garde une de plus.", Palette.Muted, 14));
+            body.AddChild(Paragraph("Aucune sauvegarde. Une campagne se sauvegarde seule en cours de partie, une bataille quand on la quitte ; « Sauvegarder », dans leur menu, en garde une de plus.", Palette.Muted, 14));
         }
         var list = new VBoxContainer();
         list.AddThemeConstantOverride("separation", 8);
-        foreach (var s in slots)
-        {
-            var row = new HBoxContainer();
-            row.AddThemeConstantOverride("separation", 8);
-            var title = s.IsAuto ? "Sauvegarde automatique" : string.IsNullOrWhiteSpace(s.Info.Name) ? "Sauvegarde" : s.Info.Name.Trim();
-            row.AddChild(Tile($"load:{s.Id}", false, () => Main.Instance.StartCampaign(new MenuChoice { Load = s.Path }), $"Charger : {title}", col =>
-            {
-                var name = UiTheme.Text(title);
-                name.AddThemeFontOverride("font", Bold);
-                name.AutowrapMode = TextServer.AutowrapMode.WordSmart;
-                col.AddChild(name);
-                var when = DateTimeOffset.FromUnixTimeMilliseconds(s.Info.SavedAt).ToLocalTime().ToString("dd/MM/yyyy HH:mm", CultureInfo.InvariantCulture);
-                col.AddChild(Small($"{Factions.Defs[s.Info.Race].Name}, {s.Info.Planets} planète{(s.Info.Planets > 1 ? "s" : "")}, le {when}"));
-            }));
-            var confirm = deleting == s.Id;
-            var delete = Btn(confirm ? "Confirmer" : "Supprimer", () => DeleteSave(s.Id), key: $"delete:{s.Id}");
-            delete.SizeFlagsVertical = Control.SizeFlags.ShrinkCenter;
-            delete.CustomMinimumSize = new Vector2(130, 40);
-            if (confirm) delete.AddThemeColorOverride("font_color", Palette.Danger);
-            delete.TooltipText = confirm ? "Supprimer pour de bon" : "Supprimer cette sauvegarde (il faut confirmer)";
-            row.AddChild(delete);
-            list.AddChild(row);
-        }
+        var rows = campaigns.Select(s => (s.Info.SavedAt, Row: (Func<Control>)(() => CampaignRow(s))))
+            .Concat(battles.Select(b => (b.SavedAt, Row: (Func<Control>)(() => BattleRow(b)))));
+        foreach (var (_, row) in rows.OrderByDescending(r => r.SavedAt)) list.AddChild(row());
         body.AddChild(list);
         footer.AddChild(Btn("Retour", Back));
     }
 
-    /// <summary>A first press asks to confirm; the second deletes the save.</summary>
-    void DeleteSave(string id)
+    Control CampaignRow(SaveSlots.Slot s)
     {
-        if (deleting != id)
+        var title = s.IsAuto ? "Sauvegarde automatique" : string.IsNullOrWhiteSpace(s.Info.Name) ? "Sauvegarde" : s.Info.Name.Trim();
+        var when = DateTimeOffset.FromUnixTimeMilliseconds(s.Info.SavedAt).ToLocalTime().ToString("dd/MM/yyyy HH:mm", CultureInfo.InvariantCulture);
+        var line = $"Campagne : {Factions.Defs[s.Info.Race].Name}, {s.Info.Planets} planète{(s.Info.Planets > 1 ? "s" : "")}, le {when}";
+        return SaveRow($"campaign:{s.Id}", title, [line], () => Main.Instance.StartCampaign(new MenuChoice { Load = s.Path }),
+            () => SaveSlots.Delete(Campaign.GalaxyScreen.SaveDir, s.Id));
+    }
+
+    Control BattleRow(BattleSaves.Slot s)
+    {
+        string[] lines = s.Info is { } i
+            ? [ReplayStore.Title(i.Options, i.Sandbox), BattleStore.Line(i) + (i.Version != Version ? $", version {i.Version}" : "")]
+            : [s.Problem ?? BattleSaves.Unreadable];
+        return SaveRow($"battle:{s.Id}", s.Info is null ? $"{s.Id}{BattleSaves.Extension}" : BattleStore.Title(s), lines,
+            s.Info is null ? null : () => LoadBattle(s.Path), () => BattleSaves.Delete(BattleStore.Folder, s.Id));
+    }
+
+    /// <summary>A save in the list: its title and lines, a click to load it (none for one that cannot be read), and its "Supprimer".</summary>
+    Control SaveRow(string key, string title, string[] lines, Action? load, Action delete)
+    {
+        var row = new HBoxContainer();
+        row.AddThemeConstantOverride("separation", 8);
+        void Fill(VBoxContainer col)
         {
-            deleting = id;
-            Rebuild($"delete:{id}");
+            var name = UiTheme.Text(title);
+            name.AddThemeFontOverride("font", Bold);
+            name.AutowrapMode = TextServer.AutowrapMode.WordSmart;
+            col.AddChild(name);
+            foreach (var line in lines) col.AddChild(Small(line));
+        }
+        if (load is not null) row.AddChild(Tile($"load:{key}", false, load, $"Charger : {title}", Fill));
+        else
+        {
+            var broken = new VBoxContainer { SizeFlagsHorizontal = Control.SizeFlags.ExpandFill };
+            Fill(broken);
+            row.AddChild(broken);
+        }
+        var confirm = deleting == key;
+        var button = Btn(confirm ? "Confirmer" : "Supprimer", () => DeleteSave(key, delete), key: $"delete:{key}");
+        button.SizeFlagsVertical = Control.SizeFlags.ShrinkCenter;
+        button.CustomMinimumSize = new Vector2(130, 40);
+        if (confirm) button.AddThemeColorOverride("font_color", Palette.Danger);
+        button.TooltipText = confirm ? "Supprimer pour de bon" : "Supprimer cette sauvegarde (il faut confirmer)";
+        row.AddChild(button);
+        return row;
+    }
+
+    /// <summary>A first press asks to confirm; the second deletes the save.</summary>
+    void DeleteSave(string key, Action delete)
+    {
+        if (deleting != key)
+        {
+            deleting = key;
+            Rebuild($"delete:{key}");
             return;
         }
         deleting = null;
-        SaveSlots.Delete(Campaign.GalaxyScreen.SaveDir, id);
+        delete();
         Rebuild("");
+    }
+
+    /// <summary>Takes a battle save up again; one that cannot be read says why, at the top of the list of saves.</summary>
+    void LoadBattle(string path)
+    {
+        if (BattleSaves.Load(path, out var problem) is { } save)
+        {
+            loadProblem = null;
+            Main.Instance.StartBattle(BattleOptions.FromSave(save));
+            return;
+        }
+        loadProblem = problem;
+        if (screen == Screen.Load) Rebuild("");
+        else Open(Screen.Load, "load");
     }
 
     void Open(Screen next, string from)

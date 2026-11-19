@@ -8845,3 +8845,62 @@ msgstr "Campaign tutorial"
 #: Game/scripts/Ui/Menu.Lobby.cs
 msgid "La galaxie pas à pas : flottes, renforts, diplomatie. Ne touche pas à tes sauvegardes."
 msgstr "The galaxy step by step: fleets, reinforcements, diplomacy. Leaves your saves alone."
+#: Game/scripts/Battle/BattleScreen.cs
+msgid "Bataille reprise, en pause"
+msgstr "Battle resumed, paused"
+
+#: Game/scripts/Battle/BattleScreen.cs
+msgid "Reprise en arrière : la bataille ne compte plus pour le profil"
+msgstr "Taken back to an earlier point: this battle no longer counts for the profile"
+
+#: Game/scripts/Core/BattleStore.cs
+msgid "carte {0}, {1}, le {2}"
+msgstr "{0} map, {1}, {2}"
+
+#: Game/scripts/Ui/Hud.Dialogs.cs
+msgid "Garder la bataille telle qu'elle est, pour la reprendre plus tard"
+msgstr "Keep the battle as it stands, to resume it later"
+
+#: Game/scripts/Ui/Hud.Dialogs.cs
+msgid "La bataille est sauvegardée en partant : « Continuer », au menu, la reprend."
+msgstr "The battle is saved as you leave: “Continue”, in the menu, resumes it."
+
+#: Game/scripts/Ui/Hud.Dialogs.cs
+msgid "Sauvegarder la bataille"
+msgstr "Save the battle"
+
+#: Game/scripts/Ui/Hud.Dialogs.cs
+msgid "« Charger une partie », au menu, la reprend telle qu'elle est. Quitter la bataille la sauvegarde aussi, d'elle-même."
+msgstr "“Load a game”, in the menu, resumes it as it stands. Leaving the battle also saves it, on its own."
+
+#: Game/scripts/Ui/Hud.Survival.cs
+msgid "Partie reprise en arrière : hors des records."
+msgstr "Game taken back to an earlier point: not in the records."
+
+#: Game/scripts/Ui/Menu.cs
+msgid "Continuer la bataille"
+msgstr "Continue the battle"
+
+#: Game/scripts/Ui/Menu.cs
+msgid "Aucune sauvegarde. Une campagne se sauvegarde seule en cours de partie, une bataille quand on la quitte ; « Sauvegarder », dans leur menu, en garde une de plus."
+msgstr "No saves. A campaign saves itself as it goes, a battle when you leave it; “Save”, in their menu, keeps one more."
+
+#: Game/scripts/Ui/Menu.cs
+msgid "Campagne : {0}, {1} planète{2}, le {3}"
+msgstr "Campaign: {0}, {1} planet{2:s}, {3}"
+
+#: Sim/BattleSaves.cs
+msgid "Ce fichier n'est pas une sauvegarde de bataille."
+msgstr "This file is not a battle save."
+
+#: Sim/BattleSaves.cs
+msgid "Sauvegarde d'une autre version du jeu, illisible par celle-ci."
+msgstr "A save from another version of the game, which this one cannot read."
+
+#: Sim/BattleSaves.cs
+msgid "Sauvegarde abîmée."
+msgstr "Damaged save."
+
+#: Sim/BattleSaves.cs
+msgid "{0}, {1}, {2} min, {3}"
+msgstr "{0}, {1}, {2} min, {3}"

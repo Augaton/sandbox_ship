@@ -176,7 +176,8 @@ public static class Replays
         };
     }
 
-    static void WriteOptions(BinaryWriter w, SkirmishOptions o)
+    /// <summary>A battle's skirmish options, as a replay and a battle save (BattleSaves) write them.</summary>
+    internal static void WriteOptions(BinaryWriter w, SkirmishOptions o)
     {
         w.Write((byte)o.Mode);
         w.Write(o.ZoneTarget);
@@ -207,7 +208,7 @@ public static class Replays
         w.Write(o.WaveStrength);
     }
 
-    static SkirmishOptions ReadOptions(BinaryReader r, int format)
+    internal static SkirmishOptions ReadOptions(BinaryReader r, int format)
     {
         var o = new SkirmishOptions { Mode = Named<BattleMode>(r.ReadByte()), ZoneTarget = r.ReadInt32(), AssaultMinutes = r.ReadInt32() };
         var slots = r.ReadInt32();

@@ -156,7 +156,7 @@ public static class SaveSlots
     }
 
     /// <summary>"Kla'ed, 8 planètes" → "kla-ed-8-planetes": accents dropped, anything else a dash, at most 48 characters.</summary>
-    static string Slug(string name)
+    internal static string Slug(string name)
     {
         var plain = new StringBuilder();
         foreach (var c in name.Normalize(NormalizationForm.FormD))

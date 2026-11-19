@@ -460,6 +460,53 @@ public class FuzzTests
     }
 
     [Fact]
+    public void Battle_saves()
+    {
+        var w = BattleSaveTests.Battle(BattleMode.Regicide, 4);
+        for (var i = 0; i < 1200; i++)
+        {
+            Steps.StepWorld(w);
+            w.Events.Clear();
+        }
+        using var file = new MemoryStream();
+        BattleSaves.Write(file, w, new BattleSaveHead(Faction.Klaed, "0123456789abcdef", false, new BattleView(1, 2, 1, new Dictionary<int, int[]> { [1] = [3, 4] }), "0.5.0", 1, "Nom"));
+        var bytes = file.ToArray();
+        // A save that reads is played on, past the steps its reading tried.
+        static void Play(World world)
+        {
+            for (var i = 0; i < 2 * BattleSaves.TrialSteps; i++)
+            {
+                Steps.StepWorld(world);
+                world.Events.Clear();
+            }
+        }
+        // The file as it comes from disk: its digest refuses any change to the world's bytes.
+        Survives("BattleSaves.Read", [bytes], b => Play(BattleSaves.Read(new MemoryStream(b)).World));
+        Survives("BattleSaves.ReadInfo", [bytes], b => BattleSaves.ReadInfo(new MemoryStream(b)));
+        // A world forged, then sealed again with a digest that matches: what the reading's own checks stand against.
+        var raw = StateWire.Write(w);
+        var stream = new MemoryStream(bytes);
+        BattleSaves.ReadInfo(stream);
+        var head = bytes[..(int)stream.Position];
+        byte[] Seal(byte[] world)
+        {
+            using var ms = new MemoryStream();
+            using (var z = new System.IO.Compression.BrotliStream(ms, System.IO.Compression.CompressionLevel.Fastest, true)) z.Write(world);
+            var packed = ms.ToArray();
+            return Bytes(bw =>
+            {
+                bw.Write(head);
+                bw.Write7BitEncodedInt(world.Length);
+                bw.Write(System.Security.Cryptography.SHA256.HashData(world));
+                bw.Write7BitEncodedInt(packed.Length);
+                bw.Write(packed);
+            });
+        }
+        Assert.Null(BattleSaveTests.Diff(w, BattleSaves.Read(new MemoryStream(Seal(raw))).World));
+        Survives("BattleSaves (monde forgé)", [raw], b => Play(BattleSaves.Read(new MemoryStream(Seal(b))).World));
+    }
+
+    [Fact]
     public void Survival_records()
     {
         var list = new List<SurvivalRecord>();

@@ -143,13 +143,16 @@ public partial class Hud
         }
         Action back = PauseMenu;
         Item("Reprendre", CloseModal, primary: true);
+        if (scene.CanSave) Item("Sauvegarder", () => SaveBattle(back), "Garder la bataille telle qu'elle est, pour la reprendre plus tard");
         Item("Options", () => OpenModal(Options.Panel(CloseModal), back));
         Item("Commandes", () => ShowHelp(back));
         Item("Codex", () => ShowCodex(back), "Qui bat qui : chaque classe, ses armes et ses contres");
         if (!inCampaign)
         {
             Item("Recommencer", () => Confirm("Recommencer ?", "La bataille repart du début, sur la même carte.", "Recommencer", () => scene.Restart(), back));
-            Item("Menu principal", () => Confirm("Quitter la partie ?", "La bataille en cours sera perdue.", "Quitter", scene.ToMenu, back));
+            Item("Menu principal", () => Confirm("Quitter la partie ?",
+                scene.SavesOnLeaving ? "La bataille est sauvegardée en partant : « Continuer », au menu, la reprend." : "La bataille en cours sera perdue.",
+                "Quitter", scene.ToMenu, back));
         }
         if (retreat) Item("Retraite", scene.Retreat);
         if (inCampaign) Item("Laisser l'IA finir", scene.Delegate, "La bataille continue seule ; tu retrouves la carte galactique");
@@ -163,6 +166,25 @@ public partial class Hud
 
     /// <summary>The codex (Codex.cs) in the player's race; `back` runs when it is closed, `open` names what it shows first.</summary>
     public void ShowCodex(Action? back = null, string? open = null) => OpenModal(Codex.Panel(Race, CloseModal, open), back);
+    /// <summary>
+    /// The battle saved under a name of the player's (the one offered says what and when), kept beside
+    /// the automatic one: "Charger une partie", in the menu, takes it up again.
+    /// </summary>
+    void SaveBattle(Action back)
+    {
+        var name = new LineEdit { Text = scene.DefaultSaveName(), MaxLength = BattleSaves.MaxName, CustomMinimumSize = new Vector2(380, 40), AccessibilityName = "Nom de la sauvegarde" };
+        void Save()
+        {
+            var ok = scene.SaveAs(name.Text);
+            Toast(ok ? $"Sauvegardée : {(name.Text.Trim().Length > 0 ? name.Text.Trim() : scene.DefaultSaveName())}" : "Sauvegarde impossible");
+            if (ok) CloseModal();
+        }
+        name.TextSubmitted += _ => Save();
+        OpenModal(Dialog("Sauvegarder la bataille",
+            Para("« Charger une partie », au menu, la reprend telle qu'elle est. Quitter la bataille la sauvegarde aussi, d'elle-même.", Palette.Muted, max: 460),
+            name, Actions(Button("Annuler", CloseModal), Primary(Button("Sauvegarder", Save)))), back);
+        name.CallDeferred(Control.MethodName.GrabFocus);
+    }
 
     /// <summary>Each faction's record: built, lost, destroyed, damage dealt, credits earned.</summary>
     Control StatsTable()
@@ -235,6 +257,7 @@ public partial class Hud
         // A battle played here takes its last sample now; a player's comes from the host (Message.Record).
         if (scene.Opts.Net is null) World.History?.Close(World);
         PlayerProfile.BattleEnded(scene, won);
+        scene.Ended();
         Music.Sting(won);
         if (scene.Opts.Net is not null)
         {

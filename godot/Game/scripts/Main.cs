@@ -109,6 +109,14 @@ public partial class Main : Node
             case "replay" when Dev.Replay is string file && ReplayStore.Load(file, out _) is { } replay: StartBattle(BattleOptions.Watch(replay)); break;
             // With --host, the lobby first: the battle is served (Session.Launch).
             case "stress" when !Dev.Host: StartBattle(new BattleOptions { Player = Faction.Klaed, Slots = BattleOptions.Versus(Faction.Klaed, [Faction.Nairan, Faction.Nautolan]), Size = MapSize.Large, Seed = 7, Terrain = Dev.Terrain ?? TerrainDensity.None }); break;
+            case "menu" when Dev.Load is string file:
+                if (BattleSaves.Load(file, out var problem) is { } save) StartBattle(BattleOptions.FromSave(save));
+                else
+                {
+                    GD.PrintErr($"--load : {problem}");
+                    ShowMenu();
+                }
+                break;
             default: ShowMenu(); break;
         }
     }
@@ -127,6 +135,7 @@ public partial class Main : Node
     public void QuitGame()
     {
         Music.SaveRecording();
+        (screen as BattleScreen)?.SaveOnLeaving();
         PlayerProfile.Flush();
         EnsureExit();
         GetTree().Quit();
@@ -138,7 +147,13 @@ public partial class Main : Node
     /// </summary>
     public override void _Notification(int what)
     {
-        if (what == NotificationWMCloseRequest) EnsureExit();
+        if (what == NotificationWMCloseRequest)
+        {
+            // A battle left by closing the window is saved as one left for the menu.
+            (screen as BattleScreen)?.SaveOnLeaving();
+            PlayerProfile.Flush();
+            EnsureExit();
+        }
         else if (what == NotificationApplicationFocusOut) Display.Focus(false);
         else if (what == NotificationApplicationFocusIn) Display.Focus(true);
     }

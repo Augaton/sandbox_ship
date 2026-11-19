@@ -73,15 +73,16 @@ public partial class Hud
         var held = m.Held > 0 ? m.Held : World.Time;
         var game = new SurvivalRecord(team, m.Wave, held, seats.Count, DateTimeOffset.UtcNow.ToUnixTimeMilliseconds(),
             string.Join(", ", seats.Select(s => Factions.Defs[s.Race].Name)));
-        // The records compare games at the usual waves only.
+        // The records compare games at the usual waves only, never one taken up again from earlier than it had gone.
         var usual = scene.Opts.WaveStrength == 100;
-        var (rank, best) = usual ? SurvivalScores.Add(game) : (-1, SurvivalRecords.Best(SurvivalScores.Load(), seats.Count));
+        var (rank, best) = usual && scene.Fair ? SurvivalScores.Add(game) : (-1, SurvivalRecords.Best(SurvivalScores.Load(), seats.Count));
 
         var box = Column(12);
         box.AddChild(Text($"Score d'équipe : {N(team)}", Palette.Accent, 22, bold: true));
         if (rank == 0) box.AddChild(Text("Nouveau record", Palette.Ok, 16, bold: true));
         else if (rank > 0) box.AddChild(Text($"{rank + 1}e meilleur score", Palette.Text, 15));
         if (!usual) box.AddChild(Text($"Vagues à {scene.Opts.WaveStrength} % : hors des records, qui comptent les vagues normales.", Palette.Muted, 14));
+        else if (!scene.Fair) box.AddChild(Text("Partie reprise en arrière : hors des records.", Palette.Muted, 14));
         var rows = seats.OrderByDescending(s => m.Tallies.GetValueOrDefault(s.Id)?.Score ?? 0).Select(s =>
         {
             var t = m.Tallies.GetValueOrDefault(s.Id) ?? new SurvivalTally();

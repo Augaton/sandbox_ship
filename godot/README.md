@@ -23,6 +23,8 @@ dotnet test godot/SandboxShip.slnx          # tests de la simulation, sans Godot
 # mesures longues, à la demande : BALANCE=1 (escarmouches ; --filter AiLevelsBalance : les niveaux de l'IA
 # de bataille), CAMPAIGN=1 (campagnes entre IA), PERSONALITIES=1, DIFFICULTY=1 (niveaux de l'IA de
 # galaxie), OUTLOOK=1 (calibration de l'issue probable des invites ; -c Release --filter Measures_the_outlook),
+# BATTLESAVE=1 (une bataille de MINUTES=60 min sauvegardée et relue, contre la même rejouée depuis le début ;
+# -c Release --filter Measures_a_long_battle_s_save),
 # FLEETCAP=1 (coût des batailles de campagne à chaque plafond de flotte ; -c Release --filter Measures_the_fleet_cap)
 # dotnet test godot/Sim.Tests --filter Balance --logger "console;verbosity=detailed"
 npm run fixtures                            # références et apparences tirées de la version web
@@ -55,10 +57,14 @@ la mesure du plafond, `none` pour la même bataille sans lui), `--armada` (une c
 une flotte de la bataille de mesure : 192 vaisseaux, 376 points ; avec `--raid=1 --choose=command --answer=no`, une bataille où
 sa réserve attend sous le plafond), `--codex=QUOI` (le codex ouvert sur une classe, `frigate`, un héros, `hero-admiral`, ou
 une race, `race-nairan`, précédés au besoin de la race à montrer, `nairan:titan` ; avec `--menu=codex`, ou au-dessus d'une
-bataille de `--start`, ouvert depuis le menu Échap, ou de la galaxie de `--start=campaign`, depuis l'aide). Pour une capture
+bataille de `--start`, ouvert depuis le menu Échap, ou de la galaxie de `--start=campaign`, depuis l'aide),
+`--battle-saves=DOSSIER` (les sauvegardes de bataille listées et gardées là au lieu de `user://battles` ; une capture les
+écrit alors, dont la sauvegarde automatique de la bataille qu'elle quitte), `--load=FICHIER` (reprend cette sauvegarde de
+bataille au démarrage), `--escape` (ouvre le menu Échap de la bataille une fois la vue prête). Pour une capture
 en 1280×720 : `--resolution 1280x720` avant `--`, et `-H 720 -h 720` pour gamescope. Ajouter `--disable-vsync`
 avant `--` si la fenêtre est cachée : sinon le compositeur la ralentit. Avec `--shot`, la
-fenêtre ne prend pas le clavier, et ni les réglages ni la sauvegarde de campagne ne sont touchés.
+fenêtre ne prend pas le clavier, et ni les réglages, ni la sauvegarde de campagne, ni les sauvegardes de bataille ne
+sont touchés.
 Pour une capture sans aucune fenêtre à l'écran (gamescope, déjà installé) :
 `gamescope --backend headless -W 1280 -H 800 -w 1280 -h 800 -- godot --path godot/Game --disable-vsync -- --shot=image.png`.
 

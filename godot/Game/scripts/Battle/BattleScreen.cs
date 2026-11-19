@@ -80,6 +80,7 @@ public partial class BattleScreen : Node
             Replay = new ReplayPlayer(recorded);
             World = Replay.World;
         }
+        else if (o.Resume is { } saved) World = saved.World;
         else World = o.Net?.World ?? o.Campaign?.World ?? (Dev.Start == "stress" ? StressScene(o) : Scenario.CreateSkirmish(new SkirmishOptions
         {
             // In the sandbox, nobody plays by itself: the others only do what the player spawns.
@@ -88,8 +89,11 @@ public partial class BattleScreen : Node
             Map = o.Map, Size = o.Size, Fog = o.Fog && !sandbox, Raid = o.Raid, Terrain = o.Terrain,
             Mode = o.Rules, ZoneTarget = o.ZoneTarget, AssaultMinutes = o.AssaultMinutes, WaveStrength = o.WaveStrength,
         }));
-        // The sandbox's tools are open in a game played alone, outside the campaign; a replay has them as recorded.
-        if (o.Replay is null) World.SandboxTools = o.Campaign is null && !o.Demo && o.Net is null && !o.Tutorial;
+        // The sandbox's tools are open in a game played alone, outside the campaign; a replay and a save have them as recorded.
+        if (o.Replay is null && o.Resume is null) World.SandboxTools = o.Campaign is null && !o.Demo && o.Net is null && !o.Tutorial;
+        // A battle of a lobby played alone can be saved: it has an id of its own, for its saves and the profile.
+        if (o.Replay is null && !o.Tutorial && o.Campaign is null && !o.Demo && o.Net is null && World.Origin is not null && o.BattleId is null)
+            Opts = o = o with { BattleId = BattleSaves.NewBattleId() };
         Sink = o.Net?.Sink ?? (o.Replay is not null ? new LocalSink<Command>(_ => Watching) : new LocalSink<Command>(c =>
         {
             var r = Commands.Apply(World, Opts.Player, c);
@@ -97,11 +101,12 @@ public partial class BattleScreen : Node
             Opts.Coach?.Saw(c, r);
             return r;
         }));
-        // A battle of a lobby, played alone or stepped here for everyone, keeps its commands for its replay.
-        if (o.Replay is null && !o.Tutorial && o.Campaign is null && !o.Demo && (o.Net is null || o.Net.Host is not null) && Dev.Skip == 0 && Dev.Wave == 0 && Dev.End == 0
+        // A battle of a lobby, played alone or stepped here for everyone, keeps its commands for its replay;
+        // a saved one goes on with those of its save, from its start (or none, if it kept none).
+        if (o.Replay is null && o.Resume is null && !o.Tutorial && o.Campaign is null && !o.Demo && (o.Net is null || o.Net.Host is not null) && Dev.Skip == 0 && Dev.Wave == 0 && Dev.End == 0
             && Dev.Start is "menu" or "battle" or "sandbox") Replays.Record(World);
         // Checking the late waves of a survival game, or its end: it begins at wave --wave, a few seconds away.
-        if (Dev.Wave > 1 && World.Mode.Kind == BattleMode.Survival && o.Replay is null && (o.Net is null || o.Net.Host is not null))
+        if (Dev.Wave > 1 && World.Mode.Kind == BattleMode.Survival && o.Replay is null && o.Resume is null && (o.Net is null || o.Net.Host is not null))
         {
             World.Mode.Wave = World.Mode.Cleared = Dev.Wave - 1;
             World.Mode.NextWave = World.Time + 5;
@@ -112,7 +117,7 @@ public partial class BattleScreen : Node
         // The player's ships use their abilities by themselves if the player wants so.
         var own = o.Demo || o.Replay is not null ? null : World.Factions.GetValueOrDefault(o.Player);
         if (own is not null) Sink.Send(new Command.SetAutoAbilities(Settings.Current.AutoAbilities));
-        if (Dev.Skip > 0 && own is not null && o.Campaign is null)
+        if (Dev.Skip > 0 && own is not null && o.Campaign is null && o.Resume is null)
         {
             // Checking a screen: both sides play ahead on the AI.
             own.AI = Worlds.NewAI(o.Difficulty);
@@ -128,10 +133,18 @@ public partial class BattleScreen : Node
         camera.MakeCurrent();
         var home = (IPoint?)Worlds.StationOf(World, o.Player) ?? FleetCenter(o.Player);
         CenterOn(home.X, home.Y);
+        // A saved battle comes back where the player was looking, at the nearest zoom level.
+        if (o.Resume?.View is { } view && double.IsFinite(view.X) && double.IsFinite(view.Y))
+        {
+            CenterOn(view.X, view.Y);
+            Zoom = Selection.Zooms.MinBy(z => Math.Abs(z - view.Zoom));
+        }
         Controls = new Selection(this);
         AddChild(Controls);
+        if (o.Resume is not null) Controls.Groups = new(o.Resume.View.Groups);
         Hud = new Hud(this, sandbox, o.Campaign?.Title);
         AddChild(Hud);
+        if (o.Resume is not null) Resumed();
         if (Dev.NoHud) Hud.Visible = false;
         if (o.Net is not null) NetReady();
         if (o.Demo)
@@ -177,6 +190,77 @@ public partial class BattleScreen : Node
             Hud.PauseMenu();
             Hud.ShowCodex(Hud.PauseMenu, codex);
         }).CallDeferred();
+        if (Dev.Escape) Callable.From(Hud.PauseMenu).CallDeferred();
+    }
+
+    // Saving (Sim/BattleSaves.cs).
+
+    /// <summary>
+    /// Whether the battle counts for the profile and the survival records: not one taken up again
+    /// from earlier than it had gone, nor one whose end already counted (Profiles.ResumeBattle).
+    /// </summary>
+    public bool Fair { get; private set; } = true;
+    /// <summary>The battle's end was shown: nothing left to save.</summary>
+    bool ended;
+    /// <summary>Left for a new start ("Recommencer"): no automatic save; and saved already as it was left.</summary>
+    bool abandoned, leftSaved;
+
+    /// <summary>Whether the battle can be saved now: one of a lobby played alone, undecided, the player still in it, on a run that writes saves.</summary>
+    public bool CanSave => Opts.BattleId is not null && BattleSaves.CanSave(World) && !defeated && !ended && BattleStore.Writes;
+
+    /// <summary>Whether leaving now saves the battle: one too young to be worth taking up again is let go, as its replay.</summary>
+    public bool SavesOnLeaving => CanSave && World.StepCount >= ReplayStore.MinSteps;
+
+    BattleSaveHead Head(string name = "") =>
+        new(Opts.Player, Opts.BattleId!, Opts.Mode == GameMode.Sandbox, new BattleView(Center.X, Center.Y, Zoom, Controls.Groups), Ui.Menu.Version, Clock, name);
+
+    static long Clock => DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
+
+    /// <summary>What the save dialog offers to call it: "Escarmouche, Kla'ed, 23 min, 19/11/2026 14:05".</summary>
+    public string DefaultSaveName() =>
+        BattleSaves.DefaultName(ReplayStore.Mode(World.Origin!, Opts.Mode == GameMode.Sandbox), World.Factions[Opts.Player].Race, World.Time, DateTimeOffset.Now);
+
+    /// <summary>Saves the battle under the player's name for it (the Escape menu's "Sauvegarder"); false when it cannot be.</summary>
+    public bool SaveAs(string name)
+    {
+        if (!CanSave) return false;
+        var named = name.Trim().Length > 0 ? name.Trim() : DefaultSaveName();
+        var id = BattleSaves.SaveAs(BattleStore.Folder, World, Head(named));
+        if (id is not null) PlayerProfile.Saved(this);
+        return id is not null;
+    }
+
+    /// <summary>
+    /// Leaving for the menu or the desktop, undecided: the battle's automatic save, which "Continuer"
+    /// takes up. Once, whether the screen goes first or the game quits.
+    /// </summary>
+    public void SaveOnLeaving()
+    {
+        if (leftSaved || abandoned || !SavesOnLeaving) return;
+        leftSaved = true;
+        if (BattleSaves.SaveAuto(BattleStore.Folder, World, Head())) PlayerProfile.Saved(this);
+        else GD.PushWarning("Sauvegarde automatique de la bataille impossible");
+    }
+
+    /// <summary>The battle's end is shown (won, lost, or out of it): it no longer saves, and its automatic save goes.</summary>
+    public void Ended()
+    {
+        if (ended) return;
+        ended = true;
+        if (Opts.BattleId is { } id && BattleStore.Writes) BattleSaves.DeleteAuto(BattleStore.Folder, id);
+    }
+
+    /// <summary>
+    /// A saved battle taken up again: paused, for the player to find their bearings; and told when it
+    /// no longer counts for the profile.
+    /// </summary>
+    void Resumed()
+    {
+        Fair = PlayerProfile.Resumed(this);
+        Paused = true;
+        Hud.RefreshModes();
+        Hud.Toast("Bataille reprise, en pause");
+        if (!Fair) Hud.Toast("Reprise en arrière : la bataille ne compte plus pour le profil");
     }
 
     /// <summary>
@@ -205,12 +289,13 @@ public partial class BattleScreen : Node
     public override void _ExitTree()
     {
         StressProbe.Detach();
+        if (World is not null) SaveOnLeaving();
         PlayerProfile.Flush();
         // The beams' hum goes with the battle.
         if (!Opts.Demo) Sfx.StopHum();
-        // The battle's replay, as it stands when the player leaves it.
+        // The battle's replay, as it stands when the player leaves it; a saved battle's, from its start.
         if (World?.Log is not null && Replays.Of(World, Opts.Player, Ui.Menu.Version, DateTimeOffset.UtcNow.ToUnixTimeMilliseconds()) is { } replay)
-            ReplayStore.Save(replay);
+            ReplayStore.Save(replay, Opts.BattleId);
         // Left to the menu, the tutorial's galaxy goes with its battle: the card may be gone already.
         if (Opts.Coach is { } coach && IsInstanceValid(coach)) coach.Detach(this);
         if (Opts.Net is not { } net || net.Screen != this) return;
@@ -493,9 +578,12 @@ public partial class BattleScreen : Node
         Hud.RefreshModes();
     }
 
-    /// <summary>Starts the battle again, on the same map or on a new one.</summary>
-    public void Restart(bool newMap = false) =>
-        Main.Instance.StartBattle(newMap ? Opts with { Seed = random.Next(1, 1_000_000_000) } : Opts);
+    /// <summary>Starts the battle again, on the same map or on a new one: a new battle, the one left unsaved.</summary>
+    public void Restart(bool newMap = false)
+    {
+        abandoned = true;
+        Main.Instance.StartBattle((newMap ? Opts with { Seed = random.Next(1, 1_000_000_000) } : Opts) with { Resume = null, BattleId = null });
+    }
 
     /// <summary>Back to the menu; over the network, out of the game (a player's side goes to the AI, a host closes it).</summary>
     public void ToMenu()

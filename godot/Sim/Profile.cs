@@ -67,12 +67,28 @@ public sealed class ProfileStats
 /// </summary>
 public sealed record AchievementDef(string Id, string Name, string Text, string Icon, Func<ProfileStats, bool> Done, bool Hidden = false);
 
-/// <summary>A profile: the counts, and when each achievement was earned (Unix ms).</summary>
+/// <summary>
+/// A battle played alone that was saved (BattleSaves), as the profile follows it: the furthest step
+/// it reached, whether a save from before that was loaded (Rewound), and whether its end was
+/// counted. Such a battle counts once, and nothing more once rewound: loading an earlier save to
+/// try again earns nothing the first try did not.
+/// </summary>
+public sealed class BattleMark
+{
+    public string Id { get; set; } = "";
+    public long Step { get; set; }
+    public bool Rewound { get; set; }
+    public bool Ended { get; set; }
+}
+
+/// <summary>A profile: the counts, when each achievement was earned (Unix ms), and the saved battles it follows.</summary>
 public sealed class Profile
 {
     public int Version { get; set; } = Profiles.Version;
     public ProfileStats Stats { get; set; } = new();
     public Dictionary<string, long> Unlocked { get; set; } = [];
+    /// <summary>The saved battles, the one touched last at the end (Profiles.MarksKept at most).</summary>
+    public List<BattleMark> Battles { get; set; } = [];
 }
 
 public static class Profiles
@@ -210,6 +226,47 @@ public static class Profiles
         return Unlock(p, now);
     }
 
+    /// <summary>Saved battles followed, at most: past these, the one untouched the longest is forgotten.</summary>
+    public const int MarksKept = 100;
+
+    /// <summary>The mark of a battle, brought to the end of the list as the one touched last; made if `make`.</summary>
+    static BattleMark? Mark(Profile p, string battle, bool make)
+    {
+        var i = p.Battles.FindIndex(m => m.Id == battle);
+        if (i < 0 && !make) return null;
+        var mark = i >= 0 ? p.Battles[i] : new BattleMark { Id = battle };
+        if (i >= 0) p.Battles.RemoveAt(i);
+        p.Battles.Add(mark);
+        if (p.Battles.Count > MarksKept) p.Battles.RemoveRange(0, p.Battles.Count - MarksKept);
+        return mark;
+    }
+
+    /// <summary>A battle was saved at `step`, or (`save` false) a battle saved before goes on at `step`: its mark goes there if that is further.</summary>
+    public static void MarkBattle(Profile p, string battle, long step, bool save = true)
+    {
+        if (Mark(p, battle, save) is { } mark) mark.Step = Math.Max(mark.Step, step);
+    }
+
+    /// <summary>
+    /// A save of a battle was loaded, at `step`: whether the battle still counts. Not once its end
+    /// was counted, nor from before the furthest it went (rewound, for good), nor for a battle this
+    /// profile never saw saved (another profile's, or one forgotten).
+    /// </summary>
+    public static bool ResumeBattle(Profile p, string battle, long step)
+    {
+        var known = p.Battles.Exists(m => m.Id == battle);
+        var mark = Mark(p, battle, true)!;
+        if (!known || step < mark.Step) mark.Rewound = true;
+        mark.Step = Math.Max(mark.Step, step);
+        return !mark.Rewound && !mark.Ended;
+    }
+
+    /// <summary>A saved battle's end was counted: nothing of it counts again, from any of its saves.</summary>
+    public static void EndBattle(Profile p, string battle)
+    {
+        if (Mark(p, battle, false) is { } mark) mark.Ended = true;
+    }
+
     /// <summary>Marks every achievement whose condition now holds; returns those newly earned, in the list's order.</summary>
     static List<AchievementDef> Unlock(Profile p, long now)
     {
@@ -261,7 +318,10 @@ public static class Profiles
         {
             if (id is not null && ById.ContainsKey(id)) unlocked[id] = Math.Max(0, at);
         }
-        return new Profile { Stats = clean, Unlocked = unlocked };
+        // Battle ids as the game makes them (BattleSaves.NewBattleId), each once, the last ones kept.
+        var battles = (read.Battles ?? []).Where(m => m is not null && BattleSaves.IsBattleId(m.Id)).GroupBy(m => m.Id).Select(g => g.Last())
+            .TakeLast(MarksKept).Select(m => new BattleMark { Id = m.Id, Step = Math.Max(0, m.Step), Rewound = m.Rewound, Ended = m.Ended }).ToList();
+        return new Profile { Stats = clean, Unlocked = unlocked, Battles = battles };
     }
 
     /// <summary>The counts of an enum's names only, each bounded: a forged file adds no key and no absurd count.</summary>

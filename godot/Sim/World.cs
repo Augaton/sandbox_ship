@@ -494,6 +494,9 @@ public sealed class EntityStore : IEnumerable<Entity>
 
     public bool Has(int id) => byId.ContainsKey(id);
 
+    /// <summary>Whether the list and the index hold the same entities, each under its own id: a save read back must (BattleSaves).</summary>
+    internal bool Consistent() => byId.Count == order.Count && order.TrueForAll(e => byId.TryGetValue(e.Id, out var same) && same == e);
+
     public Enumerator GetEnumerator() => new(order);
     IEnumerator<Entity> IEnumerable<Entity>.GetEnumerator() => GetEnumerator();
     System.Collections.IEnumerator System.Collections.IEnumerable.GetEnumerator() => GetEnumerator();

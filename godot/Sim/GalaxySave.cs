@@ -113,10 +113,12 @@ public static class GalaxySave
     /// does not exist, at any depth: a damaged or forged file is refused as it is read, rather than
     /// crashing the list of saves or the game later. The fields are walked as the serializer filled
     /// them, each checked against what its declaration says (the simulation's nullable annotations).
+    /// A battle save's world is checked the same way (BattleSaves).
     /// </summary>
-    static bool Complete(SavedGalaxy root)
+    internal static bool Complete(object root)
     {
         var context = new NullabilityInfoContext();
+        var declared = new Dictionary<FieldInfo, NullabilityInfo>();
         var seen = new HashSet<object>(ReferenceEqualityComparer.Instance);
         var pending = new Stack<object>();
         pending.Push(root);
@@ -127,7 +129,8 @@ public static class GalaxySave
             if (type.Namespace?.StartsWith("SandboxShip", StringComparison.Ordinal) != true || (!type.IsValueType && !seen.Add(o))) continue;
             foreach (var f in type.GetFields(BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic))
             {
-                if (!Fits(f.GetValue(o), context.Create(f), pending)) return false;
+                if (!declared.TryGetValue(f, out var info)) declared[f] = info = context.Create(f);
+                if (!Fits(f.GetValue(o), info, pending)) return false;
             }
         }
         return true;

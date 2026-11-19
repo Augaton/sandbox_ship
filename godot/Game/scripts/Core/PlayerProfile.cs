@@ -1,8 +1,8 @@
 // The player's profile on this machine (Sim's Profiles): fed what the local player does, kept in
 // user://profile.json, written whole through a file set aside first. Only the local player
 // counts, each machine for its own in a network game; nothing counts in a capture (unless
-// --profile names a file of its own), a replay, the menu's backdrop, the tutorials (battle and campaign), or
-// for a spectator.
+// --profile names a file of its own), a replay, the menu's backdrop, the tutorials (battle and campaign),
+// for a spectator, or in a saved battle taken back to an earlier save (only its time counts there).
 using Godot;
 using SandboxShip.Battle;
 using SandboxShip.Sim;
@@ -54,10 +54,33 @@ public static class PlayerProfile
         }
     }
 
-    /// <summary>Whether what happens on a battle screen counts for the player on this machine.</summary>
-    public static bool Counts(BattleScreen s) =>
+    /// <summary>Whether the player on this machine plays on a battle screen: its time counts, whatever else does.</summary>
+    static bool Plays(BattleScreen s) =>
         Enabled && !s.Opts.Demo && s.Opts.Replay is null && !s.Opts.Tutorial && s.Opts.Coach is null && s.Opts.Net?.Watching != true
         && Network.Session.Current?.Watching != true && s.World.Factions.ContainsKey(s.Opts.Player);
+
+    /// <summary>Whether what happens on a battle screen counts for the player on this machine: not in a saved battle taken back (BattleScreen.Fair).</summary>
+    public static bool Counts(BattleScreen s) => Plays(s) && s.Fair;
+
+    /// <summary>The saved battle on screen, which moves its mark on as it goes (Profiles.MarkBattle).</summary>
+    static (string Id, World World)? playing;
+
+    /// <summary>A battle was saved: its mark, so that a save from before it no longer counts once loaded.</summary>
+    public static void Saved(BattleScreen s)
+    {
+        if (!Enabled || s.Opts.BattleId is not { } id) return;
+        Profiles.MarkBattle(Current, id, s.World.StepCount);
+        Save();
+    }
+
+    /// <summary>A saved battle was taken up again: whether it still counts (Profiles.ResumeBattle). Nothing counts in a capture anyway.</summary>
+    public static bool Resumed(BattleScreen s)
+    {
+        if (!Enabled || s.Opts.BattleId is not { } id) return true;
+        var fair = Profiles.ResumeBattle(Current, id, s.World.StepCount);
+        Save();
+        return fair;
+    }
 
     /// <summary>What mode a battle is played in, as the lobby names them; a campaign battle's is Campaign.</summary>
     static LobbyMode ModeOf(BattleScreen s) => s.Opts.Campaign is not null ? LobbyMode.Campaign
@@ -79,6 +102,8 @@ public static class PlayerProfile
     {
         if (!Counts(s) || counted == s.World) return;
         counted = s.World;
+        // Its saves, loaded again, count no more.
+        if (s.Opts.BattleId is { } id) Profiles.EndBattle(Current, id);
         var w = s.World;
         var me = w.Factions[s.Opts.Player];
         var foes = w.Factions.Values.Where(f => f.Race != Faction.Errant && Worlds.Foes(w, me.Id, f.Id)).ToList();
@@ -147,9 +172,10 @@ public static class PlayerProfile
     /// </summary>
     public static void Tick(Node? screen, double delta)
     {
+        PlayerProfile.playing = screen is BattleScreen { Opts.BattleId: { } id } battle ? (id, battle.World) : null;
         var playing = screen switch
         {
-            BattleScreen b => Counts(b),
+            BattleScreen b => Plays(b),
             Campaign.GalaxyScreen g => Enabled && !g.Opts.Tutorial,
             _ => false,
         };
@@ -164,6 +190,8 @@ public static class PlayerProfile
         if (!Enabled) return;
         if (pending > 0) Announce(Profiles.AddTime(Current, pending, Now));
         pending = 0;
+        // A saved battle on screen moves its mark on: a save from before here, loaded after a crash, is a second try.
+        if (playing is { } p) Profiles.MarkBattle(Current, p.Id, p.World.StepCount, save: false);
         Save();
     }
 

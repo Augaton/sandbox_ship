@@ -46,6 +46,22 @@ public sealed record BattleOptions
     public bool Tutorial { get; init; }
     /// <summary>A battle of the campaign tutorial's galaxy: its card stays on screen and sees the battle's commands (Ui/CampaignTutorial.cs).</summary>
     public Ui.CampaignTutorial? Coach { get; init; }
+    /// <summary>A battle taken up again from its save (Sim/BattleSaves.cs): its world as it stood, and the player's view.</summary>
+    public BattleSave? Resume { get; init; }
+    /// <summary>Which battle this is, for its saves and the profile; a new one gets its own (BattleSaves.NewBattleId).</summary>
+    public string? BattleId { get; init; }
+
+    /// <summary>The options of a saved battle: as its lobby set it up, with its world as it stood.</summary>
+    public static BattleOptions FromSave(BattleSave s)
+    {
+        var o = s.World.Origin!;
+        return new BattleOptions
+        {
+            Player = s.Info.Player, Slots = o.Slots, Mode = s.Info.Sandbox ? GameMode.Sandbox : GameMode.Skirmish, Seed = o.Seed, Map = o.Map, Size = o.Size,
+            Raid = o.Raid, Terrain = o.Terrain, Fog = o.Fog, Rules = o.Mode, ZoneTarget = o.ZoneTarget, AssaultMinutes = o.AssaultMinutes, Credits = o.Credits,
+            WaveStrength = o.WaveStrength, Resume = s, BattleId = s.Info.Battle,
+        };
+    }
 
     /// <summary>The options to watch a replay: its battle as it was set up, through the eyes of whoever recorded it.</summary>
     public static BattleOptions Watch(Replay r) => new()
