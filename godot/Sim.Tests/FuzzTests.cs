@@ -53,11 +53,25 @@ public class FuzzTests
 
     /// <summary>
     /// Reads every variation of every seed: a refusal is fine; any other exception, a read of more
-    /// than a second, or tens of megabytes allocated fail, with the input that did it.
+    /// than a second twice in a row, or tens of megabytes allocated fail, with the input that did it.
     /// </summary>
     static void Survives(string what, IEnumerable<byte[]> seeds, Action<byte[]> read, Func<Exception, bool>? refusal = null)
     {
         refusal ??= e => e is InvalidDataException or EndOfStreamException;
+        void Read(byte[] input)
+        {
+            try
+            {
+                read(input);
+            }
+            catch (Exception e) when (refusal(e))
+            {
+            }
+            catch (Exception e)
+            {
+                Assert.Fail($"{what} : {e.GetType().Name} ({e.Message}) sur {Convert.ToHexString(input)}");
+            }
+        }
         var salt = 0;
         foreach (var seed in seeds)
         {
@@ -65,19 +79,17 @@ public class FuzzTests
             {
                 var clock = Stopwatch.StartNew();
                 var allocated = GC.GetAllocatedBytesForCurrentThread();
-                try
+                Read(input);
+                var used = GC.GetAllocatedBytesForCurrentThread() - allocated;
+                // The clock is wall time: a machine busy elsewhere can stall one read past the
+                // limit, so a slow read is timed again, and only a second slow one fails. A read
+                // that really loops on a forged size stays slow both times.
+                if (clock.Elapsed.TotalSeconds >= 1)
                 {
-                    read(input);
-                }
-                catch (Exception e) when (refusal(e))
-                {
-                }
-                catch (Exception e)
-                {
-                    Assert.Fail($"{what} : {e.GetType().Name} ({e.Message}) sur {Convert.ToHexString(input)}");
+                    clock.Restart();
+                    Read(input);
                 }
                 Assert.True(clock.Elapsed.TotalSeconds < 1, $"{what} : {clock.Elapsed.TotalSeconds:F1} s sur {Convert.ToHexString(input)}");
-                var used = GC.GetAllocatedBytesForCurrentThread() - allocated;
                 Assert.True(used < 64L << 20, $"{what} : {used >> 20} Mio alloués sur {input.Length} octets");
             }
         }

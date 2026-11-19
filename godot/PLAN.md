@@ -615,7 +615,7 @@ tests de `FixtureTests` et `CrossTests` les listent.
     frappe corrigée, dont l'amiral kla'ed profitait). 7 escarmouches sur 72 vont au-delà de 60 min entre IA (aucune
     au-delà de 85). Le tir concentré, les raids et le choix des capacités du Difficile se voient sans gain mesurable ;
     son avance vient du rappel des vagues et de la recherche. Les seuils de temps de `FuzzTests` (1 s par entrée)
-    lâchent sous forte charge.
+    lâchaient sous forte charge (2026-11-19 : une lecture lente est rejouée une fois, seule une seconde lenteur échoue).
 - Diplomatie revue (2026-11-16) : un écran dédié (touche T, `GalaxyHud.DiplomacyScreen.cs`) remplace la liste du volet.
   En solo, il arrête le temps. En haut, le tableau des relations de tous les camps, IA entre elles comprises : alliés,
   trêve ou guerre, et commerce, vision, guerre commune, tribut, guerre jurée. À gauche, les camps. À droite, le camp
