@@ -772,8 +772,15 @@ tests de `FixtureTests` et `CrossTests` les listent.
     le terrain ; son point de ralliement y est mis.
   - La garde est dans `Reserves.CanDeploy` (« Plafond de flotte atteint ») ; `Deploy` n'amène d'une escadrille que ce qui tient.
     L'IA de bataille de la campagne (`Battle.UpdateBattleAI`) appelle sa réserve chaque seconde (`Reserves.CallAll`, qui ne tente
-    plus un vaisseau sans place, ni une sorte qui vient de ne trouver aucun point). Un camp qui n'a plus rien sur le terrain
-    appelle la sienne de lui-même, même commandé par un joueur : retenue, elle ne faisait que figer la bataille jusqu'au repli.
+    plus un vaisseau sans place, ni une sorte qui vient de ne trouver aucun point), près de sa flotte sur le terrain (son
+    ralliement suit le vaisseau le plus près du centre de la flotte), son point d'arrivée en repli. Un camp qui n'a plus rien sur
+    le terrain appelle la sienne de lui-même, même commandé par un joueur : retenue, elle ne faisait que figer la bataille
+    jusqu'au repli.
+  - Campagnes entre IA : sous le plafond, une planète fortifiée tient mieux, les renforts de l'attaquant arrivant un à un. Grande
+    galaxie, deux IA, graine 30 de `GalaxySizesTests` : 37 min sans plafond, 208 min avec des renforts sautant au bord de la carte,
+    99 min près de la flotte. Graines 30 à 34 : 99, 54, 28, 50 et 42 min sous le plafond (médiane 50) ; sans lui 37, 27, 139,
+    plus de 150 et 73 min (médiane 73) : le hasard des graines pèse plus que le plafond. `GalaxySizesTests` laisse deux heures en
+    grande galaxie au lieu d'une.
   - Ce qui n'est jamais entré rentre tel quel sur la carte galactique : `Survivors`, `HeroSurvivors`, `SurvivorCondition`
     (l'usure de la flotte, `ReserveCondition`) et les rangs (`ReserveRanks` : les meilleurs placés d'abord, chacun sortant de la
     réserve avec le sien). Un camp qui a une réserve ou des sauts n'a pas perdu (`Outcome`). `Battle.Power` compte ce qui

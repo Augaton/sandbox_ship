@@ -114,8 +114,11 @@ public class GalaxySizesTests
     public void AIs_alone_play_a_small_or_large_galaxy_to_the_end(MapSize size, int players, int seed)
     {
         var g = AiOnly(seed, GalaxyGen.GenerateLayout(seed, players, size));
-        // An hour at most: the AI waits for its edge and regroups between offensives (GalaxyAi.Regroup).
-        for (var minute = 0; minute < 60 && g.Winner is null; minute++) RunGalaxy(g, 60);
+        // An hour at most, two in a large galaxy: the AI waits for its edge and regroups between offensives
+        // (GalaxyAi.Regroup), and under the fleet cap a fortified planet holds out longer. Large, two AIs, seeds 30
+        // to 34: 99, 54, 28, 50 and 42 min under the cap; 37, 27, 139, past 150 and 73 min without it.
+        var hours = size == MapSize.Large ? 2 : 1;
+        for (var minute = 0; minute < 60 * hours && g.Winner is null; minute++) RunGalaxy(g, 60);
         Assert.NotNull(g.Winner);
     }
 

@@ -414,8 +414,9 @@ public static class Battle
     /// Under a fleet cap, a side's reinforcements gather by its fleet on the field (its warship
     /// nearest the middle of them all), where the reserve may come in, and not at its end of the
     /// map: coming from there one after the other, they were beaten one at a time, and an AI
-    /// with the stronger fleet no longer took a fortified planet (a campaign between AIs went
-    /// from 37 to 208 minutes). With nothing of its own on the field, its arrival point.
+    /// with the stronger fleet no longer took a fortified planet (a campaign between AIs, 37
+    /// minutes without the cap, took 208 under it, 99 with this). With nothing of its own on the
+    /// field, its arrival point.
     /// </summary>
     static void RallyAtFleet(World world, Side side)
     {
