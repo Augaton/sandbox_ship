@@ -6566,9 +6566,6 @@ msgid "Défend tout ce qu'elle possède, répond à ce qu'elle voit et attaque q
 msgstr "Defends everything it owns, answers what it sees and attacks when it feels the stronger."
 
 #: Sim/Worlds.cs
-msgid "Concentre ses tirs, vise armes et moteurs, pille tes mines, se replie quand elle perd, adapte sa flotte et pousse ses recherches."
-msgstr "Focuses its fire, aims at guns and engines, raids your mines, falls back when losing, adapts its fleet and pushes its research."
-
 #: Game/scripts/Galaxy/GalaxyHud.Diplomacy.cs
 msgid "la vision partagée"
 msgstr "shared vision"
@@ -8904,3 +8901,7 @@ msgstr "Damaged save."
 #: Sim/BattleSaves.cs
 msgid "{0}, {1}, {2} min, {3}"
 msgstr "{0}, {1}, {2} min, {3}"
+
+#: Sim/Worlds.cs
+msgid "Vise armes et moteurs, pille tes mines, se replie quand elle perd, adapte sa flotte et pousse ses recherches."
+msgstr "Aims at guns and engines, raids your mines, falls back when losing, adapts its fleet and pushes its research."

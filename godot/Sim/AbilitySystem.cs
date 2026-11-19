@@ -338,72 +338,19 @@ public static class AbilitySystem
     }
 
     /// <summary>
-    /// Where a spinal beam from `e` does the most harm: through the foe in its range with the most
-    /// worth on the line, if worth a blow at all.
+    /// When and where an automatic ability goes: null to hold it for now. The same at every level of
+    /// AI: a hard one picking its moments (repair for several, EMP on bigger ships, salvos kept from
+    /// small craft, orbital strike and spinal beam where they harm most, a mark on its focus) lost 48
+    /// games and won 38 of 96 against one that did not, 40 and 39 with the choice of the spot alone
+    /// (2026-11-19).
     /// </summary>
-    static Aim? BestLine(World world, Entity e, AbilityDef def)
-    {
-        Aim? best = null;
-        var most = 1500.0;
-        var range = def.Range!.Value;
-        var foes = new List<Entity>();
-        foreach (var t in world.Grid.Near(e.X, e.Y, range))
-        {
-            if (t.Kind != EntityKind.Hardpoint && Foes(world, e.Side, t.Side) && Vision.IsVisible(world, e.Side, t) && Dist(t, e) <= range) foes.Add(t);
-        }
-        foreach (var c in foes)
-        {
-            var a = Math.Atan2(c.Y - e.Y, c.X - e.X);
-            var line = new Strike { Kind = StrikeKind.Beam, X = e.X, Y = e.Y, X2 = e.X + Math.Cos(a) * range, Y2 = e.Y + Math.Sin(a) * range };
-            var worth = 0.0;
-            foreach (var t in foes) if (SegmentDistance(t, line) <= SpinalWidth + t.Radius) worth += Worth(t);
-            if (worth <= most) continue;
-            most = worth;
-            best = new Aim(c.X, c.Y);
-        }
-        return best;
-    }
-
-    /// <summary>When and where an automatic ability goes: null to hold it for now. A hard AI picks its moments (DifficultyDef.Sharp).</summary>
     static Aim? AutoAim(World world, Entity e, AbilityState ability)
     {
         var def = Abilities.Defs[ability.Id];
         var self = new Aim(e.X, e.Y);
         var t = world.Entities.Get(e.TargetId);
         var reach = t is not null ? Gap(t, e.X, e.Y) : double.PositiveInfinity;
-        var ai = world.Factions.GetValueOrDefault(e.Side)?.AI;
-        var sharp = ai is not null && Difficulties[ai.Difficulty].Sharp;
         Func<Entity, bool> Ally(double min) => a => a.Kind == EntityKind.Ship && a.Hull < a.MaxHull * min && Allies(world, a.Side, e.Side);
-        if (sharp)
-        {
-            switch (def.Id)
-            {
-                case AbilityId.Repair:
-                    // For several at once, or one about to go.
-                    return Count(world, e, def.Radius!.Value, Ally(0.6)) >= 2 || Count(world, e, def.Radius!.Value, Ally(0.3)) >= 1 ? self : null;
-                case AbilityId.Emp:
-                    return Count(world, e, def.Radius!.Value, a => a.Kind == EntityKind.Ship && a.Size != SizeClass.Small && Foes(world, a.Side, e.Side)) >= 2 ? self : null;
-                case AbilityId.OrbitalStrike:
-                    return RichestTarget(world, e, def, 1500);
-                case AbilityId.Spinal:
-                    return BestLine(world, e, def);
-                case AbilityId.HuntMark:
-                case AbilityId.Spores:
-                    // On the ship its fleet singled out, when it can reach it.
-                    if (world.Entities.Get(ai!.FocusId) is { } focus && Gap(focus, e.X, e.Y) <= def.Range!.Value && Vision.IsVisible(world, e.Side, focus)) return new Aim(focus.X, focus.Y, focus.Id);
-                    break;
-                case AbilityId.Taunt:
-                    // Worth it to draw fire off wounded allies, while it still has the hull for it.
-                    if (e.Hull < e.MaxHull * 0.4 || Count(world, e, def.Radius!.Value, Ally(0.8)) < 2) return null;
-                    break;
-                case AbilityId.Salvo:
-                case AbilityId.Barrage:
-                case AbilityId.Broadside:
-                    // Not spent on small craft.
-                    if (t?.Size == SizeClass.Small) return null;
-                    break;
-            }
-        }
         switch (def.Id)
         {
             case AbilityId.Repair:

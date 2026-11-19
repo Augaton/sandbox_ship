@@ -141,19 +141,16 @@ public static class Combat
     /// ship, the ship or structure its neighbours fight and the one that fights it, by what its
     /// hull aims at (a part counts as what it belongs to; `current` is what e's target belongs to);
     /// and an edge to the target e already has, so that it does not flicker between two. A hard
-    /// AI's fleet shoots the ship it singled out as soon as it can reach it (further, it would
-    /// dive at it through the rest) and, on big ships whose shield is down, their guns and engines:
-    /// aimed at while it holds, they drew fire the hulls needed (85 % of games won against Normal
-    /// without them, 76 % with them all the time, 85 % with them once the shield is down).
+    /// AI aims, on big ships whose shield is down, at their guns and engines: aimed at while it
+    /// holds, they drew fire the hulls needed (85 % of games won against Normal without them, 76 %
+    /// with them all the time, 85 % with them once the shield is down). Its fleet no longer shoots
+    /// one ship singled out first: against a hard AI without it, 45 games won and 44 lost of 96;
+    /// singling out the ship with the most damage per point of hull, 30 won and 54 lost (2026-11-19).
     /// </summary>
-    static double Score(World world, Entity e, Entity t, double s, Entity owner, double left, Pressure p, Entity? current, AIState? sharp)
+    static double Score(World world, Entity e, Entity t, double s, Entity owner, double left, Pressure p, Entity? current, bool sharp)
     {
-        if (sharp is not null)
-        {
-            if (owner.Id == sharp.FocusId && Reach(e, t) <= e.Range) s *= FocusEdge;
-            if (t.Kind == EntityKind.Hardpoint && owner.Kind == EntityKind.Ship && owner.Size == SizeClass.Large && owner.Shield <= 0)
-                s *= t.Weapons.Count > 0 ? GunEdge : t.Type == "engine" ? EngineEdge : 1;
-        }
+        if (sharp && t.Kind == EntityKind.Hardpoint && owner.Kind == EntityKind.Ship && owner.Size == SizeClass.Large && owner.Shield <= 0)
+            s *= t.Weapons.Count > 0 ? GunEdge : t.Type == "engine" ? EngineEdge : 1;
         if (p.Incoming.TryGetValue(t.Id, out var coming) && coming >= left) s *= 0.15;
         if (e.Kind == EntityKind.Ship)
         {
@@ -165,11 +162,11 @@ public static class Combat
         return s;
     }
 
-    /// <summary>What a hard AI's aim adds to a target: the ship its fleet singled out, a big ship's gun, its engine.</summary>
-    const double FocusEdge = 2.5, GunEdge = 1.5, EngineEdge = 1.25;
+    /// <summary>What a hard AI's aim adds to a target: a big ship's gun, its engine.</summary>
+    const double GunEdge = 1.5, EngineEdge = 1.25;
 
     /// <summary>The most Score raises a Promise by, for a ship (neighbours on it, it fighting the ship, it already the target), for the rest, and what a hard AI's aim adds.</summary>
-    const double ShipEdge = 1.9 * 1.25 * 1.15, OtherEdge = 1.15, SharpEdge = FocusEdge * GunEdge;
+    const double ShipEdge = 1.9 * 1.25 * 1.15, OtherEdge = 1.15, SharpEdge = GunEdge;
 
     /// <summary>
     /// The foe most worth shooting within `range` of `e`; ties go to the lowest id. Once one is
@@ -197,8 +194,8 @@ public static class Combat
             }
             for (var size = 0; size < 4; size++) effect[size] = all > 0 ? effect[size] / all : 1;
         }
-        var sharp = world.Factions.TryGetValue(e.Side, out var f) && f.AI is { } ai && Difficulties[ai.Difficulty].Sharp ? ai : null;
-        var edge = (e.Kind == EntityKind.Ship ? ShipEdge : OtherEdge) * (sharp is not null ? SharpEdge : 1);
+        var sharp = world.Factions.TryGetValue(e.Side, out var f) && f.AI is { } ai && Difficulties[ai.Difficulty].Sharp;
+        var edge = (e.Kind == EntityKind.Ship ? ShipEdge : OtherEdge) * (sharp ? SharpEdge : 1);
         Entity? best = null;
         var bestScore = 0.0;
         Pressure? p = null;

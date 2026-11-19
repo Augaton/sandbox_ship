@@ -973,6 +973,16 @@ tests de `FixtureTests` et `CrossTests` les listent.
     grossit encore après chaque envoi (22), renforts dès 15 % (17), le siège sans plus d'artillerie (8 et 13
     nuls : 21 sur 144, les canons trop peu nombreux mouraient avant d'avoir fini). Attaquer plus gros, c'est
     attaquer plus rarement, et les défenses se réparent entre-temps. Tests : `AiLevelsTests` (siège).
+  - Difficile : chacun de ses trois comportements contestés, mesuré seul, en Difficile complet contre Difficile
+    privé de lui (96 parties, escarmouche sans Colosse, code du raid). Tir concentré : 45 gagnées, 44 perdues,
+    7 nuls ; en visant plutôt le vaisseau aux plus forts dégâts par point de coque et de bouclier : 30 contre 54.
+    Raids sur les mines non gardées : 47 contre 35. Choix des capacités (réparer pour plusieurs, impulsion sur les
+    grosses coques, salves gardées des petits, frappe orbitale et canon spinal où ils font le plus de mal, marque
+    sur la cible désignée) : 38 contre 48 ; réduit au choix du point de frappe : 39 contre 40. Le tir concentré
+    et le choix des capacités sont retirés (une IA difficile se sert de ses capacités comme les autres), les raids
+    restent, avec les pièces visées bouclier tombé, le rappel des vagues, la flotte adaptée et la recherche ×1,75.
+    À revenu égal (`AiLevelsBalanceTests`, 96 parties, après le siège) : Difficile bat Normale 81 fois avant
+    (84 %, 8 nuls), 84 après (88 %, 2 nuls). Le salon décrit le Difficile sans le tir concentré.
 - Sécurité (2026-11-03) : ce qu'un inconnu peut envoyer au serveur en ligne, à un hôte ou au jeu, et les fichiers du joueur.
   Chaque lecteur exposé passe un test de robustesse à graine fixe (`FuzzTests` : trames du relais, messages du jeu, ordres,
   instantanés de bataille entiers et en parties, galaxie, rediffusions, sauvegardes), et chaque correction a son test

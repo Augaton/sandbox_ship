@@ -703,26 +703,6 @@ public static class Ai
         return sent;
     }
 
-    /// <summary>Hard: the one ship its whole fleet shoots first: the dearest for what it takes to bring down, among the big ones in its fleet's reach; it stays on it.</summary>
-    static void PickFocus(World world, FactionState f, List<Entity> ships)
-    {
-        var ai = f.AI!;
-        Entity? best = null;
-        var most = 0.0;
-        foreach (var e in world.Entities)
-        {
-            if (e.Kind != EntityKind.Ship || e.Launched || e.Size == SizeClass.Small || !Foes(world, f.Id, e.Side) || !Vision.IsVisible(world, f.Id, e)) continue;
-            if (!ships.Exists(s => Gap(e, s.X, s.Y) < s.Range)) continue;
-            var worth = ShipValue(e) / Math.Max(1, e.Hull + e.Shield) * (e.Id == ai.FocusId ? 1.5 : 1);
-            if (worth > most)
-            {
-                most = worth;
-                best = e;
-            }
-        }
-        ai.FocusId = best?.Id;
-    }
-
     /// <summary>
     /// Hard: a wave up against much more than itself comes home to fight another day, while it
     /// can. Past the all-in, it goes on; so does an assault, on its clock, and a hunt for the raid's
@@ -851,11 +831,7 @@ public static class Ai
         var army = ships.Sum(ShipValue);
         // Weighing nothing, it is never outmatched: it neither digs in nor holds back.
         var outmatched = level.WeighsOdds && intel.Army > 0 && army < intel.Army * Outmatched;
-        if (level.Sharp)
-        {
-            PickFocus(world, f, ships);
-            CallBackLosing(world, f, station, def.AllInTime);
-        }
+        if (level.Sharp) CallBackLosing(world, f, station, def.AllInTime);
         if (world.Time >= def.AllInTime && enemy is not null)
         {
             // The whole army once nothing is out; while a wave is out, or if it sees little

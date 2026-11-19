@@ -362,32 +362,6 @@ public class AiLevelsTests
     // Hard.
 
     [Fact]
-    public void Hard_singles_out_the_ship_worth_bringing_down_and_its_whole_fleet_shoots_it()
-    {
-        List<int> Targets(Difficulty level, out int frail)
-        {
-            var w = Game(8, level);
-            var f = w.Factions[Bot];
-            f.AI!.WaveValue = 1e9;
-            var st = StationOf(w, Bot)!;
-            var (x, y) = (st.X - 2000, 2000.0);
-            var ours = Enumerable.Range(0, 3).Select(i => SpawnShip(w, Bot, ShipClass.Frigate, x, y + i * 70)).ToList();
-            foreach (var e in ours) e.Stance = Stance.Hold;
-            // A frigate right in front of them, a support ship further: dearer for what it takes to bring down.
-            SpawnShip(w, Player, ShipClass.Frigate, x - 190, y + 70).Stance = Stance.Passive;
-            var support = SpawnShip(w, Player, ShipClass.Support, x - 300, y + 70);
-            support.Stance = Stance.Passive;
-            frail = support.Id;
-            Run(w, 2, 1.0 / 30);
-            return ours.Select(e => w.Entities.Get(e.TargetId) is { } t ? AbilitySystem.OwnerOf(w, t).Id : 0).ToList();
-        }
-        var hard = Targets(Difficulty.Hard, out var frail);
-        Assert.All(hard, t => Assert.Equal(frail, t));
-        var normal = Targets(Difficulty.Normal, out frail);
-        Assert.DoesNotContain(frail, normal);
-    }
-
-    [Fact]
     public void Hard_goes_by_what_most_of_the_enemy_fleet_is()
     {
         double Share(Difficulty level, ShipClass cls, Action<Intel> seen)
@@ -502,55 +476,6 @@ public class AiLevelsTests
         }
         Assert.True(AtGun(Difficulty.Hard));
         Assert.False(AtGun(Difficulty.Normal));
-    }
-
-    [Fact]
-    public void Hard_keeps_its_barrage_for_more_than_small_craft()
-    {
-        double? Used(Difficulty level)
-        {
-            var w = Game(12, level);
-            w.Factions[Bot].AI!.WaveValue = 1e9;
-            var st = StationOf(w, Bot)!;
-            var x = st.X - 2000;
-            var cruiser = SpawnShip(w, Bot, ShipClass.Battlecruiser, x, 2000);
-            cruiser.Stance = Stance.Hold;
-            var craft = SpawnShip(w, Player, ShipClass.Fighter, x + 200, 2000);
-            craft.Stance = Stance.Passive;
-            craft.Hull = craft.MaxHull = 1e6;
-            craft.Pilot = new Pilot();
-            Run(w, 3, 1.0 / 30);
-            return cruiser.Abilities.Exists(a => a.Id == AbilityId.Barrage && a.Cooldown > 0) ? 1 : null;
-        }
-        Assert.Null(Used(Difficulty.Hard));
-        Assert.NotNull(Used(Difficulty.Normal));
-    }
-
-    [Fact]
-    public void Hard_drops_its_orbital_strike_where_it_harms_most_where_Normal_counts_heads()
-    {
-        Aim? Blow(Difficulty level)
-        {
-            var w = Game(13, level, race: Faction.Klaed);
-            w.Factions[Bot].AI!.WaveValue = 1e9;
-            var st = StationOf(w, Bot)!;
-            var x = st.X - 2000;
-            var hero = SpawnHero(w, Bot, new HeroId(Faction.Klaed, HeroRole.Admiral), x, 2000);
-            hero.Stance = Stance.Passive;
-            // A few light ships on one side, one dreadnought on the other.
-            Parked(w, Player, ShipClass.Support, 3, x + 400, 1300);
-            var big = SpawnShip(w, Player, ShipClass.Dreadnought, x + 400, 2700);
-            big.Stance = Stance.Passive;
-            w.Strikes.Clear();
-            for (var i = 0; i < 120 && w.Strikes.Count == 0; i++) StepWorld(w);
-            return w.Strikes.Count == 0 ? null : new Aim(w.Strikes[0].X, w.Strikes[0].Y);
-        }
-        var hard = Blow(Difficulty.Hard);
-        Assert.NotNull(hard);
-        Expect.Greater(hard!.Value.Y, 2300);
-        var normal = Blow(Difficulty.Normal);
-        Assert.NotNull(normal);
-        Expect.Less(normal!.Value.Y, 1700);
     }
 
     [Fact]

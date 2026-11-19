@@ -339,9 +339,9 @@ public enum Difficulty { Easy, Normal, Hard }
 /// the odds it takes a chance to use an ability; `Research`, how much more readily than its
 /// personality's odds it starts a research; `HomeOnly`, it defends only around its station;
 /// `Adapts`, its fleet answers what it saw of the enemy; `WeighsOdds`, it weighs its strength
-/// against what it saw before sending a wave or digging in; `Sharp`, focus fire, raids, a losing
-/// wave called back, parts of big ships aimed at, abilities chosen with care (Ai.cs, Combat.cs,
-/// AbilitySystem.cs).
+/// against what it saw before sending a wave or digging in; `Sharp`, raids, a losing wave called
+/// back, parts of big ships aimed at, a fleet that answers what most of the foe's is (Ai.cs,
+/// Combat.cs).
 /// </summary>
 public sealed record DifficultyDef(
     string Name, string Description, double Income, double Think, double BattleIncome,
@@ -379,8 +379,6 @@ public sealed class AIState(Difficulty difficulty, Personality personality = Per
     public readonly Dictionary<GoalKind, double> GaveUp = [];
     /// <summary>When it first saw the threat it has not answered yet (-1: none).</summary>
     public double ThreatSeen = -1;
-    /// <summary>Hard: the ship its whole fleet shoots first, for as long as it stands.</summary>
-    public int? FocusId;
     /// <summary>Hard: no new wave before this time (one was just called back), no new raid, no new look around.</summary>
     public double NextWave, NextRaid, NextScout;
     /// <summary>Its siege guns holding a spot out of reach of a foe's defenses, shelling them (Ai.Siege).</summary>
