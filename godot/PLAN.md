@@ -1012,9 +1012,50 @@ tests de `FixtureTests` et `CrossTests` les listent.
   - Transporteur : il fermait jusqu'à la portée de sa DCA (310), comme chaque classe le fait de l'essentiel de ses
     canons, et prenait les coups au milieu de ses appareils. Il se tient maintenant à 550 de ce qu'il combat, ordre
     d'attaque du joueur compris, et ses appareils y vont seuls (`Movement.CarrierStandoff`) : 63 gagnées, 24 perdues,
-    9 nuls (Kla'ed 20-9, Nairan 24-7, Nautolan 19-8). Au banc, avec deux transporteurs par flotte : 36 contre 12
-    vague contre vague, 18 contre 6 à l'attaque (2 contre 22 entre deux flottes sans), 23 contre 1 en défense.
-    Tests : `TierTests`.
+    9 nuls (Kla'ed 20-9, Nairan 24-7, Nautolan 19-8). Au banc, avec deux transporteurs par flotte : 36 contre 12 vague
+    contre vague, 18 contre 6 à l'attaque (2 contre 22 entre deux flottes sans), 23 contre 1 en défense. Escarmouches
+    entre IA (72, avec Colosse, avant → après) : Kla'ed 40 → 42 %, Nairan 48 → 52 %, Nautolan 46 → 50 %, nuls 8 → 3,
+    médiane 44 → 38 min. Zones et assaut inchangés (24 parties chacun ; défense 15, attaque 9) ; survie à peine (vague
+    moyenne 15,7 → 15,8). Régicide, 108 duels : Kla'ed 49 → 50 %, Nairan 47 → 38 %, Nautolan 54 → 63 %, médiane
+    38 → 37 min, aucun nul ; 29 duels changent de vainqueur, dans les deux sens (le régicide bascule au moindre
+    changement) : à surveiller, non corrigé. Niveaux à revenu égal (24 parties par appariement) : Difficile bat
+    Normale 75 → 79 %, Normale bat Facile 58 → 79 % (nuls 5 → 1), Difficile bat Facile 92 → 96 %. Bataille de mesure :
+    9,32 → 9,48 Kio par pas (21 entités de plus, des appareils qui survivent avec leur porteur), temps comparables sur
+    une machine chargée ; le retrait ne coûte qu'une comparaison. Tests : `TierTests`.
+  - Ciblage, essais écartés (face à face, gagnées-perdues-nuls) : les soutiens à portée visés d'abord (×1,5),
+    42-42-12 ; au banc, 29 contre 19 vague contre vague. Les appareils lancés sur leur propre cible quand leurs armes
+    égratignent à peine celle de leur porteur (chasseurs contre un gros vaisseau, bombardiers contre de petits
+    appareils), comme la DCA d'une tourelle le fait déjà : 50-39-7, puis 42-46-8 sur 96 autres graines, transporteur
+    en retrait des deux côtés ; au banc pourtant 33 contre 15, et 44 contre 4 avec deux transporteurs par flotte. Un
+    canon de coque dans le même cas sur l'ennemi le plus proche qui lui convient : 47-43-6. Ce qui tire sur un soutien
+    ou une artillerie alliés visé d'abord (×1,3) : neutre au banc (23 contre 25), non joué. Comme le tir concentré du
+    19 (45-44, et 30-54 sur le vaisseau aux plus forts dégâts par point de vie), ces priorités gagnent des batailles
+    de flottes au banc sans gagner de parties. Le score de `Combat` concentre déjà le feu là où il compte : l'arme
+    selon la taille de la cible, ×1,6 pour la presque morte, ×0,15 pour celle que les tirs en vol abattront déjà,
+    +30 % par voisin sur la même cible (trois au plus), ×1,25 pour qui le vise. Une priorité de plus fait surtout
+    tirer en trop sur une cible fragile (un soutien a 300 points) ou déjà condamnée.
+  - Mouvement, essais écartés : la flotte engage au pas du plus lent au lieu de fermer chacun à sa vitesse ; au banc,
+    l'attaque tombe de 9 contre 15 à 5 contre 19 (plus de temps sous le feu de qui attend), vague contre vague 24
+    contre 24 ; non joué. Le soutien derrière son protégé, du côté opposé à l'ennemi, au lieu de le rejoindre au
+    front : 44-49-3 ; au banc 30 contre 18 vague contre vague mais 5 contre 19 à l'attaque, 23 contre 25 avec trois
+    soutiens par flotte. Le brouilleur tenu à 550 comme le transporteur : 18 contre 30 au banc vague contre vague (son
+    canon ionique compte). Le repli de groupe d'une vague qui perd est déjà celui du Difficile (`Ai.CallBackLosing`,
+    la stratégie) ; pour les vaisseaux du joueur, il défierait ses ordres : pas d'essai.
+  - Capacités, essais écartés : la Provocation du Rempart quand au moins deux ennemis à portée tirent sur un autre
+    allié que lui, et s'il garde 40 % de sa coque et de ses boucliers (au lieu de trois ennemis quels qu'ils soient) :
+    45-46-5 ; au banc, deux Remparts par flotte, 32 contre 16 vague contre vague. Les catapultes du transporteur
+    seulement quand ses hangars ont de la place (pleins, elles ne lancent rien et se rechargent 40 s) : 48-43-5 ; au
+    banc 38 contre 10. Le brouillage où les ennemis valent le plus (au lieu d'où ils sont le plus nombreux) : neutre
+    au banc (27 contre 21, 5 contre 19 à l'attaque, 19 contre 5 en défense, comme sans). Le camouflage du croiseur
+    furtif seulement à portée de tir, pour que ses 8 s de dégâts doublés portent : au banc, trois croiseurs par
+    flotte, 18 contre 30 vague contre vague, 11 contre 13 à l'attaque (3 contre 21 sans), 17 contre 7 en défense (21
+    contre 3 sans) ; le croiseur voilé qui ne se découvre pas pour de petits appareils : 24 contre 24. Bordée, salve
+    et tir de barrage quand l'essentiel des armes porte, et non la plus longue : 24 contre 24. Le rayon spinal du
+    Titan jamais sur un petit appareil (qui l'esquive, et ne vaut pas 900 dégâts) : au banc, un Titan par flotte, 28
+    contre 20, 10 contre 14 à l'attaque (7 contre 17 sans), 20 contre 4 en défense (17 contre 7 sans) ; en face à
+    face, les 96 parties restent identiques (45-45-6) : leurs Titans n'y tirent jamais sur un petit appareil. Les
+    capacités du Léviathan (dôme, frappe orbitale, impulsion, catapultes) n'ont pas été reprises : un au plus, en
+    station 4, et le choix du point de frappe était déjà sans gain le 19.
 - Sécurité (2026-11-03) : ce qu'un inconnu peut envoyer au serveur en ligne, à un hôte ou au jeu, et les fichiers du joueur.
   Chaque lecteur exposé passe un test de robustesse à graine fixe (`FuzzTests` : trames du relais, messages du jeu, ordres,
   instantanés de bataille entiers et en parties, galaxie, rediffusions, sauvegardes), et chaque correction a son test
