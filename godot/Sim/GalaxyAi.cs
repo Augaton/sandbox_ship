@@ -4,6 +4,7 @@
 // derelicts, and brings worn fleets home from beyond its supply lines. Its difficulty changes
 // what it decides as well as its income: the easy AI strikes before it is ready and leaves its
 // planets to themselves, the hard one picks its moment and its targets.
+using System.Text.Json.Serialization;
 using SandboxShip.Sim.Data;
 using static SandboxShip.Sim.Galaxies;
 
@@ -19,6 +20,9 @@ public sealed partial class GalaxyAIState
     public double Fund;
     /// <summary>Galaxy seconds before the AI strikes a rival faction's planet again: its fleets regroup and mend between two offensives.</summary>
     public double Regroup;
+    /// <summary>Measure only, for now: the strategy behaviours this AI leaves out (GalaxyAi.Lacks), to play it against the AI without them.</summary>
+    [JsonIgnore]
+    public int Without;
 }
 
 public static partial class GalaxyAi
@@ -352,11 +356,31 @@ public static partial class GalaxyAi
                 if (wish.Build?.Kind == GalaxyBuildKind.Ship) ai.Want = null;
                 return;
             }
-            if (r.Reason == NoCredits) return;
+            // What two minutes of income would not pay is passed over rather than saved for, but by the easy AI: on its
+            // turns of ships the AI spent what it had put aside, and a station level it never reached kept it from a lab,
+            // research and platforms for the whole campaign.
+            if (r.Reason == NoCredits && (Clumsy(ai) || Lacks(ai, Strategy.Saving) || PriceOf(g, side, wish) <= IncomeOf(g, side) * SaveHorizon)) return;
+            // A ship out of reach makes way for another class; one it may no longer build (its limit reached meanwhile) too.
+            if (r.Reason == NoCredits)
+            {
+                if (wish.Build?.Kind == GalaxyBuildKind.Ship) ai.Want = null;
+                continue;
+            }
             // A ship it may no longer build (its limit reached meanwhile): want another one.
             if (wish.Build?.Kind == GalaxyBuildKind.Ship) ai.Want = null;
         }
     }
+
+    /// <summary>Measure only, for now: the strategy behaviours GalaxyAIState.Without can leave out.</summary>
+    public static class Strategy
+    {
+        public const int Saving = 64;
+    }
+
+    static bool Lacks(GalaxyAIState ai, int what) => (ai.Without & what) != 0;
+
+    /// <summary>Galaxy seconds of income beyond which the AI passes over a purchase rather than save for it.</summary>
+    const double SaveHorizon = 120;
 
     static bool Heading(Galaxy g, Side side, int planetId) =>
         g.Fleets.Values.Any(f => f.Side == side && (f.To == planetId || f.Path.Contains(planetId)));

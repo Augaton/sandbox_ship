@@ -470,4 +470,20 @@ public class GalaxyAiTests
         RunGalaxy(g, 1);
         Assert.Equal(Id("Ostra"), worn.Path.Count > 0 ? worn.Path[^1] : worn.To);
     }
+
+    [Fact]
+    public void A_station_level_far_beyond_its_income_does_not_keep_the_AI_from_a_lab()
+    {
+        // Its capital wants level 4 (18 000 credits, past two minutes of its income); a lab costs 800.
+        var g = Versus("Calyx", "Tarsis");
+        var ai = g.Factions[Faction.Nairan].AI!;
+        ai.Personality = Personality.Economic;
+        g.Planets[Id("Ostra")].Station = 3;
+        foreach (var p in g.Planets.Where(p => p.Owner == Faction.Nairan)) p.Mines = p.MineSlots;
+        // Enough for two stations, which come before it, and the lab.
+        g.Factions[Faction.Nairan].Credits = 5000;
+        Expect.Greater(18000, IncomeOf(g, Faction.Nairan) * 120);
+        RunGalaxy(g, 6);
+        Assert.Contains(g.Planets, p => p.Owner == Faction.Nairan && (p.Lab > 0 || p.Buildings.Exists(q => q.Kind == GalaxyBuildKind.Lab)));
+    }
 }

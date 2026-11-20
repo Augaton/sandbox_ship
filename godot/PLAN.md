@@ -1120,6 +1120,24 @@ tests de `FixtureTests` et `CrossTests` les listent.
     sur lui et rentrent si une flotte les trouve : 42, 42, 6 (2 à 3 croiseurs par partie). Titan et Léviathan, presque
     jamais construits entre IA, n'ont pas de rôle mesurable ; un Titan prêt vaut à lui seul une vague, et la
     formation le met déjà en tête ; le transporteur se tient en retrait depuis l'entrée précédente.
+- IA de campagne stratège (2026-11-20, à la demande de l'utilisateur) : la carte galactique seulement (où vont les flottes,
+  quoi défendre, quoi construire où), chaque comportement mesuré en face à face, IA avec contre IA sans, à revenu égal
+  (`StrategyBalanceTests`, `STRATEGY=1`, en Release ; `NEW` et `OLD` : ce que chaque camp laisse de côté,
+  `GalaxyAIState.Without`, interrupteur de mesure seulement). Campagnes aux règles d'une partie neuve (indépendants,
+  capitales fortifiées, paix de départ de 10 min, plafond Normal), même race, même personnalité, niveau Normal des deux
+  côtés, chacun à chaque place ; quatre graines qui tirent chacune une personnalité (Kla'ed agressive, Nairan défensive,
+  Nautolan économe, Nairan technologique), en galaxie moyenne, grande et immense : 24 parties par série. La plupart des
+  cartes donnent la victoire à une place quelle que soit l'IA (entre deux IA d'avant, la même partie de chaque place) :
+  seules les cartes gagnées des deux places départagent vraiment, et la série les compte.
+  - Épargne (gardée) : dans une galaxie moyenne (graine 1, technologique des deux côtés), l'IA d'avant n'avait ni
+    laboratoire ni recherche après 40 min, deux stations sur neuf planètes, et 10 000 à 12 000 crédits qui dormaient. Elle
+    épargnait pour le niveau 4 de sa capitale (18 000) pendant ses tours d'infrastructure, dépensait ce qu'elle avait mis
+    de côté pendant ses tours de vaisseaux, et ne l'atteignait jamais ; ce vœu bloquait tout ce qui venait après lui
+    (laboratoire, recherche, stations, plateformes). Un achat que deux minutes de revenu ne paient pas est maintenant passé
+    au lieu d'être attendu (`SaveHorizon`), sauf par la Facile, inchangée ; un vaisseau hors de portée laisse la place à une
+    autre classe. Même partie : laboratoire dès 5 min, recherche continue, trois à sept stations, fin en 44 min au lieu de
+    76. Face à face : 17 gagnées, 7 perdues (moyenne 6-2, grande 5-3, immense 6-2), cinq cartes gagnées des deux places
+    contre aucune ; agressive 4 sur 6, défensive 4, économe 5, technologique 4.
 - Sécurité (2026-11-03) : ce qu'un inconnu peut envoyer au serveur en ligne, à un hôte ou au jeu, et les fichiers du joueur.
   Chaque lecteur exposé passe un test de robustesse à graine fixe (`FuzzTests` : trames du relais, messages du jeu, ordres,
   instantanés de bataille entiers et en parties, galaxie, rediffusions, sauvegardes), et chaque correction a son test
