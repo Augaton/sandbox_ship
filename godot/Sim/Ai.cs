@@ -786,8 +786,8 @@ public static class Ai
         return true;
     }
 
-    /// <summary>Whether a station's guns, a platform or a fleet it has seen watch over this structure.</summary>
-    static bool Guarded(World world, FactionState f, Entity t)
+    /// <summary>Whether a station's guns, a platform or, with `fleets`, a fleet it has seen watch over this structure.</summary>
+    static bool Guarded(World world, FactionState f, Entity t, bool fleets = true)
     {
         foreach (var e in world.Entities)
         {
@@ -795,7 +795,7 @@ public static class Ai
             var reach = e.Type == "station" ? GunReach : e.Kind == EntityKind.Structure && e.Weapons.Count > 0 ? e.Range + 100 : 0;
             if (reach > 0 && Dist(e, t) < reach && (Vision.IsVisible(world, f.Id, e) || Vision.WasSeen(world, f.Id, e))) return true;
         }
-        return FoesAround(world, f, t, 600) > RaidValue * 0.7;
+        return fleets && FoesAround(world, f, t, 600) > RaidValue * 0.7;
     }
 
     /// <summary>Hard: a light ship off to a field, every so often: mines are where raids find them.</summary>
@@ -839,7 +839,7 @@ public static class Ai
             var home = ships.Where(e => e.Order?.Type != OrderType.AttackMove && !Modes.Kept(world, e) && !ai.Besiegers.Contains(e.Id)).ToList();
             var out_ = home.Count < ships.Count;
             var needed = ai.WaveValue * (out_ || army > intel.Army * 1.5 ? ReinforceShare : AllInShare);
-            if (home.Count > 0 && home.Sum(ShipValue) >= needed) Send(world, home, enemy, Stance.Aggressive);
+            if (home.Count > 0 && home.Sum(ShipValue) >= needed) Strike(world, f, station, home, enemy);
             return outmatched;
         }
         // A threat it can face, once it has reacted: far from home, not an army that would eat what it has at home.
@@ -859,13 +859,25 @@ public static class Ai
             var strays = idle.Where(e => e.Stance == Stance.Defensive && e.TargetId is null && Dist(e, station) > Station.ConstructionRadius * 2).Select(e => e.Id).ToList();
             if (strays.Count > 0) Movement.IssueMove(world, strays, f.RallyX, f.RallyY);
         }
+        // A wave done with its soft target goes on to the next, or to the station if it is a wave
+        // (a raid's handful waits for the next wave).
+        if (enemy is not null && ChoosesTargets(world, f, enemy))
+        {
+            var loose = ready.Where(e => e.Order is null && e.Stance == Stance.Aggressive && Dist(e, station) > Station.ConstructionRadius * 2).ToList();
+            if (loose.Count > 0 && (SoftTarget(world, f, station, enemy) is not null || loose.Sum(ShipValue) >= EdgeWave(world, f)))
+            {
+                Strike(world, f, station, loose, enemy);
+                ready.RemoveAll(loose.Contains);
+                idle.RemoveAll(loose.Contains);
+            }
+        }
         // An assault just beaten off: a defensive AI strikes back while the attacker is thin,
         // if what it holds outweighs what it saw of the enemy.
         var value = ready.Sum(ShipValue);
         if (enemy is not null && def.Counter > 0 && ai.LastThreat >= 0 && world.Time - ai.LastThreat < def.Counter
             && ready.Count > 0 && army > intel.Army * 1.1 && value >= EdgeWave(world, f))
         {
-            Send(world, ready, enemy, Stance.Aggressive);
+            Strike(world, f, station, ready, enemy);
             ai.LastThreat = -1;
             return outmatched;
         }
@@ -876,7 +888,7 @@ public static class Ai
         var stronger = level.WeighsOdds && intel.Army > 0 && army > intel.Army * (1.4 - 0.3 * pressure) && value >= EdgeWave(world, f);
         if (enemy is not null && !outmatched && world.Time >= ai.NextWave && (value >= ai.WaveValue * (1 - 0.4 * pressure) || stronger))
         {
-            Send(world, ready, enemy, Stance.Aggressive);
+            Strike(world, f, station, ready, enemy);
             ai.WaveValue = Math.Min(ai.WaveValue * def.WaveGrowth, MaxWave);
             return outmatched;
         }
@@ -900,6 +912,42 @@ public static class Ai
     {
         foreach (var e in ships) e.Stance = stance;
         Movement.IssueMove(world, ships.Select(e => e.Id), at.X, at.Y, true);
+    }
+
+    /// <summary>A wave off to a foe's station: by the soft targets on its way first (SoftTarget).</summary>
+    static void Strike(World world, FactionState f, Entity home, List<Entity> ships, Entity at) =>
+        Send(world, ships, ChoosesTargets(world, f, at) && SoftTarget(world, f, home, at) is { } soft ? soft : at, Stance.Aggressive);
+
+    /// <summary>
+    /// Whether its waves against this foe's station take the soft targets on the way: a Nairan AI
+    /// that weighs the odds, in the standard rules. The Nairan's shields come back between the
+    /// fight for the soft target and the next, which the others' do not: against the AI that went
+    /// straight for the station, Nairan 73 games won, 40 lost, 7 drawn of 120; Kla'ed 23 won, 36
+    /// lost of 60, Nautolan 28 and 30. Not in an assault, whose attackers have the clock against
+    /// them; zones are decided on points before it matters; the regicide, which tips at the least
+    /// change, moved by 5 to 7 points with every race taking them (2026-11-20).
+    /// </summary>
+    static bool ChoosesTargets(World world, FactionState f, Entity at) =>
+        f.Race == Faction.Nairan && Difficulties[f.AI!.Difficulty].WeighsOdds && world.Mode.Kind == BattleMode.Standard && at.Type == "station";
+
+    /// <summary>
+    /// The foe's mine, outpost, dock or lab it knows of that no gun of the foe's watches, nearer
+    /// its own station than the foe's station is: a wave takes it on the way, and the foe's fleet
+    /// must come out to save it, away from its guns, or lose the income.
+    /// </summary>
+    static Entity? SoftTarget(World world, FactionState f, Entity home, Entity station)
+    {
+        var boss = RaidBoss(world);
+        var reach = Dist(home, station);
+        Entity? best = null;
+        foreach (var t in world.Entities)
+        {
+            if (t.Kind != EntityKind.Structure || t.Side != station.Side || t.Type is not ("mine" or "outpost" or "repairDock" or "lab") || Haunted(boss, t)) continue;
+            if (Dist(t, home) >= reach || (best is not null && Dist(t, home) >= Dist(best, home))) continue;
+            if (!Vision.IsVisible(world, f.Id, t) && !Vision.WasSeen(world, f.Id, t)) continue;
+            if (!Guarded(world, f, t, false)) best = t;
+        }
+        return best;
     }
 
     /// <summary>How near a foe's station its siege guns set up, how near it the defenses they shell stand, and how far into their reach they stop.</summary>

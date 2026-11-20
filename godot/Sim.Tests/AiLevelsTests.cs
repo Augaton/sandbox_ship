@@ -256,6 +256,55 @@ public class AiLevelsTests
         Expect.Greater(nearest, platforms[0].Range);
     }
 
+    /// <summary>A mine of the player's in the open, halfway between the stations, that the bot has seen; and a wave of the bot's at its rally point, worth a wave.</summary>
+    static (World W, Entity Mine, List<Entity> Wave) WaveAndAMineInTheOpen(Difficulty level, Faction race = Faction.Nairan)
+    {
+        var w = Game(7, level, race: race);
+        var st = StationOf(w, Bot)!;
+        var enemy = StationOf(w, Player)!;
+        var mid = new Point((st.X + enemy.X) / 2, (st.Y + enemy.Y) / 2);
+        var field = w.Fields.Where(fl => fl.MineId is null).OrderBy(fl => Dist(fl, mid)).First();
+        var mine = SpawnStructure(w, Player, BuildableType.Mine, field.X, field.Y);
+        field.MineId = mine.Id;
+        mine.FieldId = field.Id;
+        if (!w.Seen.TryGetValue(Bot, out var seen)) w.Seen[Bot] = seen = [];
+        seen.Add(mine.Id);
+        var f = w.Factions[Bot];
+        f.AI!.WaveValue = 1500;
+        var wave = Enumerable.Range(0, 4).Select(i => SpawnShip(w, Bot, ShipClass.Frigate, f.RallyX + i % 2 * 70, f.RallyY + i / 2 * 70)).ToList();
+        return (w, mine, wave);
+    }
+
+    [Fact]
+    public void A_Nairan_wave_takes_a_mine_no_gun_watches_on_its_way_then_goes_on_to_the_station()
+    {
+        var (w, mine, wave) = WaveAndAMineInTheOpen(Difficulty.Normal);
+        var enemy = StationOf(w, Player)!;
+        Expect.Less(Dist(mine, StationOf(w, Bot)!), Dist(StationOf(w, Bot)!, enemy));
+        Run(w, 3, 1.0 / 30);
+        Assert.All(wave, e =>
+        {
+            Assert.Equal(OrderType.AttackMove, e.Order?.Type);
+            Expect.Less(Hypot(e.Order!.X - mine.X, e.Order.Y - mine.Y), 300);
+        });
+        // Down before they get there: once they have nothing left to do there, on to the station.
+        mine.Hull = 0;
+        for (var t = 0; t < 120 && !wave.TrueForAll(e => e.Order is { } o && Hypot(o.X - enemy.X, o.Y - enemy.Y) < 400); t++) Run(w, 1, 1.0 / 30);
+        Assert.All(wave, e => Expect.Less(Hypot(e.Order!.X - enemy.X, e.Order.Y - enemy.Y), 400));
+    }
+
+    [Theory]
+    [InlineData(Difficulty.Easy, Faction.Nairan)]
+    [InlineData(Difficulty.Normal, Faction.Klaed)]
+    [InlineData(Difficulty.Normal, Faction.Nautolan)]
+    public void Easy_and_the_other_races_go_straight_for_the_station_past_a_mine_in_the_open(Difficulty level, Faction race)
+    {
+        var (w, _, wave) = WaveAndAMineInTheOpen(level, race);
+        var enemy = StationOf(w, Player)!;
+        Run(w, 3, 1.0 / 30);
+        Assert.All(wave, e => Expect.Less(Hypot(e.Order!.X - enemy.X, e.Order.Y - enemy.Y), 400));
+    }
+
     // Easy.
 
     [Fact]

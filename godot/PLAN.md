@@ -1056,6 +1056,70 @@ tests de `FixtureTests` et `CrossTests` les listent.
     face, les 96 parties restent identiques (45-45-6) : leurs Titans n'y tirent jamais sur un petit appareil. Les
     capacités du Léviathan (dôme, frappe orbitale, impulsion, catapultes) n'ont pas été reprises : un au plus, en
     station 4, et le choix du point de frappe était déjà sans gain le 19.
+- IA de bataille, stratégie (2026-11-20) : vagues, composition et objectifs (`Ai.cs`), la tactique de chaque vaisseau
+  restant à l'entrée précédente. Chaque comportement est mesuré seul, en face à face : une IA avec contre la même sans,
+  de même difficulté (Normale), donc à revenu égal, chaque paire de races sur 5 graines, chaque départ tour à tour
+  (90 parties, escarmouche sans Colosse, en Release) ; un résultat prometteur est rejoué sur 5 autres graines, et ce
+  qui ne vaut que pour une race sur 10 autres encore. Le banc demande un interrupteur dans l'état de l'IA : il n'est
+  pas gardé. La plupart des essais ont été faits avant le transporteur en retrait ; ce qui est gardé a été remesuré
+  après. Référence après le transporteur en retrait : Kla'ed 42 %, Nairan 52 %, Nautolan 50 %, 3 nuls sur 72,
+  médiane 38 min (escarmouche avec Colosse, graines 1 à 12).
+  - Constat : entre IA, les armées restent entre 2 000 et 12 000 cr toute l'heure ; les vagues meurent sur les
+    défenses (une vague de 2 000 cr échoue contre deux plateformes et la station sans flotte), aucune coque de
+    station n'est touchée dans les parties nulles. Passé 25 min, l'IA qui a pris le niveau 3 garde 3 000 à 7 500 cr
+    que son seul chantier ne dépense pas assez vite (33 à 60 cr/s selon la classe, pour 48 à 55 de revenu). Titans
+    et Léviathans ne sont presque jamais construits entre IA : 0 et 0 sur 72 parties, 1 Titan après le transporteur.
+  - Cibles tendres, jeu des Nairan : une vague nairane envoyée sur la station ennemie (vague, renforts du
+    tout-pour-le-tout, contre-attaque) passe d'abord par la mine, l'avant-poste, le dock ou le laboratoire ennemi
+    qu'elle connaît, plus près de sa station que la station ennemie ne l'est, et qu'aucun canon ennemi ne garde
+    (station à 800, plateforme à sa portée + 100 ; une flotte vue n'y compte pas) : la flotte ennemie doit sortir le
+    défendre loin de ses canons, ou perdre le revenu. Chaque IA en a un ou deux (ses deux premières mines sont
+    derrière sa station, à 430). Une vague qui n'a plus rien à faire là va à la cible suivante, ou à la station si
+    elle vaut une vague ; une poignée attend la suivante. Normale et Difficile seulement, règles standard seulement.
+    Pour toutes les races, avant le transporteur en retrait : 95 gagnées, 63 perdues, 22 nuls sur 180 ; après : 89,
+    86 et 5, mais Nairan 38 contre 20, Kla'ed 23 contre 36, Nautolan 28 contre 30, dans les deux moitiés. Les
+    boucliers nairans reviennent entre le combat pour la cible et le suivant ; les coques kla'ed, sans régénération,
+    arrivent entamées à la station. Nairan seuls, graines 11 à 20 : 35, 20 et 5 (73, 40 et 7 sur 120). Escarmouche
+    avec Colosse (72 parties) : Kla'ed 38 %, Nairan 60 %, Nautolan 44 %, 4 nuls, médiane 36 min : l'écart des races
+    se creuse (10 points → 22), contre le souhait de relever les Kla'ed ; à trancher (le changement tient dans
+    `Ai.ChoosesTargets`). Niveaux à revenu égal (48 parties par appariement) : Difficile bat Normale 42 fois (88 %,
+    aucun nul), 42 aussi sans ; Normale bat Facile 40 fois (83 %, 4 nuls), 38 (79 %, 2 nuls) sans. Les 97 %
+    des systèmes revus ne tenaient plus avant ce chantier : 30 sur 48 (63 %) sur le code du 2026-11-19, avant le
+    transporteur en retrait. Pour toutes les races, le régicide
+    bougeait de 5 à 7 points (Kla'ed 46 %, Nairan 42 %, Nautolan 61 % sur 108 duels) : d'où les seules règles
+    standard ; zones (finies aux points vers 11 min), assaut, régicide et survie ne changent pas.
+    Personnalités (40 parties, même race des deux côtés) : équilibrée 19 %, agressive 19 %, défensive 19 %, économe
+    63 %, technologique 94 %, 6 nuls ; avant 13, 25, 19, 69 et 94 %, 5 nuls : l'écart des personnalités, bien plus
+    grand que le 2026-11-03 (de 25 à 75 %), est antérieur à ce chantier.
+    Tests : `AiLevelsTests` (cibles tendres des Nairan ; la Facile et les autres races vont droit à la station).
+  - Armées et assauts, essais écartés (gagnées, perdues, nuls sur 90, avant le transporteur en retrait sauf
+    mention) : le reste de la vague tient près de son artillerie, en défensive, jusqu'à la chute des défenses
+    qu'elle pilonne (2 min au plus) : 32, 44, 14 ; rassemblement à 1 800 de la station visée, hors de portée de ses
+    défenses, les renforts rejoignant le gros, toute la vague partant ensemble 30 s après les premiers arrivés : 42,
+    30, 18, puis 44, 42, 4 après ; armée ennemie comptée par les vaisseaux vus, moins ceux vus disparaître, au lieu
+    d'un souvenir qui s'efface : 44, 42, 4 ; contre-attaque après un assaut repoussé pour toutes les personnalités :
+    42, 42, 6 ; artillerie au compte (deux par défense connue, douze au plus, au lieu d'un poids sur chaque commande :
+    elle fait un quart des commandes et 35 à 40 % des dépenses) : 42, 40, 8 ; coques selon le débit du chantier dès
+    3 000 cr libres (crédits par seconde de construction) : 48, 32, 10 puis 41, 42, 7, et pour les seuls Nairan, qui
+    y gagnaient, 28, 21, 11 sur 60 autres parties. Après le transporteur en retrait : rien d'épargné pour un niveau
+    de station dans les 8 min avant le tout-pour-le-tout (il viendrait trop tard pour payer ; une partie perdue par
+    les Kla'ed, qui gardaient 10 000 cr pour le niveau 3 à 24 min, quand la flotte nairane triplait la leur) : 48, 37,
+    5, puis 46, 42, 2 et 49, 39, 2 (143, 118 et 9 sur 270, chaque race un peu devant) : constant mais petit. Pas
+    mesurés : vague plafonnée selon le revenu, rien d'épargné pour un gros achat passé le tout-pour-le-tout (le
+    chantier, pas l'épargne, retient les crédits), l'IA qui répond à l'artillerie qui pilonne ses défenses hors de
+    son rayon de garde.
+  - Jeu des races, essais écartés : composition selon le trait (Kla'ed deux fois plus de soutiens et moitié moins
+    de Remparts ; Nairan moitié moins de chasseurs et bombardiers, coques les plus blindées × 1,3 ; Nautolan grosses
+    coques × 1,3, moitié moins de soutiens) : 44, 40, 6 (Kla'ed 14-12, Nairan 12-17, Nautolan 18-11) ; recherche de
+    la force de la race un niveau devant (armes, boucliers, coque) et une plateforme de plus par niveau pour les
+    Nairan : 40, 42, 8 ; vagues kla'ed aux quatre cinquièmes de la valeur attendue : 22, 29, 9 sur 60. Les Kla'ed
+    perdent plus de vaisseaux chez eux que les autres (687 000 cr sur 48 parties, Nairan 548 000, Nautolan 655 000) :
+    leur faiblesse est en défense, et aller droit à la station reste leur meilleur jeu.
+  - Classes spéciales, essais écartés : les croiseurs furtifs au repos partent, en passive (vus de près
+    seulement), sur la mine, l'avant-poste, le dock ou le laboratoire ennemi non gardé le plus proche, ne tirent que
+    sur lui et rentrent si une flotte les trouve : 42, 42, 6 (2 à 3 croiseurs par partie). Titan et Léviathan, presque
+    jamais construits entre IA, n'ont pas de rôle mesurable ; un Titan prêt vaut à lui seul une vague, et la
+    formation le met déjà en tête ; le transporteur se tient en retrait depuis l'entrée précédente.
 - Sécurité (2026-11-03) : ce qu'un inconnu peut envoyer au serveur en ligne, à un hôte ou au jeu, et les fichiers du joueur.
   Chaque lecteur exposé passe un test de robustesse à graine fixe (`FuzzTests` : trames du relais, messages du jeu, ordres,
   instantanés de bataille entiers et en parties, galaxie, rediffusions, sauvegardes), et chaque correction a son test
