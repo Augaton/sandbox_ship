@@ -486,4 +486,29 @@ public class GalaxyAiTests
         RunGalaxy(g, 6);
         Assert.Contains(g.Planets, p => p.Owner == Faction.Nairan && (p.Lab > 0 || p.Buildings.Exists(q => q.Kind == GalaxyBuildKind.Lab)));
     }
+
+    [Fact]
+    public void A_fleet_far_past_the_fleet_cap_strikes_several_planets_at_once()
+    {
+        foreach (var many in new[] { true, false })
+        {
+            // Kaldra, Thessa and Nadir, next to Calyx, are Kla'ed, each with a station.
+            var g = Versus("Calyx", "Brume", "Tarsis", "Yvra", "Pélion");
+            foreach (var name in new[] { "Kaldra", "Thessa", "Nadir" })
+            {
+                g.Planets[Id(name)].Owner = Faction.Klaed;
+                g.Planets[Id(name)].Station = 1;
+            }
+            // 800 fleet points, the cap 300: one strike would leave most of them waiting in its reserve. With 240
+            // points, the fleet strikes whole, as before.
+            var n = many ? 200 : 60;
+            AddShipsAt(g, Faction.Nairan, Id("Calyx"), new ShipCounts { [ShipClass.Battlecruiser] = n });
+            RunGalaxy(g, 1);
+            var going = g.Fleets.Values.Where(f => f.Side == Faction.Nairan && f.At is null && f.Ships.Of(ShipClass.Battlecruiser) > 0).ToList();
+            // Half again the cap goes to the first, what is left to the next.
+            Assert.Equal(many ? 2 : 1, going.Select(f => f.To).Distinct().Count());
+            Assert.All(going, f => Expect.Greater(f.Ships.Of(ShipClass.Battlecruiser), many ? 50 : n - 1));
+            Assert.Equal(n, g.Fleets.Values.Where(f => f.Side == Faction.Nairan).Sum(f => f.Ships.Of(ShipClass.Battlecruiser)));
+        }
+    }
 }

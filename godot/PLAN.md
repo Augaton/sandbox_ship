@@ -1121,14 +1121,15 @@ tests de `FixtureTests` et `CrossTests` les listent.
     jamais construits entre IA, n'ont pas de rôle mesurable ; un Titan prêt vaut à lui seul une vague, et la
     formation le met déjà en tête ; le transporteur se tient en retrait depuis l'entrée précédente.
 - IA de campagne stratège (2026-11-20, à la demande de l'utilisateur) : la carte galactique seulement (où vont les flottes,
-  quoi défendre, quoi construire où), chaque comportement mesuré en face à face, IA avec contre IA sans, à revenu égal
-  (`StrategyBalanceTests`, `STRATEGY=1`, en Release ; `NEW` et `OLD` : ce que chaque camp laisse de côté,
-  `GalaxyAIState.Without`, interrupteur de mesure seulement). Campagnes aux règles d'une partie neuve (indépendants,
-  capitales fortifiées, paix de départ de 10 min, plafond Normal), même race, même personnalité, niveau Normal des deux
-  côtés, chacun à chaque place ; quatre graines qui tirent chacune une personnalité (Kla'ed agressive, Nairan défensive,
-  Nautolan économe, Nairan technologique), en galaxie moyenne, grande et immense : 24 parties par série. La plupart des
-  cartes donnent la victoire à une place quelle que soit l'IA (entre deux IA d'avant, la même partie de chaque place) :
-  seules les cartes gagnées des deux places départagent vraiment, et la série les compte.
+  quoi défendre, quoi construire où), chaque comportement mesuré en face à face, IA avec contre IA sans, à revenu égal, en
+  Release. Banc `StrategyBalanceTests` (`STRATEGY=1` ; `NEW` et `OLD` : ce que chaque camp laisse de côté, par un
+  interrupteur de mesure `GalaxyAIState.Without`) : il est dans l'historique, au commit « IA de campagne : un achat hors de
+  portée de deux minutes de revenu ne bloque plus les suivants », et sorti du dépôt avec l'interrupteur une fois mesuré.
+  Campagnes aux règles d'une partie neuve (indépendants, capitales fortifiées, paix de départ de 10 min, plafond Normal),
+  même race, même personnalité, niveau Normal des deux côtés, chacun à chaque place ; quatre graines qui tirent chacune une
+  personnalité (Kla'ed agressive, Nairan défensive, Nautolan économe, Nairan technologique), en galaxie moyenne, grande et
+  immense : 24 parties par série. La plupart des cartes donnent la victoire à une place quelle que soit l'IA (entre deux IA
+  d'avant, la même partie de chaque place) : seules les cartes gagnées des deux places départagent vraiment.
   - Épargne (gardée) : dans une galaxie moyenne (graine 1, technologique des deux côtés), l'IA d'avant n'avait ni
     laboratoire ni recherche après 40 min, deux stations sur neuf planètes, et 10 000 à 12 000 crédits qui dormaient. Elle
     épargnait pour le niveau 4 de sa capitale (18 000) pendant ses tours d'infrastructure, dépensait ce qu'elle avait mis
@@ -1137,7 +1138,54 @@ tests de `FixtureTests` et `CrossTests` les listent.
     au lieu d'être attendu (`SaveHorizon`), sauf par la Facile, inchangée ; un vaisseau hors de portée laisse la place à une
     autre classe. Même partie : laboratoire dès 5 min, recherche continue, trois à sept stations, fin en 44 min au lieu de
     76. Face à face : 17 gagnées, 7 perdues (moyenne 6-2, grande 5-3, immense 6-2), cinq cartes gagnées des deux places
-    contre aucune ; agressive 4 sur 6, défensive 4, économe 5, technologique 4.
+    contre aucune ; agressive 4 sur 6, défensive 4, économe 5, technologique 4. Variante plus étroite, la montée de la
+    capitale seulement placée après la station de rassemblement, le laboratoire et la recherche : 16 gagnées, 6 perdues,
+    2 nuls (cartes 4 à 0), le même allongement en immense ; la règle générale reste.
+  - Découpage (gardé, pour la durée) : en grande galaxie (graine 31), le gagnant promenait après 30 min une seule pile de
+    1 300 points, quatre fois le plafond, qui prenait une planète à la fois pendant que de petites flottes reprenaient
+    derrière elle les planètes à station restées vides : 55 min pour conclure une partie jouée. Une flotte bien au-delà du
+    plafond se partage maintenant (sauf chez la Facile) : chaque frappe prend une fois et demie ce qui tient sous le plafond,
+    ou ce que sa cible demande (`SplitShare`, `CapShare`), et le reste frappe la cible voisine suivante, ou reste ; sous le
+    plafond, rien ne change. Seul contre l'IA d'avant : 11 gagnées, 12 perdues, un nul. Il sert avec l'épargne, qui allonge
+    les campagnes immenses : deux IA mieux développées s'y tenaient tête des heures (une pile de 745 000 contre 162 000,
+    31 planètes contre 24, sans conclure en 180 min) ; avec le découpage, un nul au lieu de trois sur les quatre cartes.
+  - Durées (une partie par carte, les deux camps pareils) : IA d'avant, moyenne 23 à 76 min (médiane 38), grande 45 à 79
+    (57), immense 51 à 57 et un nul à 180 min (graine 5) ; épargne seule, moyenne 15 à 60 (44), grande 24 à 92 (59),
+    immense 108 et trois nuls ; épargne et découpage en immense, 83 à 124 min et un nul (graine 10).
+    Après le rebasage sur l'IA de bataille du jour (transporteur en retrait, vagues nairanes) : IA d'avant, moyenne 18 à
+    78 min (médiane 28), grande 42 à 88 (72), immense 52 à 178 (65), aucun nul ; IA d'aujourd'hui (épargne et découpage),
+    moyenne 15 à 62 (47), grande 32 à 83 (55), immense 68 à 137 (97) et un nul à 180 min (graine 10).
+  - Contrôle après le rebasage, épargne et découpage contre l'IA d'avant : 16 gagnées, 8 perdues, aucun nul (moyenne 5-3,
+    grande 5-3, immense 6-2), quatre cartes gagnées des deux places contre aucune ; agressive 3 sur 6, défensive 4,
+    économe 5, technologique 4.
+  - Personnalités en campagne (`PERSONALITIES=1`, petite galaxie sans les règles d'une partie neuve, épargne seule) :
+    équilibrée 63 → 56 %, agressive 56 → 44, défensive 38 → 31, économe 31 → 44, technologique 63 → 63 ; le même écart de
+    32 points ; médiane 42 → 34 min, mais deux nuls à 60 min (agressive contre économe, graine 10) au lieu d'aucun. Races
+    (`CAMPAIGN=1`, 36 campagnes, épargne seule) : 33 finies sur 36 avant comme après, médiane 17 → 16 min, Kla'ed 15 → 16,
+    Nairan 14 → 13, Nautolan 4 → 4.
+  - Niveaux : la Facile ne reçoit ni l'épargne ni le découpage, ses décisions sont celles d'avant ; la Normale bat l'IA
+    d'avant 17 à 7, l'écart avec la Facile grandit donc. La Difficile reçoit les deux ; Difficile contre Normale n'est pas
+    remesuré (`DifficultyBalanceTests`).
+  - Coût d'un pas (`STRATEGY_COST=1`, première heure, parties différentes, machine chargée) : la part de l'IA ne monte pas,
+    0,21 → 0,18 ms en grande galaxie à deux, 0,80 → 0,36 en immense à trois, 0,23 → 0,18 en immense à six ; 11 → 8,5 Kio,
+    54 → 38 et 28 → 24,5 par pas.
+  - Écartés, chacun seul contre l'IA d'avant (24 parties) : la réserve mobile (une part de la flotte la plus proche,
+    au-delà de deux voies, vers une planète qu'aucune flotte voisine ne sauve, contre les raids derrière le front) 12 à 12 ;
+    viser juste (compter dans une frappe les flottes ennemies en route vers la cible : en galaxie moyenne, graine 1,
+    25 550 lancés sur une capitale quand 123 600 y rentraient) 12 à 12 ; les goulets (armer d'abord les planètes que
+    l'ennemi doit traverser pour en atteindre d'autres, jusqu'à trois voies du front) 12 à 12 ; les fronts (une flotte qui
+    tient sa planète contre les flottes rivales voisines y reste au lieu de rejoindre le rassemblement, et la Normale vise
+    elle aussi un rival occupé ailleurs) 11 à 13 ; découpage, réserve, goulets et fronts ensemble, 10 à 14. L'expansion
+    groupée (sans rival à portée, les flottes se rassemblent pour prendre ensemble une planète indépendante voisine : en
+    grande galaxie, graine 31, une IA restait à 10 planètes toute la paix de départ avec 17 000 de flotte et 11 800 crédits)
+    : 13 à 11 (grande 7-1, immense 2-6, où les rivaux restent longtemps hors de portée) ; limitée à la paix de départ,
+    15 à 9 (cartes 4 à 1) ; mais par-dessus l'épargne, contre l'épargne seule, 13 à 9 et deux nuls (cartes 2 à 1) : pas
+    assez net. À trois camps (grande et immense, 24 parties, les quatre premiers comportements) : 15 victoires partagées par
+    alliance, 2 pour la nouvelle seule, 6 pour les anciennes, un nul : les alliances entre IA décident, une série à trois ne
+    départage rien.
+  - Ouvert : les campagnes immenses entre IA de même force durent plus qu'avant ; une IA agressive restait sans laboratoire
+    toute une campagne immense, même avec l'épargne (stations et vaisseaux passent avant lui) ; personnalités, races et coût
+    mesurés avec l'épargne seule, avant le découpage.
 - Sécurité (2026-11-03) : ce qu'un inconnu peut envoyer au serveur en ligne, à un hôte ou au jeu, et les fichiers du joueur.
   Chaque lecteur exposé passe un test de robustesse à graine fixe (`FuzzTests` : trames du relais, messages du jeu, ordres,
   instantanés de bataille entiers et en parties, galaxie, rediffusions, sauvegardes), et chaque correction a son test

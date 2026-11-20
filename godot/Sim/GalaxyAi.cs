@@ -4,7 +4,6 @@
 // derelicts, and brings worn fleets home from beyond its supply lines. Its difficulty changes
 // what it decides as well as its income: the easy AI strikes before it is ready and leaves its
 // planets to themselves, the hard one picks its moment and its targets.
-using System.Text.Json.Serialization;
 using SandboxShip.Sim.Data;
 using static SandboxShip.Sim.Galaxies;
 
@@ -20,9 +19,6 @@ public sealed partial class GalaxyAIState
     public double Fund;
     /// <summary>Galaxy seconds before the AI strikes a rival faction's planet again: its fleets regroup and mend between two offensives.</summary>
     public double Regroup;
-    /// <summary>Measure only, for now: the strategy behaviours this AI leaves out (GalaxyAi.Lacks), to play it against the AI without them.</summary>
-    [JsonIgnore]
-    public int Without;
 }
 
 public static partial class GalaxyAi
@@ -324,8 +320,9 @@ public static partial class GalaxyAi
         : BuildPrice(g, g.Planets[wish.Planet], wish.Build!.Value);
 
     /// <summary>
-    /// Buys the first wish it can; stops to save up when the wish is only too expensive. A share
-    /// of its income goes to its project, and only a planet in danger touches it; a treasury
+    /// Buys the first wish it can; stops to save up when the wish is only too expensive, and passes
+    /// it over when two minutes of income would not pay it (SaveHorizon), but for the easy AI. A
+    /// share of its income goes to its project, and only a planet in danger touches it; a treasury
     /// well beyond the project's price buys it at once.
     /// </summary>
     static void Spend(Galaxy g, Side side, Dictionary<int, int> hops, double interval)
@@ -359,7 +356,7 @@ public static partial class GalaxyAi
             // What two minutes of income would not pay is passed over rather than saved for, but by the easy AI: on its
             // turns of ships the AI spent what it had put aside, and a station level it never reached kept it from a lab,
             // research and platforms for the whole campaign.
-            if (r.Reason == NoCredits && (Clumsy(ai) || Lacks(ai, Strategy.Saving) || PriceOf(g, side, wish) <= IncomeOf(g, side) * SaveHorizon)) return;
+            if (r.Reason == NoCredits && (Clumsy(ai) || PriceOf(g, side, wish) <= IncomeOf(g, side) * SaveHorizon)) return;
             // A ship out of reach makes way for another class; one it may no longer build (its limit reached meanwhile) too.
             if (r.Reason == NoCredits)
             {
@@ -371,16 +368,38 @@ public static partial class GalaxyAi
         }
     }
 
-    /// <summary>Measure only, for now: the strategy behaviours GalaxyAIState.Without can leave out.</summary>
-    public static class Strategy
-    {
-        public const int Saving = 64;
-    }
-
-    static bool Lacks(GalaxyAIState ai, int what) => (ai.Without & what) != 0;
-
     /// <summary>Galaxy seconds of income beyond which the AI passes over a purchase rather than save for it.</summary>
     const double SaveHorizon = 120;
+
+    /// <summary>A strike takes this much more than the fleet cap lets fight at once, or than its target asks.</summary>
+    const double SplitShare = 1.5;
+
+    /// <summary>The strength of the share of a fleet that fits under the fleet cap at once, its classes in proportion: all of it below the cap.</summary>
+    static double CapShare(Galaxy g, Fleet f)
+    {
+        var points = 0;
+        foreach (var (c, n) in f.Ships) points += n * Reserves.Points(c);
+        var value = FleetStrength(f);
+        return points <= 0 ? value : value * Math.Min(1, Reserves.CapPoints(g.FleetCap) / (double)points);
+    }
+
+    /// <summary>
+    /// Ships of a fleet worth about `strength`, each class in proportion; null when that is most of
+    /// it anyway, and the whole fleet goes.
+    /// </summary>
+    static ShipCounts? Share(Fleet f, double strength)
+    {
+        var value = FleetStrength(f);
+        if (strength >= value * 0.75) return null;
+        var part = strength / value;
+        var ships = new ShipCounts();
+        foreach (var (c, n) in f.Ships)
+        {
+            var k = Math.Min(n, (int)Math.Ceiling(n * part));
+            if (k > 0) ships[c] = k;
+        }
+        return ships.Count > 0 ? ships : null;
+    }
 
     static bool Heading(Galaxy g, Side side, int planetId) =>
         g.Fleets.Values.Any(f => f.Side == side && (f.To == planetId || f.Path.Contains(planetId)));
@@ -639,16 +658,29 @@ public static partial class GalaxyAi
             double Guard(Planet p) => Cunning(ai) ? Odds(g, side, p, seen) : Threat(g, p, side);
             // A rival faction's planet waits for the fleets to have regrouped since the last strike.
             bool Rival(Planet p) => p.Owner is Side o && IsFaction(g, o);
-            var target = near
+            double Bar(Planet p) => Guard(p) * (p.Owner == Faction.Errant ? 1.4 : Edge(ai)) + 300;
+            var targets = near
                 .Where(p => (EnemyPlanet(g, side, p) || Threat(g, p, side) > 0) && (ai.Regroup <= 0 || !Rival(p))
                     && !g.Courtships.Exists(c => c.Side == side && c.Planet == p.Id)
-                    && value >= Guard(p) * (p.Owner == Faction.Errant ? 1.4 : Edge(ai)) + 300)
-                .OrderByDescending(p => cunning ? Worth(p) / (Guard(p) + 500) : Worth(p)).FirstOrDefault();
-            if (target is not null && !worn && SendFleet(g, fleet.Id, target.Id).Ok)
+                    && value >= Bar(p))
+                .OrderByDescending(p => cunning ? Worth(p) / (Guard(p) + 500) : Worth(p)).ToList();
+            if (targets.Count > 0 && !worn)
             {
-                struck |= target.Owner is not null;
-                rival |= Rival(target);
-                continue;
+                // A fleet far past what the fleet cap lets fight at once splits, but for the easy AI: each strike takes
+                // half again what fits under the cap, or what its target asks, and what is left strikes the next target,
+                // or stays. One huge fleet took a planet at a time, its reserve waiting, and the campaign dragged on.
+                var cap = clumsy ? double.PositiveInfinity : CapShare(g, fleet);
+                var hit = false;
+                foreach (var t in clumsy ? targets.Take(1) : targets)
+                {
+                    if (fleet.At is null || FleetStrength(fleet) < Bar(t)) continue;
+                    var share = clumsy ? null : Share(fleet, Math.Max(cap, Bar(t)) * SplitShare);
+                    if (!SendFleet(g, fleet.Id, t.Id, share, share is null ? null : fleet.Heroes).Ok) continue;
+                    hit = true;
+                    struck |= t.Owner is not null;
+                    rival |= Rival(t);
+                }
+                if (hit) continue;
             }
 
             // A derelict within two lanes, for whoever gets there first: one ship goes to claim it.
