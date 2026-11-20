@@ -104,6 +104,27 @@ public class TierTests
     }
 
     [Fact]
+    public void A_carrier_keeps_back_from_what_it_attacks_while_its_craft_go_on()
+    {
+        var w = Open();
+        var carrier = SpawnShip(w, Faction.Klaed, ShipClass.Carrier, 1000, 2000);
+        Run(w, 3);
+        var target = SpawnShip(w, Faction.Nairan, ShipClass.Frigate, 2000, 2000, Math.PI);
+        target.Weapons = [];
+        foreach (var part in ChildrenOf(w, target.Id)) part.Weapons = [];
+        target.Pilot = new Pilot();
+        // Tough enough to outlast the craft.
+        target.Hull = target.MaxHull = 1e6;
+        Movement.IssueAttack(w, [carrier.Id], target.Id);
+        Run(w, 25);
+        // It closed in, and stopped well out of its flak's reach (310); its craft are on the frigate.
+        var gap = Dist(carrier, target) - target.Radius;
+        Expect.Less(gap, 700);
+        Expect.Greater(gap, 500);
+        Assert.Contains(w.Entities, c => c.CarrierId == carrier.Id && Dist(c, target) < 300);
+    }
+
+    [Fact]
     public void One_leviathan_at_most_from_a_level_4_station()
     {
         var w = Open();

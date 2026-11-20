@@ -108,6 +108,8 @@ public static class Movement
         // no further than it keeps away from what it outranges.
         var stop = Combat.StopRange(e, t);
         if (kites) stop = Math.Max(stop, safe + KiteRoom - t.Radius);
+        // A carrier fights with its craft, not its flak: it keeps back while they fight for it.
+        if (e.Cls == ShipClass.Carrier) stop = Math.Max(stop, CarrierStandoff);
         if (kites && dist < safe && dist > 0)
         {
             var away = (safe + hit) / 2;
@@ -123,6 +125,13 @@ public static class Movement
             TurnTowards(e, def, Math.Atan2(t.Y - e.Y, t.X - e.X), dt);
         }
     }
+
+    /// <summary>
+    /// How far a carrier keeps from what it fights, its craft going on (not in the web version).
+    /// One that closed in to its flak's reach, as every class does to its guns', lost 63 games,
+    /// won 24 and drew 9 of 96 against one that kept back (2026-11-20).
+    /// </summary>
+    const double CarrierStandoff = 550;
 
     static double EngineShare(Entity e) => e.Engines is null || e.MaxEngines == 0 ? 1 : Math.Max(0.15, (double)e.Engines.Value / e.MaxEngines);
 

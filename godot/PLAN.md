@@ -53,7 +53,8 @@ tests de `FixtureTests` et `CrossTests` les listent.
 
 - Les vaisseaux ordonnés ensemble avancent en flotte : au pas du plus lent, les traînards
   rattrapent, les vaisseaux de ligne devant, petits et soutiens derrière.
-- Les appareils lancés escortent leur porteur et attaquent sa cible.
+- Les appareils lancés escortent leur porteur et attaquent sa cible ; le transporteur se tient à 550 de
+  ce qu'il combat et les y laisse aller (« IA tactique », 2026-11-20).
 - Postures par vaisseau (`Stance`, défensive par défaut, le comportement d'avant) : agressive (cherche
   plus loin, poursuit sans laisse, reste où le combat l'a mené), tenir la position (ni poursuite, ni
   esquive, ni repli, cible à portée de tir), passive (ne choisit aucune cible, tire seulement sur ordre
@@ -1000,6 +1001,20 @@ tests de `FixtureTests` et `CrossTests` les listent.
     Nairan 48 → 44 %, Nautolan 46 → 40 %, 8 nuls comme avant. Non appliqué : rien pour le régicide, et zones,
     assaut et campagne restent à mesurer ; c'est la piste pour les Kla'ed, à 39 % en escarmouche sur 144 parties
     (déjà 40 % avant ces chantiers : les 50 % de la mesure à 36 parties tenaient aux graines 1 à 6).
+- IA tactique (2026-11-20) : le combat de chaque vaisseau et du groupe au contact, et l'emploi des classes spéciales
+  (`Combat.cs`, `Movement.cs`, `AbilitySystem.cs`), qui valent pour l'IA comme pour les vaisseaux du joueur laissés à
+  eux-mêmes. Chaque comportement est mesuré seul, en Release, en face à face : 96 escarmouches entre deux IA normales
+  de même race, donc à revenu égal, chacune à chaque départ (graines 101 à 1616, sans Colosse), l'une avec, l'autre
+  sans. Un banc de batailles de flottes en miroir, sans station, triait les essais avant, en quelques secondes :
+  16 000 cr au mélange de l'IA, avec ou sans quelques vaisseaux d'une classe ajoutés, trois races, huit graines ;
+  48 batailles vague contre vague, 24 d'une vague contre une flotte qui l'attend, 24 l'inverse. L'un et l'autre, et
+  l'interrupteur de mesure (dans l'état de la faction), sont retirés une fois mesuré.
+  - Transporteur : il fermait jusqu'à la portée de sa DCA (310), comme chaque classe le fait de l'essentiel de ses
+    canons, et prenait les coups au milieu de ses appareils. Il se tient maintenant à 550 de ce qu'il combat, ordre
+    d'attaque du joueur compris, et ses appareils y vont seuls (`Movement.CarrierStandoff`) : 63 gagnées, 24 perdues,
+    9 nuls (Kla'ed 20-9, Nairan 24-7, Nautolan 19-8). Au banc, avec deux transporteurs par flotte : 36 contre 12
+    vague contre vague, 18 contre 6 à l'attaque (2 contre 22 entre deux flottes sans), 23 contre 1 en défense.
+    Tests : `TierTests`.
 - Sécurité (2026-11-03) : ce qu'un inconnu peut envoyer au serveur en ligne, à un hôte ou au jeu, et les fichiers du joueur.
   Chaque lecteur exposé passe un test de robustesse à graine fixe (`FuzzTests` : trames du relais, messages du jeu, ordres,
   instantanés de bataille entiers et en parties, galaxie, rediffusions, sauvegardes), et chaque correction a son test
